@@ -8,7 +8,7 @@ from requests_toolbelt import user_agent
 import time
 from urllib.parse import urljoin
 
-from api import __version__ as deis_version
+from api import __version__ as drycc_version
 from scheduler.exceptions import KubeException, KubeHTTPException   # noqa
 from scheduler.states import PodState
 
@@ -27,7 +27,7 @@ def get_session(k8s_api_verify_tls):
         session.headers = {
             'Authorization': 'Bearer ' + token,
             'Content-Type': 'application/json',
-            'User-Agent': user_agent('Deis Controller', deis_version)
+            'User-Agent': user_agent('Drycc Controller', drycc_version)
         }
         if k8s_api_verify_tls:
             session.verify = '/var/run/secrets/kubernetes.io/serviceaccount/ca.crt'
@@ -252,7 +252,7 @@ class KubeHTTPClient(object):
                 'app': namespace,
                 'version': version,
                 'type': app_type,
-                'heritage': 'deis',
+                'heritage': 'drycc',
             }
             # this depends on the deployment object having the latest information
             deployment = self.deployment.get(namespace, name).json()

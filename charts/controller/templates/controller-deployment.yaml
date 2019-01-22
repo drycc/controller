@@ -1,11 +1,11 @@
 apiVersion: extensions/v1beta1
 kind: Deployment
 metadata:
-  name: deis-controller
+  name: drycc-controller
   labels:
-    heritage: deis
+    heritage: drycc
   annotations:
-    component.deis.io/version: {{ .Values.docker_tag }}
+    component.drycc.cc/version: {{ .Values.docker_tag }}
 spec:
   replicas: 1
   strategy:
@@ -15,15 +15,15 @@ spec:
     type: RollingUpdate
   selector:
     matchLabels:
-      app: deis-controller
+      app: drycc-controller
   template:
     metadata:
       labels:
-        app: deis-controller
+        app: drycc-controller
     spec:
-      serviceAccount: deis-controller
+      serviceAccount: drycc-controller
       containers:
-        - name: deis-controller
+        - name: drycc-controller
           image: quay.io/{{.Values.org}}/controller:{{.Values.docker_tag}}
           imagePullPolicy: {{.Values.pull_policy}}
           livenessProbe:
@@ -55,8 +55,8 @@ spec:
           env:
             - name: REGISTRATION_MODE
               value: {{ .Values.registration_mode }}
-            # NOTE(bacongobbler): use deis/registry_proxy to work around Docker --insecure-registry requirements
-            - name: "DEIS_REGISTRY_SERVICE_HOST"
+            # NOTE(bacongobbler): use drycc/registry_proxy to work around Docker --insecure-registry requirements
+            - name: "DRYCC_REGISTRY_SERVICE_HOST"
               value: "127.0.0.1"
             # Environmental variable value for $EXPERIMENTAL_NATIVE_INGRESS
             - name: "EXPERIMENTAL_NATIVE_INGRESS"
@@ -65,13 +65,13 @@ spec:
               value: "{{ .Values.platform_domain }}"
             - name: "K8S_API_VERIFY_TLS"
               value: "{{ .Values.k8s_api_verify_tls }}"
-            - name: "DEIS_REGISTRY_SERVICE_PORT"
+            - name: "DRYCC_REGISTRY_SERVICE_PORT"
               value: "{{ .Values.global.host_port }}"
             - name: "APP_STORAGE"
               value: "{{ .Values.global.storage}}"
-            - name: "DEIS_REGISTRY_LOCATION"
+            - name: "DRYCC_REGISTRY_LOCATION"
               value: "{{ .Values.global.registry_location }}"
-            - name: "DEIS_REGISTRY_SECRET_PREFIX"
+            - name: "DRYCC_REGISTRY_SECRET_PREFIX"
               value: "{{ .Values.global.secret_prefix }}"
             - name: "SLUGRUNNER_IMAGE_NAME"
               valueFrom:
@@ -83,53 +83,53 @@ spec:
             - name: "TZ"
               value: {{ .Values.time_zone | default "UTC" | quote }}
 {{- if (.Values.deploy_hook_urls) }}
-            - name: DEIS_DEPLOY_HOOK_URLS
+            - name: DRYCC_DEPLOY_HOOK_URLS
               value: "{{ .Values.deploy_hook_urls }}"
-            - name: DEIS_DEPLOY_HOOK_SECRET_KEY
+            - name: DRYCC_DEPLOY_HOOK_SECRET_KEY
               valueFrom:
                 secretKeyRef:
                   name: deploy-hook-key
                   key: secret-key
 {{- end }}
-            - name: DEIS_SECRET_KEY
+            - name: DRYCC_SECRET_KEY
               valueFrom:
                 secretKeyRef:
                   name: django-secret-key
                   key: secret-key
-            - name: DEIS_BUILDER_KEY
+            - name: DRYCC_BUILDER_KEY
               valueFrom:
                 secretKeyRef:
                   name: builder-key-auth
                   key: builder-key
 {{- if eq .Values.global.database_location "off-cluster" }}
-            - name: DEIS_DATABASE_NAME
+            - name: DRYCC_DATABASE_NAME
               valueFrom:
                 secretKeyRef:
                   name: database-creds
                   key: name
-            - name: DEIS_DATABASE_SERVICE_HOST
+            - name: DRYCC_DATABASE_SERVICE_HOST
               valueFrom:
                 secretKeyRef:
                   name: database-creds
                   key: host
-            - name: DEIS_DATABASE_SERVICE_PORT
+            - name: DRYCC_DATABASE_SERVICE_PORT
               valueFrom:
                 secretKeyRef:
                   name: database-creds
                   key: port
 {{- end }}
-            - name: DEIS_DATABASE_USER
+            - name: DRYCC_DATABASE_USER
               valueFrom:
                 secretKeyRef:
                   name: database-creds
                   key: user
-            - name: DEIS_DATABASE_PASSWORD
+            - name: DRYCC_DATABASE_PASSWORD
               valueFrom:
                 secretKeyRef:
                   name: database-creds
                   key: password
             - name: RESERVED_NAMES
-              value: "deis, deis-builder, deis-workflow-manager, grafana"
+              value: "drycc, drycc-builder, drycc-workflow-manager, grafana"
             - name: WORKFLOW_NAMESPACE
               valueFrom:
                 fieldRef:

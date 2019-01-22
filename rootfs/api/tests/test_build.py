@@ -1,5 +1,5 @@
 """
-Unit tests for the Deis api app.
+Unit tests for the Drycc api app.
 
 Run the tests with "./manage.py test api"
 """
@@ -16,7 +16,7 @@ from api.models import Build, App
 from registry.dockerclient import RegistryException
 from scheduler import KubeException
 
-from api.tests import adapter, mock_port, DeisTransactionTestCase
+from api.tests import adapter, mock_port, DryccTransactionTestCase
 import requests_mock
 
 
@@ -24,7 +24,7 @@ import requests_mock
 @mock.patch('api.models.release.publish_release', lambda *args: None)
 @mock.patch('api.models.release.docker_get_port', mock_port)
 @mock.patch('api.models.release.docker_check_access', lambda *args: None)
-class BuildTest(DeisTransactionTestCase):
+class BuildTest(DryccTransactionTestCase):
 
     """Tests build notification from build system"""
 
@@ -237,7 +237,7 @@ class BuildTest(DeisTransactionTestCase):
         response = self.client.post(url, body)
         self.assertEqual(response.status_code, 201, response.data)
 
-    @override_settings(DEIS_DEPLOY_PROCFILE_MISSING_REMOVE=True)
+    @override_settings(DRYCC_DEPLOY_PROCFILE_MISSING_REMOVE=True)
     def test_build_forgotten_procfile(self, mock_requests):
         """
         Test that when a user first posts a build with a Procfile
@@ -307,7 +307,7 @@ class BuildTest(DeisTransactionTestCase):
         self.assertEqual(response.status_code, 200, response.data)
         self.assertEqual(response.json()['structure'], {'cmd': 1, 'web': 0, 'worker': 0})
 
-    @override_settings(DEIS_DEPLOY_PROCFILE_MISSING_REMOVE=False)
+    @override_settings(DRYCC_DEPLOY_PROCFILE_MISSING_REMOVE=False)
     def test_build_no_remove_process(self, mock_requests):
         """
         Specifically test PROCFILE_REMOVE_PROCS_ON_DEPLOY being turned off
@@ -398,7 +398,7 @@ class BuildTest(DeisTransactionTestCase):
         # pod name is auto generated so use regex
         self.assertRegex(container['name'], app_id + '-worker-[0-9]{8,10}-[a-z0-9]{5}')
 
-    @override_settings(DEIS_DEPLOY_REJECT_IF_PROCFILE_MISSING=True)
+    @override_settings(DRYCC_DEPLOY_REJECT_IF_PROCFILE_MISSING=True)
     def test_build_forgotten_procfile_reject(self, mock_requests):
         """
         Test that when a user first posts a build with a Procfile
@@ -545,7 +545,7 @@ class BuildTest(DeisTransactionTestCase):
         self.assertEqual(len(response.data['results']), 0)
 
     def test_build_image_in_registry(self, mock_requests):
-        """When the image is already in the deis registry no pull/tag/push happens"""
+        """When the image is already in the drycc registry no pull/tag/push happens"""
         app_id = self.create_app()
 
         # post an image as a build using registry hostname
@@ -628,7 +628,7 @@ class BuildTest(DeisTransactionTestCase):
             response = self.client.post(url, body)
             self.assertEqual(response.status_code, 400, response.data)
             mock_check_access.assert_called_with(
-                image, {'username': 'bob', 'password': 'zoomzoom', 'email': 'autotest@deis.io'})
+                image, {'username': 'bob', 'password': 'zoomzoom', 'email': 'autotest@drycc.cc'})
 
     def test_build_image_in_registry_with_auth_no_port(self, mock_requests):
         """add authentication to the build but with no PORT config"""

@@ -91,7 +91,7 @@ class Pod(Resource):
                 # is the pod ready to serve requests?
                 return states[pod_state]
         else:
-            # if no match was found for deis mapping then passthrough the real state
+            # if no match was found for drycc mapping then passthrough the real state
             pod_state = pod['status']['phase']
 
         return states.get(pod_state, pod_state)
@@ -105,7 +105,7 @@ class Pod(Resource):
             'app': namespace,
             'version': kwargs.get('version'),
             'type': app_type,
-            'heritage': 'deis',
+            'heritage': 'drycc',
         }
 
         # create base pod structure
@@ -145,7 +145,7 @@ class Pod(Resource):
             # added to kwargs to send to the container function
             kwargs['volumeMounts'] = [{
                 'name': 'objectstorage-keyfile',
-                'mountPath': '/var/run/secrets/deis/objectstore/creds',
+                'mountPath': '/var/run/secrets/drycc/objectstore/creds',
                 'readOnly': True
             }]
 
@@ -211,9 +211,9 @@ class Pod(Resource):
                     data["env"].append(item)
 
         # Inject debugging if workflow is in debug mode
-        if os.environ.get("DEIS_DEBUG", False):
+        if os.environ.get("DRYCC_DEBUG", False):
             data["env"].append({
-                "name": "DEIS_DEBUG",
+                "name": "DRYCC_DEBUG",
                 "value": "1"
             })
 
@@ -277,7 +277,7 @@ class Pod(Resource):
         healthchecks = kwargs.get('healthcheck', None)
         if healthchecks:
             # check if a port is present. if not, auto-populate it
-            # TODO: rip this out when we stop supporting deis config:set HEALTHCHECK_URL
+            # TODO: rip this out when we stop supporting drycc config:set HEALTHCHECK_URL
             if (
                 healthchecks.get('livenessProbe') is not None and
                 healthchecks['livenessProbe'].get('httpGet') is not None and
@@ -332,11 +332,11 @@ class Pod(Resource):
     http://kubernetes.io/docs/user-guide/pod-states/#container-probes
 
     /runner/init is the entry point of the slugrunner.
-    https://github.com/deisthree/slugrunner/blob/01eac53f1c5f1d1dfa7570bbd6b9e45c00441fea/rootfs/Dockerfile#L20
+    https://github.com/drycc/slugrunner/blob/01eac53f1c5f1d1dfa7570bbd6b9e45c00441fea/rootfs/Dockerfile#L20
     Once it downloads the slug it starts running using `exec` which means the pid 1
     will point to the slug/application command instead of entry point once the application has
     started.
-    https://github.com/deisthree/slugrunner/blob/01eac53f1c5f1d1dfa7570bbd6b9e45c00441fea/rootfs/runner/init#L90
+    https://github.com/drycc/slugrunner/blob/01eac53f1c5f1d1dfa7570bbd6b9e45c00441fea/rootfs/runner/init#L90
 
     This should be added only for the build pack apps when a custom liveness probe is not set to
     make sure that the pod is ready only when the slug is downloaded and started running.
@@ -722,7 +722,7 @@ class Pod(Resource):
                     continue
 
                 # Find out if any pod goes beyond the Running (up) state
-                # Allow that to happen to account for very fast `deis run` as
+                # Allow that to happen to account for very fast `drycc run` as
                 # an example. Code using this function will account for it
                 state = self.state(pod)
                 if isinstance(state, PodState) and state > PodState.up:

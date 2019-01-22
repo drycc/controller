@@ -1,4 +1,4 @@
-# Deis controller requirements
+# Drycc controller requirements
 backoff==1.4.3
 django==1.11.18
 django-auth-ldap==1.2.15

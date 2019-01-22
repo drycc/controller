@@ -4,10 +4,10 @@ from rest_framework.authtoken.models import Token
 
 from api.models import App
 
-from api.tests import DeisTransactionTestCase
+from api.tests import DryccTransactionTestCase
 
 
-class TestServices(DeisTransactionTestCase):
+class TestServices(DryccTransactionTestCase):
 
     """Tests push notification from build system"""
 

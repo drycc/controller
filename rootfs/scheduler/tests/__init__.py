@@ -28,7 +28,7 @@ class TestCase(DjangoTestCase):
             {
                 'name': namespace,
                 'labels': {
-                    'heritage': 'deis'
+                    'heritage': 'drycc'
                 }
             },
             data['metadata']

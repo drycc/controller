@@ -39,8 +39,8 @@
     "pk": 1,
     "model": "sites.site",
     "fields": {
-        "domain": "local3.deisapp.com",
-        "name": "local3.deisapp.com"
+        "domain": "local3.dryccapp.com",
+        "name": "local3.dryccapp.com"
     }
 }
 ]

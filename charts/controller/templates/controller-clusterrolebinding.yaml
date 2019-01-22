@@ -3,17 +3,17 @@
 kind: ClusterRoleBinding
 apiVersion: {{ template "rbacAPIVersion" . }}
 metadata:
-  name: deis:deis-controller
+  name: drycc:drycc-controller
   labels:
-    app: deis-controller
-    heritage: deis
+    app: drycc-controller
+    heritage: drycc
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
-  name: deis:deis-controller
+  name: drycc:drycc-controller
 subjects:
 - kind: ServiceAccount
-  name: deis-controller
+  name: drycc-controller
   namespace: {{ .Release.Namespace }}
 {{- end -}}
 {{- end -}}

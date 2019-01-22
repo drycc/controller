@@ -32,7 +32,7 @@ class Quota(Resource):
                 "name": name,
                 'labels': {
                     'app': namespace_name,
-                    'heritage': 'deis'
+                    'heritage': 'drycc'
                 },
             },
             'spec': {}

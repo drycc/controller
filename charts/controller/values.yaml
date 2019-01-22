@@ -1,9 +1,9 @@
-org: "deisci"
+org: "drycc"
 pull_policy: "Always"
 docker_tag: canary
 app_pull_policy: "Always"
 # A comma-separated list of URLs to send app release information to
-# See https://deis.com/docs/workflow/managing-workflow/deploy-hooks
+# See https://drycc.com/docs/workflow/managing-workflow/deploy-hooks
 deploy_hook_urls: ""
 # limits_cpu: "100m"
 # limits_memory: "50Mi"
@@ -16,7 +16,7 @@ registration_mode: "admin_only"
 k8s_api_verify_tls: "true"
 # The public resolvable hostname to build your cluster with.
 #
-# This will be the hostname that is used to build endpoints such as "deis.$HOSTNAME"
+# This will be the hostname that is used to build endpoints such as "drycc.$HOSTNAME"
 platform_domain: ""
 
 global:
@@ -49,11 +49,11 @@ global:
   host_port: 5555
   # Prefix for the imagepull secret created when using private registry
   secret_prefix: "private-registry"
-  # Experimental feature to toggle using kubernetes ingress instead of the Deis router.
+  # Experimental feature to toggle using kubernetes ingress instead of the Drycc router.
   #
   # Valid values are:
-  # - true: The deis controller will now create Kubernetes ingress rules for each app, and ingress rules will automatically be created for the controller itself.
-  # - false: The default mode, and the default behavior of Deis workflow.
+  # - true: The drycc controller will now create Kubernetes ingress rules for each app, and ingress rules will automatically be created for the controller itself.
+  # - false: The default mode, and the default behavior of Drycc workflow.
   experimental_native_ingress: false
   # Role-Based Access Control for Kubernetes >= 1.5
   use_rbac: false

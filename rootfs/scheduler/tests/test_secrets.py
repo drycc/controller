@@ -1,5 +1,5 @@
 """
-Unit tests for the Deis scheduler module.
+Unit tests for the Drycc scheduler module.
 
 Run the tests with './manage.py test scheduler'
 """
@@ -119,7 +119,7 @@ class SecretsTest(TestCase):
                 'name': name,
                 'labels': {
                     'app': self.namespace,
-                    'heritage': 'deis'
+                    'heritage': 'drycc'
                 }
             },
             data['metadata']

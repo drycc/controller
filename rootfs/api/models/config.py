@@ -5,7 +5,7 @@ import json
 
 from api.models.release import Release
 from api.models import UuidAuditedModel
-from api.exceptions import DeisException, UnprocessableEntity
+from api.exceptions import DryccException, UnprocessableEntity
 
 
 class Config(UuidAuditedModel):
@@ -88,16 +88,16 @@ class Config(UuidAuditedModel):
         # PORT must be set if private registry is being used
         if self.registry and self.values.get('PORT', None) is None:
             # only thing that can get past post_save in the views
-            raise DeisException(
+            raise DryccException(
                 'PORT needs to be set in the config '
                 'when using a private registry')
 
     def set_tags(self, previous_config):
         """verify the tags exist on any nodes as labels"""
         if not self.tags:
-            if settings.DEIS_DEFAULT_CONFIG_TAGS:
+            if settings.DRYCC_DEFAULT_CONFIG_TAGS:
                 try:
-                    tags = json.loads(settings.DEIS_DEFAULT_CONFIG_TAGS)
+                    tags = json.loads(settings.DRYCC_DEFAULT_CONFIG_TAGS)
                     self.tags = tags
                 except json.JSONDecodeError as e:
                     return
@@ -120,7 +120,7 @@ class Config(UuidAuditedModel):
             if new:
                 message += ' - Addition of {} is the cause'.format(', '.join(new))
 
-        raise DeisException(message)
+        raise DryccException(message)
 
     def set_healthcheck(self, previous_config):
         data = getattr(previous_config, 'healthcheck', {}).copy()

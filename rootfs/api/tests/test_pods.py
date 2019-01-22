@@ -1,5 +1,5 @@
 """
-Unit tests for the Deis api app.
+Unit tests for the Drycc api app.
 
 Run the tests with "./manage.py test api"
 """
@@ -14,7 +14,7 @@ from test.support import EnvironmentVarGuard
 from api.models import App, Build, Release
 from scheduler import KubeException
 
-from api.tests import adapter, mock_port, DeisTransactionTestCase
+from api.tests import adapter, mock_port, DryccTransactionTestCase
 import requests_mock
 
 
@@ -22,7 +22,7 @@ import requests_mock
 @mock.patch('api.models.release.publish_release', lambda *args: None)
 @mock.patch('api.models.release.docker_get_port', mock_port)
 @mock.patch('api.models.release.docker_check_access', lambda *args: None)
-class PodTest(DeisTransactionTestCase):
+class PodTest(DryccTransactionTestCase):
     """Tests creation of pods on nodes"""
 
     fixtures = ['tests.json']
@@ -326,7 +326,7 @@ class PodTest(DeisTransactionTestCase):
             self.assertRegex(pod['name'], app_id + '-(worker|web)-[0-9]{7,10}-[a-z0-9]{5}')
 
     def test_pod_command_format(self, mock_requests):
-        # regression test for https://github.com/deisthree/deis/pull/1285
+        # regression test for https://github.com/drycc/drycc/pull/1285
         app_id = self.create_app()
 
         # post a new build
@@ -581,10 +581,10 @@ class PodTest(DeisTransactionTestCase):
 
     def test_run_not_fail_on_debug(self, mock_requests):
         """
-        do a run with DEIS_DEBUG on - https://github.com/deisthree/controller/issues/583
+        do a run with DRYCC_DEBUG on - https://github.com/drycc/controller/issues/583
         """
         env = EnvironmentVarGuard()
-        env['DEIS_DEBUG'] = 'true'
+        env['DRYCC_DEBUG'] = 'true'
 
         app_id = self.create_app()
         app = App.objects.get(id=app_id)
@@ -693,7 +693,7 @@ class PodTest(DeisTransactionTestCase):
 
     def test_modified_procfile_from_build_removes_pods(self, mock_requests):
         """
-        When a new procfile is posted which removes a certain process type, deis should stop the
+        When a new procfile is posted which removes a certain process type, drycc should stop the
         existing pods.
         """
         app_id = self.create_app()

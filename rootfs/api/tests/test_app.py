@@ -1,5 +1,5 @@
 """
-Unit tests for the Deis api app.
+Unit tests for the Drycc api app.
 
 Run the tests with "./manage.py test api"
 """
@@ -19,8 +19,8 @@ from rest_framework.authtoken.models import Token
 from api.models import App, Config
 from scheduler import KubeException, KubeHTTPException
 
-from api.exceptions import DeisException
-from api.tests import adapter, mock_port, DeisTestCase
+from api.exceptions import DryccException
+from api.tests import adapter, mock_port, DryccTestCase
 import requests_mock
 
 
@@ -36,7 +36,7 @@ def _mock_run(*args, **kwargs):
 @mock.patch('api.models.release.publish_release', lambda *args: None)
 @mock.patch('api.models.release.docker_get_port', mock_port)
 @mock.patch('api.models.release.docker_check_access', lambda *args: None)
-class AppTest(DeisTestCase):
+class AppTest(DryccTestCase):
     """Tests creation of applications"""
 
     fixtures = ['tests.json']
@@ -110,7 +110,7 @@ class AppTest(DeisTestCase):
     def test_app_logs(self, mock_requests, mock_get):
         app_id = self.create_app()
 
-        # test logs - 204 from deis-logger
+        # test logs - 204 from drycc-logger
         mock_response = mock.Mock()
         mock_response.status_code = 204
         mock_get.return_value = mock_response
@@ -118,12 +118,12 @@ class AppTest(DeisTestCase):
         response = self.client.get(url)
         self.assertEqual(response.status_code, 204, response.content)
 
-        # test logs -  from deis-logger
+        # test logs -  from drycc-logger
         mock_response.status_code = 404
         response = self.client.get(url)
         self.assertEqual(response.status_code, 204, response.content)
 
-        # test logs - unanticipated status code from deis-logger
+        # test logs - unanticipated status code from drycc-logger
         mock_response.status_code = 400
         response = self.client.get(url)
         self.assertContains(
@@ -132,13 +132,13 @@ class AppTest(DeisTestCase):
             status_code=500
         )
 
-        # test logs - success accessing deis-logger
+        # test logs - success accessing drycc-logger
         mock_response.status_code = 200
         mock_response.content = FAKE_LOG_DATA
         response = self.client.get(url)
         self.assertContains(response, FAKE_LOG_DATA, status_code=200)
 
-        # test logs - HTTP request error while accessing deis-logger
+        # test logs - HTTP request error while accessing drycc-logger
         mock_get.side_effect = requests.exceptions.RequestException('Boom!')
         response = self.client.get(url)
         self.assertContains(
@@ -201,7 +201,7 @@ class AppTest(DeisTestCase):
     def test_app_reserved_names(self, mock_requests):
         """Nobody should be able to create applications with names which are reserved."""
         reserved_names = ['foo', 'bar']
-        with self.settings(DEIS_RESERVED_NAMES=reserved_names):
+        with self.settings(DRYCC_RESERVED_NAMES=reserved_names):
             for name in reserved_names:
                 response = self.client.post('/v2/apps', {'id': name})
                 self.assertContains(
@@ -227,7 +227,7 @@ class AppTest(DeisTestCase):
 
     @mock.patch('api.models.logger')
     def test_admin_can_manage_other_apps(self, mock_requests, mock_logger):
-        """Administrators of Deis should be able to manage all applications.
+        """Administrators of Drycc should be able to manage all applications.
         """
         # log in as non-admin user and create an app
         user = User.objects.get(username='autotest2')
@@ -657,7 +657,7 @@ class AppTest(DeisTestCase):
     def test_build_env_vars(self, mock_requests):
         app = App.objects.create(owner=self.user)
         # Make sure an exception is raised when calling without a build available
-        with self.assertRaises(DeisException):
+        with self.assertRaises(DryccException):
             app._build_env_vars(app.release_set.latest())
         data = {'image': 'autotest/example'}
         url = "/v2/apps/{app.id}/builds".format(**locals())
@@ -667,12 +667,12 @@ class AppTest(DeisTestCase):
         self.assertEqual(
             app._build_env_vars(app.release_set.latest()),
             {
-                'DEIS_APP': app.id,
+                'DRYCC_APP': app.id,
                 'WORKFLOW_RELEASE': 'v2',
                 'PORT': 5000,
                 'WORKFLOW_RELEASE_SUMMARY': 'autotest deployed autotest/example',
                 'WORKFLOW_RELEASE_CREATED_AT': str(time_created.strftime(
-                    settings.DEIS_DATETIME_FORMAT))
+                    settings.DRYCC_DATETIME_FORMAT))
             })
         data['sha'] = 'abc1234'
         response = self.client.post(url, data)
@@ -681,17 +681,17 @@ class AppTest(DeisTestCase):
         self.assertEqual(
             app._build_env_vars(app.release_set.latest()),
             {
-                'DEIS_APP': app.id,
+                'DRYCC_APP': app.id,
                 'WORKFLOW_RELEASE': 'v3',
                 'PORT': 5000,
                 'SLUG_URL': 'autotest/example',
                 'BUILDER_STORAGE': None,
-                'DEIS_MINIO_SERVICE_HOST': '127.0.0.1',
-                'DEIS_MINIO_SERVICE_PORT': 80,
+                'DRYCC_MINIO_SERVICE_HOST': '127.0.0.1',
+                'DRYCC_MINIO_SERVICE_PORT': 80,
                 'SOURCE_VERSION': 'abc1234',
                 'WORKFLOW_RELEASE_SUMMARY': 'autotest deployed abc1234',
                 'WORKFLOW_RELEASE_CREATED_AT': str(time_created.strftime(
-                    settings.DEIS_DATETIME_FORMAT))
+                    settings.DRYCC_DATETIME_FORMAT))
             })
 
     def test_gather_app_settings(self, mock_requests):
@@ -705,8 +705,8 @@ class AppTest(DeisTestCase):
             owner=self.user,
             app=app,
             values={
-                'DEIS_DEPLOY_TIMEOUT': '60',
-                'DEIS_DEPLOY_BATCHES': '3',
+                'DRYCC_DEPLOY_TIMEOUT': '60',
+                'DRYCC_DEPLOY_BATCHES': '3',
                 'KUBERNETES_POD_TERMINATION_GRACE_PERIOD_SECONDS': '60'
             })
         s = app._gather_app_settings(app.release_set.latest(),

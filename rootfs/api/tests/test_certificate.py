@@ -4,10 +4,10 @@ from rest_framework.authtoken.models import Token
 from django.core.exceptions import SuspiciousOperation
 
 from api.models import Certificate
-from api.tests import TEST_ROOT, DeisTestCase
+from api.tests import TEST_ROOT, DryccTestCase
 
 
-class CertificateTest(DeisTestCase):
+class CertificateTest(DryccTestCase):
 
     """Tests creation of domain SSL certificates"""
 

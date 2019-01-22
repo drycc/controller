@@ -11,11 +11,11 @@ metadata:
     heritage: "{{ .Release.Service }}"
 spec:
   rules:
-  - host: deis.{{ .Values.platform_domain }}
+  - host: drycc.{{ .Values.platform_domain }}
     http:
       paths:
       - path: /
         backend:
-          serviceName: deis-controller
+          serviceName: drycc-controller
           servicePort: 80
 {{- end }}

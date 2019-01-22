@@ -57,7 +57,7 @@ class Secret(Resource):
                 'namespace': namespace,
                 'labels': {
                     'app': namespace,
-                    'heritage': 'deis'
+                    'heritage': 'drycc'
                 }
             },
             'type': secret_type,

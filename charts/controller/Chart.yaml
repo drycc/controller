@@ -1,7 +1,7 @@
 name: controller
-home: https://github.com/deisthree/controller
+home: https://github.com/drycc/controller
 version: <Will be populated by the ci before publishing the chart>
-description: Deis Workflow Controller (API).
+description: Drycc Workflow Controller (API).
 maintainers:
-  - name: Deis Team
-    email: engineering@deis.com
+  - name: Drycc Team
+    email: engineering@drycc.com

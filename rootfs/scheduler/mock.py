@@ -704,7 +704,7 @@ def post(request, context):
         elif resource_type == 'deployments':
             manage_replicasets(data, url)
 
-    # deis run is the only thing that creates pods directly
+    # drycc run is the only thing that creates pods directly
     if resource_type == 'pods':
         create_pods(url, data['metadata']['labels'], data, 1)
     else:
@@ -919,28 +919,28 @@ class MockSchedulerClient(KubeHTTPClient):
 
         # Pre-seed data that is assumed to otherwise be there
         try:
-            self.ns.get('deis')
+            self.ns.get('drycc')
         except KubeHTTPException:
-            self.ns.create('deis')
+            self.ns.create('drycc')
 
         try:
-            self.secret.get('deis', 'objectstorage-keyfile')
+            self.secret.get('drycc', 'objectstorage-keyfile')
         except KubeHTTPException:
             secrets = {
                 'access-key-id': 'i am a key',
                 'access-secret-key': 'i am a secret'
             }
-            self.secret.create('deis', 'objectstorage-keyfile', secrets)
+            self.secret.create('drycc', 'objectstorage-keyfile', secrets)
 
         try:
-            self.secret.get('deis', 'registry-secret')
+            self.secret.get('drycc', 'registry-secret')
         except KubeHTTPException:
             secrets = {
                 'username': 'test',
                 'password': 'test',
                 'hostname': ''
             }
-            self.secret.create('deis', 'registry-secret', secrets)
+            self.secret.create('drycc', 'registry-secret', secrets)
 
         try:
             self.ns.get('duplicate')
@@ -962,7 +962,7 @@ class MockSchedulerClient(KubeHTTPClient):
                     "labels": {
                         "environ": "dev",
                         "rack": "1",
-                        "deis.com/fun": "yes",
+                        "drycc.com/fun": "yes",
                         "kubernetes.io/hostname": "172.17.8.100",
                         "is.valid": "is-also_valid",
                         "host.the-name.com/is.valid": "valid",

@@ -19,7 +19,7 @@ from rest_framework.exceptions import ValidationError, NotFound
 from jsonfield import JSONField
 
 from api.models import get_session
-from api.models import UuidAuditedModel, AlreadyExists, DeisException, ServiceUnavailable
+from api.models import UuidAuditedModel, AlreadyExists, DryccException, ServiceUnavailable
 from api.models.config import Config
 from api.models.domain import Domain
 from api.models.release import Release
@@ -53,7 +53,7 @@ def validate_app_structure(value):
 
 def validate_reserved_names(value):
     """A value cannot use some reserved names."""
-    if value in settings.DEIS_RESERVED_NAMES:
+    if value in settings.DRYCC_RESERVED_NAMES:
         raise ValidationError('{} is a reserved name.'.format(value))
 
 
@@ -162,10 +162,11 @@ class App(UuidAuditedModel):
     def log(self, message, level=logging.INFO):
         """Logs a message in the context of this application.
 
-        This prefixes log messages with an application "tag" that the customized deis-logspout will
-        be on the lookout for.  When it's seen, the message-- usually an application event of some
-        sort like releasing or scaling, will be considered as "belonging" to the application
-        instead of the controller and will be handled accordingly.
+        This prefixes log messages with an application "tag" that the customized
+        drycc-logspout will be on the lookout for.  When it's seen, the message-- usually
+        an application event of some sort like releasing or scaling, will be considered
+        as "belonging" to the application instead of the controller and will be handled
+        accordingly.
         """
         logger.log(level, "[{}]: {}".format(self.id, message))
 
@@ -327,7 +328,7 @@ class App(UuidAuditedModel):
             while True:
                 # timed out
                 if elapsed >= timeout:
-                    raise DeisException('timeout - 5 minutes have passed and pods are not up')
+                    raise DryccException('timeout - 5 minutes have passed and pods are not up')
 
                 # restarting a single pod behaves differently, fetch the *newest* pod
                 # and hope it is the right one. Comes back sorted
@@ -379,7 +380,7 @@ class App(UuidAuditedModel):
         self.create()
 
         if self.release_set.filter(failed=False).latest().build is None:
-            raise DeisException('No build associated with this release')
+            raise DryccException('No build associated with this release')
 
         release = self.release_set.filter(failed=False).latest()
 
@@ -389,7 +390,7 @@ class App(UuidAuditedModel):
                 structure[target] = int(count)
             validate_app_structure(structure)
         except (TypeError, ValueError, ValidationError) as e:
-            raise DeisException('Invalid scaling format: {}'.format(e))
+            raise DryccException('Invalid scaling format: {}'.format(e))
 
         # test for available process types
         available_process_types = release.build.procfile or {}
@@ -468,7 +469,7 @@ class App(UuidAuditedModel):
         force_deploy can be used when a deployment is broken, such as for Rollback
         """
         if release.build is None:
-            raise DeisException('No build associated with this release')
+            raise DryccException('No build associated with this release')
 
         # use create to make sure minimum resources are created
         self.create()
@@ -554,7 +555,7 @@ class App(UuidAuditedModel):
                     # revert all process types to old release
                     self.deploy(release.previous(), force_deploy=True, rollback_on_failure=False)
                     # let it bubble up
-                    raise DeisException('{}\n{}'.format(err, str(e))) from e
+                    raise DryccException('{}\n{}'.format(err, str(e))) from e
 
                 # otherwise just re-raise
                 raise
@@ -719,7 +720,7 @@ class App(UuidAuditedModel):
             r = requests.get(url)
         # Handle HTTP request errors
         except requests.exceptions.RequestException as e:
-            msg = "Error accessing deis-logger using url '{}': {}".format(url, e)
+            msg = "Error accessing drycc-logger using url '{}': {}".format(url, e)
             logger.error(msg)
             raise ServiceUnavailable(msg) from e
 
@@ -730,9 +731,9 @@ class App(UuidAuditedModel):
 
         # Handle unanticipated status codes
         if r.status_code != 200:
-            logger.error("Error accessing deis-logger: GET {} returned a {} status code"
+            logger.error("Error accessing drycc-logger: GET {} returned a {} status code"
                          .format(url, r.status_code))
-            raise ServiceUnavailable('Error accessing deis-logger')
+            raise ServiceUnavailable('Error accessing drycc-logger')
 
         # cast content to string since it comes as bytes via the requests object
         return str(r.content.decode('utf-8'))
@@ -744,7 +745,7 @@ class App(UuidAuditedModel):
         """Run a one-off command in an ephemeral app container."""
         release = self.release_set.filter(failed=False).latest()
         if release.build is None:
-            raise DeisException('No build associated with this release to run this command')
+            raise DryccException('No build associated with this release to run this command')
 
         app_settings = self.appsettings_set.latest()
         # use slugrunner image for app if buildpack app otherwise use normal image
@@ -812,7 +813,7 @@ class App(UuidAuditedModel):
                 if 'startTime' in p['status']:
                     started = p['status']['startTime']
                 else:
-                    started = str(datetime.utcnow().strftime(settings.DEIS_DATETIME_FORMAT))
+                    started = str(datetime.utcnow().strftime(settings.DRYCC_DATETIME_FORMAT))
                 item['started'] = started
 
                 data.append(item)
@@ -828,7 +829,7 @@ class App(UuidAuditedModel):
             raise ServiceUnavailable(err) from e
 
     def _scheduler_filter(self, **kwargs):
-        labels = {'app': self.id, 'heritage': 'deis'}
+        labels = {'app': self.id, 'heritage': 'drycc'}
 
         # always supply a version, either latest or a specific one
         if 'release' not in kwargs or kwargs['release'] is None:
@@ -850,15 +851,15 @@ class App(UuidAuditedModel):
         and then combining with the user set ones
         """
         if release.build is None:
-            raise DeisException('No build associated with this release to run this command')
+            raise DryccException('No build associated with this release to run this command')
 
-        # mix in default environment information deis may require
+        # mix in default environment information drycc may require
         default_env = {
-            'DEIS_APP': self.id,
+            'DRYCC_APP': self.id,
             'WORKFLOW_RELEASE': 'v{}'.format(release.version),
             'WORKFLOW_RELEASE_SUMMARY': release.summary,
             'WORKFLOW_RELEASE_CREATED_AT': str(release.created.strftime(
-                settings.DEIS_DATETIME_FORMAT))
+                settings.DRYCC_DATETIME_FORMAT))
         }
 
         # Check if it is a slug builder image.
@@ -866,8 +867,8 @@ class App(UuidAuditedModel):
             # overwrite image so slugrunner image is used in the container
             default_env['SLUG_URL'] = release.image
             default_env['BUILDER_STORAGE'] = settings.APP_STORAGE
-            default_env['DEIS_MINIO_SERVICE_HOST'] = settings.MINIO_HOST
-            default_env['DEIS_MINIO_SERVICE_PORT'] = settings.MINIO_PORT
+            default_env['DRYCC_MINIO_SERVICE_HOST'] = settings.MINIO_HOST
+            default_env['DRYCC_MINIO_SERVICE_PORT'] = settings.MINIO_PORT
 
         if release.build.sha:
             default_env['SOURCE_VERSION'] = release.build.sha
@@ -889,7 +890,7 @@ class App(UuidAuditedModel):
         old_service = service.copy()  # in case anything fails for rollback
 
         try:
-            service['metadata']['annotations']['router.deis.io/maintenance'] = str(mode).lower()
+            service['metadata']['annotations']['router.drycc.cc/maintenance'] = str(mode).lower()
             self._scheduler.svc.update(self.id, self.id, data=service)
         except KubeException as e:
             self._scheduler.svc.update(self.id, self.id, data=old_service)
@@ -907,7 +908,7 @@ class App(UuidAuditedModel):
         old_service = service.copy()  # in case anything fails for rollback
 
         try:
-            service['metadata']['labels']['router.deis.io/routable'] = str(routable).lower()
+            service['metadata']['labels']['router.drycc.cc/routable'] = str(routable).lower()
             self._scheduler.svc.update(self.id, self.id, data=service)
         except KubeException as e:
             self._scheduler.svc.update(self.id, self.id, data=old_service)
@@ -922,14 +923,14 @@ class App(UuidAuditedModel):
             # Update service information
             for key, value in annotations.items():
                 if value is not None:
-                    service['metadata']['annotations']['router.deis.io/%s' % key] = str(value)
+                    service['metadata']['annotations']['router.drycc.cc/%s' % key] = str(value)
                 else:
-                    service['metadata']['annotations'].pop('router.deis.io/%s' % key, None)
+                    service['metadata']['annotations'].pop('router.drycc.cc/%s' % key, None)
             if routable:
-                service['metadata']['labels']['router.deis.io/routable'] = 'true'
+                service['metadata']['labels']['router.drycc.cc/routable'] = 'true'
             else:
                 # delete the annotation
-                service['metadata']['labels'].pop('router.deis.io/routable', None)
+                service['metadata']['labels'].pop('router.drycc.cc/routable', None)
 
             # Set app type selector
             service['spec']['selector']['type'] = app_type
@@ -956,9 +957,9 @@ class App(UuidAuditedModel):
         try:
             if whitelist:
                 addresses = ",".join(address for address in whitelist)
-                service['metadata']['annotations']['router.deis.io/whitelist'] = addresses
-            elif 'router.deis.io/whitelist' in service['metadata']['annotations']:
-                service['metadata']['annotations'].pop('router.deis.io/whitelist', None)
+                service['metadata']['annotations']['router.drycc.cc/whitelist'] = addresses
+            elif 'router.drycc.cc/whitelist' in service['metadata']['annotations']:
+                service['metadata']['annotations'].pop('router.drycc.cc/whitelist', None)
             else:
                 return
             self._scheduler.svc.update(self.id, self.id, data=service)
@@ -1070,10 +1071,10 @@ class App(UuidAuditedModel):
         config = release.config
 
         # see if the app config has deploy batch preference, otherwise use global
-        batches = int(config.values.get('DEIS_DEPLOY_BATCHES', settings.DEIS_DEPLOY_BATCHES))  # noqa
+        batches = int(config.values.get('DRYCC_DEPLOY_BATCHES', settings.DRYCC_DEPLOY_BATCHES))  # noqa
 
         # see if the app config has deploy timeout preference, otherwise use global
-        deploy_timeout = int(config.values.get('DEIS_DEPLOY_TIMEOUT', settings.DEIS_DEPLOY_TIMEOUT))  # noqa
+        deploy_timeout = int(config.values.get('DRYCC_DEPLOY_TIMEOUT', settings.DRYCC_DEPLOY_TIMEOUT))  # noqa
 
         # configures how many ReplicaSets to keep beside the latest version
         deployment_history = config.values.get('KUBERNETES_DEPLOYMENTS_REVISION_HISTORY_LIMIT', settings.KUBERNETES_DEPLOYMENTS_REVISION_HISTORY_LIMIT)  # noqa
@@ -1088,7 +1089,7 @@ class App(UuidAuditedModel):
         image_pull_secret_name = self.image_pull_secret(self.id, config.registry, release.image)
 
         # only web / cmd are routable
-        # http://docs.deis.io/en/latest/using_deis/process-types/#web-vs-cmd-process-types
+        # http://docs.drycc.cc/en/latest/using_drycc/process-types/#web-vs-cmd-process-types
         routable = True if process_type in ['web', 'cmd'] and app_settings.routable else False
 
         healthcheck = config.get_healthcheck().get(process_type, {})

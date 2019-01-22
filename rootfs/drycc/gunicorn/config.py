@@ -15,7 +15,7 @@ except (NameError, ValueError):
 pythonpath = dirname(dirname(dirname(realpath(__file__))))
 timeout = 1200
 pidfile = '/tmp/gunicorn.pid'
-logger_class = 'deis.gunicorn.logging.Logging'
+logger_class = 'drycc.gunicorn.logging.Logging'
 loglevel = 'info'
 errorlog = '-'
 accesslog = '-'

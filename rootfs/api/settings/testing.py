@@ -19,7 +19,7 @@ SCHEDULER_MODULE = 'scheduler.mock'
 SCHEDULER_URL = 'http://test-scheduler.example.com'
 
 # router information
-ROUTER_HOST = 'deis-router.example.com'
+ROUTER_HOST = 'drycc-router.example.com'
 ROUTER_PORT = 80
 
 # randomize test database name so we can run multiple unit tests simultaneously
@@ -40,4 +40,4 @@ CACHES = {
 KUBERNETES_POD_TERMINATION_GRACE_PERIOD_SECONDS = int(os.environ.get('KUBERNETES_POD_TERMINATION_GRACE_PERIOD_SECONDS', 2))  # noqa
 KUBERNETES_NAMESPACE_DEFAULT_QUOTA_SPEC = '{"spec":{"hard":{"pods":"10"}}}'
 
-DEIS_DEFAULT_CONFIG_TAGS = os.environ.get('DEIS_DEFAULT_CONFIG_TAGS', '')
+DRYCC_DEFAULT_CONFIG_TAGS = os.environ.get('DRYCC_DEFAULT_CONFIG_TAGS', '')

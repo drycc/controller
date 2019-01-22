@@ -57,7 +57,7 @@ class SilentDjangoTestSuiteRunner(DiscoverRunner):
             test_labels, extra_tests, **kwargs)
 
 
-class DeisTestCase(APITestCase):
+class DryccTestCase(APITestCase):
     def create_app(self, name=None):
         body = {}
         if name:
@@ -69,7 +69,7 @@ class DeisTestCase(APITestCase):
         return response.data['id']
 
 
-class DeisTransactionTestCase(APITransactionTestCase):
+class DryccTransactionTestCase(APITransactionTestCase):
     def create_app(self, name=None):
         body = {}
         if name:

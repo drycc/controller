@@ -1,5 +1,5 @@
 """
-Unit tests for the Deis scheduler module.
+Unit tests for the Drycc scheduler module.
 
 Run the tests with './manage.py test scheduler'
 """
@@ -162,7 +162,7 @@ class DeploymentsTest(TestCase):
         self.assertDictContainsSubset(
             {
                 'app': self.namespace,
-                'heritage': 'deis'
+                'heritage': 'drycc'
             },
             data['metadata']['labels']
         )
@@ -237,7 +237,7 @@ class DeploymentsTest(TestCase):
         self.assertDictContainsSubset(
             {
                 'app': self.namespace,
-                'heritage': 'deis'
+                'heritage': 'drycc'
             },
             data['metadata']['labels'],
             data

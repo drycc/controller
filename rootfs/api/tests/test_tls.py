@@ -5,11 +5,11 @@ from django.contrib.auth.models import User
 from rest_framework.authtoken.models import Token
 
 from api.models import App
-from api.tests import adapter, DeisTransactionTestCase
+from api.tests import adapter, DryccTransactionTestCase
 
 
 @requests_mock.Mocker(real_http=True, adapter=adapter)
-class TestTLS(DeisTransactionTestCase):
+class TestTLS(DryccTransactionTestCase):
     """Tests setting and updating config values"""
 
     fixtures = ['tests.json']
@@ -66,7 +66,7 @@ class TestTLS(DeisTransactionTestCase):
         """
         Ensure that a TLS object is created for an App with default values.
 
-        See https://github.com/deisthree/controller/issues/1042
+        See https://github.com/drycc/controller/issues/1042
         """
         app_id = self.create_app()
         response = self.client.get('/v2/apps/{}/tls'.format(app_id))

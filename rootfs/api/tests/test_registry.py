@@ -6,11 +6,11 @@ from django.core.cache import cache
 from django.contrib.auth.models import User
 from rest_framework.authtoken.models import Token
 
-from api.tests import adapter, DeisTransactionTestCase
+from api.tests import adapter, DryccTransactionTestCase
 
 
 @requests_mock.Mocker(real_http=True, adapter=adapter)
-class TestRegistry(DeisTransactionTestCase):
+class TestRegistry(DryccTransactionTestCase):
     """Tests setting and updating config values"""
 
     fixtures = ['tests.json']
@@ -144,4 +144,4 @@ class TestRegistry(DeisTransactionTestCase):
             self.assertEqual(response.status_code, 201, response.data)
             mock_check_access.assert_called_with(
                 'autotest/example',
-                {'password': 's3cur3pw1', 'username': 'bob', 'email': 'autotest@deis.io'})
+                {'password': 's3cur3pw1', 'username': 'bob', 'email': 'autotest@drycc.cc'})

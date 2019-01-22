@@ -1,5 +1,5 @@
 """
-Unit tests for the Deis registry app.
+Unit tests for the Drycc registry app.
 
 Run the tests with "./manage.py test registry"
 """
@@ -70,7 +70,7 @@ class DockerClientTest(unittest.TestCase):
         self.assertTrue(self.client.client.tag.called)
         self.assertTrue(self.client.client.push.called)
 
-        # Test that a registry host prefix is replaced with deis-registry for the target
+        # Test that a registry host prefix is replaced with drycc-registry for the target
         publish_release('ozzy/embryo:git-f2a8020', 'quay.io/ozzy/embryo:v4', True)
         docker_push = self.client.client.push
         docker_push.assert_called_with(
@@ -80,10 +80,10 @@ class DockerClientTest(unittest.TestCase):
         # Test that blacklisted image names can't be published
         with self.assertRaises(PermissionDenied):
             publish_release(
-                'deis/controller:v1.11.1', 'deis/controller:v1.11.1', True)
+                'drycc/controller:v1.11.1', 'drycc/controller:v1.11.1', True)
         with self.assertRaises(PermissionDenied):
             publish_release(
-                'localhost:5000/deis/controller:v1.11.1', 'deis/controller:v1.11.1', True)
+                'localhost:5000/drycc/controller:v1.11.1', 'drycc/controller:v1.11.1', True)
 
     def test_login(self, mock_client):
         self.client = DockerClient()
@@ -99,7 +99,7 @@ class DockerClientTest(unittest.TestCase):
             'email': 'fake',
             'registry': 'quay.io'
         }
-        self.client.login('quay.io/deis/foobar', creds)
+        self.client.login('quay.io/drycc/foobar', creds)
         docker_login = self.client.client.login
         docker_login.assert_called_with(
             username='fake', password='fake',
@@ -117,7 +117,7 @@ class DockerClientTest(unittest.TestCase):
             'email': 'fake',
             'registry': 'quay.io'
         }
-        self.client.login('quay.io/deis/foobar', creds)
+        self.client.login('quay.io/drycc/foobar', creds)
         docker_login = self.client.client.login
         docker_login.assert_called_with(
             username='fake', password='fake',
@@ -140,7 +140,7 @@ class DockerClientTest(unittest.TestCase):
         }
 
         with self.assertRaises(PermissionDenied):
-            self.client.login('quay.io/deis/foobar', creds)
+            self.client.login('quay.io/drycc/foobar', creds)
             docker_login = self.client.client.login
             docker_login.assert_called_with(
                 username='fake', password='fake',
@@ -157,7 +157,7 @@ class DockerClientTest(unittest.TestCase):
                 'email': 'fake',
                 'registry': 'quay.io'
             }
-            self.client.login('quay.io/deis/foobar', creds)
+            self.client.login('quay.io/drycc/foobar', creds)
 
         # bad credentials
         with self.assertRaises(PermissionDenied):
@@ -167,7 +167,7 @@ class DockerClientTest(unittest.TestCase):
                 'email': 'fake',
                 'registry': 'quay.io'
             }
-            self.client.login('quay.io/deis/foobar', creds)
+            self.client.login('quay.io/drycc/foobar', creds)
 
     def test_pull(self, mock_client):
         self.client = DockerClient()
@@ -176,9 +176,9 @@ class DockerClientTest(unittest.TestCase):
         docker_pull.assert_called_once_with('alpine', tag='3.2', decode=True, stream=True)
         # Test that blacklisted image names can't be pulled
         with self.assertRaises(PermissionDenied):
-            self.client.pull('deis/controller', 'v1.11.1')
+            self.client.pull('drycc/controller', 'v1.11.1')
         with self.assertRaises(PermissionDenied):
-            self.client.pull('localhost:5000/deis/controller', 'v1.11.1')
+            self.client.pull('localhost:5000/drycc/controller', 'v1.11.1')
 
     def test_push(self, mock_client):
         self.client = DockerClient()
@@ -200,7 +200,8 @@ class DockerClientTest(unittest.TestCase):
 
         # Test that blacklisted image names can't be tagged
         with self.assertRaises(PermissionDenied):
-            self.client.tag('deis/controller:v1.11.1', 'deis/controller', 'v1.11.1')
+            self.client.tag('drycc/controller:v1.11.1', 'drycc/controller', 'v1.11.1')
 
         with self.assertRaises(PermissionDenied):
-            self.client.tag('localhost:5000/deis/controller:v1.11.1', 'deis/controller', 'v1.11.1')
+            self.client.tag(
+                'localhost:5000/drycc/controller:v1.11.1', 'drycc/controller', 'v1.11.1')

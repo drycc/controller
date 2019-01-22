@@ -1,5 +1,5 @@
 """
-URL routing patterns for the Deis project.
+URL routing patterns for the Drycc project.
 
 This is the "master" urls.py which then includes the urls.py files of
 installed apps.

@@ -2,15 +2,15 @@ from django.core.management.base import BaseCommand
 from django.shortcuts import get_object_or_404
 
 from api.models import Key, App, Domain, Certificate, Service
-from api.exceptions import DeisException, AlreadyExists
+from api.exceptions import DryccException, AlreadyExists
 
 
 class Command(BaseCommand):
-    """Management command for publishing Deis platform state from the database
+    """Management command for publishing Drycc platform state from the database
     to k8s.
     """
     def handle(self, *args, **options):
-        """Publishes Deis platform state from the database to kubernetes."""
+        """Publishes Drycc platform state from the database to kubernetes."""
         print("Publishing DB state to kubernetes...")
 
         self.save_apps()
@@ -36,7 +36,7 @@ class Command(BaseCommand):
                 print('WARNING: {} has a deployment in progress. '
                       'Skipping deployment...'.format(application))
                 continue
-            except DeisException as error:
+            except DryccException as error:
                 print('ERROR: There was a problem deploying {} '
                       'due to {}'.format(application, str(error)))
 
@@ -49,13 +49,13 @@ class Command(BaseCommand):
                 app.save()
                 app.config_set.latest().save()
                 app.tls_set.latest().sync()
-            except DeisException as error:
+            except DryccException as error:
                 print('ERROR: Problem saving to model {} for {}'
                       'due to {}'.format(str(App.__name__), str(app), str(error)))
         for model in (Key, Domain, Certificate, Service):
             for obj in model.objects.all():
                 try:
                     obj.save()
-                except DeisException as error:
+                except DryccException as error:
                     print('ERROR: Problem saving to model {} for {}'
                           'due to {}'.format(str(model.__name__), str(obj), str(error)))

@@ -11,7 +11,7 @@ class HealthcheckException(APIException):
     pass
 
 
-class DeisException(APIException):
+class DryccException(APIException):
     status_code = 400
 
 
@@ -50,7 +50,7 @@ def custom_exception_handler(exc, context):
         return Response({'detail': 'Server Error'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
     # log a few different types of exception instead of using APIException
-    if isinstance(exc, (DeisException, ServiceUnavailable, HealthcheckException)):
+    if isinstance(exc, (DryccException, ServiceUnavailable, HealthcheckException)):
         logging.exception(exc.__cause__, exc_info=exc)
 
     return response

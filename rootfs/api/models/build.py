@@ -3,7 +3,7 @@ from django.db import models
 from jsonfield import JSONField
 
 from api.models import UuidAuditedModel
-from api.exceptions import DeisException, Conflict
+from api.exceptions import DryccException, Conflict
 
 import logging
 logger = logging.getLogger(__name__)
@@ -36,14 +36,14 @@ class Build(UuidAuditedModel):
         elif self.sha:
             return 'buildpack'
         else:
-            # docker image (or any sort of image) used via deis pull
+            # docker image (or any sort of image) used via drycc pull
             return 'image'
 
     @property
     def source_based(self):
         """
         Checks if a build is source (has a sha) based or not
-        If True then the Build is coming from the deis builder or something that
+        If True then the Build is coming from the drycc builder or something that
         built from git / svn / hg / etc directly
         """
         return self.sha != ''
@@ -78,13 +78,13 @@ class Build(UuidAuditedModel):
             else:
                 self.delete()
 
-            raise DeisException(str(e)) from e
+            raise DryccException(str(e)) from e
 
     def save(self, **kwargs):
         previous_release = self.app.release_set.filter(failed=False).latest()
 
         if (
-            settings.DEIS_DEPLOY_REJECT_IF_PROCFILE_MISSING is True and
+            settings.DRYCC_DEPLOY_REJECT_IF_PROCFILE_MISSING is True and
             # previous release had a Procfile and the current one does not
             (
                 previous_release.build is not None and
@@ -101,7 +101,7 @@ class Build(UuidAuditedModel):
         # See if processes are permitted to be removed
         remove_procs = (
             # If set to True then contents of Procfile does not affect the outcome
-            settings.DEIS_DEPLOY_PROCFILE_MISSING_REMOVE is True or
+            settings.DRYCC_DEPLOY_PROCFILE_MISSING_REMOVE is True or
             # previous release had a Procfile and the current one does as well
             (
                 previous_release.build is not None and
@@ -123,7 +123,7 @@ class Build(UuidAuditedModel):
         # make sure the latest build has procfile if the intent is to
         # allow empty Procfile without removals
         if (
-            settings.DEIS_DEPLOY_PROCFILE_MISSING_REMOVE is False and
+            settings.DRYCC_DEPLOY_PROCFILE_MISSING_REMOVE is False and
             previous_release.build is not None and
             len(previous_release.build.procfile) > 0 and
             len(self.procfile) == 0

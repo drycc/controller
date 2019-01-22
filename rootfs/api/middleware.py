@@ -1,5 +1,5 @@
 """
-HTTP middleware for the Deis REST API.
+HTTP middleware for the Drycc REST API.
 
 See https://docs.djangoproject.com/en/1.11/topics/http/middleware/
 """
@@ -23,6 +23,6 @@ class APIVersionMiddleware(object):
         response = self.get_response(request)
         # clients shouldn't care about the patch release
         version = __version__.rsplit('.', 1)[0]
-        response['DEIS_API_VERSION'] = version
-        response['DEIS_PLATFORM_VERSION'] = __version__
+        response['DRYCC_API_VERSION'] = version
+        response['DRYCC_PLATFORM_VERSION'] = __version__
         return response

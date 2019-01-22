@@ -3,10 +3,10 @@ from django.core.cache import cache
 from rest_framework.authtoken.models import Token
 
 from api.models import App, Certificate, Domain
-from api.tests import TEST_ROOT, DeisTestCase
+from api.tests import TEST_ROOT, DryccTestCase
 
 
-class CertificateUseCase4Test(DeisTestCase):
+class CertificateUseCase4Test(DryccTestCase):
 
     """
     Tests creation of 3 domains (one is a wildcard) and 3 SSL certificate (no wildcards).

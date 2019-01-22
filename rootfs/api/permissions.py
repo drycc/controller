@@ -129,7 +129,7 @@ class HasBuilderAuth(permissions.BasePermission):
         """
         Return `True` if permission is granted, `False` otherwise.
         """
-        auth_header = request.environ.get('HTTP_X_DEIS_BUILDER_AUTH')
+        auth_header = request.environ.get('HTTP_X_DRYCC_BUILDER_AUTH')
         if not auth_header:
             return False
         return auth_header == settings.BUILDER_KEY

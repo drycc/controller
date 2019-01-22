@@ -6,7 +6,7 @@ from django.db import models
 from registry import publish_release, get_port as docker_get_port, check_access as docker_check_access, RegistryException # noqa
 from api.utils import dict_diff
 from api.models import UuidAuditedModel
-from api.exceptions import DeisException, AlreadyExists
+from api.exceptions import DryccException, AlreadyExists
 from scheduler import KubeHTTPException
 
 logger = logging.getLogger(__name__)
@@ -65,7 +65,7 @@ class Release(UuidAuditedModel):
             # DockerFile
             return '{}/{}:git-{}'.format(settings.REGISTRY_URL, self.app.id, str(self.build.sha))
         elif self.build.type == 'image':
-            # Deis Pull, docker image in local registry
+            # Drycc Pull, docker image in local registry
             return '{}/{}:v{}'.format(settings.REGISTRY_URL, self.app.id, str(self.version))
         elif self.build.type == 'buildpack':
             # Build Pack - Registry URL not prepended since slugrunner image will download slug
@@ -88,21 +88,21 @@ class Release(UuidAuditedModel):
 
         try:
             release.publish()
-        except DeisException as e:
+        except DryccException as e:
             # If we cannot publish this app, just log and carry on
             self.app.log(e)
             pass
         except RegistryException as e:
             self.app.log(e)
-            raise DeisException(str(e)) from e
+            raise DryccException(str(e)) from e
 
         return release
 
     def publish(self):
         if self.build is None:
-            raise DeisException('No build associated with this release to publish')
+            raise DryccException('No build associated with this release to publish')
 
-        # If the build has a SHA, assume it's from deis-builder and in the deis-registry already
+        # If the build has a SHA, assume it's from drycc-builder and in the drycc-registry already
         if self.build.source_based:
             return
 
@@ -132,16 +132,16 @@ class Release(UuidAuditedModel):
         if ':' not in source_image:
             source_image = "{}:{}".format(source_image, self.build.version)
 
-        # if build is source based then it was pushed into the deis registry
-        deis_registry = bool(self.build.source_based)
-        publish_release(source_image, self.image, deis_registry, self.get_registry_auth())
+        # if build is source based then it was pushed into the drycc registry
+        drycc_registry = bool(self.build.source_based)
+        publish_release(source_image, self.image, drycc_registry, self.get_registry_auth())
 
     def check_image_access(self):
         try:
             creds = self.get_registry_auth()
             docker_check_access(self.image, creds)
         except Exception as e:
-            raise DeisException(str(e)) from e
+            raise DryccException(str(e)) from e
 
     def get_port(self):
         """
@@ -150,7 +150,7 @@ class Release(UuidAuditedModel):
         the docker image
         """
         try:
-            deis_registry = bool(self.build.source_based)
+            drycc_registry = bool(self.build.source_based)
             envs = self.config.values
             creds = self.get_registry_auth()
 
@@ -163,7 +163,7 @@ class Release(UuidAuditedModel):
                 if envs.get('PORT', None) is None:
                     if not self.app.appsettings_set.latest().routable:
                         return None
-                    raise DeisException(
+                    raise DryccException(
                         'PORT needs to be set in the application config '
                         'when using a private registry'
                     )
@@ -176,15 +176,15 @@ class Release(UuidAuditedModel):
                 return int(envs.get('PORT'))
 
             # discover port from docker image
-            port = docker_get_port(self.image, deis_registry, creds)
+            port = docker_get_port(self.image, drycc_registry, creds)
             if port is None and self.app.appsettings_set.latest().routable:
                 msg = "Expose a port or make the app non routable by changing the process type"
                 self.app.log(msg, logging.ERROR)
-                raise DeisException(msg)
+                raise DryccException(msg)
 
             return port
         except Exception as e:
-            raise DeisException(str(e)) from e
+            raise DryccException(str(e)) from e
 
     def get_registry_auth(self):
         """
@@ -224,13 +224,13 @@ class Release(UuidAuditedModel):
             version = (self.version - 1) if version is None else int(version)
 
             if version < 1:
-                raise DeisException('version cannot be below 0')
+                raise DryccException('version cannot be below 0')
             elif version == 1:
-                raise DeisException('Cannot roll back to initial release.')
+                raise DryccException('Cannot roll back to initial release.')
 
             prev = self.app.release_set.get(version=version)
             if prev.failed:
-                raise DeisException('Cannot roll back to failed release.')
+                raise DryccException('Cannot roll back to failed release.')
             latest_version = self.app.release_set.latest().version
             new_release = self.new(
                 user,
@@ -254,7 +254,7 @@ class Release(UuidAuditedModel):
                 # Get the exception that has occured
                 new_release.exception = "error: {}".format(str(e))
                 new_release.save()
-            raise DeisException(str(e)) from e
+            raise DryccException(str(e)) from e
 
     def cleanup_old(self):  # noqa
         """
@@ -271,7 +271,7 @@ class Release(UuidAuditedModel):
         )
 
         # Cleanup controllers
-        labels = {'heritage': 'deis'}
+        labels = {'heritage': 'drycc'}
         controller_removal = []
         controllers = self._scheduler.rc.get(self.app.id, labels=labels).json()['items']
         if not controllers:
@@ -300,7 +300,7 @@ class Release(UuidAuditedModel):
         self._cleanup_deployment_secrets_and_configs(self.app.id)
 
         # Remove stray pods
-        labels = {'heritage': 'deis'}
+        labels = {'heritage': 'drycc'}
         pods = self._scheduler.pod.get(self.app.id, labels=labels).json()['items']
         if not pods:
             pods = []
@@ -327,12 +327,12 @@ class Release(UuidAuditedModel):
 
         This is done by checking the available ReplicaSets and only removing
         objects not attached to anything. This will allow releases done outside
-        of Deis Controller
+        of Drycc Controller
         """
 
         # Find all ReplicaSets
         versions = []
-        labels = {'heritage': 'deis', 'app': namespace}
+        labels = {'heritage': 'drycc', 'app': namespace}
         replicasets = self._scheduler.rs.get(namespace, labels=labels).json()['items']
         if not replicasets:
             replicasets = []
@@ -347,7 +347,7 @@ class Release(UuidAuditedModel):
 
         # find all env secrets not owned by any replicaset
         labels = {
-            'heritage': 'deis',
+            'heritage': 'drycc',
             'app': namespace,
             'type': 'env',
             # http://kubernetes.io/docs/user-guide/labels/#set-based-requirement
@@ -368,13 +368,13 @@ class Release(UuidAuditedModel):
         secret that container the env var
         """
         labels = {
-            'heritage': 'deis',
+            'heritage': 'drycc',
             'app': namespace,
             'version': version
         }
 
         # see if the app config has deploy timeout preference, otherwise use global
-        timeout = self.config.values.get('DEIS_DEPLOY_TIMEOUT', settings.DEIS_DEPLOY_TIMEOUT)
+        timeout = self.config.values.get('DRYCC_DEPLOY_TIMEOUT', settings.DRYCC_DEPLOY_TIMEOUT)
 
         controllers = self._scheduler.rc.get(namespace, labels=labels).json()['items']
         if not controllers:

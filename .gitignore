@@ -14,14 +14,14 @@ develop-eggs
 lib
 lib64
 
-# Deis' config file
-controller/deis/local_settings.py
+# Drycc' config file
+controller/drycc/local_settings.py
 controller/.secret_key
 
 # local binaries, installers, and artifacts
-client/deis
+client/drycc
 client/client
-client/deis.exe
+client/drycc.exe
 client/*.run
 client/makeself/
 _dist/

@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 """
-Data models for the Deis API.
+Data models for the Drycc API.
 """
 import hashlib
 import hmac
@@ -21,8 +21,8 @@ from rest_framework.authtoken.models import Token
 import requests
 from requests_toolbelt import user_agent
 
-from api import __version__ as deis_version
-from api.exceptions import DeisException, AlreadyExists, ServiceUnavailable, UnprocessableEntity  # noqa
+from api import __version__ as drycc_version
+from api.exceptions import DryccException, AlreadyExists, ServiceUnavailable, UnprocessableEntity  # noqa
 from api.utils import dict_merge
 from scheduler import KubeException
 
@@ -38,7 +38,7 @@ def get_session():
         session = requests.Session()
         session.headers = {
             # https://toolbelt.readthedocs.org/en/latest/user-agent.html#user-agent-constructor
-            'User-Agent': user_agent('Deis Controller', deis_version),
+            'User-Agent': user_agent('Drycc Controller', drycc_version),
         }
         # `mount` a custom adapter that retries failed connections for HTTP and HTTPS requests.
         # http://docs.python-requests.org/en/latest/api/#requests.adapters.HTTPAdapter
@@ -96,8 +96,8 @@ class AuditedModel(models.Model):
         # fetch setvice definition with minimum structure
         svc = self._fetch_service_config(app, svc_name)
 
-        # always assume a .deis.io/ ending
-        component = "%s.deis.io/" % component
+        # always assume a .drycc.cc/ ending
+        component = "%s.drycc.cc/" % component
 
         # Filter to only include values for the component and strip component out of it
         # Processes dots into a nested structure
@@ -111,8 +111,8 @@ class AuditedModel(models.Model):
         # fetch setvice definition with minimum structure
         svc = self._fetch_service_config(app, svc_name)
 
-        # always assume a .deis.io ending
-        component = "%s.deis.io/" % component
+        # always assume a .drycc.cc ending
+        component = "%s.drycc.cc/" % component
 
         # add component to data and flatten
         data = {"%s%s" % (component, key): value for key, value in list(data.items()) if value}
@@ -200,7 +200,7 @@ def _hook_release_created(**kwargs):
         # append release lifecycle logs to the app
         release.app.log(release.summary)
 
-        for deploy_hook in settings.DEIS_DEPLOY_HOOK_URLS:
+        for deploy_hook in settings.DRYCC_DEPLOY_HOOK_URLS:
             url = deploy_hook
             params = {
                 'app': release.app,
@@ -217,9 +217,9 @@ def _hook_release_created(**kwargs):
             url += '?{}'.format(urllib.parse.urlencode(params))
 
             headers = {}
-            if settings.DEIS_DEPLOY_HOOK_SECRET_KEY is not None:
+            if settings.DRYCC_DEPLOY_HOOK_SECRET_KEY is not None:
                 headers['Authorization'] = hmac.new(
-                    settings.DEIS_DEPLOY_HOOK_SECRET_KEY.encode('utf-8'),
+                    settings.DRYCC_DEPLOY_HOOK_SECRET_KEY.encode('utf-8'),
                     url.encode('utf-8'),
                     hashlib.sha1
                 ).hexdigest()

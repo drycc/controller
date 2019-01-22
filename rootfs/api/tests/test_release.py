@@ -13,8 +13,8 @@ from rest_framework.authtoken.models import Token
 
 from api.models import App, Release
 from scheduler import KubeHTTPException
-from api.exceptions import DeisException
-from api.tests import adapter, mock_port, DeisTransactionTestCase
+from api.exceptions import DryccException
+from api.tests import adapter, mock_port, DryccTransactionTestCase
 import requests_mock
 
 
@@ -22,7 +22,7 @@ import requests_mock
 @mock.patch('api.models.release.publish_release', lambda *args: None)
 @mock.patch('api.models.release.docker_get_port', mock_port)
 @mock.patch('api.models.release.docker_check_access', lambda *args: None)
-class ReleaseTest(DeisTransactionTestCase):
+class ReleaseTest(DryccTransactionTestCase):
 
     """Tests push notification from build system"""
 
@@ -388,7 +388,7 @@ class ReleaseTest(DeisTransactionTestCase):
 
         # TODO(bacongobbler): test dockerfile ports
 
-    @override_settings(DEIS_DEPLOY_HOOK_URLS=['http://deis.rocks'])
+    @override_settings(DRYCC_DEPLOY_HOOK_URLS=['http://drycc.rocks'])
     @mock.patch('api.models.logger')
     def test_deploy_hooks_logged(self, mock_requests, mock_logger):
         """
@@ -397,25 +397,25 @@ class ReleaseTest(DeisTransactionTestCase):
         app_id = 'foo'
         body = {'sha': '123456', 'image': 'autotest/example'}
 
-        mr_rocks = mock_requests.post('http://deis.rocks?app={app_id}&user={self.user.username}&sha=&release=v1&release_summary={self.user.username}+created+initial+release'.format(**locals()))  # noqa
+        mr_rocks = mock_requests.post('http://drycc.rocks?app={app_id}&user={self.user.username}&sha=&release=v1&release_summary={self.user.username}+created+initial+release'.format(**locals()))  # noqa
         self.create_app(app_id)
         # check app logs
-        exp_msg = "[{app_id}]: Sent deploy hook to http://deis.rocks".format(**locals())
+        exp_msg = "[{app_id}]: Sent deploy hook to http://drycc.rocks".format(**locals())
         mock_logger.log.has_calls(logging.INFO, exp_msg)
         self.assertTrue(mr_rocks.called)
         self.assertEqual(mr_rocks.call_count, 1)
 
-        # override DEIS_DEPLOY_HOOK_URLS again, ensuring that the new deploy hooks get the same
+        # override DRYCC_DEPLOY_HOOK_URLS again, ensuring that the new deploy hooks get the same
         # treatment
         url = '/v2/apps/{app_id}/builds'.format(**locals())
-        with self.settings(DEIS_DEPLOY_HOOK_URLS=['http://deis.ninja', 'http://cat.dog']):
-            mr_ninja = mock_requests.post("http://deis.ninja?app={app_id}&user={self.user.username}&sha=123456&release=v2&release_summary={self.user.username}+deployed+123456".format(**locals()))  # noqa
+        with self.settings(DRYCC_DEPLOY_HOOK_URLS=['http://drycc.ninja', 'http://cat.dog']):
+            mr_ninja = mock_requests.post("http://drycc.ninja?app={app_id}&user={self.user.username}&sha=123456&release=v2&release_summary={self.user.username}+deployed+123456".format(**locals()))  # noqa
             mr_catdog = mock_requests.post("http://cat.dog?app={app_id}&user={self.user.username}&sha=123456&release=v2&release_summary={self.user.username}+deployed+123456".format(**locals()))  # noqa
             response = self.client.post(url, body)
             self.assertEqual(response.status_code, 201, response.data)
 
             # check app logs
-            exp_msg = "[{app_id}]: Sent deploy hook to http://deis.ninja".format(**locals())
+            exp_msg = "[{app_id}]: Sent deploy hook to http://drycc.ninja".format(**locals())
             mock_logger.log.has_calls(logging.INFO, exp_msg)
             self.assertTrue(mr_ninja.called)
             self.assertEqual(mr_ninja.call_count, 1)
@@ -426,11 +426,11 @@ class ReleaseTest(DeisTransactionTestCase):
         sha = '2345678'
         body['sha'] = sha
         # Ensure that when requests.Exception is raised, the error is noted and life carries on.
-        with self.settings(DEIS_DEPLOY_HOOK_URLS=['http://cat.ninja', 'http://deis.dog']):
+        with self.settings(DRYCC_DEPLOY_HOOK_URLS=['http://cat.ninja', 'http://drycc.dog']):
             def raise_callback(request, context):
                 raise requests.ConnectionError('poop')
             mr_ninja = mock_requests.post("http://cat.ninja?app={app_id}&user={self.user.username}&sha={sha}&release=v3&release_summary={self.user.username}+deployed+{sha}".     format(**locals()), text=raise_callback)  # noqa
-            mr_catdog = mock_requests.post("http://deis.dog?app={app_id}&user={self.user.username}&sha={sha}&release=v3&release_summary={self.user.username}+deployed+{sha}".       format(**locals()))  # noqa
+            mr_catdog = mock_requests.post("http://drycc.dog?app={app_id}&user={self.user.username}&sha={sha}&release=v3&release_summary={self.user.username}+deployed+{sha}".       format(**locals()))  # noqa
             response = self.client.post(url, body)
             self.assertEqual(response.status_code, 201, response.data)
 
@@ -439,15 +439,15 @@ class ReleaseTest(DeisTransactionTestCase):
             mock_logger.log.has_calls(logging.ERROR, exp_msg)
             self.assertTrue(mr_ninja.called)
             self.assertEqual(mr_ninja.call_count, 1)
-            exp_msg = "[{app_id}]: Sent deploy hook to http://deis.dog".format(**locals())
+            exp_msg = "[{app_id}]: Sent deploy hook to http://drycc.dog".format(**locals())
             mock_logger.log.has_calls(logging.INFO, exp_msg)
             self.assertTrue(mr_catdog.called)
             self.assertEqual(mr_catdog.call_count, 1)
 
-        # ensure that when a secret key is used, a Deis-Signature header is present
+        # ensure that when a secret key is used, a Drycc-Signature header is present
         # which was generated by using HMAC-SHA1 against the target URL
         secret = 'Hasta la vista, baby.'
-        hook_url = 'http://deis.com'
+        hook_url = 'http://drycc.com'
         sha = '3456789'
         body['sha'] = sha
         # target URL MUST be in the exact alphabetized order when calculating the HMAC signature.
@@ -466,7 +466,7 @@ class ReleaseTest(DeisTransactionTestCase):
         ).hexdigest()
         request_headers = {'Authorization': signature}
 
-        with self.settings(DEIS_DEPLOY_HOOK_SECRET_KEY=secret, DEIS_DEPLOY_HOOK_URLS=[hook_url]):
+        with self.settings(DRYCC_DEPLOY_HOOK_SECRET_KEY=secret, DRYCC_DEPLOY_HOOK_URLS=[hook_url]):
             mr_terminator = mock_requests.post(
                 target_url,
                 request_headers=request_headers,
@@ -518,7 +518,7 @@ class ReleaseTest(DeisTransactionTestCase):
         self.assertEqual(response.status_code, 400, response.data)
 
         with self.assertRaises(
-            DeisException,
+            DryccException,
             msg='PORT needs to be set in the config when using a private registry'
         ):
             release = app.release_set.latest()

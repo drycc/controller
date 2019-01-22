@@ -1,5 +1,5 @@
 """
-Unit tests for the Deis api app.
+Unit tests for the Drycc api app.
 
 Run the tests with "./manage.py test api"
 """
@@ -9,7 +9,7 @@ from django.core.cache import cache
 from unittest import mock
 from rest_framework.authtoken.models import Token
 
-from api.tests import adapter, mock_port, DeisTransactionTestCase
+from api.tests import adapter, mock_port, DryccTransactionTestCase
 import requests_mock
 
 RSA_PUBKEY = (
@@ -51,7 +51,7 @@ BAD_KEY = (
 @mock.patch('api.models.release.publish_release', lambda *args: None)
 @mock.patch('api.models.release.docker_get_port', mock_port)
 @mock.patch('api.models.release.docker_check_access', lambda *args: None)
-class HookTest(DeisTransactionTestCase):
+class HookTest(DryccTransactionTestCase):
 
     """Tests API hooks used to trigger actions from external components"""
 
@@ -109,12 +109,12 @@ class HookTest(DeisTransactionTestCase):
 
         # Make sure 404 is returned for a random app
         url = '/v2/hooks/keys/doesnotexist'
-        response = self.client.get(url, HTTP_X_DEIS_BUILDER_AUTH=settings.BUILDER_KEY)
+        response = self.client.get(url, HTTP_X_DRYCC_BUILDER_AUTH=settings.BUILDER_KEY)
         self.assertEqual(response.status_code, 404)
 
         # Test app that exists
         url = '/v2/hooks/keys/{}'.format(app_id)
-        response = self.client.get(url, HTTP_X_DEIS_BUILDER_AUTH=settings.BUILDER_KEY)
+        response = self.client.get(url, HTTP_X_DRYCC_BUILDER_AUTH=settings.BUILDER_KEY)
         self.assertEqual(response.status_code, 200, response.data)
         self.assertEqual(response.data, {"autotest": [
             {'key': rsa_pub, 'fingerprint': '54:6d:da:1f:91:b5:2b:6f:a2:83:90:c4:f9:73:76:f5'},
@@ -125,12 +125,12 @@ class HookTest(DeisTransactionTestCase):
 
         # Test against an app that exist but user does not
         url = '/v2/hooks/keys/{}/foooooo'.format(app_id)
-        response = self.client.get(url, HTTP_X_DEIS_BUILDER_AUTH=settings.BUILDER_KEY)
+        response = self.client.get(url, HTTP_X_DRYCC_BUILDER_AUTH=settings.BUILDER_KEY)
         self.assertEqual(response.status_code, 404)
 
         # Test against an app that exists and user that does
         url = '/v2/hooks/keys/{}/{}'.format(app_id, str(self.user))
-        response = self.client.get(url, HTTP_X_DEIS_BUILDER_AUTH=settings.BUILDER_KEY)
+        response = self.client.get(url, HTTP_X_DRYCC_BUILDER_AUTH=settings.BUILDER_KEY)
         self.assertEqual(response.status_code, 200, response.data)
         self.assertEqual(response.data, {"autotest": [
             {'key': rsa_pub, 'fingerprint': '54:6d:da:1f:91:b5:2b:6f:a2:83:90:c4:f9:73:76:f5'},
@@ -142,7 +142,7 @@ class HookTest(DeisTransactionTestCase):
 
         # Fetch a valid ssh key
         url = '/v2/hooks/key/54:6d:da:1f:91:b5:2b:6f:a2:83:90:c4:f9:73:76:f5'
-        response = self.client.get(url, HTTP_X_DEIS_BUILDER_AUTH=settings.BUILDER_KEY)
+        response = self.client.get(url, HTTP_X_DRYCC_BUILDER_AUTH=settings.BUILDER_KEY)
         self.assertEqual(response.status_code, 200, response.data)
         self.assertEqual(response.data, {
             "username": str(self.user),
@@ -153,12 +153,12 @@ class HookTest(DeisTransactionTestCase):
 
         # Fetch an non-existent base64 encoded ssh key
         url = '/v2/hooks/key/54:6d:da:1f:91:b5:2b:6f:a2:83:90:c4:f9:73:76:wooooo'
-        response = self.client.get(url, HTTP_X_DEIS_BUILDER_AUTH=settings.BUILDER_KEY)
+        response = self.client.get(url, HTTP_X_DRYCC_BUILDER_AUTH=settings.BUILDER_KEY)
         self.assertEqual(response.status_code, 404)
 
         # Fetch an invalid (not encoded) ssh key
         url = '/v2/hooks/key/nope'
-        response = self.client.get(url, HTTP_X_DEIS_BUILDER_AUTH=settings.BUILDER_KEY)
+        response = self.client.get(url, HTTP_X_DRYCC_BUILDER_AUTH=settings.BUILDER_KEY)
         self.assertEqual(response.status_code, 404)
 
     def test_build_hook(self, mock_requests):
@@ -176,7 +176,7 @@ class HookTest(DeisTransactionTestCase):
         self.assertEqual(response.status_code, 401, response.data)
         # post the build with the builder auth key
         response = self.client.post(url, body,
-                                    HTTP_X_DEIS_BUILDER_AUTH=settings.BUILDER_KEY)
+                                    HTTP_X_DRYCC_BUILDER_AUTH=settings.BUILDER_KEY)
         self.assertEqual(response.status_code, 200, response.data)
         self.assertIn('release', response.data)
         self.assertIn('version', response.data['release'])
@@ -197,7 +197,7 @@ class HookTest(DeisTransactionTestCase):
 
         # post the build with the builder auth key
         response = self.client.post(url, body,
-                                    HTTP_X_DEIS_BUILDER_AUTH=settings.BUILDER_KEY)
+                                    HTTP_X_DRYCC_BUILDER_AUTH=settings.BUILDER_KEY)
         self.assertEqual(response.status_code, 200, response.data)
         self.assertIn('release', response.data)
         self.assertIn('version', response.data['release'])
@@ -218,7 +218,7 @@ class HookTest(DeisTransactionTestCase):
 
         # post the build with the builder auth key
         response = self.client.post(url, body,
-                                    HTTP_X_DEIS_BUILDER_AUTH=settings.BUILDER_KEY)
+                                    HTTP_X_DRYCC_BUILDER_AUTH=settings.BUILDER_KEY)
         self.assertEqual(response.status_code, 200, response.data)
         self.assertIn('release', response.data)
         self.assertIn('version', response.data['release'])
@@ -264,7 +264,7 @@ class HookTest(DeisTransactionTestCase):
                 'dockerfile': DOCKERFILE}
         # post the build with the builder auth key
         response = self.client.post(url, body,
-                                    HTTP_X_DEIS_BUILDER_AUTH=settings.BUILDER_KEY)
+                                    HTTP_X_DRYCC_BUILDER_AUTH=settings.BUILDER_KEY)
         self.assertEqual(response.status_code, 200, response.data)
         self.assertIn('release', response.data)
         self.assertIn('version', response.data['release'])
@@ -311,7 +311,7 @@ class HookTest(DeisTransactionTestCase):
         self.assertEqual(response.status_code, 401, response.data)
         # post with the builder auth key
         response = self.client.post(url, body,
-                                    HTTP_X_DEIS_BUILDER_AUTH=settings.BUILDER_KEY)
+                                    HTTP_X_DRYCC_BUILDER_AUTH=settings.BUILDER_KEY)
         self.assertEqual(response.status_code, 200, response.data)
         self.assertIn('values', response.data)
         self.assertEqual(values, response.data['values'])
@@ -337,6 +337,6 @@ class HookTest(DeisTransactionTestCase):
                 'dockerfile': DOCKERFILE}
         url = '/v2/hooks/build'
         response = self.client.post(url, body,
-                                    HTTP_X_DEIS_BUILDER_AUTH=settings.BUILDER_KEY)
+                                    HTTP_X_DRYCC_BUILDER_AUTH=settings.BUILDER_KEY)
         self.assertEqual(response.status_code, 200, response.data)
         self.assertEqual(response.data['release']['version'], 2)

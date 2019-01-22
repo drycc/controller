@@ -5,11 +5,11 @@ from django.core.cache import cache
 from django.contrib.auth.models import User
 from rest_framework.authtoken.models import Token
 
-from api.tests import adapter, DeisTransactionTestCase
+from api.tests import adapter, DryccTransactionTestCase
 
 
 @requests_mock.Mocker(real_http=True, adapter=adapter)
-class TestTags(DeisTransactionTestCase):
+class TestTags(DryccTransactionTestCase):
     """Tests setting and updating config values"""
 
     fixtures = ['tests.json']

@@ -7,7 +7,7 @@
 set -eo pipefail
 
 # set debug based on envvar
-[[ $DEIS_DEBUG == "true" ]] && set -x
+[[ $DRYCC_DEBUG == "true" ]] && set -x
 
 echo system information:
 echo "Django Version: $(./manage.py --version)"
@@ -16,15 +16,15 @@ python --version
 mkdir -p /app/data/logs
 chmod -R 777 /app/data/logs
 
-# modify deis user groups to grant access to Docker socket
+# modify drycc user groups to grant access to Docker socket
 DOCKER_SOCKET_GID=$(stat -c "%g" /var/run/docker.sock)
 DOCKER_SOCKET_GROUP=$(getent group "$DOCKER_SOCKET_GID" | cut -d : -f 1 || :)
 if [[ -z "$DOCKER_SOCKET_GROUP" ]]; then
   DOCKER_SOCKET_GROUP=docker
   groupadd -g "$DOCKER_SOCKET_GID" "$DOCKER_SOCKET_GROUP"
 fi
-if [[ "$DOCKER_SOCKET_GROUP" != "deis" ]]; then
-  usermod -a -G "$DOCKER_SOCKET_GROUP" deis
+if [[ "$DOCKER_SOCKET_GROUP" != "drycc" ]]; then
+  usermod -a -G "$DOCKER_SOCKET_GROUP" drycc
 fi
 
 echo ""
@@ -37,12 +37,12 @@ python /app/manage.py healthchecks
 
 echo ""
 echo "Database Migrations:"
-sudo -E -u deis python /app/manage.py migrate --noinput
+sudo -E -u drycc python /app/manage.py migrate --noinput
 
 # spawn a gunicorn server in the background
 echo ""
 echo "Starting up Gunicorn"
-sudo -E -u deis gunicorn -c /app/deis/gunicorn/config.py api.wsgi &
+sudo -E -u drycc gunicorn -c /app/drycc/gunicorn/config.py api.wsgi &
 
 echo ""
 echo "Loading database information to Kubernetes in the background"
@@ -60,6 +60,6 @@ function on_exit() {
 trap on_exit TERM
 
 echo ""
-echo deis-controller running...
+echo drycc-controller running...
 
 wait

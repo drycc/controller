@@ -1,8 +1,8 @@
 
-from api.tests import DeisTestCase
+from api.tests import DryccTestCase
 
 
-class HealthCheckTest(DeisTestCase):
+class HealthCheckTest(DryccTestCase):
 
     def test_healthcheck_liveness(self):
         # GET and HEAD (no auth required)

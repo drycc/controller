@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-Unit tests for the Deis api app.
+Unit tests for the Drycc api app.
 
 Run the tests with "./manage.py test api"
 """
@@ -14,7 +14,7 @@ from rest_framework.authtoken.models import Token
 
 from api.models import App, Config
 
-from api.tests import adapter, mock_port, DeisTransactionTestCase
+from api.tests import adapter, mock_port, DryccTransactionTestCase
 import requests_mock
 
 
@@ -22,7 +22,7 @@ import requests_mock
 @mock.patch('api.models.release.publish_release', lambda *args: None)
 @mock.patch('api.models.release.docker_get_port', mock_port)
 @mock.patch('api.models.release.docker_check_access', lambda *args: None)
-class ConfigTest(DeisTransactionTestCase):
+class ConfigTest(DryccTransactionTestCase):
     """Tests setting and updating config values"""
 
     fixtures = ['tests.json']
@@ -39,7 +39,7 @@ class ConfigTest(DeisTransactionTestCase):
 
     def tearDown(self):
         # Restore default tags to empty string
-        settings.DEIS_DEFAULT_CONFIG_TAGS = ''
+        settings.DRYCC_DEFAULT_CONFIG_TAGS = ''
         # make sure every test has a clean slate for k8s mocking
         cache.clear()
 
@@ -125,7 +125,7 @@ class ConfigTest(DeisTransactionTestCase):
         return config5
 
     def test_default_tags(self, mock_requests):
-        settings.DEIS_DEFAULT_CONFIG_TAGS = '{"ssd": "true"}'
+        settings.DRYCC_DEFAULT_CONFIG_TAGS = '{"ssd": "true"}'
         app_id = self.create_app()
         url = "/v2/apps/{app_id}/config".format(**locals())
 
@@ -343,7 +343,7 @@ class ConfigTest(DeisTransactionTestCase):
     def test_config_owner_is_requesting_user(self, mock_requests):
         """
         Ensure that setting the config value is owned by the requesting user
-        See https://github.com/deisthree/deis/issues/2650
+        See https://github.com/drycc/drycc/issues/2650
         """
         response = self.test_admin_can_create_config_on_other_apps()
         self.assertEqual(response.data['owner'], self.user.username)

@@ -7,7 +7,7 @@ from rest_framework.exceptions import NotFound
 
 from api.utils import dict_diff
 from api.models import UuidAuditedModel
-from api.exceptions import DeisException, AlreadyExists, UnprocessableEntity
+from api.exceptions import DryccException, AlreadyExists, UnprocessableEntity
 
 
 class AppSettings(UuidAuditedModel):
@@ -184,7 +184,7 @@ class AppSettings(UuidAuditedModel):
             raise
         except Exception as e:
             self.delete()
-            raise DeisException(str(e)) from e
+            raise DryccException(str(e)) from e
 
         if not self.summary and previous_settings:
             self.delete()

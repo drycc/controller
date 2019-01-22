@@ -1,5 +1,5 @@
 """
-Unit tests for the Deis api app.
+Unit tests for the Drycc api app.
 
 Run the tests with "./manage.py test api"
 """
@@ -10,13 +10,13 @@ from django.core.cache import cache
 from rest_framework.authtoken.models import Token
 
 from api.models import Domain
-from api.tests import DeisTestCase
+from api.tests import DryccTestCase
 from scheduler import KubeException
 
 import idna
 
 
-class DomainTest(DeisTestCase):
+class DomainTest(DryccTestCase):
 
     """Tests creation of domains"""
 
@@ -198,7 +198,7 @@ class DomainTest(DeisTestCase):
             'w3.example.com',
             'MYDOMAIN.NET',
             'autotest.127.0.0.1.xip.io',
-            '*.deis.example.com'
+            '*.drycc.example.com'
         ]
 
         for domain in test_domains:
@@ -237,7 +237,7 @@ class DomainTest(DeisTestCase):
         self.assertEqual(response.status_code, 404)
 
     def test_delete_domain_does_not_remove_latest(self):
-        """https://github.com/deisthree/deis/issues/3239"""
+        """https://github.com/drycc/drycc/issues/3239"""
         url = '/v2/apps/{app_id}/domains'.format(app_id=self.app_id)
         test_domains = [
             'test-domain.example.com',
@@ -255,7 +255,7 @@ class DomainTest(DeisTestCase):
             Domain.objects.get(domain=test_domains[0])
 
     def test_delete_domain_does_not_remove_others(self):
-        """https://github.com/deisthree/deis/issues/3475"""
+        """https://github.com/drycc/drycc/issues/3475"""
         self.test_delete_domain_does_not_remove_latest()
         self.assertEqual(Domain.objects.all().count(), 2)
 
@@ -299,7 +299,7 @@ class DomainTest(DeisTestCase):
 
         self.client.credentials(HTTP_AUTHORIZATION='Token ' + self.token)
         url = '/v2/apps/{}/domains'.format(app_id)
-        response = self.client.post(url, {'domain': 'example.deis.example.com'})
+        response = self.client.post(url, {'domain': 'example.drycc.example.com'})
         self.assertEqual(response.status_code, 201, response.data)
 
     def test_unauthorized_user_cannot_modify_domain(self):

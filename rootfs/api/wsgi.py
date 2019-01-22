@@ -1,5 +1,5 @@
 """
-WSGI config for Deis Workflow Controller project.
+WSGI config for Drycc Workflow Controller project.
 
 It exposes the WSGI callable as a module-level variable named ``application``.
 

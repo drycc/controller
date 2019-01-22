@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 #
-# This hook verifies that the commit message follows deis commit style
-# To install this hook run the following command from the deis git root
+# This hook verifies that the commit message follows drycc commit style
+# To install this hook run the following command from the drycc git root
 # cp contrib/util/commit-msg .git/hooks/commit-msg
 set -eo pipefail
 
@@ -38,7 +38,7 @@ if ! [[ $SUBJECT =~ $subject_regex ]]; then
 	echo "test"
 	echo "chore"
 	echo ""
-	echo "Read more at http://docs.deis.io/en/latest/contributing/standards/$NORMAL"
+	echo "Read more at http://docs.drycc.cc/en/latest/contributing/standards/$NORMAL"
 	exit 0
 fi
 
@@ -47,21 +47,21 @@ if ! [[ $SUBJECT =~ $capital_regex ]]; then
 	echo ""
 	echo "$SUBJECT"
 	echo ""
-	echo "Read more at http://docs.deis.io/en/latest/contributing/standards/$NORMAL"
+	echo "Read more at http://docs.drycc.cc/en/latest/contributing/standards/$NORMAL"
 	exit 0
 fi
 
 if [[ ${#SUBJECT} -gt 50 ]]; then
 	echo "${YELLOW}WARNING - Subject shouldn't be longer than 50 characters."
 	echo ""
-	echo "Read more at http://docs.deis.io/en/latest/contributing/standards/$NORMAL"
+	echo "Read more at http://docs.drycc.cc/en/latest/contributing/standards/$NORMAL"
 	exit 0
 fi
 
 if [[ ${#MESSAGE[2]} -gt 0 ]]; then
 	echo "${RED}ERROR - Second line must be blank"
 	echo ""
-	echo "Read more at http://docs.deis.io/en/latest/contributing/standards/$NORMAL"
+	echo "Read more at http://docs.drycc.cc/en/latest/contributing/standards/$NORMAL"
 	exit 0
 fi
 
@@ -71,11 +71,11 @@ do
 		if [[ ${#MESSAGE[$i]} -gt 72 ]] && [[ ${MESSAGE[$i]:0:1} != '#' ]]; then
 			echo "${RED}ERROR on line $i -  can't be longer than 72 characters."
 			echo ""
-			echo "Read more at http://docs.deis.io/en/latest/contributing/standards/$NORMAL"
+			echo "Read more at http://docs.drycc.cc/en/latest/contributing/standards/$NORMAL"
 			exit 0
 		fi
 done
 
-echo "Your commit message follows the deis commit style."
+echo "Your commit message follows the drycc commit style."
 
 exit 0

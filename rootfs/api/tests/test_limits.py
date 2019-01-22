@@ -7,11 +7,11 @@ from rest_framework.authtoken.models import Token
 
 from api.serializers import MEMLIMIT_MATCH
 from api.serializers import CPUSHARE_MATCH
-from api.tests import adapter, DeisTransactionTestCase
+from api.tests import adapter, DryccTransactionTestCase
 
 
 @requests_mock.Mocker(real_http=True, adapter=adapter)
-class TestLimits(DeisTransactionTestCase):
+class TestLimits(DryccTransactionTestCase):
     """Tests setting and updating config values"""
 
     fixtures = ['tests.json']
@@ -26,7 +26,7 @@ class TestLimits(DeisTransactionTestCase):
         cache.clear()
 
     def test_memlimit_regex(self, mock_requests):
-        """Tests the regex for unit format used by "deis limits:set --memory=<limit>"."""
+        """Tests the regex for unit format used by "drycc limits:set --memory=<limit>"."""
         self.assertTrue(MEMLIMIT_MATCH.match("0/100MB"))
         self.assertTrue(MEMLIMIT_MATCH.match("200GB/100MB"))
         self.assertTrue(MEMLIMIT_MATCH.match("20MB"))
@@ -38,7 +38,7 @@ class TestLimits(DeisTransactionTestCase):
         self.assertFalse(MEMLIMIT_MATCH.match("mb"))
 
     def test_cpushare_regex(self, mock_requests):
-        """Tests the regex for unit format used by "deis limits:set --cpu=<limit>"."""
+        """Tests the regex for unit format used by "drycc limits:set --cpu=<limit>"."""
         self.assertTrue(CPUSHARE_MATCH.match("0/2"))
         self.assertTrue(CPUSHARE_MATCH.match("500m/600m"))
         self.assertTrue(CPUSHARE_MATCH.match("0.5"))
@@ -64,7 +64,7 @@ class TestLimits(DeisTransactionTestCase):
         self.assertEqual(response.status_code, 200, response.data)
         self.assertIn('memory', response.data)
         self.assertEqual(response.data['memory'], {})
-        # regression test for https://github.com/deisthree/deis/issues/1563
+        # regression test for https://github.com/drycc/drycc/issues/1563
         self.assertNotIn('"', response.data['memory'])
 
         # set an initial limit
@@ -105,7 +105,7 @@ class TestLimits(DeisTransactionTestCase):
         self.assertIn('web', memory)
         self.assertEqual(memory['web'], '1G')
 
-        # regression test for https://github.com/deisthree/deis/issues/1613
+        # regression test for https://github.com/drycc/drycc/issues/1613
         # ensure that config:set doesn't wipe out previous limits
         body = {'values': json.dumps({'NEW_URL2': 'http://localhost:8080/'})}
         response = self.client.post(url, body)
@@ -193,7 +193,7 @@ class TestLimits(DeisTransactionTestCase):
         self.assertEqual(response.status_code, 200, response.data)
         self.assertIn('cpu', response.data)
         self.assertEqual(response.data['cpu'], {})
-        # regression test for https://github.com/deisthree/deis/issues/1563
+        # regression test for https://github.com/drycc/drycc/issues/1563
         self.assertNotIn('"', response.data['cpu'])
 
         # set an initial limit

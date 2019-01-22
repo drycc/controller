@@ -36,7 +36,7 @@ class Service(Resource):
                 'name': name,
                 'labels': {
                     'app': namespace,
-                    'heritage': 'deis'
+                    'heritage': 'drycc'
                 },
                 'annotations': {}
             },
@@ -49,7 +49,7 @@ class Service(Resource):
                 }],
                 'selector': {
                     'app': namespace,
-                    'heritage': 'deis'
+                    'heritage': 'drycc'
                 }
             }
         }

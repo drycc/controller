@@ -1,5 +1,5 @@
 """
-Unit tests for the Deis scheduler module.
+Unit tests for the Drycc scheduler module.
 
 Run the tests with './manage.py test scheduler'
 """
@@ -19,7 +19,7 @@ class NamespacesTest(TestCase):
         data = response.json()
         self.assertEqual(response.status_code, 200, data)
         self.assertIn('items', data)
-        # mock scheduler already creates deis and duplicate
+        # mock scheduler already creates drycc and duplicate
         self.assertEqual(3, len(data['items']), data['items'])
         # simple verify of data
         self.assertEqual(data['items'][2]['metadata']['name'], self.namespace)
@@ -40,7 +40,7 @@ class NamespacesTest(TestCase):
             {
                 'name': self.namespace,
                 'labels': {
-                    'heritage': 'deis'
+                    'heritage': 'drycc'
                 }
             },
             data['metadata']

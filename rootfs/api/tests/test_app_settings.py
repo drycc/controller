@@ -7,13 +7,13 @@ from rest_framework.authtoken.models import Token
 from api.models import App
 from unittest import mock
 from scheduler import KubeException
-from api.tests import adapter, mock_port, DeisTransactionTestCase
+from api.tests import adapter, mock_port, DryccTransactionTestCase
 
 
 @requests_mock.Mocker(real_http=True, adapter=adapter)
 @mock.patch('api.models.release.publish_release', lambda *args: None)
 @mock.patch('api.models.release.docker_get_port', mock_port)
-class TestAppSettings(DeisTransactionTestCase):
+class TestAppSettings(DryccTransactionTestCase):
     """Tests setting and updating config values"""
 
     fixtures = ['tests.json']
@@ -276,7 +276,7 @@ class TestAppSettings(DeisTransactionTestCase):
         base_labels = {
             'label':
                 {
-                    'git_repo': 'https://github.com/deisthree/controller',
+                    'git_repo': 'https://github.com/drycc/controller',
                     'team': 'frontend',
                     'empty': ''
                 }

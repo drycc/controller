@@ -1,5 +1,5 @@
 """
-Unit tests for the Deis ingress module.
+Unit tests for the Drycc ingress module.
 
 Run the tests with './manage.py test ingress'
 """

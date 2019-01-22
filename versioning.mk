@@ -1,12 +1,12 @@
 MUTABLE_VERSION ?= canary
 VERSION ?= git-$(shell git rev-parse --short HEAD)
 
-IMAGE := ${DEIS_REGISTRY}${IMAGE_PREFIX}/${SHORT_NAME}:${VERSION}
-MUTABLE_IMAGE := ${DEIS_REGISTRY}${IMAGE_PREFIX}/${SHORT_NAME}:${MUTABLE_VERSION}
+IMAGE := ${DRYCC_REGISTRY}${IMAGE_PREFIX}/${SHORT_NAME}:${VERSION}
+MUTABLE_IMAGE := ${DRYCC_REGISTRY}${IMAGE_PREFIX}/${SHORT_NAME}:${MUTABLE_VERSION}
 
 info:
 	@echo "Build tag:       ${VERSION}"
-	@echo "Registry:        ${DEIS_REGISTRY}"
+	@echo "Registry:        ${DRYCC_REGISTRY}"
 	@echo "Immutable tag:   ${IMAGE}"
 	@echo "Mutable tag:     ${MUTABLE_IMAGE}"
 

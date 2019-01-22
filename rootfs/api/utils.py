@@ -1,5 +1,5 @@
 """
-Helper functions used by the Deis server.
+Helper functions used by the Drycc server.
 """
 import asyncio
 import base64

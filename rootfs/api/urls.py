@@ -1,5 +1,5 @@
 """
-URL routing patterns for the Deis REST API.
+URL routing patterns for the Drycc REST API.
 """
 
 

@@ -1,5 +1,5 @@
 """
-Django settings for the Deis project.
+Django settings for the Drycc project.
 """
 from distutils.util import strtobool
 import os.path
@@ -10,7 +10,7 @@ from django_auth_ldap.config import LDAPSearch, GroupOfNamesType
 
 # A boolean that turns on/off debug mode.
 # https://docs.djangoproject.com/en/1.11/ref/settings/#debug
-DEBUG = bool(os.environ.get('DEIS_DEBUG', False))
+DEBUG = bool(os.environ.get('DRYCC_DEBUG', False))
 
 # If set to True, Django's normal exception handling of view functions
 # will be suppressed, and exceptions will propagate upwards
@@ -86,7 +86,7 @@ MIDDLEWARE = [
     'api.middleware.APIVersionMiddleware',
 ]
 
-ROOT_URLCONF = 'deis.urls'
+ROOT_URLCONF = 'drycc.urls'
 
 # Python dotted path to the WSGI application used by Django's runserver.
 WSGI_APPLICATION = 'api.wsgi.application'
@@ -104,7 +104,7 @@ INSTALLED_APPS = (
     'jsonfield',
     'rest_framework',
     'rest_framework.authtoken',
-    # Deis apps
+    # Drycc apps
     'api'
 )
 
@@ -128,8 +128,8 @@ CORS_ALLOW_HEADERS = (
 )
 
 CORS_EXPOSE_HEADERS = (
-    'DEIS_API_VERSION',
-    'DEIS_PLATFORM_VERSION',
+    'DRYCC_API_VERSION',
+    'DRYCC_PLATFORM_VERSION',
 )
 
 X_FRAME_OPTIONS = 'DENY'
@@ -144,10 +144,10 @@ SECURE_BROWSER_XSS_FILTER = True
 SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 
 # standard datetime format used for logging, model timestamps, etc.
-DEIS_DATETIME_FORMAT = '%Y-%m-%dT%H:%M:%SZ'
+DRYCC_DATETIME_FORMAT = '%Y-%m-%dT%H:%M:%SZ'
 
 REST_FRAMEWORK = {
-    'DATETIME_FORMAT': DEIS_DATETIME_FORMAT,
+    'DATETIME_FORMAT': DRYCC_DATETIME_FORMAT,
     'DEFAULT_MODEL_SERIALIZER_CLASS': 'rest_framework.serializers.ModelSerializer',
     'DEFAULT_PERMISSION_CLASSES': (
         'rest_framework.permissions.IsAuthenticated',
@@ -234,15 +234,15 @@ LOGGING = {
 }
 TEST_RUNNER = 'api.tests.SilentDjangoTestSuiteRunner'
 
-# default deis settings
+# default drycc settings
 LOG_LINES = 100
-TEMPDIR = tempfile.mkdtemp(prefix='deis')
+TEMPDIR = tempfile.mkdtemp(prefix='drycc')
 
 # names which apps cannot reserve for routing
-DEIS_RESERVED_NAMES = os.environ.get('RESERVED_NAMES', '').replace(' ', '').split(',')
+DRYCC_RESERVED_NAMES = os.environ.get('RESERVED_NAMES', '').replace(' ', '').split(',')
 
 # the k8s namespace in which the controller and workflow were installed.
-WORKFLOW_NAMESPACE = os.environ.get('WORKFLOW_NAMESPACE', 'deis')
+WORKFLOW_NAMESPACE = os.environ.get('WORKFLOW_NAMESPACE', 'drycc')
 
 # default scheduler settings
 SCHEDULER_MODULE = 'scheduler'
@@ -257,8 +257,8 @@ K8S_API_VERIFY_TLS = bool(strtobool(os.environ.get('K8S_API_VERIFY_TLS', 'true')
 
 # security keys and auth tokens
 random_secret = 'CHANGEME_sapm$s%upvsw5l_zuy_&29rkywd^78ff(qi*#@&*^'
-SECRET_KEY = os.environ.get('DEIS_SECRET_KEY', random_secret)
-BUILDER_KEY = os.environ.get('DEIS_BUILDER_KEY', random_secret)
+SECRET_KEY = os.environ.get('DRYCC_SECRET_KEY', random_secret)
+BUILDER_KEY = os.environ.get('DRYCC_BUILDER_KEY', random_secret)
 
 # experimental native ingress
 EXPERIMENTAL_NATIVE_INGRESS = bool(strtobool(
@@ -266,7 +266,7 @@ EXPERIMENTAL_NATIVE_INGRESS = bool(strtobool(
 EXPERIMENTAL_NATIVE_INGRESS_HOSTNAME = os.environ.get('EXPERIMENTAL_NATIVE_INGRESS_HOSTNAME', '')
 
 # k8s image policies
-SLUGRUNNER_IMAGE = os.environ.get('SLUGRUNNER_IMAGE_NAME', 'quay.io/deisci/slugrunner:canary')  # noqa
+SLUGRUNNER_IMAGE = os.environ.get('SLUGRUNNER_IMAGE_NAME', 'quay.io/drycc/slugrunner:canary')  # noqa
 IMAGE_PULL_POLICY = os.environ.get('IMAGE_PULL_POLICY', "IfNotPresent")  # noqa
 
 # True, true, yes, y and more evaluate to True
@@ -280,7 +280,7 @@ IMAGE_PULL_POLICY = os.environ.get('IMAGE_PULL_POLICY', "IfNotPresent")  # noqa
 # If the user has a Procfile in both deploys then processes are scaled up / down as per usual
 #
 # By default the process types are scaled down unless this setting is turned on
-DEIS_DEPLOY_PROCFILE_MISSING_REMOVE = bool(strtobool(os.environ.get('DEIS_DEPLOY_PROCFILE_MISSING_REMOVE', 'true')))  # noqa
+DRYCC_DEPLOY_PROCFILE_MISSING_REMOVE = bool(strtobool(os.environ.get('DRYCC_DEPLOY_PROCFILE_MISSING_REMOVE', 'true')))  # noqa
 
 # True, true, yes, y and more evaluate to True
 # False, false, no, n and more evaluate to False
@@ -289,32 +289,32 @@ DEIS_DEPLOY_PROCFILE_MISSING_REMOVE = bool(strtobool(os.environ.get('DEIS_DEPLOY
 #
 # If a previous deploy had a Procfile but then the following deploy has no Procfile then it will
 # result in a 406 - Not Acceptable
-# Has priority over DEIS_DEPLOY_PROCFILE_MISSING_REMOVE
-DEIS_DEPLOY_REJECT_IF_PROCFILE_MISSING = bool(strtobool(os.environ.get('DEIS_DEPLOY_REJECT_IF_PROCFILE_MISSING', 'false')))  # noqa
+# Has priority over DRYCC_DEPLOY_PROCFILE_MISSING_REMOVE
+DRYCC_DEPLOY_REJECT_IF_PROCFILE_MISSING = bool(strtobool(os.environ.get('DRYCC_DEPLOY_REJECT_IF_PROCFILE_MISSING', 'false')))  # noqa
 
 # Define a global default on how many pods to bring up and then
 # take down sequentially during a deploy
 # Defaults to None, the default is to deploy to as many nodes as
 # the application has been instructed to run on
 # Can also be overwritten on per app basis if desired
-DEIS_DEPLOY_BATCHES = int(os.environ.get('DEIS_DEPLOY_BATCHES', 0))
+DRYCC_DEPLOY_BATCHES = int(os.environ.get('DRYCC_DEPLOY_BATCHES', 0))
 
 # For old style deploys (RCs) defines how long each batch
-# (as defined by DEIS_DEPLOY_BATCHES) can take before giving up
+# (as defined by DRYCC_DEPLOY_BATCHES) can take before giving up
 # For Kubernetes Deployments it is part of the global timeout
 # where it roughly goes BATCHES * TIMEOUT = global timeout
-DEIS_DEPLOY_TIMEOUT = int(os.environ.get('DEIS_DEPLOY_TIMEOUT', 120))
+DRYCC_DEPLOY_TIMEOUT = int(os.environ.get('DRYCC_DEPLOY_TIMEOUT', 120))
 
 try:
-    DEIS_DEPLOY_HOOK_URLS = os.environ['DEIS_DEPLOY_HOOK_URLS'].split(',')
+    DRYCC_DEPLOY_HOOK_URLS = os.environ['DRYCC_DEPLOY_HOOK_URLS'].split(',')
 except KeyError:
-    DEIS_DEPLOY_HOOK_URLS = []
+    DRYCC_DEPLOY_HOOK_URLS = []
 
-DEIS_DEPLOY_HOOK_SECRET_KEY = os.environ.get('DEIS_DEPLOY_HOOK_SECRET_KEY', None)
+DRYCC_DEPLOY_HOOK_SECRET_KEY = os.environ.get('DRYCC_DEPLOY_HOOK_SECRET_KEY', None)
 
 KUBERNETES_DEPLOYMENTS_REVISION_HISTORY_LIMIT = os.environ.get('KUBERNETES_DEPLOYMENTS_REVISION_HISTORY_LIMIT', None)  # noqa
 
-DEIS_DEFAULT_CONFIG_TAGS = os.environ.get('DEIS_DEFAULT_CONFIG_TAGS', '')
+DRYCC_DEFAULT_CONFIG_TAGS = os.environ.get('DRYCC_DEFAULT_CONFIG_TAGS', '')
 
 # How long k8s waits for a pod to finish work after a SIGTERM before sending SIGKILL
 KUBERNETES_POD_TERMINATION_GRACE_PERIOD_SECONDS = int(os.environ.get('KUBERNETES_POD_TERMINATION_GRACE_PERIOD_SECONDS', 30))  # noqa
@@ -323,36 +323,37 @@ KUBERNETES_POD_TERMINATION_GRACE_PERIOD_SECONDS = int(os.environ.get('KUBERNETES
 KUBERNETES_NAMESPACE_DEFAULT_QUOTA_SPEC = os.environ.get('KUBERNETES_NAMESPACE_DEFAULT_QUOTA_SPEC', '')  # noqa
 
 # registry settings
-REGISTRY_HOST = os.environ.get('DEIS_REGISTRY_SERVICE_HOST', '127.0.0.1')
-REGISTRY_PORT = os.environ.get('DEIS_REGISTRY_SERVICE_PORT', 5000)
+REGISTRY_HOST = os.environ.get('DRYCC_REGISTRY_SERVICE_HOST', '127.0.0.1')
+REGISTRY_PORT = os.environ.get('DRYCC_REGISTRY_SERVICE_PORT', 5000)
 REGISTRY_URL = '{}:{}'.format(REGISTRY_HOST, REGISTRY_PORT)
-REGISTRY_LOCATION = os.environ.get('DEIS_REGISTRY_LOCATION', 'on-cluster')
-REGISTRY_SECRET_PREFIX = os.environ.get('DEIS_REGISTRY_SECRET_PREFIX', 'private-registry')
+REGISTRY_LOCATION = os.environ.get('DRYCC_REGISTRY_LOCATION', 'on-cluster')
+REGISTRY_SECRET_PREFIX = os.environ.get('DRYCC_REGISTRY_SECRET_PREFIX', 'private-registry')
 
 # logger settings
-LOGGER_HOST = os.environ.get('DEIS_LOGGER_SERVICE_HOST', '127.0.0.1')
-LOGGER_PORT = os.environ.get('DEIS_LOGGER_SERVICE_PORT_HTTP', 80)
+LOGGER_HOST = os.environ.get('DRYCC_LOGGER_SERVICE_HOST', '127.0.0.1')
+LOGGER_PORT = os.environ.get('DRYCC_LOGGER_SERVICE_PORT_HTTP', 80)
 
 # router information
-ROUTER_HOST = os.environ.get('DEIS_ROUTER_SERVICE_HOST', '127.0.0.1')
-ROUTER_PORT = os.environ.get('DEIS_ROUTER_SERVICE_PORT', 80)
+ROUTER_HOST = os.environ.get('DRYCC_ROUTER_SERVICE_HOST', '127.0.0.1')
+ROUTER_PORT = os.environ.get('DRYCC_ROUTER_SERVICE_PORT', 80)
 
 # minio information
-MINIO_HOST = os.environ.get('DEIS_MINIO_SERVICE_HOST', '127.0.0.1')
-MINIO_PORT = os.environ.get('DEIS_MINIO_SERVICE_PORT', 80)
+MINIO_HOST = os.environ.get('DRYCC_MINIO_SERVICE_HOST', '127.0.0.1')
+MINIO_PORT = os.environ.get('DRYCC_MINIO_SERVICE_PORT', 80)
 APP_STORAGE = os.environ.get('APP_STORAGE')
 
-# check if we can register users with `deis register`
+# check if we can register users with `drycc register`
 REGISTRATION_MODE = os.environ.get('REGISTRATION_MODE', 'enabled')
 
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
-        'NAME': os.environ.get('DEIS_DATABASE_NAME', os.environ.get('DEIS_DATABASE_USER', 'deis')),
-        'USER': os.environ.get('DEIS_DATABASE_USER', ''),
-        'PASSWORD': os.environ.get('DEIS_DATABASE_PASSWORD', ''),
-        'HOST': os.environ.get('DEIS_DATABASE_SERVICE_HOST', ''),
-        'PORT': os.environ.get('DEIS_DATABASE_SERVICE_PORT', 5432),
+        'NAME': os.environ.get(
+            'DRYCC_DATABASE_NAME', os.environ.get('DRYCC_DATABASE_USER', 'drycc')),
+        'USER': os.environ.get('DRYCC_DATABASE_USER', ''),
+        'PASSWORD': os.environ.get('DRYCC_DATABASE_PASSWORD', ''),
+        'HOST': os.environ.get('DRYCC_DATABASE_SERVICE_HOST', ''),
+        'PORT': os.environ.get('DRYCC_DATABASE_SERVICE_PORT', 5432),
         # https://docs.djangoproject.com/en/1.11/ref/databases/#persistent-connections
         'CONN_MAX_AGE': 600,
     }

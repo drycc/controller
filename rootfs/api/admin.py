@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 """
-Django admin app configuration for Deis API models.
+Django admin app configuration for Drycc API models.
 """
 
 

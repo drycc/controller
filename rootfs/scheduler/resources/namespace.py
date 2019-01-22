@@ -34,7 +34,7 @@ class Namespace(Resource):
             "metadata": {
                 "name": namespace,
                 "labels": {
-                    'heritage': 'deis'
+                    'heritage': 'drycc'
                 }
             }
         }

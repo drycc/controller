@@ -1,5 +1,5 @@
 """
-RESTful view classes for presenting Deis API objects.
+RESTful view classes for presenting Drycc API objects.
 """
 from django.http import Http404, HttpResponse
 from django.conf import settings
@@ -17,7 +17,7 @@ from rest_framework.viewsets import GenericViewSet
 from rest_framework.authtoken.models import Token
 
 from api import authentication, models, permissions, serializers, viewsets
-from api.models import AlreadyExists, ServiceUnavailable, DeisException, UnprocessableEntity
+from api.models import AlreadyExists, ServiceUnavailable, DryccException, UnprocessableEntity
 
 import logging
 
@@ -98,7 +98,7 @@ class UserManagementViewSet(GenericViewSet):
 
     def passwd(self, request, **kwargs):
         if not request.data.get('new_password'):
-            raise DeisException("new_password is a required field")
+            raise DryccException("new_password is a required field")
 
         caller_obj = self.get_object()
         target_obj = self.get_object()
@@ -111,7 +111,7 @@ class UserManagementViewSet(GenericViewSet):
 
         if not caller_obj.is_superuser:
             if not request.data.get('password'):
-                raise DeisException("password is a required field")
+                raise DryccException("password is a required field")
             if not target_obj.check_password(request.data['password']):
                 raise AuthenticationFailed('Current password does not match')
 
@@ -153,9 +153,9 @@ class TokenManagementViewSet(GenericViewSet,
         return Response({'token': token.key})
 
 
-class BaseDeisViewSet(viewsets.OwnerViewSet):
+class BaseDryccViewSet(viewsets.OwnerViewSet):
     """
-    A generic ViewSet for objects related to Deis.
+    A generic ViewSet for objects related to Drycc.
 
     To use it, at minimum you'll need to provide the `serializer_class` attribute and
     the `model` attribute shortcut.
@@ -165,7 +165,7 @@ class BaseDeisViewSet(viewsets.OwnerViewSet):
     renderer_classes = [renderers.JSONRenderer]
 
 
-class AppResourceViewSet(BaseDeisViewSet):
+class AppResourceViewSet(BaseDryccViewSet):
     """A viewset for objects which are attached to an application."""
 
     def get_app(self):
@@ -192,7 +192,7 @@ class ReleasableViewSet(AppResourceViewSet):
         return getattr(self.get_app().release_set.filter(failed=False).latest(), self.model.__name__.lower())  # noqa
 
 
-class AppViewSet(BaseDeisViewSet):
+class AppViewSet(BaseDryccViewSet):
     """A viewset for interacting with App objects."""
     model = models.App
     serializer_class = serializers.AppSerializer
@@ -237,7 +237,7 @@ class AppViewSet(BaseDeisViewSet):
     def run(self, request, **kwargs):
         app = self.get_object()
         if not request.data.get('command'):
-            raise DeisException("command is a required field")
+            raise DryccException("command is a required field")
         rc, output = app.run(self.request.user, request.data['command'])
         return Response({'exit_code': rc, 'output': str(output)})
 
@@ -296,7 +296,7 @@ class ConfigViewSet(ReleasableViewSet):
                 config.delete()
             if isinstance(e, AlreadyExists):
                 raise
-            raise DeisException(str(e)) from e
+            raise DryccException(str(e)) from e
 
 
 class PodViewSet(AppResourceViewSet):
@@ -407,7 +407,7 @@ class ServiceViewSet(AppResourceViewSet):
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 
-class CertificateViewSet(BaseDeisViewSet):
+class CertificateViewSet(BaseDryccViewSet):
     """A viewset for interacting with Certificate objects."""
     model = models.Certificate
     serializer_class = serializers.CertificateSerializer
@@ -420,7 +420,7 @@ class CertificateViewSet(BaseDeisViewSet):
     def attach(self, request, *args, **kwargs):
         try:
             if kwargs['domain'] is None and not request.data.get('domain'):
-                raise DeisException("domain is a required field")
+                raise DryccException("domain is a required field")
             elif request.data.get('domain'):
                 kwargs['domain'] = request.data['domain']
 
@@ -439,7 +439,7 @@ class CertificateViewSet(BaseDeisViewSet):
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 
-class KeyViewSet(BaseDeisViewSet):
+class KeyViewSet(BaseDryccViewSet):
     """A viewset for interacting with Key objects."""
     model = models.Key
     permission_classes = [IsAuthenticated, permissions.IsOwner]
@@ -472,7 +472,7 @@ class TLSViewSet(AppResourceViewSet):
     serializer_class = serializers.TLSSerializer
 
 
-class BaseHookViewSet(BaseDeisViewSet):
+class BaseHookViewSet(BaseDryccViewSet):
     permission_classes = [permissions.HasBuilderAuth]
 
 
@@ -586,7 +586,7 @@ class ConfigHookViewSet(BaseHookViewSet):
         return Response(serializer.data, status=status.HTTP_200_OK)
 
 
-class AppPermsViewSet(BaseDeisViewSet):
+class AppPermsViewSet(BaseDryccViewSet):
     """RESTful views for sharing apps with collaborators."""
 
     model = models.App  # models class
@@ -630,7 +630,7 @@ class AppPermsViewSet(BaseDeisViewSet):
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 
-class AdminPermsViewSet(BaseDeisViewSet):
+class AdminPermsViewSet(BaseDryccViewSet):
     """RESTful views for sharing admin permissions with other users."""
 
     model = User
@@ -654,7 +654,7 @@ class AdminPermsViewSet(BaseDeisViewSet):
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 
-class UserView(BaseDeisViewSet):
+class UserView(BaseDryccViewSet):
     """A Viewset for interacting with User objects."""
     model = User
     serializer_class = serializers.UserSerializer

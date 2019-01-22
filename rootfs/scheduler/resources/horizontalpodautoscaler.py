@@ -54,7 +54,7 @@ class HorizontalPodAutoscaler(Resource):
         labels = {
             'app': namespace,
             'type': app_type,
-            'heritage': 'deis',
+            'heritage': 'drycc',
         }
 
         manifest = {

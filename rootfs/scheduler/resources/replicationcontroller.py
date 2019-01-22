@@ -38,7 +38,7 @@ class ReplicationController(Resource):
                     'app': namespace,
                     'version': kwargs.get('version'),
                     'type': kwargs.get('app_type'),
-                    'heritage': 'deis',
+                    'heritage': 'drycc',
                 }
             },
             'spec': {

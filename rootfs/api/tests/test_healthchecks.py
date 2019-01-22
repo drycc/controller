@@ -7,14 +7,14 @@ from django.contrib.auth.models import User
 from rest_framework.authtoken.models import Token
 
 from api.models import App
-from api.tests import adapter, mock_port, DeisTransactionTestCase
+from api.tests import adapter, mock_port, DryccTransactionTestCase
 
 
 @requests_mock.Mocker(real_http=True, adapter=adapter)
 @mock.patch('api.models.release.publish_release', lambda *args: None)
 @mock.patch('api.models.release.docker_get_port', mock_port)
 @mock.patch('api.models.release.docker_check_access', lambda *args: None)
-class TestHealthchecks(DeisTransactionTestCase):
+class TestHealthchecks(DryccTransactionTestCase):
     """Tests setting and updating config values"""
 
     fixtures = ['tests.json']
@@ -186,7 +186,7 @@ class TestHealthchecks(DeisTransactionTestCase):
 
     def test_config_healthchecks_legacy(self, mock_requests):
         """
-        Test that when a user uses `deis config:set HEALTHCHECK_URL=/`, the config
+        Test that when a user uses `drycc config:set HEALTHCHECK_URL=/`, the config
         object is rolled over to the `healthcheck` field.
         """
         app_id = self.create_app()

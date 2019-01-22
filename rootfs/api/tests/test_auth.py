@@ -1,5 +1,5 @@
 """
-Unit tests for the Deis api app.
+Unit tests for the Drycc api app.
 
 Run the tests with "./manage.py test api"
 """
@@ -8,11 +8,11 @@ from django.test.utils import override_settings
 from rest_framework.authtoken.models import Token
 from unittest import mock
 
-from api.tests import TEST_ROOT, DeisTestCase
+from api.tests import TEST_ROOT, DryccTestCase
 from api.models import Certificate
 
 
-class AuthTest(DeisTestCase):
+class AuthTest(DryccTestCase):
 
     fixtures = ['test_auth.json']
 
@@ -33,7 +33,7 @@ class AuthTest(DeisTestCase):
         # test registration workflow
         username, password = 'newuser', 'password'
         first_name, last_name = 'Otto', 'Test'
-        email = 'autotest@deis.io'
+        email = 'autotest@drycc.cc'
         submit = {
             'username': username,
             'password': password,
@@ -125,7 +125,7 @@ class AuthTest(DeisTestCase):
 
         username, password = 'newuser_by_admin', 'password'
         first_name, last_name = 'Otto', 'Test'
-        email = 'autotest@deis.io'
+        email = 'autotest@drycc.cc'
 
         submit = {
             'username': username,
@@ -188,7 +188,7 @@ class AuthTest(DeisTestCase):
             'password': password,
             'first_name': 'Otto',
             'last_name': 'Test',
-            'email': 'autotest@deis.io',
+            'email': 'autotest@drycc.cc',
             # try to abuse superuser/staff level perms
             'is_superuser': True,
             'is_staff': True,
@@ -200,7 +200,7 @@ class AuthTest(DeisTestCase):
             'password': other_password,
             'first_name': 'Test',
             'last_name': 'Tester',
-            'email': 'autotest-2@deis.io',
+            'email': 'autotest-2@drycc.cc',
             'is_superuser': False,
             'is_staff': False,
         }
@@ -262,7 +262,7 @@ class AuthTest(DeisTestCase):
         # test registration workflow
         username, password = 'newuser', 'password'
         first_name, last_name = 'Otto', 'Test'
-        email = 'autotest@deis.io'
+        email = 'autotest@drycc.cc'
         submit = {
             'username': username,
             'password': password,
@@ -378,6 +378,6 @@ class AuthTest(DeisTestCase):
     def test_auth_no_ldap_by_default(self, mock_logger):
         """Ensure that LDAP authentication is disabled by default."""
         self.test_auth()
-        # NOTE(bacongobbler): Using https://github.com/deisthree/controller/issues/1189
+        # NOTE(bacongobbler): Using https://github.com/drycc/controller/issues/1189
         # as a test case
         mock_logger.warning.assert_not_called()

@@ -1,12 +1,12 @@
-# If DEIS_REGISTRY is not set, try to populate it from legacy DEV_REGISTRY
-DEIS_REGISTRY ?= $(DEV_REGISTRY)
-IMAGE_PREFIX ?= deis
+# If DRYCC_REGISTRY is not set, try to populate it from legacy DEV_REGISTRY
+DRYCC_REGISTRY ?= $(DEV_REGISTRY)
+IMAGE_PREFIX ?= drycc
 COMPONENT ?= controller
 SHORT_NAME ?= $(COMPONENT)
 
 include versioning.mk
 
-SHELLCHECK_PREFIX := docker run -v ${CURDIR}:/workdir -w /workdir quay.io/deis/shell-dev shellcheck
+SHELLCHECK_PREFIX := docker run -v ${CURDIR}:/workdir -w /workdir quay.io/drycc/go-dev:v0.22.0 shellcheck
 SHELL_SCRIPTS = $(wildcard rootfs/bin/*) $(shell find "rootfs" -name '*.sh') $(wildcard _scripts/*.sh)
 
 # Test processes used in quick unit testing
@@ -34,7 +34,7 @@ docker-build-test: check-docker
 	docker build ${DOCKER_BUILD_FLAGS} -t ${IMAGE}.test -f rootfs/Dockerfile.test rootfs
 
 deploy: check-kubectl docker-build docker-push
-	kubectl --namespace=deis patch deployment deis-$(COMPONENT) --type='json' -p='[{"op": "replace", "path": "/spec/template/spec/containers/0/image", "value":"$(IMAGE)"}]'
+	kubectl --namespace=drycc patch deployment drycc-$(COMPONENT) --type='json' -p='[{"op": "replace", "path": "/spec/template/spec/containers/0/image", "value":"$(IMAGE)"}]'
 
 clean: check-docker
 	docker rmi $(IMAGE)
@@ -58,7 +58,7 @@ test-functional:
 	@echo "Implement functional tests in _tests directory"
 
 test-integration:
-	@echo "Check https://github.com/deisthree/workflow-e2e for the complete integration test suite"
+	@echo "Check https://github.com/drycc/workflow-e2e for the complete integration test suite"
 
 upload-coverage:
 	$(eval CI_ENV := $(shell curl -s https://codecov.io/env | bash))

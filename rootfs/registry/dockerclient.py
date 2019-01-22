@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""Support the Deis workflow by manipulating and publishing Docker images."""
+"""Support the Drycc workflow by manipulating and publishing Docker images."""
 
 import logging
 import os
@@ -22,7 +22,7 @@ class RegistryException(Exception):
 
 
 class DockerClient(object):
-    """Use the Docker API to pull, tag, build, and push images to deis-registry."""
+    """Use the Docker API to pull, tag, build, and push images to drycc-registry."""
 
     def __init__(self):
         timeout = os.environ.get('DOCKER_CLIENT_TIMEOUT', docker.constants.DEFAULT_TIMEOUT_SECONDS)
@@ -58,7 +58,7 @@ class DockerClient(object):
 
         logger.info('Successfully logged into {} with {}'.format(repository, registry_auth['username']))  # noqa
 
-    def get_port(self, target, deis_registry=False, creds=None):
+    def get_port(self, target, drycc_registry=False, creds=None):
         """
         Get a port from a Docker image
         """
@@ -66,11 +66,11 @@ class DockerClient(object):
         name, _ = docker.utils.parse_repository_tag(target)
 
         # strip any "http://host.domain:port" prefix from the target repository name,
-        # since we always publish to the Deis registry
+        # since we always publish to the Drycc registry
         repo, name = auth.split_repo_name(name)
 
         # log into pull repo
-        if not deis_registry:
+        if not drycc_registry:
             self.login(repo, creds)
 
         info = self.inspect_image(target)
@@ -80,20 +80,24 @@ class DockerClient(object):
         port = int(list(info['Config']['ExposedPorts'].keys())[0].split('/')[0])
         return port
 
-    def publish_release(self, source, target, deis_registry=False, creds=None):
-        """Update a source Docker image with environment config and publish it to deis-registry."""
+    def publish_release(self, source, target, drycc_registry=False, creds=None):
+        """
+        Update a source Docker image with environment config and publish
+        it to drycc-registry.
+        """
+
         # get the source repository name and tag
         src_name, src_tag = docker.utils.parse_repository_tag(source)
         # get the target repository name and tag
         name, tag = docker.utils.parse_repository_tag(target)
         # strip any "http://host.domain:port" prefix from the target repository name,
-        # since we always publish to the Deis registry
+        # since we always publish to the Drycc registry
         repo, name = auth.split_repo_name(name)
 
         # pull the source image from the registry
-        # NOTE: this relies on an implementation detail of deis-builder, that
-        # the image has been uploaded already to deis-registry
-        if deis_registry:
+        # NOTE: this relies on an implementation detail of drycc-builder, that
+        # the image has been uploaded already to drycc-registry
+        if drycc_registry:
             repo = "{}/{}".format(self.registry, src_name)
         else:
             repo = src_name
@@ -110,7 +114,7 @@ class DockerClient(object):
             image = "{}:{}".format(src_name, src_tag)
             self.tag(image, "{}/{}".format(self.registry, name), tag=tag)
 
-            # push the image to deis-registry
+            # push the image to drycc-registry
             self.push("{}/{}".format(self.registry, name), tag)
         except APIError as e:
             raise RegistryException(str(e))
@@ -158,7 +162,7 @@ class DockerClient(object):
         """
         Check access to the docker image, with the given creds (if any).
         Due to the k8s docker image cache, we can't rely on k8s to do this
-        check - see https://github.com/teamhephy/workflow/issues/78
+        check - see https://github.com/drycc/workflow/issues/78
         """
         name, _ = docker.utils.parse_repository_tag(target)
         self.login(name, creds)
@@ -167,13 +171,13 @@ class DockerClient(object):
 
 
 def check_blacklist(repo):
-    """Check a Docker repository name for collision with deis/* components."""
+    """Check a Docker repository name for collision with drycc/* components."""
     blacklisted = [  # NOTE: keep this list up to date!
         'builder', 'controller', 'database', 'dockerbuilder', 'etcd', 'minio', 'registry',
         'router', 'slugbuilder', 'slugrunner', 'workflow', 'workflow-manager',
     ]
-    if any("deis/{}".format(c) in repo for c in blacklisted):
-        raise PermissionDenied("Repository name {} is not allowed, as it is reserved by Deis".format(repo))  # noqa
+    if any("drycc/{}".format(c) in repo for c in blacklisted):
+        raise PermissionDenied("Repository name {} is not allowed, as it is reserved by Drycc".format(repo))  # noqa
 
 
 def log_output(stream, operation, repo, tag):
@@ -202,12 +206,12 @@ def stream_error(chunk, operation, repo, tag):
     raise RegistryException(message)
 
 
-def publish_release(source, target, deis_registry, creds=None):
-    return DockerClient().publish_release(source, target, deis_registry, creds)
+def publish_release(source, target, drycc_registry, creds=None):
+    return DockerClient().publish_release(source, target, drycc_registry, creds)
 
 
-def get_port(target, deis_registry, creds=None):
-    return DockerClient().get_port(target, deis_registry, creds)
+def get_port(target, drycc_registry, creds=None):
+    return DockerClient().get_port(target, drycc_registry, creds)
 
 
 def check_access(target, creds=None):
