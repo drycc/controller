@@ -24,7 +24,7 @@ spec:
       serviceAccount: drycc-controller
       containers:
         - name: drycc-controller
-          image: quay.io/{{.Values.org}}/controller:{{.Values.docker_tag}}
+          image: {{.Values.docker_registry}}{{.Values.org}}/controller:{{.Values.docker_tag}}
           imagePullPolicy: {{.Values.pull_policy}}
           livenessProbe:
             httpGet:
