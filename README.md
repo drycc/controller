@@ -1,10 +1,9 @@
 
 # Drycc Controller
 
-[![Build Status](https://ci.drycc.cc/job/controller/badge/icon)](https://ci.drycc.cc/job/controller)
+[![Build Status](https://travis-ci.org/drycc/controller.svg?branch=master)](https://travis-ci.org/drycc/controller)
 [![codecov.io](https://codecov.io/github/drycc/controller/coverage.svg?branch=master)](https://codecov.io/github/drycc/controller?branch=master)
 [![Docker Repository on Quay](https://quay.io/repository/drycc/controller/status "Docker Repository on Quay")](https://quay.io/repository/drycc/controller)
-[![Dependency Status](https://www.versioneye.com/user/projects/5863f1de6f4bf900128fa95a/badge.svg?style=flat)](https://www.versioneye.com/user/projects/5863f1de6f4bf900128fa95a)
 
 Drycc (pronounced DAY-iss) Workflow is an open source Platform as a Service (PaaS) that adds a developer-friendly layer to any [Kubernetes](http://kubernetes.io) cluster, making it easy to deploy and manage applications on your own servers.
 
