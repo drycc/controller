@@ -3,14 +3,9 @@ from os.path import dirname, realpath
 import faulthandler
 faulthandler.enable()
 
-
 bind = '0.0.0.0'
-try:
-    workers = int(os.environ.get('GUNICORN_WORKERS', 'not set'))
-    if workers < 1:
-        raise ValueError()
-except (NameError, ValueError):
-    workers = (os.cpu_count() or 4) * 4 + 1
+workers = 1
+threads = os.cpu_count() * 4
 
 pythonpath = dirname(dirname(dirname(realpath(__file__))))
 timeout = 1200
