@@ -1,49 +1,30 @@
-FROM quay.io/drycc/base:v0.3.6
-
-RUN adduser --system \
-	--shell /bin/bash \
-	--disabled-password \
-	--home /app \
-	--group \
-	drycc
+FROM python:3.7-alpine
 
 COPY requirements.txt /app/requirements.txt
 
-RUN buildDeps='gcc libffi-dev libpq-dev libldap2-dev libsasl2-dev python3-dev python3-pip python3-wheel python3-setuptools'; \
-    apt-get update && \
-    DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
-        $buildDeps \
-        sudo \
-        libpq5 \
-        libldap-2.4 \
-        python3-minimal \
-        # cryptography package needs pkg_resources
-        python3-pkg-resources && \
-    ln -s /usr/bin/python3 /usr/bin/python && \
-    mkdir -p /configs && chown -R drycc:drycc /configs && \
-    pip3 install --disable-pip-version-check --no-cache-dir -r /app/requirements.txt && \
-    # cleanup
-    apt-get purge -y --auto-remove $buildDeps && \
-    apt-get autoremove -y && \
-    apt-get clean -y && \
-    rm -rf \
-        /usr/share/doc \
-        /usr/share/man \
-        /usr/share/info \
-        /usr/share/locale \
-        /var/lib/apt/lists/* \
-        /var/log/* \
-        /var/cache/debconf/* \
-        /etc/systemd \
-        /lib/lsb \
-        /lib/udev \
-        /usr/lib/x86_64-linux-gnu/gconv/IBM* \
-        /usr/lib/x86_64-linux-gnu/gconv/EBC* && \
-    bash -c "mkdir -p /usr/share/man/man{1..8}"
+RUN apk add --update --virtual .build-deps \
+    postgresql-dev \
+    gcc \
+    libffi-dev \
+    musl-dev \
+    openldap-dev \
+  && pip3 install --disable-pip-version-check --no-cache-dir -r /app/requirements.txt \
+  && runDeps="$( \
+    scanelf --needed --nobanner --format '%n#p' --recursive /usr/local \
+    | tr ',' '\n' \
+    | sort -u \
+    | awk 'system("[ -e /usr/local/lib/" $1 " ]") == 0 { next } { print "so:" $1 }' \
+    )" \
+  && apk add --update --virtual .controller-rundeps \
+    $runDeps \
+    ca-certificates \
+    su-exec \
+    bash \
+    shadow \
+  && apk del .build-deps
 
 COPY . /app
 
-# define execution environment
 WORKDIR /app
 CMD ["/app/bin/boot"]
 EXPOSE 8000

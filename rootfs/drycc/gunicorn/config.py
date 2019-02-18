@@ -1,11 +1,12 @@
-import os
 from os.path import dirname, realpath
+from multiprocessing import cpu_count
+
 import faulthandler
 faulthandler.enable()
 
 bind = '0.0.0.0'
 workers = 1
-threads = os.cpu_count() * 4
+threads = cpu_count() * 4 + 1
 
 pythonpath = dirname(dirname(dirname(realpath(__file__))))
 timeout = 1200

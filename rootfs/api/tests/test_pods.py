@@ -3,13 +3,13 @@ Unit tests for the Drycc api app.
 
 Run the tests with "./manage.py test api"
 """
+import os
 import json
 
 from django.contrib.auth.models import User
 from django.core.cache import cache
 from unittest import mock
 from rest_framework.authtoken.models import Token
-from test.support import EnvironmentVarGuard
 
 from api.models import App, Build, Release
 from scheduler import KubeException
@@ -583,8 +583,7 @@ class PodTest(DryccTransactionTestCase):
         """
         do a run with DRYCC_DEBUG on - https://github.com/drycc/controller/issues/583
         """
-        env = EnvironmentVarGuard()
-        env['DRYCC_DEBUG'] = 'true'
+        os.environ['DRYCC_DEBUG'] = 'true'
 
         app_id = self.create_app()
         app = App.objects.get(id=app_id)

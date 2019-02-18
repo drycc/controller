@@ -16,18 +16,6 @@ python --version
 mkdir -p /app/data/logs
 chmod -R 777 /app/data/logs
 
-# modify drycc user groups to grant access to Docker socket
-DOCKER_SOCKET_GID=$(stat -c "%g" /var/run/docker.sock)
-DOCKER_SOCKET_GROUP=$(getent group "$DOCKER_SOCKET_GID" | cut -d : -f 1 || :)
-if [[ -z "$DOCKER_SOCKET_GROUP" ]]; then
-  DOCKER_SOCKET_GROUP=docker
-  groupadd -g "$DOCKER_SOCKET_GID" "$DOCKER_SOCKET_GROUP"
-fi
-if [[ "$DOCKER_SOCKET_GROUP" != "drycc" ]]; then
-  usermod -a -G "$DOCKER_SOCKET_GROUP" drycc
-fi
-
-echo ""
 echo "Django checks:"
 python /app/manage.py check --deploy api
 
@@ -37,12 +25,12 @@ python /app/manage.py healthchecks
 
 echo ""
 echo "Database Migrations:"
-sudo -E -u drycc python /app/manage.py migrate --noinput
+python /app/manage.py migrate --noinput
 
 # spawn a gunicorn server in the background
 echo ""
 echo "Starting up Gunicorn"
-sudo -E -u drycc gunicorn -c /app/drycc/gunicorn/config.py api.wsgi &
+gunicorn -c /app/drycc/gunicorn/config.py api.wsgi &
 
 echo ""
 echo "Loading database information to Kubernetes in the background"
