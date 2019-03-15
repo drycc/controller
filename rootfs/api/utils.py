@@ -154,8 +154,7 @@ def async_run(tasks):
         return
 
     # start a new async event loop
-    loop = asyncio.new_event_loop()
-    asyncio.set_event_loop(loop)
+    loop = asyncio.get_event_loop()
     # https://github.com/python/asyncio/issues/258
     executor = concurrent.futures.ThreadPoolExecutor(5)
     loop.set_default_executor(executor)

@@ -1,3 +1,4 @@
+import os
 from os.path import dirname, realpath
 from multiprocessing import cpu_count
 
@@ -5,8 +6,7 @@ import faulthandler
 faulthandler.enable()
 
 bind = '0.0.0.0'
-workers = 1
-threads = cpu_count() * 4 + 1
+workers = int(os.environ.get('GUNICORN_WORKERS', cpu_count() * 4 + 1))
 
 pythonpath = dirname(dirname(dirname(realpath(__file__))))
 timeout = 1200
