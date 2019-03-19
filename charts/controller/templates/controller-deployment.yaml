@@ -58,10 +58,10 @@ spec:
             # NOTE(bacongobbler): use drycc/registry_proxy to work around Docker --insecure-registry requirements
             - name: "DRYCC_REGISTRY_SERVICE_HOST"
               value: "127.0.0.1"
-            # Environmental variable value for $EXPERIMENTAL_NATIVE_INGRESS
-            - name: "EXPERIMENTAL_NATIVE_INGRESS"
-              value: "{{ .Values.global.experimental_native_ingress }}"
-            - name: "EXPERIMENTAL_NATIVE_INGRESS_HOSTNAME"
+            # Environmental variable value for $USE_NATIVE_INGRESS
+            - name: "USE_NATIVE_INGRESS"
+              value: "{{ .Values.global.use_native_ingress }}"
+            - name: "USE_NATIVE_INGRESS_HOSTNAME"
               value: "{{ .Values.platform_domain }}"
             - name: "K8S_API_VERIFY_TLS"
               value: "{{ .Values.k8s_api_verify_tls }}"

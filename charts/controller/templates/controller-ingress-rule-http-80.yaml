@@ -1,4 +1,4 @@
-{{ if .Values.global.experimental_native_ingress }}
+{{ if .Values.global.use_native_ingress }}
 apiVersion: extensions/v1beta1
 kind: Ingress
 metadata:
