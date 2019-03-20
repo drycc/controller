@@ -263,7 +263,7 @@ BUILDER_KEY = os.environ.get('DRYCC_BUILDER_KEY', random_secret)
 # experimental native ingress
 USE_NATIVE_INGRESS = bool(strtobool(
     os.environ.get('USE_NATIVE_INGRESS', 'false')))
-USE_NATIVE_INGRESS_HOSTNAME = os.environ.get('USE_NATIVE_INGRESS_HOSTNAME', '')
+INGRESS_HOSTNAME = os.environ.get('INGRESS_HOSTNAME', '')
 
 # k8s image policies
 SLUGRUNNER_IMAGE = os.environ.get('SLUGRUNNER_IMAGE_NAME', 'quay.io/drycc/slugrunner:canary')  # noqa

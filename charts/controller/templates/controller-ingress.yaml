@@ -1,9 +1,9 @@
-{{ if .Values.global.use_native_ingress }}
+{{ if .Values.global.use_ingress }}
 apiVersion: extensions/v1beta1
 kind: Ingress
 metadata:
   namespace: "{{ .Release.Namespace }}"
-  name: "controller-api-server-ingress-http"
+  name: "controller-api-server-ingress"
   labels:
     app: "controller"
     chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"

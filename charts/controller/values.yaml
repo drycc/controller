@@ -47,7 +47,7 @@ global:
   # - gcr: Use Google's GCR
   registry_location: "on-cluster"
   # The host port to which registry proxy binds to
-  host_port: 5555
+  registry_service_port: 5555
   # Prefix for the imagepull secret created when using private registry
   secret_prefix: "private-registry"
   # Experimental feature to toggle using kubernetes ingress instead of the Drycc router.
@@ -55,6 +55,6 @@ global:
   # Valid values are:
   # - true: The drycc controller will now create Kubernetes ingress rules for each app, and ingress rules will automatically be created for the controller itself.
   # - false: The default mode, and the default behavior of Drycc workflow.
-  use_native_ingress: false
+  use_ingress: false
   # Role-Based Access Control for Kubernetes >= 1.5
   use_rbac: false
