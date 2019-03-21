@@ -22,7 +22,7 @@ class Ingress(Resource):
 
         return response
 
-    def create(self, ingress, namespace, hostname):
+    def create(self, ingress, namespace, hostname, ingress_class, tls_acme):
         url = "/apis/extensions/v1beta1/namespaces/%s/ingresses" % namespace
 
         data = {
@@ -30,23 +30,32 @@ class Ingress(Resource):
             "apiVersion": "extensions/v1beta1",
             "metadata": {
                 "name": ingress
+                "annotations": {
+                    "kubernetes.io/tls-acme": tls_acme
+                }
             },
             "spec": {
                 "rules": [
-                    {"host": ingress + "." + hostname,
-                     "http": {
-                         "paths": [
-                             {"path": "/",
-                              "backend": {
-                                  "serviceName": ingress,
-                                  "servicePort": 80
-                              }}
-                         ]
-                     }
-                     }
+                    {
+                        "host": ingress + "." + hostname,
+                        "http": {
+                            "paths": [
+                                {
+                                    "path": "/",
+                                    "backend": {
+                                        "serviceName": ingress,
+                                        "servicePort": 80
+                                    }
+                                }
+                            ]
+                        }
+                    }
                 ]
             }
         }
+        if ingress_class:
+            data["metadata"]["annotations"].update({
+                "kubernetes.io/ingress.class": ingress_class})
         response = self.http_post(url, json=data)
 
         if not response.status_code == 201:

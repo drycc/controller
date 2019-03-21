@@ -6,6 +6,9 @@ metadata:
     heritage: drycc
   annotations:
     component.drycc.cc/version: {{ .Values.docker_tag }}
+  {{- range $key, $value := .Values.ingress.annotations }}
+    {{ $key }}: {{ $value | quote }}
+  {{- end }}
 spec:
   replicas: 1
   strategy:
@@ -58,10 +61,16 @@ spec:
             # NOTE(bacongobbler): use drycc/registry_proxy to work around Docker --insecure-registry requirements
             - name: "DRYCC_REGISTRY_SERVICE_HOST"
               value: "127.0.0.1"
-            # Environmental variable value for $USE_NATIVE_INGRESS
-            - name: "USE_NATIVE_INGRESS"
-              value: "{{ .Values.global.use_ingress }}"
-            - name: "INGRESS_HOSTNAME"
+            # Environmental variable value for $INGRESS_ENABLED
+            - name: "DRYCC_INGRESS_ENABLED"
+              value: "{{ .Values.ingress.enabled }}"
+            {{- if index $.Values.ingress "annotations" }}
+            - name: "DRYCC_INGRESS_CLASS"
+              value: "{{ (index $.Values.ingress.annotations "kubernetes.io/ingress.class" | default "") }}"
+            - name: "DRYCC_INGRESS_TLS_ACME"
+              value: "{{ (index $.Values.ingress.annotations "kubernetes.io/tls-acme" | default "true") }}"
+            {{- end -}}
+            - name: "DRYCC_PLATFORM_DOMAIN"
               value: "{{ .Values.platform_domain }}"
             - name: "K8S_API_VERIFY_TLS"
               value: "{{ .Values.k8s_api_verify_tls }}"
