@@ -261,11 +261,7 @@ SECRET_KEY = os.environ.get('DRYCC_SECRET_KEY', random_secret)
 BUILDER_KEY = os.environ.get('DRYCC_BUILDER_KEY', random_secret)
 
 # experimental native ingress
-INGRESS_ENABLED = bool(strtobool(
-    os.environ.get('DRYCC_INGRESS_ENABLED', 'false')))
 INGRESS_CLASS = os.environ.get('DRYCC_INGRESS_CLASS', '')
-INGRESS_TLS_ACME = bool(strtobool(
-    os.environ.get('DRYCC_INGRESS_TLS_ACME', 'false')))
 PLATFORM_DOMAIN = os.environ.get('DRYCC_PLATFORM_DOMAIN', '')
 
 # k8s image policies

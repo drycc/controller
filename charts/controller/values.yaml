@@ -52,14 +52,8 @@ global:
   secret_prefix: "private-registry"
   # Role-Based Access Control for Kubernetes >= 1.5
   use_rbac: false
-
-ingress:
   # Experimental feature to use Kubernetes ingress instead of Workflow's drycc-router.
-  #
-  # Valid values are:
-  # - true: drycc-router will not be deployed. Workflow will not be usable until a Kubernetes ingress controller is installed.
-  # - false: drycc-router will be deployed (default).
-  enabled: false
-  # annotations:
-  #   kubernetes.io/ingress.class: nginx
-  #   kubernetes.io/tls-acme: 'true'
+  # If ingress_class is empty, use drycc-router
+  # Otherwise, please check `kubernetes.io/ingress.class`
+  # The cert-manager component must be installed
+  ingress_class: ""

@@ -22,16 +22,16 @@ class Ingress(Resource):
 
         return response
 
-    def create(self, ingress, namespace, hostname, ingress_class, tls_acme):
+    def create(self, ingress, ingress_class, namespace, hostname):
         url = "/apis/extensions/v1beta1/namespaces/%s/ingresses" % namespace
-
+        path = "/*" if ingress_class in ("gce", "alb") else "/"
         data = {
             "kind": "Ingress",
             "apiVersion": "extensions/v1beta1",
             "metadata": {
-                "name": ingress
+                "name": ingress,
                 "annotations": {
-                    "kubernetes.io/tls-acme": tls_acme
+                    "kubernetes.io/tls-acme": "true"
                 }
             },
             "spec": {
@@ -41,7 +41,7 @@ class Ingress(Resource):
                         "http": {
                             "paths": [
                                 {
-                                    "path": "/",
+                                    "path": path,
                                     "backend": {
                                         "serviceName": ingress,
                                         "servicePort": 80

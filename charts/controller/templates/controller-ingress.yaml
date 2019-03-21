@@ -1,4 +1,4 @@
-{{ if .Values.ingress.enabled }}
+{{ if not (eq .Values.global.ingress_class "") }}
 apiVersion: extensions/v1beta1
 kind: Ingress
 metadata:
@@ -9,12 +9,19 @@ metadata:
     chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
     release: "{{ .Release.Name }}"
     heritage: "{{ .Release.Service }}"
+  annotations:
+    kubernetes.io/tls-acme: "true"
+    kubernetes.io/ingress.class: "{{ .Values.global.ingress_class }}"
 spec:
   rules:
   - host: drycc.{{ .Values.platform_domain }}
     http:
       paths:
+      {{- if eq .Values.global.ingress_class "gce" "alb" }}
+      - path: /*
+      {{- else }}{{/* Has annotations but ingress class is not "gce" nor "alb" */}}
       - path: /
+      {{- end }}
         backend:
           serviceName: drycc-controller
           servicePort: 80

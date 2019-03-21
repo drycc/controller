@@ -50,7 +50,7 @@ rules:
 - apiGroups: ["extensions", "autoscaling"]
   resources: ["horizontalpodautoscalers"]
   verbs: ["get", "list", "create", "update", "delete"]
-{{ if .Values.ingress.enabled }}
+{{ if not (eq .Values.global.ingress_class "") }}
 - apiGroups: ["extensions"]
   resources: ["ingresses"]
   verbs: ["get", "list", "watch", "create", "update", "delete"]
