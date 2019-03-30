@@ -237,9 +237,10 @@ class App(UuidAuditedModel):
                     self._scheduler.ingress.get(ingress)
                 except KubeException:
                     self.log("creating Ingress {}".format(namespace), level=logging.INFO)
+                    host = "%s.%s" % (ingress, settings.PLATFORM_DOMAIN)
                     self._scheduler.ingress.create(
                         ingress, settings.INGRESS_CLASS, namespace,
-                        settings.PLATFORM_DOMAIN)
+                        hosts=[host, ], tls=[])
         except KubeException as e:
             raise ServiceUnavailable('Could not create Ingress in Kubernetes') from e
         try:

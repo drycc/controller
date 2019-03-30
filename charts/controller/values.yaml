@@ -19,8 +19,12 @@ k8s_api_verify_tls: "true"
 #
 # This will be the hostname that is used to build endpoints such as "drycc.$HOSTNAME"
 platform_domain: ""
+# Whether cert_manager is enabled to automatically generate controller certificates
+cert_manager_enabled: "true"
 
 global:
+  # Admin email, used for each component to send email to administrator
+  email: "drycc@drycc.cc"
   # Set the storage backend
   #
   # Valid values are:
@@ -52,8 +56,5 @@ global:
   secret_prefix: "private-registry"
   # Role-Based Access Control for Kubernetes >= 1.5
   use_rbac: false
-  # Experimental feature to use Kubernetes ingress instead of Workflow's drycc-router.
-  # If ingress_class is empty, use drycc-router
-  # Otherwise, please check `kubernetes.io/ingress.class`
-  # The cert-manager component must be installed
+  # Please check `kubernetes.io/ingress.class`
   ingress_class: ""

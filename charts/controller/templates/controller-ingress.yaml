@@ -1,4 +1,3 @@
-{{ if not (eq .Values.global.ingress_class "") }}
 apiVersion: extensions/v1beta1
 kind: Ingress
 metadata:
@@ -25,4 +24,9 @@ spec:
         backend:
           serviceName: drycc-controller
           servicePort: 80
-{{- end }}
+  {{ if .Values.cert_manager_enabled }}
+  tls:
+    - secretName: drycc-controller-auto-tls
+      hosts:
+        - drycc.{{ .Values.platform_domain }}
+  {{- end }}
