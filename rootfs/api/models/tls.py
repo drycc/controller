@@ -1,5 +1,6 @@
 from django.db import models
 from django.conf import settings
+from django.db import transaction
 
 from api.exceptions import AlreadyExists
 from api.models import UuidAuditedModel
@@ -42,6 +43,7 @@ class TLS(UuidAuditedModel):
         except TLS.DoesNotExist:
             pass
 
+    @transaction.atomic
     def save(self, *args, **kwargs):
         self._check_previous_tls_settings()
         try:

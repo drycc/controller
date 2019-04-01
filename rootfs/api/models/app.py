@@ -219,6 +219,7 @@ class App(UuidAuditedModel):
         self._refresh_tls(certs_auto_enabled, hosts)
     
     def refresh(self):
+        if not getattr(self, "refresh_enabled", True): return
         self._refresh_ingress_and_tls()
 
     def log(self, message, level=logging.INFO):
@@ -300,6 +301,7 @@ class App(UuidAuditedModel):
                 self._scheduler.ingress.create(
                     ingress, settings.INGRESS_CLASS, namespace,
                     hosts=[host, ])
+                self.refresh_enabled = False  # No refresh ingress
         except KubeException as e:
             raise ServiceUnavailable('Could not create Ingress in Kubernetes') from e
         try:

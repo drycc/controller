@@ -10,7 +10,9 @@ metadata:
     heritage: "{{ .Release.Service }}"
   annotations:
     kubernetes.io/tls-acme: "true"
+    {{- if not (eq .Values.global.ingress_class "") }}
     kubernetes.io/ingress.class: "{{ .Values.global.ingress_class }}"
+    {{ end }}
 spec:
   rules:
   - host: drycc.{{ .Values.platform_domain }}

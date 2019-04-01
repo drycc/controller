@@ -43,7 +43,6 @@ class BaseManifest(object):
         if tls: data["spec"]["tls"] = tls
         if version: data["metadata"]["resourceVersion"] = version
         return data
-MANIFEAT_CLASSES["default"] = BaseManifest
 
 
 class NginxManifest(BaseManifest):
@@ -89,9 +88,7 @@ class Ingress(Resource):
     short_name = 'ingress'
 
     def manifest(self, ingress, ingress_class, namespace, **kwargs):
-        if ingress_class not in MANIFEAT_CLASSES:
-            ingress_class = "default"
-        return MANIFEAT_CLASSES.get(ingress_class)().manifest(
+        return MANIFEAT_CLASSES.get(ingress_class, BaseManifest)().manifest(
             ingress, ingress_class, namespace, **kwargs
         )
 
