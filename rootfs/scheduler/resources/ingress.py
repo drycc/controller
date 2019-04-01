@@ -17,7 +17,6 @@ class BaseManifest(object):
                 "name": ingress,
                 "annotations": {
                     "kubernetes.io/tls-acme": "true",
-                    "kubernetes.io/ingress.class": ingress_class
                 }
             },
             "spec": {}
@@ -37,6 +36,10 @@ class BaseManifest(object):
                     ]
                 }
             } for host in hosts]
+        if ingress_class:
+            data["metadata"]["annotations"].update({
+                "kubernetes.io/ingress.class": ingress_class
+            })
         if tls: data["spec"]["tls"] = tls
         if version: data["metadata"]["resourceVersion"] = version
         return data
