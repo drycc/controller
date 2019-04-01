@@ -158,7 +158,7 @@ class App(UuidAuditedModel):
             entrypoint = ['/bin/bash', '-c']
 
         return entrypoint
-    
+
     def _refresh_tls(self, certs_auto_enabled, hosts):
         namespace = name = self.id
         try:
@@ -166,7 +166,7 @@ class App(UuidAuditedModel):
         except KubeException:
             self.log("certificate {} does not exist".format(namespace), level=logging.INFO)
             data = None
-        
+
         if certs_auto_enabled:
             if data:
                 version = data["metadata"]["resourceVersion"]
@@ -177,7 +177,7 @@ class App(UuidAuditedModel):
                     namespace, name, settings.INGRESS_CLASS, hosts)
         elif data:
             self._scheduler.certificate.delete(namespace, name)
-    
+
     def _refresh_ingress(self, hosts, tls_map, ssl_redirect):
         ingress = namespace = self.id
         # Put Ingress
@@ -187,7 +187,8 @@ class App(UuidAuditedModel):
             "ssl_redirect": ssl_redirect
         }
         whitelist = self.appsettings_set.latest().whitelist
-        if whitelist: kwargs.update({"whitelist": whitelist})
+        if whitelist:
+            kwargs.update({"whitelist": whitelist})
         data = self._scheduler.ingress.get(namespace, ingress).json()
         version = data["metadata"]["resourceVersion"]
         self._scheduler.ingress.put(
@@ -217,9 +218,10 @@ class App(UuidAuditedModel):
                 tls_map[secret_name].append(host)
         self._refresh_ingress(hosts, tls_map, ssl_redirect)
         self._refresh_tls(certs_auto_enabled, hosts)
-    
+
     def refresh(self):
-        if not getattr(self, "refresh_enabled", True): return
+        if not getattr(self, "refresh_enabled", True):
+            return
         self._refresh_ingress_and_tls()
 
     def log(self, message, level=logging.INFO):

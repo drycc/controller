@@ -13,8 +13,8 @@ class IngressTest(TestCase):
     def test_create_ingress(self):
         # Ingress assumes that the namespace and ingress name are always the same
         self.scheduler.ns.create("test-ingress")
-        self.scheduler.ingress.create("test-ingress", "nginx", "test-ingress",
-            hosts=["test-ingress"], tls=[])
+        self.scheduler.ingress.create(
+            "test-ingress", "nginx", "test-ingress", hosts=["test-ingress"], tls=[])
 
     def test_get_ingresses(self):
         response = self.scheduler.ingress.get("test-ingress")

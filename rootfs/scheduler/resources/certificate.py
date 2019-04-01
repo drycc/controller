@@ -1,6 +1,5 @@
-import json
 from scheduler.resources import Resource
-from scheduler.exceptions import KubeHTTPException, KubeException
+from scheduler.exceptions import KubeHTTPException
 
 
 class Certificate(Resource):
@@ -32,7 +31,8 @@ class Certificate(Resource):
                 }
             }
         }
-        if version: data["metadata"]["resourceVersion"] = version
+        if version:
+            data["metadata"]["resourceVersion"] = version
         return data
 
     def get(self, namespace, name=None, **kwargs):
@@ -40,7 +40,8 @@ class Certificate(Resource):
         Fetch a single certificate or a list of certificates
         """
         if name is not None:
-            url = "/apis/certmanager.k8s.io/v1alpha1/namespaces/%s/certificates/%s" % (namespace, name)
+            url = "/apis/certmanager.k8s.io/v1alpha1/namespaces/%s/certificates/%s" % (
+                namespace, name)
             message = 'get certificate ' + name
         else:
             url = "/apis/certmanager.k8s.io/v1alpha1/namespaces/%s/certificates" % namespace

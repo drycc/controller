@@ -40,8 +40,10 @@ class BaseManifest(object):
             data["metadata"]["annotations"].update({
                 "kubernetes.io/ingress.class": ingress_class
             })
-        if tls: data["spec"]["tls"] = tls
-        if version: data["metadata"]["resourceVersion"] = version
+        if tls:
+            data["spec"]["tls"] = tls
+        if version:
+            data["metadata"]["resourceVersion"] = version
         return data
 
 
@@ -61,6 +63,8 @@ class NginxManifest(BaseManifest):
                 "nginx.ingress.kubernetes.io/ssl-redirect": ssl_redirect
             })
         return data
+
+
 MANIFEAT_CLASSES["nginx"] = NginxManifest
 
 
@@ -81,6 +85,8 @@ class TraefikManifest(BaseManifest):
                 "ingress.kubernetes.io/ssl-redirect": ssl_redirect
             })
         return data
+
+
 MANIFEAT_CLASSES["traefik"] = TraefikManifest
 
 
