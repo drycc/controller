@@ -212,6 +212,23 @@ class KubeHTTPClient(object):
 
         return response
 
+    def http_patch(self, path, data=None, **kwargs):
+        """
+        Make a PATCH request to the k8s server.
+        """
+        try:
+            url = urljoin(self.url, path)
+            response = self.session.patch(url, data=data, **kwargs)
+        except requests.exceptions.ConnectionError as err:
+            # reraise as KubeException, but log stacktrace.
+            message = "There was a problem patching data to " \
+                      "the Kubernetes API server. URL: {}, " \
+                      "data: {}".format(url, data)
+            logger.error(message)
+            raise KubeException(message) from err
+
+        return response
+
     def http_delete(self, path, **kwargs):
         """
         Make a DELETE request to the k8s server.

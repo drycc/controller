@@ -5,7 +5,7 @@ from scheduler.exceptions import KubeHTTPException, KubeException
 
 class Certificate(Resource):
 
-    def manifest(self, namespace, name, ingress_class, hosts):
+    def manifest(self, namespace, name, ingress_class, hosts, version=None):
         data = {
             "apiVersion": "certmanager.k8s.io/v1alpha1",
             "kind": "Certificate",
@@ -16,7 +16,7 @@ class Certificate(Resource):
             "spec": {
                 "secretName": "%s-auto-tls" % name,
                 "issuerRef": {
-                    "name": "drycc-controller-letsencrypt",
+                    "name": "drycc-letsencrypt",
                     "kind": "ClusterIssuer"
                 },
                 "dnsNames": hosts,
@@ -32,24 +32,50 @@ class Certificate(Resource):
                 }
             }
         }
+        if version: data["metadata"]["resourceVersion"] = version
         return data
 
-    def get(self, namespace, name):
+    def get(self, namespace, name=None, **kwargs):
         """
-        Fetch a single Ingress or a list of Ingresses
+        Fetch a single certificate or a list of certificates
         """
         if name is not None:
-            url = "/apis/certmanager/v1alpha1/namespaces/%s/certificates/%s" % (namespace, name)
-            message = 'get Ingress ' + name
+            url = "/apis/certmanager.k8s.io/v1alpha1/namespaces/%s/certificates/%s" % (namespace, name)
+            message = 'get certificate ' + name
         else:
-            url = "/apis/certmanager/v1alpha1/namespaces/%s/certificates" % namespace
-            message = 'get Ingresses'
+            url = "/apis/certmanager.k8s.io/v1alpha1/namespaces/%s/certificates" % namespace
+            message = 'get certificates'
+        response = self.http_get(url)
+        if self.unhealthy(response.status_code):
+            raise KubeHTTPException(response, message)
+
+        return response
 
     def create(self, namespace, name, ingress_class, hosts):
-        pass
+        url = "/apis/certmanager.k8s.io/v1alpha1/namespaces/%s/certificates" % namespace
+        data = self.manifest(namespace, name, ingress_class, hosts)
+        response = self.http_post(url, json=data)
 
-    def put(self, namespace, name, ingress_class, hosts):
-        pass
+        if not response.status_code == 201:
+            raise KubeHTTPException(response, "create certificate {}".format(namespace))
+
+        return response
+
+    def put(self, namespace, name, ingress_class, hosts, version):
+        url = "/apis/certmanager.k8s.io/v1alpha1/namespaces/%s/certificates/%s" % (namespace, name)
+        data = self.manifest(namespace, name, ingress_class, hosts, version)
+        response = self.http_put(url, json=data)
+
+        if self.unhealthy(response.status_code):
+            raise KubeHTTPException(response, "put certificate {}".format(namespace))
+        return response
 
     def delete(self, namespace, name):
-        pass
+        """
+        Delete certificate
+        """
+        url = "/apis/certmanager.k8s.io/v1alpha1/namespaces/%s/certificates/%s" % (namespace, name)
+        response = self.http_delete(url)
+        if self.unhealthy(response.status_code):
+            raise KubeHTTPException(response, 'delete certificate ' + name)
+        return response

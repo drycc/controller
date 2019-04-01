@@ -172,12 +172,10 @@ class Certificate(AuditedModel):
         domain = get_object_or_404(Domain, domain=kwargs['domain'])
         if domain.certificate is not None:
             raise AlreadyExists("Domain already has a certificate attached to it")
-
-        domain.certificate = self
-        domain.save()
-
         # create in kubernetes
         self.attach_in_kubernetes(domain)
+        domain.certificate = self
+        domain.save()
 
     def attach_in_kubernetes(self, domain):
         """Creates the certificate as a kubernetes secret"""
@@ -203,22 +201,6 @@ class Certificate(AuditedModel):
                           '{} for {}'.format(name, namespace)
                     raise ServiceUnavailable(msg) from e
 
-        # get config for the service
-        config = self._load_service_config(namespace, 'router')
-
-        # See if certificates are available
-        if 'certificates' not in config:
-            config['certificates'] = ''
-
-        # convert from string to list to work with and filter out empty strings
-        cert = '{}:{}'.format(domain.domain, self.name)
-        certificates = [_f for _f in config['certificates'].split(',') if _f]
-        if cert not in certificates:
-            certificates.append(cert)
-        config['certificates'] = ','.join(certificates)
-
-        self._save_service_config(namespace, 'router', config)
-
     def detach(self, *args, **kwargs):
         # remove the certificate from the domain
         domain = get_object_or_404(Domain, domain=kwargs['domain'])
@@ -236,19 +218,3 @@ class Certificate(AuditedModel):
                 self._scheduler.secret.delete(namespace, name)
             except KubeException as e:
                 raise ServiceUnavailable("Could not delete certificate secret {} for application {}".format(name, namespace)) from e  # noqa
-
-        # get config for the service
-        config = self._load_service_config(namespace, 'router')
-
-        # See if certificates are available
-        if 'certificates' not in config:
-            config['certificates'] = ''
-
-        # convert from string to list to work with and filter out empty strings
-        cert = '{}:{}'.format(domain.domain, self.name)
-        certificates = [_f for _f in config['certificates'].split(',') if _f]
-        if cert in certificates:
-            certificates.remove(cert)
-        config['certificates'] = ','.join(certificates)
-
-        self._save_service_config(namespace, 'router', config)

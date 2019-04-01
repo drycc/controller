@@ -158,6 +158,68 @@ class App(UuidAuditedModel):
             entrypoint = ['/bin/bash', '-c']
 
         return entrypoint
+    
+    def _refresh_tls(self, certs_auto_enabled, hosts):
+        namespace = name = self.id
+        try:
+            data = self._scheduler.certificate.get(namespace, name).json()
+        except KubeException:
+            self.log("certificate {} does not exist".format(namespace), level=logging.INFO)
+            data = None
+        
+        if certs_auto_enabled:
+            if data:
+                version = data["metadata"]["resourceVersion"]
+                self._scheduler.certificate.put(
+                    namespace, name, settings.INGRESS_CLASS, hosts, version)
+            else:
+                self._scheduler.certificate.create(
+                    namespace, name, settings.INGRESS_CLASS, hosts)
+        elif data:
+            self._scheduler.certificate.delete(namespace, name)
+    
+    def _refresh_ingress(self, hosts, tls_map, ssl_redirect):
+        ingress = namespace = self.id
+        # Put Ingress
+        kwargs = {
+            "hosts": hosts,
+            "tls": [{"secretName": k, "hosts": v} for k, v in tls_map.items()],
+            "ssl_redirect": ssl_redirect
+        }
+        whitelist = self.appsettings_set.latest().whitelist
+        if whitelist: kwargs.update({"whitelist": whitelist})
+        data = self._scheduler.ingress.get(namespace, ingress).json()
+        version = data["metadata"]["resourceVersion"]
+        self._scheduler.ingress.put(
+            ingress, settings.INGRESS_CLASS, namespace, version, **kwargs)
+
+    def _refresh_ingress_and_tls(self):
+        ingress = self.id
+        hosts, tls_map = [], {}
+
+        tls = self.tls_set.latest()
+        ssl_redirect = "true" if bool(tls.https_enforced) else "false"
+        certs_auto_enabled = bool(tls.certs_auto_enabled)
+
+        for domain in Domain.objects.filter(app=self):
+            if str(domain.domain) == self.id:
+                host = "%s.%s" % (ingress, settings.PLATFORM_DOMAIN)
+            else:
+                host = str(domain.domain)
+            hosts.append(host)
+            if certs_auto_enabled or domain.certificate:
+                if certs_auto_enabled:
+                    secret_name = '%s-auto-tls' % self.id
+                elif domain.certificate:
+                    secret_name = '%s-cert' % domain.certificate.name
+                if secret_name not in tls_map:
+                    tls_map[secret_name] = []
+                tls_map[secret_name].append(host)
+        self._refresh_ingress(hosts, tls_map, ssl_redirect)
+        self._refresh_tls(certs_auto_enabled, hosts)
+    
+    def refresh(self):
+        self._refresh_ingress_and_tls()
 
     def log(self, message, level=logging.INFO):
         """Logs a message in the context of this application.
@@ -190,9 +252,7 @@ class App(UuidAuditedModel):
             )
 
         # create required minimum resources in k8s for the application
-        namespace = self.id
-        ingress = self.id
-        service = self.id
+        namespace = ingress = service = self.id
         quota_name = '{}-quota'.format(self.id)
         try:
             self.log('creating Namespace {} and services'.format(namespace), level=logging.DEBUG)
@@ -234,13 +294,13 @@ class App(UuidAuditedModel):
                 if ingress == "":
                     raise ServiceUnavailable('Empty hostname')
                 try:
-                    self._scheduler.ingress.get(ingress)
+                    self._scheduler.ingress.get(namespace, ingress)
                 except KubeException:
                     self.log("creating Ingress {}".format(namespace), level=logging.INFO)
                     host = "%s.%s" % (ingress, settings.PLATFORM_DOMAIN)
                     self._scheduler.ingress.create(
                         ingress, settings.INGRESS_CLASS, namespace,
-                        hosts=[host, ], tls=[])
+                        hosts=[host, ])
         except KubeException as e:
             raise ServiceUnavailable('Could not create Ingress in Kubernetes') from e
         try:
@@ -572,13 +632,8 @@ class App(UuidAuditedModel):
         # let initial deploy settle before routing traffic to the application
         if deploys and app_type:
             app_settings = self.appsettings_set.latest()
-            if app_settings.whitelist:
-                addresses = ",".join(address for address in app_settings.whitelist)
-            else:
-                addresses = None
             service_annotations = {
                 'maintenance': app_settings.maintenance,
-                'whitelist': addresses
             }
 
             routable = deploys[app_type].get('routable')
@@ -948,24 +1003,6 @@ class App(UuidAuditedModel):
         except Exception as e:
             # Fix service to old port and app type
             self._scheduler.svc.update(namespace, namespace, data=old_service)
-            raise ServiceUnavailable(str(e)) from e
-
-    def whitelist(self, whitelist):
-        """
-        Add/ Delete addresses to application whitelist
-        """
-        service = self._fetch_service_config(self.id)
-
-        try:
-            if whitelist:
-                addresses = ",".join(address for address in whitelist)
-                service['metadata']['annotations']['router.drycc.cc/whitelist'] = addresses
-            elif 'router.drycc.cc/whitelist' in service['metadata']['annotations']:
-                service['metadata']['annotations'].pop('router.drycc.cc/whitelist', None)
-            else:
-                return
-            self._scheduler.svc.update(self.id, self.id, data=service)
-        except KubeException as e:
             raise ServiceUnavailable(str(e)) from e
 
     def autoscale(self, proc_type, autoscale):

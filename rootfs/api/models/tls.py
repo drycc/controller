@@ -9,6 +9,7 @@ class TLS(UuidAuditedModel):
     owner = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT)
     app = models.ForeignKey('App', on_delete=models.CASCADE)
     https_enforced = models.NullBooleanField(default=None)
+    certs_auto_enabled = models.NullBooleanField(default=None)
 
     class Meta:
         get_latest_by = 'created'
@@ -18,57 +19,38 @@ class TLS(UuidAuditedModel):
     def __str__(self):
         return "{}-{}".format(self.app.id, str(self.uuid)[:7])
 
-    def _load_service_config(self, app, component):
-        config = super()._load_service_config(app, component)
-
-        # See if the ssl.enforce annotation is available
-        if 'ssl' not in config:
-            config['ssl'] = {}
-        if 'enforce' not in config['ssl']:
-            config['ssl']['enforce'] = 'false'
-
-        return config
-
     def _check_previous_tls_settings(self):
+        """
+        Only one value can be set at a time
+        If the other value is None, using the previous setting.
+        """
         try:
             previous_tls_settings = self.app.tls_set.latest()
-
-            if (
-                previous_tls_settings.https_enforced is not None and
-                self.https_enforced == previous_tls_settings.https_enforced
-            ):
-                self.delete()
-                raise AlreadyExists("{} changed nothing".format(self.owner))
+            if self.https_enforced is not None:
+                if previous_tls_settings.https_enforced == self.https_enforced:
+                    raise AlreadyExists(
+                        "{} changed nothing".format(self.owner))
+                self.certs_auto_enabled = \
+                        previous_tls_settings.certs_auto_enabled
+            elif self.certs_auto_enabled is not None:
+                if previous_tls_settings.certs_auto_enabled == \
+                        self.certs_auto_enabled:
+                    raise AlreadyExists(
+                        "{} changed nothing".format(self.owner))
+                self.https_enforced = previous_tls_settings.https_enforced
+            previous_tls_settings.delete()
         except TLS.DoesNotExist:
             pass
 
     def save(self, *args, **kwargs):
         self._check_previous_tls_settings()
+        try:
+            # Save to DB
+            return super(TLS, self).save(*args, **kwargs)
+        finally:
+            self.app.refresh()
 
-        app = str(self.app)
-        https_enforced = bool(self.https_enforced)
-
-        # get config for the service
-        config = self._load_service_config(app, 'router')
-
-        # convert from bool to string
-        config['ssl']['enforce'] = str(https_enforced)
-
-        self._save_service_config(app, 'router', config)
-
-        # Save to DB
-        return super(TLS, self).save(*args, **kwargs)
 
     def sync(self):
-        try:
-            app = str(self.app)
+        self.app.refresh()
 
-            config = self._load_service_config(app, 'router')
-            if (
-                config['ssl']['enforce'] != str(self.https_enforced) and
-                self.https_enforced is not None
-            ):
-                config['ssl']['enforce'] = str(self.https_enforced)
-                self._save_service_config(app, 'router', config)
-        except TLS.DoesNotExist:
-            pass

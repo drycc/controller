@@ -8,7 +8,8 @@ class BaseManifest(object):
 
     def manifest(self, ingress, ingress_class, namespace, **kwargs):
         path = "/*" if ingress_class in ("gce", "alb") else "/"
-        hosts, tls = kwargs.pop("hosts"), kwargs.pop("tls")
+        hosts, tls = kwargs.pop("hosts", None), kwargs.pop("tls", None)
+        version = kwargs.pop("version", None)
         data = {
             "kind": "Ingress",
             "apiVersion": "extensions/v1beta1",
@@ -19,24 +20,25 @@ class BaseManifest(object):
                     "kubernetes.io/ingress.class": ingress_class
                 }
             },
-            "spec": {
-                "rules": [{
-                    "host": host,
-                    "http": {
-                        "paths": [
-                            {
-                                "path": path,
-                                "backend": {
-                                    "serviceName": ingress,
-                                    "servicePort": 80
-                                }
-                            }
-                        ]
-                    }
-                } for host in hosts],
-                "tls": tls
-            }
+            "spec": {}
         }
+        if hosts:
+            data["spec"]["rules"] = [{
+                "host": host,
+                "http": {
+                    "paths": [
+                        {
+                            "path": path,
+                            "backend": {
+                                "serviceName": ingress,
+                                "servicePort": 80
+                            }
+                        }
+                    ]
+                }
+            } for host in hosts]
+        if tls: data["spec"]["tls"] = tls
+        if version: data["metadata"]["resourceVersion"] = version
         return data
 MANIFEAT_CLASSES["default"] = BaseManifest
 
@@ -48,12 +50,12 @@ class NginxManifest(BaseManifest):
             self, ingress, ingress_class, namespace, **kwargs)
         if "whitelist" in kwargs:
             whitelist = ", ".join(kwargs.pop("whitelist"))
-            data.update({
+            data["metadata"]["annotations"].update({
                 "nginx.ingress.kubernetes.io/whitelist-source-range": whitelist
             })
         if "ssl_redirect" in kwargs:
             ssl_redirect = kwargs.pop("ssl_redirect")
-            data.update({
+            data["metadata"]["annotations"].update({
                 "nginx.ingress.kubernetes.io/ssl-redirect": ssl_redirect
             })
         return data
@@ -67,13 +69,13 @@ class TraefikManifest(BaseManifest):
             self, ingress, ingress_class, namespace, **kwargs)
         if "whitelist" in kwargs:
             whitelist = ", ".join(kwargs.pop("whitelist"))
-            data.update({
+            data["metadata"]["annotations"].update({
                 "ingress.kubernetes.io/whitelist-x-forwarded-for": "true",
                 "traefik.ingress.kubernetes.io/whitelist-source-range": whitelist
             })
         if "ssl_redirect" in kwargs:
             ssl_redirect = kwargs.pop("ssl_redirect")
-            data.update({
+            data["metadata"]["annotations"].update({
                 "ingress.kubernetes.io/ssl-redirect": ssl_redirect
             })
         return data
@@ -90,15 +92,15 @@ class Ingress(Resource):
             ingress, ingress_class, namespace, **kwargs
         )
 
-    def get(self, name=None, **kwargs):
+    def get(self, namespace, name=None, **kwargs):
         """
         Fetch a single Ingress or a list of Ingresses
         """
         if name is not None:
-            url = "/apis/extensions/v1beta1/namespaces/%s/ingresses/%s" % (name, name)
+            url = "/apis/extensions/v1beta1/namespaces/%s/ingresses/%s" % (namespace, name)
             message = 'get Ingress ' + name
         else:
-            url = "/apis/extensions/v1beta1/namespaces/%s/ingresses" % name
+            url = "/apis/extensions/v1beta1/namespaces/%s/ingresses" % namespace
             message = 'get Ingresses'
 
         response = self.http_get(url, params=self.query_params(**kwargs))
@@ -117,13 +119,14 @@ class Ingress(Resource):
 
         return response
 
-    def update(self, ingress, ingress_class, namespace, **kwargs):
+    def put(self, ingress, ingress_class, namespace, version, **kwargs):
         url = "/apis/extensions/v1beta1/namespaces/%s/ingresses/%s" % (namespace, ingress)
+        kwargs["version"] = version
         data = self.manifest(ingress, ingress_class, namespace, **kwargs)
         response = self.http_put(url, json=data)
 
         if self.unhealthy(response.status_code):
-            raise KubeHTTPException(response, "update Ingress {}".format(namespace))
+            raise KubeHTTPException(response, "patch Ingress {}".format(namespace))
 
         return response
 
