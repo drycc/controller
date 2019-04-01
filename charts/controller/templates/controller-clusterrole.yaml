@@ -50,10 +50,11 @@ rules:
 - apiGroups: ["extensions", "autoscaling"]
   resources: ["horizontalpodautoscalers"]
   verbs: ["get", "list", "create", "update", "delete"]
-{{ if not (eq .Values.global.ingress_class "") }}
 - apiGroups: ["extensions"]
   resources: ["ingresses"]
   verbs: ["get", "list", "watch", "create", "update", "delete"]
-{{- end -}}
+- apiGroups: ["certmanager.k8s.io"]
+  resources: ["certificates", "issuers"]
+  verbs: ["get", "list", "watch", "create", "delete", "deletecollection", "patch", "update"]
 {{- end -}}
 {{- end -}}
