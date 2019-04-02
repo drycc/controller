@@ -11,7 +11,6 @@ from rest_framework.authtoken.models import Token
 
 from api.models import Domain
 from api.tests import DryccTestCase
-from scheduler import KubeException
 
 import idna
 
@@ -325,22 +324,9 @@ class DomainTest(DryccTestCase):
         """
         app_id = self.create_app()
 
-        # scheduler.svc.get exception
-        with mock.patch('scheduler.resources.service.Service.get') as mock_kube:
-            mock_kube.side_effect = KubeException('Boom!')
-            domain = 'foo.com'
-            url = '/v2/apps/{}/domains'.format(app_id)
-            response = self.client.post(url, {'domain': domain})
-            self.assertEqual(response.status_code, 503, response.data)
-
         # scheduler.svc.update exception
-        with mock.patch('scheduler.resources.service.Service.update') as mock_kube:
+        with mock.patch('scheduler.resources.service.Service.update'):
             domain = 'foo.com'
             url = '/v2/apps/{}/domains'.format(app_id)
             response = self.client.post(url, {'domain': domain})
             self.assertEqual(response.status_code, 201, response.data)
-
-            mock_kube.side_effect = KubeException('Boom!')
-            url = '/v2/apps/{}/domains/{}'.format(app_id, domain)
-            response = self.client.delete(url)
-            self.assertEqual(response.status_code, 503, response.data)

@@ -31,7 +31,7 @@ class IngressTest(TestCase):
 
         self.scheduler.ns.create("test-ingress-create")
         self.scheduler.ingress.create("test-ingress-create", "nginx",
-                                      "test-ingress-create", "test-ingress-create")
+                                      "test-ingress-create", hosts=["test-ingress-create", ])
         response = self.scheduler.ingress.get("test-ingress-create", "test-ingress-create")
         data = response.json()
 
@@ -50,6 +50,6 @@ class IngressTest(TestCase):
     def test_delete_namespace(self):
         self.scheduler.ns.create("test-ingress-delete")
         self.scheduler.ingress.create("test-ingress-delete", "nginx",
-                                      "test-ingress-delete", "test-ingress-delete")
+                                      "test-ingress-delete", hosts=["test-ingress-delete", ])
         response = self.scheduler.ingress.delete("test-ingress-delete", "test-ingress-delete")
         self.assertEqual(response.status_code, 200, response.json())

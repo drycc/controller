@@ -1,6 +1,7 @@
 import logging
 from django.conf import settings
 from django.db import models
+from django.db import transaction
 from django.contrib.postgres.fields import ArrayField
 from jsonfield import JSONField
 from rest_framework.exceptions import NotFound
@@ -83,7 +84,6 @@ class AppSettings(UuidAuditedModel):
         if new is None and old is not None:
             setattr(self, 'whitelist', old)
         elif set(old) != set(new):
-            self.app.whitelist(new)
             added = ', '.join(k for k in set(new)-set(old))
             added = 'added ' + added if added else ''
             deleted = ', '.join(k for k in set(old)-set(new))
@@ -166,6 +166,7 @@ class AppSettings(UuidAuditedModel):
                     self.summary += ' and '
                 self.summary += ["{} {}".format(self.owner, changes)]
 
+    @transaction.atomic
     def save(self, *args, **kwargs):
         self.summary = []
         previous_settings = None
@@ -191,5 +192,8 @@ class AppSettings(UuidAuditedModel):
             raise AlreadyExists("{} changed nothing".format(self.owner))
 
         summary = ' '.join(self.summary)
+        try:
+            return super(AppSettings, self).save(**kwargs)
+        finally:
+            self.app.refresh()
         self.app.log('summary of app setting changes: {}'.format(summary), logging.DEBUG)
-        return super(AppSettings, self).save(**kwargs)

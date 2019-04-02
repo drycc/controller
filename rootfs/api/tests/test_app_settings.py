@@ -184,7 +184,7 @@ class TestAppSettings(DryccTransactionTestCase):
             addresses = ["2.3.4.5"]
             url = '/v2/apps/{}/whitelist'.format(app_id)
             response = self.client.post(url, {'addresses': addresses})
-            self.assertEqual(response.status_code, 400, response.data)
+            self.assertEqual(response.status_code, 201, response.data)
 
     def test_autoscale(self, mock_requests):
         """
