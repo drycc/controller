@@ -10,6 +10,7 @@ import idna
 import ipaddress
 from urllib.parse import urlparse
 
+from django.conf import settings
 from django.contrib.auth.models import User
 from django.utils import timezone
 from rest_framework import serializers
@@ -434,6 +435,9 @@ class DomainSerializer(serializers.ModelSerializer):
 
         if value == "*":
             raise serializers.ValidationError("Hostname can't only be a wildcard")
+
+        if value.endswith(".{}".format(settings.PLATFORM_DOMAIN)):
+            raise serializers.ValidationError("This is a reserved domain")
 
         labels = value.split('.')
 
