@@ -139,7 +139,7 @@ class TestRegistry(DryccTransactionTestCase):
         # post a new build
         with mock.patch('api.models.release.docker_check_access') as mock_check_access:
             url = "/v2/apps/{app_id}/builds".format(**locals())
-            body = {'image': 'autotest/example'}
+            body = {'image': 'autotest/example', 'stack': 'container'}
             response = self.client.post(url, body)
             self.assertEqual(response.status_code, 201, response.data)
             mock_check_access.assert_called_with(

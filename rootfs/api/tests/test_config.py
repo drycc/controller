@@ -282,7 +282,7 @@ class ConfigTest(DryccTransactionTestCase):
 
         # deploy app to get a build
         url = "/v2/apps/{}/builds".format(app_id)
-        body = {'image': 'autotest/example'}
+        body = {'image': 'autotest/example', 'stack': 'container'}
         response = self.client.post(url, body)
         self.assertEqual(response.status_code, 201, response.data)
         self.assertEqual(response.data['image'], body['image'])
@@ -377,7 +377,7 @@ class ConfigTest(DryccTransactionTestCase):
 
         # deploy app to get a build
         url = "/v2/apps/{}/builds".format(app_id)
-        body = {'image': 'autotest/example'}
+        body = {'image': 'autotest/example', 'stack': 'container'}
         response = self.client.post(url, body)
         self.assertEqual(response.status_code, 201, response.data)
         self.assertEqual(response.data['image'], body['image'])
@@ -402,7 +402,7 @@ class ConfigTest(DryccTransactionTestCase):
 
         # create a build to see that the new release is created with the last successful config
         url = "/v2/apps/{}/builds".format(app_id)
-        body = {'image': 'autotest/example'}
+        body = {'image': 'autotest/example', 'stack': 'container'}
         response = self.client.post(url, body)
         self.assertEqual(response.status_code, 201, response.data)
         self.assertEqual(app.release_set.latest().version, 5)

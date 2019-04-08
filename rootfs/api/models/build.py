@@ -17,6 +17,7 @@ class Build(UuidAuditedModel):
     owner = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT)
     app = models.ForeignKey('App', on_delete=models.CASCADE)
     image = models.TextField()
+    stack = models.CharField(max_length=32)
 
     # optional fields populated by builder
     sha = models.CharField(max_length=40, blank=True)

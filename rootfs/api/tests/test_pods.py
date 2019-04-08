@@ -49,6 +49,7 @@ class PodTest(DryccTransactionTestCase):
         url = "/v2/apps/{app_id}/builds".format(**locals())
         body = {
             'image': 'autotest/example',
+            'stack': 'heroku-18',
             'sha': 'a'*40,
             'procfile': {
                 'web': 'node server.js',
@@ -142,6 +143,7 @@ class PodTest(DryccTransactionTestCase):
         url = "/v2/apps/{app_id}/builds".format(**locals())
         body = {
             'image': 'autotest/example',
+            'stack': 'container',
             'dockerfile': "FROM busybox\nCMD /bin/true"
         }
         response = self.client.post(url, body)
@@ -211,6 +213,7 @@ class PodTest(DryccTransactionTestCase):
         url = "/v2/apps/{app_id}/builds".format(**locals())
         body = {
             'image': 'autotest/example',
+            'stack': 'heroku-18',
             'sha': 'a'*40,
             'procfile': {
                 'web': 'node server.js',
@@ -237,6 +240,7 @@ class PodTest(DryccTransactionTestCase):
         # a web proctype must exist on the second build or else the container will be removed
         body = {
             'image': 'autotest/example',
+            'stack': 'heroku-18',
             'procfile': {
                 'web': 'echo hi'
             }
@@ -298,6 +302,7 @@ class PodTest(DryccTransactionTestCase):
         url = "/v2/apps/{app_id}/builds".format(**locals())
         body = {
             'image': 'autotest/example',
+            'stack': 'heroku-18',
             'sha': 'a'*40,
             'procfile': {
                 'web': 'node server.js',
@@ -333,6 +338,7 @@ class PodTest(DryccTransactionTestCase):
         url = "/v2/apps/{app_id}/builds".format(**locals())
         body = {
             'image': 'autotest/example',
+            'stack': 'heroku-18',
             'sha': 'a'*40,
             'procfile': {
                 'web': 'node server.js',
@@ -377,6 +383,7 @@ class PodTest(DryccTransactionTestCase):
         url = "/v2/apps/{app_id}/builds".format(**locals())
         body = {
             'image': 'autotest/example',
+            'stack': 'heroku-18',
             'sha': 'a'*40,
             'procfile': {
                 'web': 'node server.js',
@@ -438,6 +445,7 @@ class PodTest(DryccTransactionTestCase):
         url = "/v2/apps/{app_id}/builds".format(**locals())
         body = {
             'image': 'autotest/example',
+            'stack': 'heroku-18',
             'sha': 'a'*40,
             'procfile': {
                 'web': 'node server.js',
@@ -533,6 +541,7 @@ class PodTest(DryccTransactionTestCase):
             owner=self.user,
             app=app,
             image="qwerty",
+            stack="heroku-18",
             procfile={
                 'web': 'node server.js',
                 'worker': 'node worker.js'
@@ -701,6 +710,7 @@ class PodTest(DryccTransactionTestCase):
         build_url = "/v2/apps/{app_id}/builds".format(**locals())
         body = {
             'image': 'autotest/example',
+            'stack': 'heroku-18',
             'sha': 'a'*40,
             'procfile': {
                 'web': 'node server.js',
@@ -716,6 +726,7 @@ class PodTest(DryccTransactionTestCase):
 
         body = {
             'image': 'autotest/example',
+            'stack': 'heroku-18',
             'sha': 'a'*40,
             'procfile': {
                 'worker': 'node worker.js'
@@ -736,6 +747,7 @@ class PodTest(DryccTransactionTestCase):
         build_url = "/v2/apps/{app_id}/builds".format(**locals())
         body = {
             'image': 'autotest/example',
+            'stack': 'heroku-18',
             'sha': 'a'*40,
             'procfile': {
                 'web': 'node server.js',

@@ -290,7 +290,7 @@ class AppTest(DryccTestCase):
         app_id = self.create_app()
 
         # create build
-        body = {'image': 'autotest/example'}
+        body = {'image': 'autotest/example', 'stack': 'container'}
         url = '/v2/apps/{app_id}/builds'.format(**locals())
         response = self.client.post(url, body)
         self.assertEqual(response.status_code, 201, response.data)
@@ -313,7 +313,7 @@ class AppTest(DryccTestCase):
         app_id = self.create_app()
 
         # create build
-        body = {'image': 'autotest/example'}
+        body = {'image': 'autotest/example', 'stack': 'container'}
         url = '/v2/apps/{app_id}/builds'.format(**locals())
         response = self.client.post(url, body)
         self.assertEqual(response.status_code, 201, response.data)
@@ -507,7 +507,7 @@ class AppTest(DryccTestCase):
 
         # deploy app to get verification
         url = "/v2/apps/{}/builds".format(app_id)
-        body = {'image': 'autotest/example'}
+        body = {'image': 'autotest/example', 'stack': 'container'}
         response = self.client.post(url, body)
         self.assertEqual(response.status_code, 201, response.data)
         self.assertEqual(response.data['image'], body['image'])
@@ -541,7 +541,7 @@ class AppTest(DryccTestCase):
 
         # deploy app to get verification
         url = "/v2/apps/{}/builds".format(app_id)
-        body = {'image': 'autotest/example'}
+        body = {'image': 'autotest/example', 'stack': 'container'}
         response = self.client.post(url, body)
         self.assertEqual(response.status_code, 201, response.data)
         self.assertEqual(response.data['image'], body['image'])
@@ -566,7 +566,7 @@ class AppTest(DryccTestCase):
 
         # deploy app to get verification
         url = "/v2/apps/{}/builds".format(app_id)
-        body = {'image': 'autotest/example'}
+        body = {'image': 'autotest/example', 'stack': 'container'}
         response = self.client.post(url, body)
         self.assertEqual(response.status_code, 201, response.data)
         self.assertEqual(response.data['image'], body['image'])
@@ -659,7 +659,7 @@ class AppTest(DryccTestCase):
         # Make sure an exception is raised when calling without a build available
         with self.assertRaises(DryccException):
             app._build_env_vars(app.release_set.latest())
-        data = {'image': 'autotest/example'}
+        data = {'image': 'autotest/example', 'stack': 'heroku-18'}
         url = "/v2/apps/{app.id}/builds".format(**locals())
         response = self.client.post(url, data)
         self.assertEqual(response.status_code, 201, response.data)
@@ -697,7 +697,7 @@ class AppTest(DryccTestCase):
     def test_gather_app_settings(self, mock_requests):
         app = App.objects.create(owner=self.user)
         app.save()
-        data = {'image': 'autotest/example'}
+        data = {'image': 'autotest/example', 'stack': 'container'}
         url = "/v2/apps/{app.id}/builds".format(**locals())
         response = self.client.post(url, data)
         self.assertEqual(response.status_code, 201, response.data)
@@ -734,7 +734,7 @@ class AppTest(DryccTestCase):
 
         # deploy to an app that doesn't exist should fail with 404
         url = "/v2/apps/{}/builds".format('={}'.format(app_id))
-        body = {'image': 'autotest/example'}
+        body = {'image': 'autotest/example', 'stack': 'container'}
         response = self.client.post(url, body)
         self.assertEqual(response.status_code, 404, response)
 

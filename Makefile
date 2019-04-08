@@ -43,7 +43,7 @@ commit-hook:
 	cp _scripts/util/commit-msg .git/hooks/commit-msg
 
 full-clean: check-docker
-	docker images -q $(IMAGE_PREFIX)$(COMPONENT) | xargs docker rmi -f
+	docker images -q $(IMAGE_PREFIX)/$(COMPONENT) | xargs docker rmi -f
 
 test: test-style test-unit test-functional
 

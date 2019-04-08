@@ -73,11 +73,6 @@ spec:
               value: "{{ .Values.global.registry_location }}"
             - name: "DRYCC_REGISTRY_SECRET_PREFIX"
               value: "{{ .Values.global.secret_prefix }}"
-            - name: "SLUGRUNNER_IMAGE_NAME"
-              valueFrom:
-                configMapKeyRef:
-                  name: slugrunner-config
-                  key: image
             - name: "IMAGE_PULL_POLICY"
               value: "{{ .Values.app_pull_policy }}"
             - name: "TZ"
@@ -137,7 +132,13 @@ spec:
           volumeMounts:
             - mountPath: /var/run/docker.sock
               name: docker-socket
+            - mountPath: /etc/slugbuilder
+              name: slugrunner-config
+              readOnly: true
       volumes:
         - name: docker-socket
           hostPath:
             path: /var/run/docker.sock
+        - name: slugrunner-config
+          configMap:
+            name: slugrunner-config

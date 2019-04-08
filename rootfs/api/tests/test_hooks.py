@@ -169,7 +169,8 @@ class HookTest(DryccTransactionTestCase):
         url = '/v2/hooks/build'.format(**locals())
         body = {'receive_user': 'autotest',
                 'receive_repo': app_id,
-                'image': '{app_id}:v2'.format(**locals())}
+                'image': '{app_id}:v2'.format(**locals()),
+                'stack': 'container'}
         # post the build without an auth token
         self.client.credentials()
         response = self.client.post(url, body)
@@ -188,7 +189,8 @@ class HookTest(DryccTransactionTestCase):
         url = '/v2/hooks/build'.format(**locals())
         body = {'receive_user': 'autotest',
                 'receive_repo': app_id,
-                'image': 'http://example.com/slugs/foo-12345354.tar.gz'}
+                'image': 'http://example.com/slugs/foo-12345354.tar.gz',
+                'stack': 'container'}
 
         # post the build without an auth token
         self.client.credentials()
@@ -213,6 +215,7 @@ class HookTest(DryccTransactionTestCase):
         body = {'receive_user': 'autotest',
                 'receive_repo': app_id,
                 'image': '{app_id}:v2'.format(**locals()),
+                'stack': 'heroku-18',
                 'sha': SHA,
                 'procfile': PROCFILE}
 
@@ -260,6 +263,7 @@ class HookTest(DryccTransactionTestCase):
         body = {'receive_user': 'autotest',
                 'receive_repo': app_id,
                 'image': '{app_id}:v2'.format(**locals()),
+                'stack': 'container',
                 'sha': SHA,
                 'dockerfile': DOCKERFILE}
         # post the build with the builder auth key
@@ -333,6 +337,7 @@ class HookTest(DryccTransactionTestCase):
         body = {'receive_user': 'autotest',
                 'receive_repo': app_id,
                 'image': '{app_id}:v2'.format(**locals()),
+                'stack': 'container',
                 'sha': 'ecdff91c57a0b9ab82e89634df87e293d259a3aa',
                 'dockerfile': DOCKERFILE}
         url = '/v2/hooks/build'

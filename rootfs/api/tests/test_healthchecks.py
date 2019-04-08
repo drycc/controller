@@ -140,7 +140,7 @@ class TestHealthchecks(DryccTransactionTestCase):
         # post a new build
         response = self.client.post(
             "/v2/apps/{app_id}/builds".format(**locals()),
-            {'image': 'quay.io/autotest/example'}
+            {'image': 'quay.io/autotest/example', 'stack': 'container'}
         )
         self.assertEqual(response.status_code, 201, response.data)
 

@@ -497,7 +497,11 @@ class App(UuidAuditedModel):
         app_settings = self.appsettings_set.latest()
 
         # use slugrunner image for app if buildpack app otherwise use normal image
-        image = settings.SLUGRUNNER_IMAGE if release.build.type == 'buildpack' else release.image
+        if release.build.type == 'buildpack':
+            image = next(filter(lambda item: item['name'] == release.build.stack,
+                                settings.SLUGRUNNER_IMAGES))['image']
+        else:
+            image = release.image
 
         tasks = []
         for scale_type, replicas in scale_types.items():
@@ -582,7 +586,11 @@ class App(UuidAuditedModel):
         self._check_deployment_in_progress(deploys, force_deploy)
 
         # use slugrunner image for app if buildpack app otherwise use normal image
-        image = settings.SLUGRUNNER_IMAGE if release.build.type == 'buildpack' else release.image
+        if release.build.type == 'buildpack':
+            image = next(filter(lambda item: item['name'] == release.build.stack,
+                                settings.SLUGRUNNER_IMAGES))['image']
+        else:
+            image = release.image
 
         try:
             # create the application config in k8s (secret in this case) for all deploy objects
@@ -809,7 +817,11 @@ class App(UuidAuditedModel):
 
         app_settings = self.appsettings_set.latest()
         # use slugrunner image for app if buildpack app otherwise use normal image
-        image = settings.SLUGRUNNER_IMAGE if release.build.type == 'buildpack' else release.image
+        if release.build.type == 'buildpack':
+            image = next(filter(lambda item: item['name'] == release.build.stack,
+                                settings.SLUGRUNNER_IMAGES))['image']
+        else:
+            image = release.image
 
         data = self._gather_app_settings(release, app_settings, process_type='run', replicas=1)
 

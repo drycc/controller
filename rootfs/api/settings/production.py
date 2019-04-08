@@ -5,6 +5,7 @@ from distutils.util import strtobool
 import os.path
 import tempfile
 import ldap
+import json
 
 from django_auth_ldap.config import LDAPSearch, GroupOfNamesType
 
@@ -266,7 +267,20 @@ INGRESS_CLASS = os.environ.get('DRYCC_INGRESS_CLASS', '')
 PLATFORM_DOMAIN = os.environ.get('DRYCC_PLATFORM_DOMAIN', 'local.drycc.cc')
 
 # k8s image policies
-SLUGRUNNER_IMAGE = os.environ.get('SLUGRUNNER_IMAGE_NAME', 'quay.io/drycc/slugrunner:canary')  # noqa
+if os.path.exists('/etc/slugrunner/images.json'):
+    with open('/etc/slugrunner/images.json') as fb:
+        SLUGRUNNER_IMAGES = json.load(fb)
+else:
+    SLUGRUNNER_IMAGES = [
+        {
+            "name": 'heroku-18',
+            "image": 'drycc/slugrunner:canary.heroku-18',
+        },
+        {
+            "name": 'heroku-16',
+            "image": 'drycc/slugrunner:canary.heroku-16',
+        },
+    ]
 IMAGE_PULL_POLICY = os.environ.get('IMAGE_PULL_POLICY', "IfNotPresent")  # noqa
 
 # True, true, yes, y and more evaluate to True

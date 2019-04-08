@@ -74,7 +74,7 @@ class ReleaseTest(DryccTransactionTestCase):
         # check that updating the build rolls a new release
         url = '/v2/apps/{app_id}/builds'.format(**locals())
         build_config = json.dumps({'PATH': 'bin:/usr/local/bin:/usr/bin:/bin'})
-        body = {'image': 'autotest/example'}
+        body = {'image': 'autotest/example', 'stack': 'container'}
         response = self.client.post(url, body)
         self.assertEqual(response.status_code, 201, response.data)
         self.assertEqual(response.data['image'], body['image'])
@@ -137,7 +137,7 @@ class ReleaseTest(DryccTransactionTestCase):
         self.assertEqual(response.get('content-type'), 'application/json')
         # update the build to roll a new release
         url = '/v2/apps/{app_id}/builds'.format(**locals())
-        body = {'image': 'autotest/example'}
+        body = {'image': 'autotest/example', 'stack': 'container'}
         response = self.client.post(url, body)
         self.assertEqual(response.status_code, 201, response.data)
         # update config to roll another release
@@ -147,7 +147,7 @@ class ReleaseTest(DryccTransactionTestCase):
         self.assertEqual(response.status_code, 201, response.data)
         # create another release with a different build
         url = '/v2/apps/{app_id}/builds'.format(**locals())
-        body = {'image': 'autotest/example:canary'}
+        body = {'image': 'autotest/example:canary', 'stack': 'container'}
         response = self.client.post(url, body)
         self.assertEqual(response.status_code, 201, response.data)
         # rollback and check to see that a 5th release was created
@@ -240,7 +240,7 @@ class ReleaseTest(DryccTransactionTestCase):
 
         # push a new build
         url = '/v2/apps/{app_id}/builds'.format(**locals())
-        body = {'image': 'test'}
+        body = {'image': 'test', 'stack': 'container'}
         response = self.client.post(url, body)
 
         # update config to roll a new release
@@ -265,7 +265,7 @@ class ReleaseTest(DryccTransactionTestCase):
 
         # deploy app to get a build
         url = "/v2/apps/{}/builds".format(app_id)
-        body = {'image': 'autotest/example'}
+        body = {'image': 'autotest/example', 'stack': 'container'}
         response = self.client.post(url, body)
         self.assertEqual(response.status_code, 201, response.data)
         self.assertEqual(response.data['image'], body['image'])
@@ -360,7 +360,7 @@ class ReleaseTest(DryccTransactionTestCase):
         app = App.objects.get(id=app_id)
 
         url = '/v2/apps/{app_id}/builds'.format(**locals())
-        body = {'sha': '123456', 'image': 'autotest/example'}
+        body = {'sha': '123456', 'image': 'autotest/example', 'stack': 'heroku-18'}
         response = self.client.post(url, body)
         self.assertEqual(response.status_code, 201, response.data)
         release = app.release_set.latest()
@@ -373,7 +373,7 @@ class ReleaseTest(DryccTransactionTestCase):
 
         # switch to a dockerfile app or else it'll automatically default to 5000
         url = '/v2/apps/{app_id}/builds'.format(**locals())
-        body = {'image': 'autotest/example'}
+        body = {'image': 'autotest/example', 'stack': 'container'}
         response = self.client.post(url, body)
         self.assertEqual(response.status_code, 201, response.data)
 
@@ -395,7 +395,7 @@ class ReleaseTest(DryccTransactionTestCase):
         Verifies that a configured deploy hook is dumped into the logs when a release is created.
         """
         app_id = 'foo'
-        body = {'sha': '123456', 'image': 'autotest/example'}
+        body = {'sha': '123456', 'image': 'autotest/example', 'stack': 'heroku-18'}
 
         mr_rocks = mock_requests.post('http://drycc.rocks?app={app_id}&user={self.user.username}&sha=&release=v1&release_summary={self.user.username}+created+initial+release'.format(**locals()))  # noqa
         self.create_app(app_id)
@@ -494,7 +494,7 @@ class ReleaseTest(DryccTransactionTestCase):
 
         app = App.objects.get(id=app_id)
         url = '/v2/apps/{app_id}/builds'.format(**locals())
-        body = {'image': 'test/autotest/example'}
+        body = {'image': 'test/autotest/example', 'stack': 'container'}
         response = self.client.post(url, body)
         self.assertEqual(response.status_code, 201, response.data)
         release = app.release_set.latest()
@@ -513,7 +513,7 @@ class ReleaseTest(DryccTransactionTestCase):
 
         app = App.objects.get(id=app_id)
         url = '/v2/apps/{app_id}/builds'.format(**locals())
-        body = {'image': 'test/autotest/example'}
+        body = {'image': 'test/autotest/example', 'stack': 'container'}
         response = self.client.post(url, body)
         self.assertEqual(response.status_code, 400, response.data)
 
