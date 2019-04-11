@@ -132,7 +132,7 @@ spec:
           volumeMounts:
             - mountPath: /var/run/docker.sock
               name: docker-socket
-            - mountPath: /etc/slugbuilder
+            - mountPath: /etc/slugrunner
               name: slugrunner-config
               readOnly: true
       volumes:
