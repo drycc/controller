@@ -341,6 +341,7 @@ REGISTRY_HOST = os.environ.get('DRYCC_REGISTRY_PROXY_HOST', '127.0.0.1')
 REGISTRY_PORT = os.environ.get('DRYCC_REGISTRY_PROXY_PORT', 5000)
 REGISTRY_URL = '{}:{}'.format(REGISTRY_HOST, REGISTRY_PORT)
 REGISTRY_LOCATION = os.environ.get('DRYCC_REGISTRY_LOCATION', 'on-cluster')
+REGISTRY_SECRET_PREFIX = os.environ.get('DRYCC_REGISTRY_SECRET_PREFIX', 'private-registry')
 
 # logger settings
 LOGGER_HOST = os.environ.get('DRYCC_LOGGER_SERVICE_HOST', '127.0.0.1')

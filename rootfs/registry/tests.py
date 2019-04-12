@@ -13,7 +13,7 @@ from registry import publish_release, get_port, RegistryException
 from registry.dockerclient import DockerClient
 
 
-@mock.patch('docker.Client')
+@mock.patch('docker.APIClient')
 class DockerClientTest(unittest.TestCase):
     """Test that the client makes appropriate Docker engine API calls."""
 

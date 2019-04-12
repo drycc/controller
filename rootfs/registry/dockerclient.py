@@ -10,7 +10,7 @@ from rest_framework.exceptions import PermissionDenied
 
 import docker
 import docker.constants
-from docker.auth import auth
+from docker import auth
 from docker.errors import APIError
 import requests
 
@@ -26,7 +26,7 @@ class DockerClient(object):
 
     def __init__(self):
         timeout = os.environ.get('DOCKER_CLIENT_TIMEOUT', docker.constants.DEFAULT_TIMEOUT_SECONDS)
-        self.client = docker.Client(version='auto', timeout=timeout)
+        self.client = docker.APIClient(version='auto', timeout=timeout)
         self.registry = settings.REGISTRY_HOST + ':' + str(settings.REGISTRY_PORT)
 
     def login(self, repository, creds=None):

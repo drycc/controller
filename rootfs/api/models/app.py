@@ -2,7 +2,7 @@ import backoff
 import base64
 from collections import OrderedDict
 from datetime import datetime
-from docker.auth import auth as docker_auth
+from docker import auth as docker_auth
 import functools
 import json
 import logging
@@ -1076,6 +1076,7 @@ class App(UuidAuditedModel):
         return name
 
     def _get_private_registry_config(self, image, registry=None):
+        name = settings.REGISTRY_SECRET_PREFIX
         if registry:
             # try to get the hostname information
             hostname = registry.get('hostname', None)

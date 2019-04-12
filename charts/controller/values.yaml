@@ -49,7 +49,9 @@ global:
   # - off-cluster: Use registry outside the Kubernetes cluster (example: dockerhub,quay.io,self-hosted)
   registry_location: "on-cluster"
   # The host port to which registry proxy binds to
-  registry_service_port: 5555
+  registry_proxy_port: 5555
+  # Prefix for the imagepull secret created when using private registry
+  registry_secret_prefix: "private-registry"
   # Role-Based Access Control for Kubernetes >= 1.5
   use_rbac: false
   # Please check `kubernetes.io/ingress.class`

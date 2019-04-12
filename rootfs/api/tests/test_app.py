@@ -621,15 +621,6 @@ class AppTest(DryccTestCase):
         self.assertEqual(name, "private-registry")
         self.assertEqual(create, True)
 
-    @override_settings(REGISTRY_LOCATION="ecr")
-    def test_get_private_registry_config_ecr(self, mock_requests):
-        registry = {}
-        image = "test.com/test/test"
-        docker_config, name, create = App()._get_private_registry_config(image, registry)
-        self.assertEqual(docker_config, None)
-        self.assertEqual(name, "private-registry-ecr")
-        self.assertEqual(create, False)
-
     @override_settings(REGISTRY_LOCATION="off-cluster")
     def test_get_private_registry_config_off_cluster(self, mock_requests):
         registry = {}
