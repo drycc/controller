@@ -71,8 +71,6 @@ spec:
               value: "{{ .Values.global.storage}}"
             - name: "DRYCC_REGISTRY_LOCATION"
               value: "{{ .Values.global.registry_location }}"
-            - name: "DRYCC_REGISTRY_SECRET_PREFIX"
-              value: "{{ .Values.global.registry_secret_prefix }}"
             - name: "IMAGE_PULL_POLICY"
               value: "{{ .Values.app_pull_policy }}"
             - name: "TZ"

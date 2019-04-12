@@ -1076,7 +1076,6 @@ class App(UuidAuditedModel):
         return name
 
     def _get_private_registry_config(self, image, registry=None):
-        name = settings.REGISTRY_SECRET_PREFIX
         if registry:
             # try to get the hostname information
             hostname = registry.get('hostname', None)
@@ -1097,8 +1096,6 @@ class App(UuidAuditedModel):
             if hostname == '':
                 hostname = 'https://index.docker.io/v1/'
             name = name + '-' + settings.REGISTRY_LOCATION
-        elif settings.REGISTRY_LOCATION in ['ecr', 'gcr']:
-            return None, name + '-' + settings.REGISTRY_LOCATION, False
         else:
             return None, None, None
 
