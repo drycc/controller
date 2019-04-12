@@ -56,7 +56,7 @@ spec:
             - name: REGISTRATION_MODE
               value: {{ .Values.registration_mode }}
             # NOTE(bacongobbler): use drycc/registry_proxy to work around Docker --insecure-registry requirements
-            - name: "DRYCC_REGISTRY_SERVICE_HOST"
+            - name: "DRYCC_REGISTRY_PROXY_HOST"
               value: "127.0.0.1"
             # Environmental variable value for $INGRESS_CLASS
             - name: "DRYCC_INGRESS_CLASS"
@@ -65,14 +65,14 @@ spec:
               value: "{{ .Values.platform_domain }}"
             - name: "K8S_API_VERIFY_TLS"
               value: "{{ .Values.k8s_api_verify_tls }}"
-            - name: "DRYCC_REGISTRY_SERVICE_PORT"
+            - name: "DRYCC_REGISTRY_PROXY_PORT"
               value: "{{ .Values.global.registry_service_port }}"
             - name: "APP_STORAGE"
               value: "{{ .Values.global.storage}}"
             - name: "DRYCC_REGISTRY_LOCATION"
               value: "{{ .Values.global.registry_location }}"
             - name: "DRYCC_REGISTRY_SECRET_PREFIX"
-              value: "{{ .Values.global.secret_prefix }}"
+              value: "{{ .Values.global.registry_secret_prefix }}"
             - name: "IMAGE_PULL_POLICY"
               value: "{{ .Values.app_pull_policy }}"
             - name: "TZ"
