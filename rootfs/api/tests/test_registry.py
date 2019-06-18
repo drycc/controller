@@ -1,6 +1,5 @@
 import json
 import requests_mock
-from unittest import mock
 
 from django.core.cache import cache
 from django.contrib.auth.models import User
@@ -135,13 +134,3 @@ class TestRegistry(DryccTransactionTestCase):
         self.assertIn('password', response.data['registry'])
         self.assertEqual(response.data['registry']['username'], 'bob')
         self.assertEqual(response.data['registry']['password'], 's3cur3pw1')
-
-        # post a new build
-        with mock.patch('api.models.release.docker_check_access') as mock_check_access:
-            url = "/v2/apps/{app_id}/builds".format(**locals())
-            body = {'image': 'autotest/example', 'stack': 'container'}
-            response = self.client.post(url, body)
-            self.assertEqual(response.status_code, 201, response.data)
-            mock_check_access.assert_called_with(
-                'autotest/example',
-                {'password': 's3cur3pw1', 'username': 'bob', 'email': 'autotest@drycc.cc'})

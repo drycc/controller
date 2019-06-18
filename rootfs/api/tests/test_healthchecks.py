@@ -13,7 +13,6 @@ from api.tests import adapter, mock_port, DryccTransactionTestCase
 @requests_mock.Mocker(real_http=True, adapter=adapter)
 @mock.patch('api.models.release.publish_release', lambda *args: None)
 @mock.patch('api.models.release.docker_get_port', mock_port)
-@mock.patch('api.models.release.docker_check_access', lambda *args: None)
 class TestHealthchecks(DryccTransactionTestCase):
     """Tests setting and updating config values"""
 

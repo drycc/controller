@@ -158,17 +158,6 @@ class DockerClient(object):
         # inspect the image
         return self.client.inspect_image(target)
 
-    def check_access(self, target, creds=None):
-        """
-        Check access to the docker image, with the given creds (if any).
-        Due to the k8s docker image cache, we can't rely on k8s to do this
-        check - see https://github.com/drycc/workflow/issues/78
-        """
-        name, _ = docker.utils.parse_repository_tag(target)
-        self.login(name, creds)
-        self.inspect_image(target)
-        # no exception == success
-
 
 def check_blacklist(repo):
     """Check a Docker repository name for collision with drycc/* components."""
@@ -212,7 +201,3 @@ def publish_release(source, target, drycc_registry, creds=None):
 
 def get_port(target, drycc_registry, creds=None):
     return DockerClient().get_port(target, drycc_registry, creds)
-
-
-def check_access(target, creds=None):
-    return DockerClient().check_access(target, creds)
