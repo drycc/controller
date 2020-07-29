@@ -46,7 +46,7 @@ global:
   #
   # Valid values are:
   # - on-cluster: Run registry within the Kubernetes cluster
-  # - off-cluster: Use registry outside the Kubernetes cluster (example: dockerhub,quay.io,self-hosted)
+  # - off-cluster: Use registry outside the Kubernetes cluster (example: dockerhub,self-hosted)
   registry_location: "on-cluster"
   # The host port to which registry proxy binds to
   registry_proxy_port: 5555

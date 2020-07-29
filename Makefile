@@ -6,7 +6,7 @@ SHORT_NAME ?= $(COMPONENT)
 
 include versioning.mk
 
-SHELLCHECK_PREFIX := docker run -v ${CURDIR}:/workdir -w /workdir quay.io/drycc/go-dev:v0.22.0 shellcheck
+SHELLCHECK_PREFIX := docker run -v ${CURDIR}:/workdir -w /workdir drycc/go-dev shellcheck
 SHELL_SCRIPTS = $(wildcard rootfs/bin/*) $(shell find "rootfs" -name '*.sh') $(wildcard _scripts/*.sh)
 
 # Test processes used in quick unit testing

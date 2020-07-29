@@ -3,7 +3,6 @@
 
 [![Build Status](https://travis-ci.org/drycc/controller.svg?branch=master)](https://travis-ci.org/drycc/controller)
 [![codecov.io](https://codecov.io/github/drycc/controller/coverage.svg?branch=master)](https://codecov.io/github/drycc/controller?branch=master)
-[![Docker Repository on Quay](https://quay.io/repository/drycc/controller/status "Docker Repository on Quay")](https://quay.io/repository/drycc/controller)
 
 Drycc (pronounced DAY-iss) Workflow is an open source Platform as a Service (PaaS) that adds a developer-friendly layer to any [Kubernetes](http://kubernetes.io) cluster, making it easy to deploy and manage applications on your own servers.
 
@@ -56,7 +55,6 @@ Also, since this component is central to the platform, it's recommended that you
 
 * `DRYCC_REGISTRY` - A Docker registry that you have push access to and your Kubernetes cluster can pull from
   * If this is [Docker Hub](https://hub.docker.com/), leave this variable empty
-  * Otherwise, ensure it has a trailing `/`. For example, if you're using [Quay.io](https://quay.io), use `quay.io/`
 * `IMAGE_PREFIX` - The organization in the Docker repository. This defaults to `drycc`, but if you don't have access to that organization, set this to one you have push access to.
 * `SHORT_NAME` (optional) - The name of the image. This defaults to `controller`
 * `VERSION` (optional) - The tag of the Docker image. This defaults to the current Git SHA (the output of `git rev-parse --short HEAD`)
@@ -64,7 +62,6 @@ Also, since this component is central to the platform, it's recommended that you
 Then, run `make deploy` to build and push a new Docker image with your changes and replace the existing one with your new one in the Kubernetes cluster. See below for an example with appropriate environment variables.
 
 ```console
-export DRYCC_REGISTRY=quay.io/
 export IMAGE_PREFIX=arschles
 make deploy
 ```
