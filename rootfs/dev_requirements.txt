@@ -1,5 +1,5 @@
 # test module
-test
+# test
 # Run "make test-unit" for the % of code exercised during tests
 coverage==4.4.1
 
