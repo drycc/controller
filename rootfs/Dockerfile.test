@@ -3,7 +3,11 @@ FROM python:3.7-alpine
 COPY requirements.txt /app/requirements.txt
 COPY dev_requirements.txt /app/dev_requirements.txt
 
-ENV PGDATA /var/lib/postgresql/11
+RUN sed -i 's/dl-cdn.alpinelinux.org/mirrors.aliyun.com/g' /etc/apk/repositories \
+  && apk update \
+  && apk add postgresql==12.3-r2
+
+ENV PGDATA /var/lib/postgresql/12
 RUN mkdir -p /run/postgresql $PGDATA \
   && chown -R postgres:postgres /run/postgresql $PGDATA \
   && apk add --update --virtual .build-deps \
@@ -12,8 +16,8 @@ RUN mkdir -p /run/postgresql $PGDATA \
     libffi-dev \
     musl-dev \
     openldap-dev \
-  && pip3 install --disable-pip-version-check --no-cache-dir -r /app/requirements.txt \
-  && pip3 install --disable-pip-version-check --no-cache-dir -r /app/dev_requirements.txt \
+  && pip3 install --disable-pip-version-check --no-cache-dir -r /app/requirements.txt -i https://mirrors.aliyun.com/pypi/simple \
+  && pip3 install --disable-pip-version-check --no-cache-dir -r /app/dev_requirements.txt -i https://mirrors.aliyun.com/pypi/simple \
   && runDeps="$( \
     scanelf --needed --nobanner --format '%n#p' --recursive /usr/local \
     | tr ',' '\n' \
