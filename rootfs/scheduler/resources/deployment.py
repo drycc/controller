@@ -8,12 +8,8 @@ from scheduler.exceptions import KubeException, KubeHTTPException
 
 class Deployment(Resource):
     api_prefix = 'apis'
+    api_version = 'apps/v1'
 
-    @property
-    def api_version(self):
-        if self.version() >= parse("1.9.0"):
-            return 'extensions/v1beta1'
-        return 'extensions/v1beta1'
 
     def get(self, namespace, name=None, **kwargs):
         """

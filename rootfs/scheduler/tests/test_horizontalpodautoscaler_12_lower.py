@@ -212,7 +212,7 @@ class HorizontalPodAutoscalersTest(TestCase):
         response = self.scheduler.hpa.get(self.namespace, name)
         data = response.json()
         self.assertEqual(response.status_code, 200, data)
-        self.assertEqual(data['apiVersion'], 'extensions/v1beta1')
+        self.assertEqual(data['apiVersion'], 'autoscaling/v1')
         self.assertEqual(data['kind'], 'HorizontalPodAutoscaler')
         self.assertEqual(data['metadata']['name'], name)
         self.assertDictContainsSubset(

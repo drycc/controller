@@ -687,8 +687,9 @@ def post(request, context):
 
     # don't bother adding it to those two resources since they live outside namespace
     if resource_type not in ['nodes', 'namespaces']:
-        namespace = request.url.replace(settings.SCHEDULER_URL + '/api/v1/namespaces/',  '')
-        namespace = namespace.replace(settings.SCHEDULER_URL + '/apis/extensions/v1beta1/namespaces/',  '')  # noqa
+        namespace = request.url.replace(settings.SCHEDULER_URL,  '')
+        namespace = namespace.replace('/api/v1/namespaces/',  '')
+        namespace = re.sub(r'/apis/.{1,}/.{1,}/namespaces/', '', namespace)
         namespace = namespace.split('/')[0]
         data['metadata']['namespace'] = namespace
 
