@@ -124,7 +124,7 @@ spec:
                   name: database-creds
                   key: password
             - name: RESERVED_NAMES
-              value: "drycc, drycc-builder, drycc-workflow-manager, grafana"
+              value: "drycc, drycc-builder, grafana"
             - name: WORKFLOW_NAMESPACE
               valueFrom:
                 fieldRef:
