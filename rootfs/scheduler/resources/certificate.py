@@ -15,7 +15,7 @@ class Certificate(Resource):
             "spec": {
                 "secretName": "%s-auto-tls" % name,
                 "issuerRef": {
-                    "name": "drycc-letsencrypt",
+                    "name": "drycc-cluster-issuer",
                     "kind": "ClusterIssuer"
                 },
                 "dnsNames": hosts,
