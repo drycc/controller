@@ -6,21 +6,20 @@ MANIFEAT_CLASSES = {}
 
 class BaseManifest(object):
 
-    def manifest(self, ingress, ingress_class, namespace, **kwargs):
+    def manifest(self, api_version, ingress, ingress_class, namespace, **kwargs):
         path = "/*" if ingress_class in ("gce", "alb") else "/"
         hosts, tls = kwargs.pop("hosts", None), kwargs.pop("tls", None)
         version = kwargs.pop("version", None)
         data = {
             "kind": "Ingress",
-            "apiVersion": "extensions/v1beta1",
+            "apiVersion": api_version,
             "metadata": {
                 "name": ingress,
                 "annotations": {
                     "kubernetes.io/tls-acme": "true",
                 }
             },
-            "spec": {}
-        }
+            "spec": {} }
         if hosts:
             data["spec"]["rules"] = [{
                 "host": host,
@@ -49,9 +48,9 @@ class BaseManifest(object):
 
 class NginxManifest(BaseManifest):
 
-    def manifest(self, ingress, ingress_class, namespace, **kwargs):
+    def manifest(self, api_version, ingress, ingress_class, namespace, **kwargs):
         data = BaseManifest.manifest(
-            self, ingress, ingress_class, namespace, **kwargs)
+            self, api_version, ingress, ingress_class, namespace, **kwargs)
         if "whitelist" in kwargs:
             whitelist = ", ".join(kwargs.pop("whitelist"))
             data["metadata"]["annotations"].update({
@@ -70,9 +69,9 @@ MANIFEAT_CLASSES["nginx"] = NginxManifest
 
 class TraefikManifest(BaseManifest):
 
-    def manifest(self, ingress, ingress_class, namespace, **kwargs):
+    def manifest(self, api_version, ingress, ingress_class, namespace, **kwargs):
         data = BaseManifest.manifest(
-            self, ingress, ingress_class, namespace, **kwargs)
+            self, api_version, ingress, ingress_class, namespace, **kwargs)
         if "whitelist" in kwargs:
             whitelist = ", ".join(kwargs.pop("whitelist"))
             data["metadata"]["annotations"].update({
@@ -91,22 +90,25 @@ MANIFEAT_CLASSES["traefik"] = TraefikManifest
 
 
 class Ingress(Resource):
+  
+    api_version = 'networking.k8s.io/v1beta1'
+    api_prefix = 'apis'
     short_name = 'ingress'
 
-    def manifest(self, ingress, ingress_class, namespace, **kwargs):
+    def manifest(self, api_version, ingress, ingress_class, namespace, **kwargs):
         return MANIFEAT_CLASSES.get(ingress_class, BaseManifest)().manifest(
-            ingress, ingress_class, namespace, **kwargs
+            api_version, ingress, ingress_class, namespace, **kwargs
         )
 
-    def get(self, namespace, name=None, **kwargs):
+    def get(self, namespace, ingress=None, **kwargs):
         """
         Fetch a single Ingress or a list of Ingresses
         """
-        if name is not None:
-            url = "/apis/extensions/v1beta1/namespaces/%s/ingresses/%s" % (namespace, name)
-            message = 'get Ingress ' + name
+        if ingress is not None:
+            url = self.api("/namespaces/{}/ingresses/{}", namespace, ingress)
+            message = 'get Ingress ' + ingress
         else:
-            url = "/apis/extensions/v1beta1/namespaces/%s/ingresses" % namespace
+            url = self.api("/namespaces/{}/ingresses", namespace)
             message = 'get Ingresses'
 
         response = self.http_get(url, params=self.query_params(**kwargs))
@@ -116,8 +118,8 @@ class Ingress(Resource):
         return response
 
     def create(self, ingress, ingress_class, namespace, **kwargs):
-        url = "/apis/extensions/v1beta1/namespaces/%s/ingresses" % namespace
-        data = self.manifest(ingress, ingress_class, namespace, **kwargs)
+        url = self.api("/namespaces/{}/ingresses", namespace)
+        data = self.manifest(self.api_version, ingress, ingress_class, namespace, **kwargs)
         response = self.http_post(url, json=data)
 
         if not response.status_code == 201:
@@ -126,9 +128,9 @@ class Ingress(Resource):
         return response
 
     def put(self, ingress, ingress_class, namespace, version, **kwargs):
-        url = "/apis/extensions/v1beta1/namespaces/%s/ingresses/%s" % (namespace, ingress)
+        url = self.api("/namespaces/{}/ingresses/{}", namespace, ingress)
         kwargs["version"] = version
-        data = self.manifest(ingress, ingress_class, namespace, **kwargs)
+        data = self.manifest(self.api_version, ingress, ingress_class, namespace, **kwargs)
         response = self.http_put(url, json=data)
 
         if self.unhealthy(response.status_code):
@@ -137,7 +139,7 @@ class Ingress(Resource):
         return response
 
     def delete(self, namespace, ingress):
-        url = "/apis/extensions/v1beta1/namespaces/%s/ingresses/%s" % (namespace, ingress)
+        url = self.api("/namespaces/{}/ingresses/{}", namespace, ingress)
         response = self.http_delete(url)
         if self.unhealthy(response.status_code):
             raise KubeHTTPException(response, 'delete Ingress "{}"', namespace)

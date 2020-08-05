@@ -7,17 +7,9 @@ from scheduler.exceptions import KubeException, KubeHTTPException
 
 class HorizontalPodAutoscaler(Resource):
     api_prefix = 'apis'
+    api_version = 'autoscaling/v1'
     short_name = 'hpa'
 
-    @property
-    def api_version(self):
-        # API location changes between versions
-        # http://kubernetes.io/docs/user-guide/horizontal-pod-autoscaling/#api-object
-        if self.version() >= parse("1.3.0"):
-            return 'autoscaling/v1'
-
-        # 1.2 and older
-        return 'extensions/v1beta1'
 
     def get(self, namespace, name=None, **kwargs):
         """

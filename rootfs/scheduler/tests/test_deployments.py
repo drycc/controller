@@ -96,7 +96,7 @@ class DeploymentsTest(TestCase):
 
         deployment = copy.copy(self.scheduler.deployment)
 
-        expected = 'extensions/v1beta1'
+        expected = 'apps/v1'
 
         for canonical in cases:
             deployment.version = mock.MagicMock(return_value=parse(canonical))
@@ -114,7 +114,7 @@ class DeploymentsTest(TestCase):
 
         deployment = copy.copy(self.scheduler.deployment)
 
-        expected = 'extensions/v1beta1'
+        expected = 'apps/v1'
 
         for canonical in cases:
             deployment.version = mock.MagicMock(return_value=parse(canonical))
@@ -210,7 +210,7 @@ class DeploymentsTest(TestCase):
         response = self.scheduler.deployment.get(self.namespace, name)
         data = response.json()
         self.assertEqual(response.status_code, 200, data)
-        self.assertEqual(data['apiVersion'], 'extensions/v1beta1')
+        self.assertEqual(data['apiVersion'], 'apps/v1')
         self.assertEqual(data['kind'], 'Deployment')
         self.assertEqual(data['metadata']['name'], name)
         self.assertDictContainsSubset(
@@ -285,7 +285,7 @@ class DeploymentsTest(TestCase):
         data = response.json()
 
         self.assertEqual(response.status_code, 200, data)
-        self.assertEqual(data['apiVersion'], 'extensions/v1beta1', data)
+        self.assertEqual(data['apiVersion'], 'apps/v1', data)
         self.assertEqual(data['kind'], 'ReplicaSet', data)
         self.assertEqual(data['metadata']['name'], replica_name, data)
         self.assertDictContainsSubset(
