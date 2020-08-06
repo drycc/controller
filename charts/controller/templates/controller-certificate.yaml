@@ -7,7 +7,7 @@ metadata:
 spec:
   secretName: drycc-controller-auto-tls
   issuerRef:
-    name: drycc-letsencrypt
+    name: drycc-cluster-issuer
     kind: ClusterIssuer
   dnsNames:
   - drycc.{{ .Values.platform_domain }}
