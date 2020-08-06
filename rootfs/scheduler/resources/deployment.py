@@ -1,7 +1,6 @@
 from datetime import datetime, timedelta
 import json
 import time
-from packaging.version import parse
 from scheduler.resources import Resource
 from scheduler.exceptions import KubeException, KubeHTTPException
 
@@ -9,7 +8,6 @@ from scheduler.exceptions import KubeException, KubeHTTPException
 class Deployment(Resource):
     api_prefix = 'apis'
     api_version = 'apps/v1'
-
 
     def get(self, namespace, name=None, **kwargs):
         """

@@ -19,7 +19,8 @@ class BaseManifest(object):
                     "kubernetes.io/tls-acme": "true",
                 }
             },
-            "spec": {} }
+            "spec": {}
+        }
         if hosts:
             data["spec"]["rules"] = [{
                 "host": host,
@@ -90,7 +91,7 @@ MANIFEAT_CLASSES["traefik"] = TraefikManifest
 
 
 class Ingress(Resource):
-  
+
     api_version = 'networking.k8s.io/v1beta1'
     api_prefix = 'apis'
     short_name = 'ingress'

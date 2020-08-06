@@ -10,7 +10,6 @@ class HorizontalPodAutoscaler(Resource):
     api_version = 'autoscaling/v1'
     short_name = 'hpa'
 
-
     def get(self, namespace, name=None, **kwargs):
         """
         Fetch a single HorizontalPodAutoscaler or a list

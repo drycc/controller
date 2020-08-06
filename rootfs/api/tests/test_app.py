@@ -78,7 +78,6 @@ class AppTest(DryccTestCase):
         name = 'a' * 64
         body = {'id': name}
         response = self.client.post('/v2/apps', body)
-        print(response)
         self.assertEqual(
             response.data,
             {'id': ['Ensure this field has no more than 63 characters.']}

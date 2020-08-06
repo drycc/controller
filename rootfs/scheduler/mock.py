@@ -119,11 +119,16 @@ def get_type(key):
     return 'unknown'
 
 
+def replace_api_version(old, new='api_v1'):
+    return old.replace('apis_autoscaling_v1', new)\
+        .replace('apis_apps_v1', new)\
+        .replace('apis_networking.k8s.io_v1beta1', new)
+
+
 def get_namespace(url, resource_type):
     """Inspects the URL and gets namespace from it if there is any"""
     # correct back to proper namespace API
-    url = url.replace('apis_autoscaling_v1', 'api_v1')
-    url = url.replace('apis_extensions_v1beta1', 'api_v1')
+    url = replace_api_version(url)
     # check if this is a subresource
     subresource, resource_type, url = is_subresource(resource_type, url)
     # get namespace name
@@ -391,7 +396,8 @@ def upsert_pods(controller, url):
     # turn RC / RS (which a Deployment creates) url into pods one
     url = url.replace(cache_key(controller['metadata']['name']), '')
     if '_replicasets_' in url:
-        url = url.replace('_replicasets_', '_pods').replace('apis_extensions_v1beta1', 'api_v1')  # noqa
+        url = url.replace('_replicasets_', '_pods')
+        url = replace_api_version(url)
     else:
         url = url.replace('_replicationcontrollers_', '_pods')
     # make sure url only has up to "_pods"
@@ -512,7 +518,8 @@ def manage_replicasets(deployment, url):
 
 def update_deployment_status(namespaced_url, url, deployment, rs):
     # Fill out deployment.status for success as pods transition to running state
-    pod_url = namespaced_url.replace('_replicasets', '_pods').replace('apis_extensions_v1beta1', 'api_v1')  # noqa
+    pod_url = namespaced_url.replace('_replicasets', '_pods')
+    pod_url = replace_api_version(pod_url)
     while True:
         # The below needs to be done to emulate Deployment handling things
         # always cleanup pods
@@ -689,7 +696,7 @@ def post(request, context):
     if resource_type not in ['nodes', 'namespaces']:
         namespace = request.url.replace(settings.SCHEDULER_URL,  '')
         namespace = namespace.replace('/api/v1/namespaces/',  '')
-        namespace = re.sub(r'/apis/.{1,}/.{1,}/namespaces/', '', namespace)
+        namespace = re.sub(r'/apis/.+/.+/namespaces/', '', namespace)
         namespace = namespace.split('/')[0]
         data['metadata']['namespace'] = namespace
 

@@ -7,7 +7,7 @@ class Certificate(Resource):
     api_prefix = 'apis'
 
     @staticmethod
-    def manifest(api_version, namespace, name, ingress_class, hosts, version=None):
+    def manifest(api_version, namespace, name, hosts, version=None):
         data = {
             "apiVersion": api_version,
             "kind": "Certificate",
@@ -44,10 +44,10 @@ class Certificate(Resource):
 
         return response
 
-    def create(self, namespace, name, ingress_class, hosts):
+    def create(self, namespace, name, hosts):
 
         url = self.api('/namespaces/{}/certificates', namespace)
-        data = self.manifest(self.api_version, namespace, name, ingress_class, hosts)
+        data = self.manifest(self.api_version, namespace, name, hosts)
         response = self.http_post(url, json=data)
 
         if not response.status_code == 201:
@@ -55,9 +55,9 @@ class Certificate(Resource):
 
         return response
 
-    def put(self, namespace, name, ingress_class, hosts, version):
+    def put(self, namespace, name, hosts, version):
         url = self.api('/namespaces/{}/certificates/{}', namespace, name)
-        data = self.manifest(self.api_version, namespace, name, ingress_class, hosts, version)
+        data = self.manifest(self.api_version, namespace, name, hosts, version)
         response = self.http_put(url, json=data)
 
         if self.unhealthy(response.status_code):

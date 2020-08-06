@@ -171,10 +171,10 @@ class App(UuidAuditedModel):
             if data:
                 version = data["metadata"]["resourceVersion"]
                 self._scheduler.certificate.put(
-                    namespace, name, settings.INGRESS_CLASS, hosts, version)
+                    namespace, name, hosts, version)
             else:
                 self._scheduler.certificate.create(
-                    namespace, name, settings.INGRESS_CLASS, hosts)
+                    namespace, name, hosts)
         elif data:
             self._scheduler.certificate.delete(namespace, name)
 
