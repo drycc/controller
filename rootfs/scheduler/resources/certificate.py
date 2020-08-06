@@ -3,7 +3,7 @@ from scheduler.exceptions import KubeHTTPException
 
 
 class Certificate(Resource):
-    api_version = 'certmanager.k8s.io/v1alpha1'
+    api_version = 'cert-manager.io/v1alpha2'
     api_prefix = 'apis'
 
     def manifest(self, api_version, namespace, name, ingress_class, hosts, version=None):
@@ -21,16 +21,19 @@ class Certificate(Resource):
                     "kind": "ClusterIssuer"
                 },
                 "dnsNames": hosts,
-                "acme": {
-                    "config": [
-                        {
-                            "http01": {
-                                "ingressClass": ingress_class
-                            },
-                            "domains": hosts
-                        }
-                    ]
-                }
+                # "privateKey": {
+                #     "rotationPolicy": "Always"
+                # }
+                # "acme": {
+                #     "config": [
+                #         {
+                #             "http01": {
+                #                 "ingressClass": ingress_class
+                #             },
+                #             "domains": hosts
+                #         }
+                #     ]
+                # }
             }
         }
         if version:
