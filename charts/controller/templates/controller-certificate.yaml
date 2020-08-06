@@ -11,6 +11,8 @@ spec:
     kind: ClusterIssuer
   dnsNames:
   - drycc.{{ .Values.platform_domain }}
+#  privateKey:
+#    rotationPolicy: Always
   # acme:
   #   config:
   #   - http01:
