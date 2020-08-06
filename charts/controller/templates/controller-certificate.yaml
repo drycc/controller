@@ -1,5 +1,5 @@
 {{ if .Values.cert_manager_enabled }}
-apiVersion: certmanager.k8s.io/v1alpha1
+apiVersion: cert-manager.io/v1alpha2
 kind: Certificate
 metadata:
   name: drycc-controller
@@ -11,10 +11,10 @@ spec:
     kind: ClusterIssuer
   dnsNames:
   - drycc.{{ .Values.platform_domain }}
-  acme:
-    config:
-    - http01:
-        ingressClass: "{{ .Values.global.ingress_class }}"
-      domains:
-      - drycc.{{ .Values.platform_domain }}
+  # acme:
+  #   config:
+  #   - http01:
+  #       ingressClass: "{{ .Values.global.ingress_class }}"
+  #     domains:
+  #     - drycc.{{ .Values.platform_domain }}
 {{- end }}
