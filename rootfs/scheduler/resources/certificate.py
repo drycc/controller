@@ -6,7 +6,8 @@ class Certificate(Resource):
     api_version = 'cert-manager.io/v1alpha2'
     api_prefix = 'apis'
 
-    def manifest(self, api_version, namespace, name, ingress_class, hosts, version=None):
+    @staticmethod
+    def manifest(api_version, namespace, name, ingress_class, hosts, version=None):
         data = {
             "apiVersion": api_version,
             "kind": "Certificate",
@@ -20,20 +21,7 @@ class Certificate(Resource):
                     "name": "drycc-cluster-issuer",
                     "kind": "ClusterIssuer"
                 },
-                "dnsNames": hosts,
-                # "privateKey": {
-                #     "rotationPolicy": "Always"
-                # }
-                # "acme": {
-                #     "config": [
-                #         {
-                #             "http01": {
-                #                 "ingressClass": ingress_class
-                #             },
-                #             "domains": hosts
-                #         }
-                #     ]
-                # }
+                "dnsNames": hosts
             }
         }
         if version:
@@ -45,8 +33,6 @@ class Certificate(Resource):
         Fetch a single certificate or a list of certificates
         """
         if name is not None:
-            url = "/apis/certmanager.k8s.io/v1alpha1/namespaces/%s/certificates/%s" % (
-                namespace, name)
             url = self.api('/namespaces/{}/certificates/{}', namespace, name)
             message = 'get certificate ' + name
         else:
