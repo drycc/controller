@@ -96,7 +96,8 @@ class Ingress(Resource):
     api_prefix = 'apis'
     short_name = 'ingress'
 
-    def manifest(self, api_version, ingress, ingress_class, namespace, **kwargs):
+    @staticmethod
+    def manifest(api_version, ingress, ingress_class, namespace, **kwargs):
         return MANIFEAT_CLASSES.get(ingress_class, BaseManifest)().manifest(
             api_version, ingress, ingress_class, namespace, **kwargs
         )

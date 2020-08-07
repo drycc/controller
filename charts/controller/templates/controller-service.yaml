@@ -4,11 +4,6 @@ metadata:
   name: drycc-controller
   labels:
     heritage: drycc
-    router.drycc.cc/routable: "true"
-  annotations:
-    router.drycc.cc/domains: drycc
-    router.drycc.cc/connectTimeout: "10"
-    router.drycc.cc/tcpTimeout: "1200"
 spec:
   ports:
     - name: http

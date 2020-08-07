@@ -150,9 +150,9 @@ class App(UuidAuditedModel):
         # if this is a procfile-based app, switch the entrypoint to slugrunner's default
         # FIXME: remove slugrunner's hardcoded entrypoint
         release = self.release_set.filter(failed=False).latest()
-        if release.build.procfile and \
-           release.build.sha and not \
-           release.build.dockerfile:
+        if release.build.procfile \
+                and release.build.sha \
+                and not release.build.dockerfile:
             entrypoint = ['/runner/init']
         else:
             entrypoint = ['/bin/bash', '-c']
@@ -189,12 +189,25 @@ class App(UuidAuditedModel):
         whitelist = self.appsettings_set.latest().whitelist
         if whitelist:
             kwargs.update({"whitelist": whitelist})
-        data = self._scheduler.ingress.get(namespace, ingress).json()
-        version = data["metadata"]["resourceVersion"]
-        self._scheduler.ingress.put(
-            ingress, settings.INGRESS_CLASS, namespace, version, **kwargs)
+        try:
+            # In order to create an ingress, we must first have a namespace.
+            if ingress == "":
+                raise ServiceUnavailable('Empty hostname')
+            try:
+                data = self._scheduler.ingress.get(namespace, ingress).json()
+                version = data["metadata"]["resourceVersion"]
+                self._scheduler.ingress.put(
+                    ingress, settings.INGRESS_CLASS, namespace, version, **kwargs)
+            except KubeException:
+                self.log("creating Ingress {}".format(namespace), level=logging.INFO)
+                self._scheduler.ingress.create(
+                    ingress, settings.INGRESS_CLASS, namespace, **kwargs)
+        except KubeException as e:
+            raise ServiceUnavailable('Could not create Ingress in Kubernetes') from e
 
-    def _refresh_ingress_and_tls(self):
+    def refresh_ingress_and_tls(self):
+        if not getattr(self, 'refresh_ingress_and_tls_enabled', True):
+            return
         ingress = self.id
         hosts, tls_map = [], {}
 
@@ -218,11 +231,6 @@ class App(UuidAuditedModel):
                 tls_map[secret_name].append(host)
         self._refresh_ingress(hosts, tls_map, ssl_redirect)
         self._refresh_tls(certs_auto_enabled, hosts)
-
-    def refresh(self):
-        if not getattr(self, "refresh_enabled", True):
-            return
-        self._refresh_ingress_and_tls()
 
     def log(self, message, level=logging.INFO):
         """Logs a message in the context of this application.
@@ -255,7 +263,7 @@ class App(UuidAuditedModel):
             )
 
         # create required minimum resources in k8s for the application
-        namespace = ingress = service = self.id
+        namespace = service = self.id
         quota_name = '{}-quota'.format(self.id)
         try:
             self.log('creating Namespace {} and services'.format(namespace), level=logging.DEBUG)
@@ -290,22 +298,7 @@ class App(UuidAuditedModel):
                 raise ServiceUnavailable('Could not delete the Namespace in Kubernetes') from e
 
             raise ServiceUnavailable('Kubernetes resources could not be created') from e
-
-        try:
-            # In order to create an ingress, we must first have a namespace.
-            if ingress == "":
-                raise ServiceUnavailable('Empty hostname')
-            try:
-                self._scheduler.ingress.get(namespace, ingress)
-            except KubeException:
-                self.log("creating Ingress {}".format(namespace), level=logging.INFO)
-                host = "%s.%s" % (ingress, settings.PLATFORM_DOMAIN)
-                self._scheduler.ingress.create(
-                    ingress, settings.INGRESS_CLASS, namespace,
-                    hosts=[host, ])
-                self.refresh_enabled = False  # No refresh ingress
-        except KubeException as e:
-            raise ServiceUnavailable('Could not create Ingress in Kubernetes') from e
+        setattr(self, 'refresh_ingress_and_tls_enabled', False)  # do not refresh
         try:
             self.appsettings_set.latest()
         except AppSettings.DoesNotExist:
@@ -317,7 +310,10 @@ class App(UuidAuditedModel):
         # Attach the platform specific application sub domain to the k8s service
         # Only attach it on first release in case a customer has remove the app domain
         if rel.version == 1 and not Domain.objects.filter(domain=self.id).exists():
-            Domain(owner=self.owner, app=self, domain=self.id).save()
+            Domain.objects.create(owner=self.owner, app=self, domain=self.id)
+        # The default routable is true, so refresh ingress and tls
+        setattr(self, 'refresh_ingress_and_tls_enabled', True)
+        self.refresh_ingress_and_tls()  # refresh
 
     def delete(self, *args, **kwargs):
         """Delete this application including all containers"""
@@ -338,7 +334,8 @@ class App(UuidAuditedModel):
                         if e.response.status_code == 404:
                             break
             except KubeException as e:
-                raise ServiceUnavailable('Could not delete Kubernetes Namespace {} within 30 seconds'.format(self.id)) from e  # noqa
+                raise ServiceUnavailable(
+                    'Could not delete Kubernetes Namespace {} within 30 seconds'.format(self.id)) from e  # noqa
         except KubeHTTPException:
             # it's fine if the namespace does not exist - delete app from the DB
             pass
@@ -563,8 +560,8 @@ class App(UuidAuditedModel):
                     self.structure = structure
                     # if procfile structure exists then we use it
                     if release.build.procfile and \
-                       release.build.sha and not \
-                       release.build.dockerfile:
+                            release.build.sha and not \
+                            release.build.dockerfile:
                         self.procfile_structure = release.build.procfile
                     self.save()
 
@@ -638,21 +635,14 @@ class App(UuidAuditedModel):
         # Make sure the application is routable and uses the correct port done after the fact to
         # let initial deploy settle before routing traffic to the application
         if deploys and app_type:
-            app_settings = self.appsettings_set.latest()
-            service_annotations = {
-                'maintenance': app_settings.maintenance,
-            }
-
             routable = deploys[app_type].get('routable')
             port = deploys[app_type].get('envs', {}).get('PORT', None)
-            self._update_application_service(self.id, app_type, port, routable, service_annotations)  # noqa
-
+            self._update_application_service(self.id, app_type, port, routable)  # noqa
             # Wait until application is available in the router
             # Only run when there is no previous build / release
             old = release.previous()
             if old is None or old.build is None:
                 self.verify_application_health(**deploys[app_type])
-
         # cleanup old release objects from kubernetes
         release.cleanup_old()
 
@@ -964,42 +954,25 @@ class App(UuidAuditedModel):
             self._scheduler.svc.update(self.id, self.id, data=old_service)
             raise ServiceUnavailable(str(e)) from e
 
-        # set maintenance mode for services
-        for svc in self.service_set.all():
-            svc.maintenance_mode(mode)
-
     def routable(self, routable):
         """
         Turn on/off if an application is publically routable
         """
-        service = self._fetch_service_config(self.id)
-        old_service = service.copy()  # in case anything fails for rollback
+        if routable:
+            self.refresh_ingress_and_tls()
+        else:
+            try:
+                namespace = ingress = self.id
+                self._scheduler.ingress.delete(namespace, ingress)
+            except KubeException as e:
+                raise ServiceUnavailable(str(e)) from e
 
-        try:
-            service['metadata']['labels']['router.drycc.cc/routable'] = str(routable).lower()
-            self._scheduler.svc.update(self.id, self.id, data=service)
-        except KubeException as e:
-            self._scheduler.svc.update(self.id, self.id, data=old_service)
-            raise ServiceUnavailable(str(e)) from e
-
-    def _update_application_service(self, namespace, app_type, port, routable=False, annotations={}):  # noqa
+    def _update_application_service(self, namespace, app_type, port, routable=False):  # noqa
         """Update application service with all the various required information"""
         service = self._fetch_service_config(namespace)
         old_service = service.copy()  # in case anything fails for rollback
 
         try:
-            # Update service information
-            for key, value in annotations.items():
-                if value is not None:
-                    service['metadata']['annotations']['router.drycc.cc/%s' % key] = str(value)
-                else:
-                    service['metadata']['annotations'].pop('router.drycc.cc/%s' % key, None)
-            if routable:
-                service['metadata']['labels']['router.drycc.cc/routable'] = 'true'
-            else:
-                # delete the annotation
-                service['metadata']['labels'].pop('router.drycc.cc/routable', None)
-
             # Set app type selector
             service['spec']['selector']['type'] = app_type
 
@@ -1128,10 +1101,12 @@ class App(UuidAuditedModel):
         deploy_timeout = int(config.values.get('DRYCC_DEPLOY_TIMEOUT', settings.DRYCC_DEPLOY_TIMEOUT))  # noqa
 
         # configures how many ReplicaSets to keep beside the latest version
-        deployment_history = config.values.get('KUBERNETES_DEPLOYMENTS_REVISION_HISTORY_LIMIT', settings.KUBERNETES_DEPLOYMENTS_REVISION_HISTORY_LIMIT)  # noqa
+        deployment_history = config.values.get('KUBERNETES_DEPLOYMENTS_REVISION_HISTORY_LIMIT',
+                                               settings.KUBERNETES_DEPLOYMENTS_REVISION_HISTORY_LIMIT)  # noqa
 
         # get application level pod termination grace period
-        pod_termination_grace_period_seconds = int(config.values.get('KUBERNETES_POD_TERMINATION_GRACE_PERIOD_SECONDS', settings.KUBERNETES_POD_TERMINATION_GRACE_PERIOD_SECONDS))  # noqa
+        pod_termination_grace_period_seconds = int(config.values.get(
+            'KUBERNETES_POD_TERMINATION_GRACE_PERIOD_SECONDS', settings.KUBERNETES_POD_TERMINATION_GRACE_PERIOD_SECONDS))  # noqa
 
         # set the image pull policy that is associated with the application container
         image_pull_policy = config.values.get('IMAGE_PULL_POLICY', settings.IMAGE_PULL_POLICY)

@@ -17,7 +17,7 @@ class Service(AuditedModel):
 
     class Meta:
         get_latest_by = 'created'
-        unique_together = (('app', 'procfile_type'))
+        unique_together = (('app', 'procfile_type'), )
         ordering = ['-created']
 
     def __str__(self):
@@ -41,10 +41,6 @@ class Service(AuditedModel):
                 self._scheduler.svc.create(namespace, svc_name)
         except KubeException as e:
             raise ServiceUnavailable('Kubernetes service could not be created') from e
-        # config service
-        annotations = self._gather_settings()
-        routable = annotations.pop('routable')
-        self._update_service(namespace, self.procfile_type, routable, annotations)
 
     def save(self, *args, **kwargs):
         service = super(Service, self).save(*args, **kwargs)
@@ -79,68 +75,8 @@ class Service(AuditedModel):
         """
         logger.log(level, "[{}]: {}".format(self.id, message))
 
-    def maintenance_mode(self, mode):
-        """
-        Turn service maintenance mode on/off
-        """
-        namespace = self._namespace()
-        svc_name = self._svc_name()
-
-        try:
-            service = self._fetch_service_config(namespace, svc_name)
-        except (ServiceUnavailable, KubeException) as e:
-            # ignore non-existing services
-            return
-
-        old_service = service.copy()  # in case anything fails for rollback
-
-        try:
-            service['metadata']['annotations']['router.drycc.cc/maintenance'] = str(mode).lower()
-            self._scheduler.svc.update(namespace, svc_name, data=service)
-        except KubeException as e:
-            self._scheduler.svc.update(namespace, svc_name, data=old_service)
-            raise ServiceUnavailable(str(e)) from e
-
     def _namespace(self):
         return self.app.id
 
     def _svc_name(self):
         return "{}-{}".format(self.app.id, self.procfile_type)
-
-    def _gather_settings(self):
-        app_settings = self.app.appsettings_set.latest()
-        return {
-            'domains': self._svc_name(),
-            'maintenance': app_settings.maintenance,
-            'routable': app_settings.routable,
-            'proxyDomain': self.app.id,
-            'proxyLocations': self.path_pattern
-        }
-
-    def _update_service(self, namespace, app_type, routable, annotations):  # noqa
-        """Update application service with all the various required information"""
-        svc_name = "{}-{}".format(namespace, app_type)
-        service = self._fetch_service_config(namespace, svc_name)
-        old_service = service.copy()  # in case anything fails for rollback
-
-        try:
-            # Update service information
-            for key, value in annotations.items():
-                if value is not None:
-                    service['metadata']['annotations']['router.drycc.cc/%s' % key] = str(value)
-                else:
-                    service['metadata']['annotations'].pop('router.drycc.cc/%s' % key, None)
-            if routable:
-                service['metadata']['labels']['router.drycc.cc/routable'] = 'true'
-            else:
-                # delete the annotation
-                service['metadata']['labels'].pop('router.drycc.cc/routable', None)
-
-            # Set app type selector
-            service['spec']['selector']['type'] = app_type
-
-            self._scheduler.svc.update(namespace, svc_name, data=service)
-        except Exception as e:
-            # Fix service to old port and app type
-            self._scheduler.svc.update(namespace, svc_name, data=old_service)
-            raise ServiceUnavailable(str(e)) from e

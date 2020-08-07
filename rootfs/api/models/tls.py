@@ -48,7 +48,7 @@ class TLS(UuidAuditedModel):
             # Save to DB
             return super(TLS, self).save(*args, **kwargs)
         finally:
-            self.app.refresh()
+            self.app.refresh_ingress_and_tls()
 
     def sync(self):
-        self.app.refresh()
+        self.app.refresh_ingress_and_tls()

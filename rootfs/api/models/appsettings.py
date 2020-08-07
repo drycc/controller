@@ -28,8 +28,12 @@ class AppSettings(UuidAuditedModel):
 
     class Meta:
         get_latest_by = 'created'
-        unique_together = (('app', 'uuid'))
+        unique_together = (('app', 'uuid'), )
         ordering = ['-created']
+
+    def __init__(self, *args, **kwargs):
+        UuidAuditedModel.__init__(self, *args, **kwargs)
+        self.summary = []
 
     def __str__(self):
         return "{}-{}".format(self.app.id, str(self.uuid)[:7])
@@ -40,12 +44,12 @@ class AppSettings(UuidAuditedModel):
         on behalf of a user.
         """
 
-        appSettings = AppSettings.objects.create(
+        app_settings = AppSettings.objects.create(
             owner=user, app=self.app, whitelist=whitelist)
 
-        return appSettings
+        return app_settings
 
-    def update_maintenance(self, previous_settings):
+    def _update_maintenance(self, previous_settings):
         old = getattr(previous_settings, 'maintenance', None)
         new = getattr(self, 'maintenance', None)
         # If no previous settings then assume it is the first record and default to true
@@ -59,7 +63,7 @@ class AppSettings(UuidAuditedModel):
             self.app.maintenance_mode(new)
             self.summary += ["{} changed maintenance mode from {} to {}".format(self.owner, old, new)]  # noqa
 
-    def update_routable(self, previous_settings):
+    def _update_routable(self, previous_settings):
         old = getattr(previous_settings, 'routable', None)
         new = getattr(self, 'routable', None)
         # If no previous settings then assume it is the first record and default to true
@@ -73,7 +77,7 @@ class AppSettings(UuidAuditedModel):
             self.app.routable(new)
             self.summary += ["{} changed routablity from {} to {}".format(self.owner, old, new)]
 
-    def update_whitelist(self, previous_settings):
+    def _update_whitelist(self, previous_settings):
         # If no previous settings then assume it is the first record and set as empty
         # to prevent from database constraint violation
         if not previous_settings:
@@ -94,7 +98,7 @@ class AppSettings(UuidAuditedModel):
                     self.summary += ' and '
                 self.summary += "{} {}".format(self.owner, changes)
 
-    def update_autoscale(self, previous_settings):
+    def _update_autoscale(self, previous_settings):
         data = getattr(previous_settings, 'autoscale', {}).copy()
         new = getattr(self, 'autoscale', {}).copy()
         # If no previous settings then do nothing
@@ -134,7 +138,7 @@ class AppSettings(UuidAuditedModel):
             if changes:
                 self.summary += ["{} {}".format(self.owner, changes)]
 
-    def update_label(self, previous_settings):
+    def _update_label(self, previous_settings):
         data = getattr(previous_settings, 'label', {}).copy()
         new = getattr(self, 'label', {}).copy()
         if not previous_settings:
@@ -168,7 +172,6 @@ class AppSettings(UuidAuditedModel):
 
     @transaction.atomic
     def save(self, *args, **kwargs):
-        self.summary = []
         previous_settings = None
         try:
             previous_settings = self.app.appsettings_set.latest()
@@ -176,11 +179,11 @@ class AppSettings(UuidAuditedModel):
             pass
 
         try:
-            self.update_maintenance(previous_settings)
-            self.update_routable(previous_settings)
-            self.update_whitelist(previous_settings)
-            self.update_autoscale(previous_settings)
-            self.update_label(previous_settings)
+            self._update_maintenance(previous_settings)
+            self._update_routable(previous_settings)
+            self._update_whitelist(previous_settings)
+            self._update_autoscale(previous_settings)
+            self._update_label(previous_settings)
         except (UnprocessableEntity, NotFound):
             raise
         except Exception as e:
@@ -195,5 +198,5 @@ class AppSettings(UuidAuditedModel):
         try:
             return super(AppSettings, self).save(**kwargs)
         finally:
-            self.app.refresh()
+            self.app.refresh_ingress_and_tls()
         self.app.log('summary of app setting changes: {}'.format(summary), logging.DEBUG)

@@ -30,7 +30,7 @@ class Domain(AuditedModel):
             # Save to DB
             return super(Domain, self).save(*args, **kwargs)
         finally:
-            self.app.refresh()
+            self.app.refresh_ingress_and_tls()
 
     @transaction.atomic
     def delete(self, *args, **kwargs):
@@ -41,7 +41,7 @@ class Domain(AuditedModel):
             # Delete from DB
             return super(Domain, self).delete(*args, **kwargs)
         finally:
-            self.app.refresh()
+            self.app.refresh_ingress_and_tls()
 
     def __str__(self):
         return self.domain
