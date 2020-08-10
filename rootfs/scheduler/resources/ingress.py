@@ -136,6 +136,15 @@ class Ingress(Resource):
         response = self.http_put(url, json=data)
 
         if self.unhealthy(response.status_code):
+            raise KubeHTTPException(response, "put Ingress {}".format(namespace))
+
+        return response
+
+    def patch(self, ingress, namespace, data):
+        url = self.api("/namespaces/{}/ingresses/{}", namespace, ingress)
+        response = self.http_put(url, json=data)
+
+        if self.unhealthy(response.status_code):
             raise KubeHTTPException(response, "patch Ingress {}".format(namespace))
 
         return response

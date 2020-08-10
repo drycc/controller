@@ -944,15 +944,18 @@ class App(UuidAuditedModel):
         """
         Turn application maintenance mode on/off
         """
-        service = self._fetch_service_config(self.id)
-        old_service = service.copy()  # in case anything fails for rollback
-
-        try:
-            service['metadata']['annotations']['router.drycc.cc/maintenance'] = str(mode).lower()
-            self._scheduler.svc.update(self.id, self.id, data=service)
-        except KubeException as e:
-            self._scheduler.svc.update(self.id, self.id, data=old_service)
-            raise ServiceUnavailable(str(e)) from e
+        if mode:
+            namespace = ingress = self.id
+            try:
+                data = self._scheduler.ingress.get(namespace, ingress).json()
+                for rule in data["spec"]["rules"]:
+                    for path in rule["http"]["paths"]:
+                        path["backend"]["serviceName"] = "drycc-maintenance-proxy"
+                self._scheduler.ingress.patch(ingress, namespace, data)
+            except KubeException:
+                self.log("creating Ingress {}".format(namespace), level=logging.INFO)
+        else:
+            self.refresh_ingress_and_tls()
 
     def routable(self, routable):
         """
