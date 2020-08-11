@@ -1059,7 +1059,7 @@ class App(UuidAuditedModel):
                 hostname, _ = docker_auth.split_repo_name(image)
 
             if hostname == docker_auth.INDEX_NAME:
-                hostname = 'https://index.docker.io/v1/'
+                hostname = docker_auth.INDEX_URL
 
             username = registry.get('username')
             password = registry.get('password')
@@ -1070,7 +1070,7 @@ class App(UuidAuditedModel):
             password = secret['data']['password']
             hostname = secret['data']['hostname']
             if hostname == '':
-                hostname = 'https://index.docker.io/v1/'
+                hostname = docker_auth.INDEX_URL
             name = name + '-' + settings.REGISTRY_LOCATION
         else:
             return None, None, None
