@@ -3,7 +3,6 @@ import logging
 from django.conf import settings
 from django.db import models
 
-from registry import publish_release, get_port as docker_get_port, RegistryException # noqa
 from api.utils import dict_diff
 from api.models import UuidAuditedModel
 from api.exceptions import DryccException, AlreadyExists
@@ -66,7 +65,7 @@ class Release(UuidAuditedModel):
             return '{}/{}:git-{}'.format(settings.REGISTRY_URL, self.app.id, str(self.build.sha))
         elif self.build.type == 'image':
             # Drycc Pull, docker image in local registry
-            return '{}/{}:v{}'.format(settings.REGISTRY_URL, self.app.id, str(self.version))
+            return self.build.image
         elif self.build.type == 'buildpack':
             # Build Pack - Registry URL not prepended since slugrunner image will download slug
             return self.build.image
@@ -81,60 +80,10 @@ class Release(UuidAuditedModel):
         # construct fully-qualified target image
         new_version = self.app.release_set.latest().version + 1
         # create new release and auto-increment version
-        release = Release.objects.create(
+        return Release.objects.create(
             owner=user, app=self.app, config=config,
             build=build, version=new_version, summary=summary
         )
-
-        try:
-            release.publish()
-        except DryccException as e:
-            # If we cannot publish this app, just log and carry on
-            self.app.log(e)
-            pass
-        except RegistryException as e:
-            self.app.log(e)
-            raise DryccException(str(e)) from e
-
-        return release
-
-    def publish(self):
-        if self.build is None:
-            raise DryccException('No build associated with this release to publish')
-
-        # If the build has a SHA, assume it's from drycc-builder and in the drycc-registry already
-        if self.build.source_based:
-            return
-
-        # Builder pushes to internal registry, exclude SHA based images from being returned early
-        registry = self.config.registry
-        if (
-            registry.get('username', None) and
-            registry.get('password', None) and
-            # SHA means it came from a git push (builder)
-            not self.build.sha and
-            # hostname tells Builder where to push images
-            not registry.get('hostname', None)
-        ) or (settings.REGISTRY_LOCATION != 'on-cluster'):
-            self.app.log('{} exists in the target registry. Using image for release {} of app {}'.format(self.build.image, self.version, self.app))  # noqa
-            return
-
-        # return image if it is already in the registry, test host and then host + port
-        if (
-            self.build.image.startswith(settings.REGISTRY_HOST) or
-            self.build.image.startswith(settings.REGISTRY_URL)
-        ):
-            self.app.log('{} exists in the target registry. Using image for release {} of app {}'.format(self.build.image, self.version, self.app))  # noqa
-            return
-
-        # add tag if it was not provided
-        source_image = self.build.image
-        if ':' not in source_image:
-            source_image = "{}:{}".format(source_image, self.build.version)
-
-        # if build is source based then it was pushed into the drycc registry
-        drycc_registry = bool(self.build.source_based)
-        publish_release(source_image, self.image, drycc_registry, self.get_registry_auth())
 
     def get_port(self):
         """
@@ -143,7 +92,6 @@ class Release(UuidAuditedModel):
         the docker image
         """
         try:
-            drycc_registry = bool(self.build.source_based)
             envs = self.config.values
             creds = self.get_registry_auth()
 
@@ -165,17 +113,8 @@ class Release(UuidAuditedModel):
                 return int(envs.get('PORT'))
 
             # If the user provides PORT
-            if envs.get('PORT', None):
-                return int(envs.get('PORT'))
+            return int(envs.get('PORT', 5000))
 
-            # discover port from docker image
-            port = docker_get_port(self.image, drycc_registry, creds)
-            if port is None and self.app.appsettings_set.latest().routable:
-                msg = "Expose a port or make the app non routable by changing the process type"
-                self.app.log(msg, logging.ERROR)
-                raise DryccException(msg)
-
-            return port
         except Exception as e:
             raise DryccException(str(e)) from e
 

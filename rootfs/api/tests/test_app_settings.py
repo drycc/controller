@@ -7,12 +7,10 @@ from rest_framework.authtoken.models import Token
 from api.models import App
 from unittest import mock
 from scheduler import KubeException
-from api.tests import adapter, mock_port, DryccTransactionTestCase
+from api.tests import adapter, DryccTransactionTestCase
 
 
 @requests_mock.Mocker(real_http=True, adapter=adapter)
-@mock.patch('api.models.release.publish_release', lambda *args: None)
-@mock.patch('api.models.release.docker_get_port', mock_port)
 class TestAppSettings(DryccTransactionTestCase):
     """Tests setting and updating config values"""
 

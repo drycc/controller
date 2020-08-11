@@ -56,5 +56,11 @@ rules:
 - apiGroups: ["certmanager.k8s.io"]
   resources: ["certificates", "issuers"]
   verbs: ["get", "list", "watch", "create", "update", "delete"]
+- apiGroups: ["networking.k8s.io"]
+  resources: ["ingresses"]
+  verbs: ["get", "list", "create", "delete", "deletecollection", "patch", "update"]
+- apiGroups: ["apps"]
+  resources: ["replicasets"]
+  verbs: ["get", "list", "watch"]
 {{- end -}}
 {{- end -}}

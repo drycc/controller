@@ -14,13 +14,11 @@ from rest_framework.authtoken.models import Token
 
 from api.models import App, Config
 
-from api.tests import adapter, mock_port, DryccTransactionTestCase
+from api.tests import adapter, DryccTransactionTestCase
 import requests_mock
 
 
 @requests_mock.Mocker(real_http=True, adapter=adapter)
-@mock.patch('api.models.release.publish_release', lambda *args: None)
-@mock.patch('api.models.release.docker_get_port', mock_port)
 class ConfigTest(DryccTransactionTestCase):
     """Tests setting and updating config values"""
 

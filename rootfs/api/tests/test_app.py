@@ -20,7 +20,7 @@ from api.models import App, Config
 from scheduler import KubeException, KubeHTTPException
 
 from api.exceptions import DryccException
-from api.tests import adapter, mock_port, DryccTestCase
+from api.tests import adapter, DryccTestCase
 import requests_mock
 
 
@@ -33,8 +33,6 @@ def _mock_run(*args, **kwargs):
 
 
 @requests_mock.Mocker(real_http=True, adapter=adapter)
-@mock.patch('api.models.release.publish_release', lambda *args: None)
-@mock.patch('api.models.release.docker_get_port', mock_port)
 class AppTest(DryccTestCase):
     """Tests creation of applications"""
 
@@ -280,7 +278,6 @@ class AppTest(DryccTestCase):
 
     @mock.patch('api.models.App.run', _mock_run)
     @mock.patch('api.models.App.deploy', mock_none)
-    @mock.patch('api.models.Release.publish', mock_none)
     def test_run(self, mock_requests):
         """
         A user should be able to run a one off command

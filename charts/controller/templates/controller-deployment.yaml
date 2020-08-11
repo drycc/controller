@@ -130,15 +130,10 @@ spec:
                 fieldRef:
                   fieldPath: metadata.namespace
           volumeMounts:
-            - mountPath: /var/run/docker.sock
-              name: docker-socket
             - mountPath: /etc/slugrunner
               name: slugrunner-config
               readOnly: true
       volumes:
-        - name: docker-socket
-          hostPath:
-            path: /var/run/docker.sock
         - name: slugrunner-config
           configMap:
             name: slugrunner-config

@@ -6,10 +6,9 @@ Run the tests with "./manage.py test api"
 from django.conf import settings
 from django.contrib.auth.models import User
 from django.core.cache import cache
-from unittest import mock
 from rest_framework.authtoken.models import Token
 
-from api.tests import adapter, mock_port, DryccTransactionTestCase
+from api.tests import adapter, DryccTransactionTestCase
 import requests_mock
 
 RSA_PUBKEY = (
@@ -48,8 +47,6 @@ BAD_KEY = (
 
 
 @requests_mock.Mocker(real_http=True, adapter=adapter)
-@mock.patch('api.models.release.publish_release', lambda *args: None)
-@mock.patch('api.models.release.docker_get_port', mock_port)
 class HookTest(DryccTransactionTestCase):
 
     """Tests API hooks used to trigger actions from external components"""

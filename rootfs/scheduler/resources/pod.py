@@ -536,8 +536,11 @@ class Pod(Resource):
             'involvedObject.namespace': pod['metadata']['namespace'],
             'involvedObject.uid': pod['metadata']['uid']
         }
-        events = self.ns.events(pod['metadata']['namespace'], fields=fields).json()['items']
-        if not events:
+        events = self.ns.events(
+            pod['metadata']['namespace'], fields=fields).json()['items']
+        if events:
+            events = list(filter(lambda x: x is not None, events))
+        else:
             events = []
         # make sure that events are sorted
         events.sort(key=lambda x: x['lastTimestamp'])

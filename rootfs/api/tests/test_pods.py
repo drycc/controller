@@ -14,13 +14,11 @@ from rest_framework.authtoken.models import Token
 from api.models import App, Build, Release
 from scheduler import KubeException
 
-from api.tests import adapter, mock_port, DryccTransactionTestCase
+from api.tests import adapter, DryccTransactionTestCase
 import requests_mock
 
 
 @requests_mock.Mocker(real_http=True, adapter=adapter)
-@mock.patch('api.models.release.publish_release', lambda *args: None)
-@mock.patch('api.models.release.docker_get_port', mock_port)
 class PodTest(DryccTransactionTestCase):
     """Tests creation of pods on nodes"""
 

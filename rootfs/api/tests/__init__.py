@@ -9,10 +9,6 @@ from django.test.runner import DiscoverRunner
 from rest_framework.test import APITestCase, APITransactionTestCase
 
 
-def mock_port(*args, **kwargs):
-    return 5000
-
-
 # Mock out router requests and add in some jitter
 # Used for application is available in router checks
 def fake_responses(request, context):

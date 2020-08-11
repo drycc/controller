@@ -14,13 +14,11 @@ from rest_framework.authtoken.models import Token
 from api.models import App, Release
 from scheduler import KubeHTTPException
 from api.exceptions import DryccException
-from api.tests import adapter, mock_port, DryccTransactionTestCase
+from api.tests import adapter, DryccTransactionTestCase
 import requests_mock
 
 
 @requests_mock.Mocker(real_http=True, adapter=adapter)
-@mock.patch('api.models.release.publish_release', lambda *args: None)
-@mock.patch('api.models.release.docker_get_port', mock_port)
 class ReleaseTest(DryccTransactionTestCase):
 
     """Tests push notification from build system"""

@@ -13,16 +13,13 @@ from unittest import mock
 from rest_framework.authtoken.models import Token
 
 from api.models import Build, App
-from registry.dockerclient import RegistryException
 from scheduler import KubeException
 
-from api.tests import adapter, mock_port, DryccTransactionTestCase
+from api.tests import adapter, DryccTransactionTestCase
 import requests_mock
 
 
 @requests_mock.Mocker(real_http=True, adapter=adapter)
-@mock.patch('api.models.release.publish_release', lambda *args: None)
-@mock.patch('api.models.release.docker_get_port', mock_port)
 class BuildTest(DryccTransactionTestCase):
 
     """Tests build notification from build system"""
@@ -636,27 +633,6 @@ class BuildTest(DryccTransactionTestCase):
 
             url = "/v2/apps/{app_id}/builds".format(**locals())
             body = {'image': 'autotest/example'}
-            response = self.client.post(url, body)
-            self.assertEqual(response.status_code, 400, response.data)
-
-    def test_release_registry_create_failure(self, mock_requests):
-        """
-        Cause a RegistryException in app.deploy to cause a failed release in build.create
-        """
-        app_id = self.create_app()
-
-        # deploy app to get a build
-        url = "/v2/apps/{app_id}/builds".format(**locals())
-        body = {'image': 'autotest/example', 'stack': 'container'}
-        response = self.client.post(url, body)
-        self.assertEqual(response.status_code, 201, response.data)
-        self.assertEqual(response.data['image'], body['image'])
-
-        with mock.patch('api.models.Release.publish') as mock_registry:
-            mock_registry.side_effect = RegistryException('Boom!')
-
-            url = "/v2/apps/{app_id}/builds".format(**locals())
-            body = {'image': 'autotest/example', 'stack': 'container'}
             response = self.client.post(url, body)
             self.assertEqual(response.status_code, 400, response.data)
 

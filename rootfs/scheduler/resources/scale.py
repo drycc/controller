@@ -3,10 +3,13 @@ from scheduler.exceptions import KubeHTTPException
 
 
 class Scale(Resource):
+    api_prefix = 'apis'
+    api_version = 'apps/v1'
+
     def manifest(self, namespace, name, replicas):
         manifest = {
             'kind': 'Scale',
-            'apiVersion': self.api_version,
+            'apiVersion': 'autoscaling/v1',
             'metadata': {
                 'namespace': namespace,
                 'name': name,

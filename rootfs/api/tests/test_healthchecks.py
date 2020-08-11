@@ -1,18 +1,15 @@
 import json
 import requests_mock
-from unittest import mock
 
 from django.core.cache import cache
 from django.contrib.auth.models import User
 from rest_framework.authtoken.models import Token
 
 from api.models import App
-from api.tests import adapter, mock_port, DryccTransactionTestCase
+from api.tests import adapter, DryccTransactionTestCase
 
 
 @requests_mock.Mocker(real_http=True, adapter=adapter)
-@mock.patch('api.models.release.publish_release', lambda *args: None)
-@mock.patch('api.models.release.docker_get_port', mock_port)
 class TestHealthchecks(DryccTransactionTestCase):
     """Tests setting and updating config values"""
 
