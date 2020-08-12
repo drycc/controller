@@ -15,7 +15,7 @@ metadata:
     {{ end }}
 spec:
   rules:
-  - host: drycc.{{ .Values.platform_domain }}
+  - host: drycc.{{ .Values.global.platform_domain }}
     http:
       paths:
       {{- if eq .Values.global.ingress_class "gce" "alb" }}
@@ -30,5 +30,5 @@ spec:
   tls:
     - secretName: drycc-controller-auto-tls
       hosts:
-        - drycc.{{ .Values.platform_domain }}
+        - drycc.{{ .Values.global.platform_domain }}
   {{- end }}

@@ -62,7 +62,7 @@ spec:
             - name: "DRYCC_INGRESS_CLASS"
               value: "{{ .Values.global.ingress_class }}"
             - name: "DRYCC_PLATFORM_DOMAIN"
-              value: "{{ .Values.platform_domain }}"
+              value: "{{ .Values.global.platform_domain }}"
             - name: "K8S_API_VERIFY_TLS"
               value: "{{ .Values.k8s_api_verify_tls }}"
             - name: "DRYCC_REGISTRY_PROXY_PORT"

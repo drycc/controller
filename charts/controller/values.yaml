@@ -15,10 +15,6 @@ deploy_hook_urls: ""
 registration_mode: "admin_only"
 # Option to disable ssl verification to connect to k8s api server
 k8s_api_verify_tls: "true"
-# The public resolvable hostname to build your cluster with.
-#
-# This will be the hostname that is used to build endpoints such as "drycc.$HOSTNAME"
-platform_domain: ""
 
 global:
   # Admin email, used for each component to send email to administrator
@@ -54,5 +50,9 @@ global:
   use_rbac: false
   # Please check `kubernetes.io/ingress.class`
   ingress_class: ""
+  # The public resolvable hostname to build your cluster with.
+  #
+  # This will be the hostname that is used to build endpoints such as "drycc.$HOSTNAME"
+  platform_domain: ""
   # Whether cert_manager is enabled to automatically generate controller certificates
   cert_manager_enabled: "true"

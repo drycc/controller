@@ -10,7 +10,7 @@ spec:
     name: drycc-cluster-issuer
     kind: ClusterIssuer
   dnsNames:
-  - drycc.{{ .Values.platform_domain }}
+  - drycc.{{ .Values.global.platform_domain }}
   privateKey:
     rotationPolicy: Always
 {{- end }}
