@@ -19,8 +19,6 @@ k8s_api_verify_tls: "true"
 #
 # This will be the hostname that is used to build endpoints such as "drycc.$HOSTNAME"
 platform_domain: ""
-# Whether cert_manager is enabled to automatically generate controller certificates
-cert_manager_enabled: "true"
 
 global:
   # Admin email, used for each component to send email to administrator
@@ -56,3 +54,5 @@ global:
   use_rbac: false
   # Please check `kubernetes.io/ingress.class`
   ingress_class: ""
+  # Whether cert_manager is enabled to automatically generate controller certificates
+  cert_manager_enabled: "true"

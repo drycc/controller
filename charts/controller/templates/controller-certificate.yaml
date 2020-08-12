@@ -1,4 +1,4 @@
-{{ if .Values.cert_manager_enabled }}
+{{ if .Values.global.cert_manager_enabled }}
 apiVersion: cert-manager.io/v1alpha2
 kind: Certificate
 metadata:
@@ -11,12 +11,6 @@ spec:
     kind: ClusterIssuer
   dnsNames:
   - drycc.{{ .Values.platform_domain }}
-#  privateKey:
-#    rotationPolicy: Always
-  # acme:
-  #   config:
-  #   - http01:
-  #       ingressClass: "{{ .Values.global.ingress_class }}"
-  #     domains:
-  #     - drycc.{{ .Values.platform_domain }}
+  privateKey:
+    rotationPolicy: Always
 {{- end }}
