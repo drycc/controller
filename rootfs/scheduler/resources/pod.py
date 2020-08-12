@@ -538,12 +538,11 @@ class Pod(Resource):
         }
         events = self.ns.events(
             pod['metadata']['namespace'], fields=fields).json()['items']
-        if events:
-            events = list(filter(lambda x: x is not None, events))
-        else:
+        if not events:
             events = []
         # make sure that events are sorted
-        events.sort(key=lambda x: x['lastTimestamp'])
+        events.sort(
+            key=lambda x: x['lastTimestamp'] if x['lastTimestamp'] else -1)
         return events
 
     def _handle_pod_errors(self, pod, reason, message):

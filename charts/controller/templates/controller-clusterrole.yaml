@@ -53,7 +53,7 @@ rules:
 - apiGroups: ["extensions"]
   resources: ["ingresses"]
   verbs: ["get", "list", "watch", "create", "update", "delete"]
-- apiGroups: ["certmanager.k8s.io"]
+- apiGroups: ["cert-manager.io"]
   resources: ["certificates", "issuers"]
   verbs: ["get", "list", "watch", "create", "update", "delete"]
 - apiGroups: ["networking.k8s.io"]

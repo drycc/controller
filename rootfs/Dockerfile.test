@@ -27,7 +27,7 @@ RUN mkdir -p /run/postgresql $PGDATA \
   && apk add --update --virtual .controller-rundeps \
     $runDeps \
     git \
-    hg \
+    mercurial \
     ca-certificates \
     su-exec \
     bash \
