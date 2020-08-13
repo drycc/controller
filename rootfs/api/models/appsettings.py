@@ -18,7 +18,6 @@ class AppSettings(UuidAuditedModel):
 
     owner = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT)
     app = models.ForeignKey('App', on_delete=models.CASCADE)
-    maintenance = models.NullBooleanField(default=None)
     routable = models.NullBooleanField(default=None)
     # the default values is None to differentiate from user sending an empty whitelist
     # and user just updating other fields meaning the values needs to be copied from prev release
@@ -48,20 +47,6 @@ class AppSettings(UuidAuditedModel):
             owner=user, app=self.app, whitelist=whitelist)
 
         return app_settings
-
-    def _update_maintenance(self, previous_settings):
-        old = getattr(previous_settings, 'maintenance', None)
-        new = getattr(self, 'maintenance', None)
-        # If no previous settings then assume it is the first record and default to true
-        if not previous_settings:
-            setattr(self, 'maintenance', False)
-            self.app.maintenance_mode(False)
-        # if nothing changed copy the settings from previous
-        elif new is None and old is not None:
-            setattr(self, 'maintenance', old)
-        elif old != new:
-            self.app.maintenance_mode(new)
-            self.summary += ["{} changed maintenance mode from {} to {}".format(self.owner, old, new)]  # noqa
 
     def _update_routable(self, previous_settings):
         old = getattr(previous_settings, 'routable', None)
@@ -179,7 +164,6 @@ class AppSettings(UuidAuditedModel):
             pass
 
         try:
-            self._update_maintenance(previous_settings)
             self._update_routable(previous_settings)
             self._update_whitelist(previous_settings)
             self._update_autoscale(previous_settings)

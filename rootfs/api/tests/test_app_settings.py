@@ -25,48 +25,6 @@ class TestAppSettings(DryccTransactionTestCase):
         # make sure every test has a clean slate for k8s mocking
         cache.clear()
 
-    def test_settings_maintenance(self, mock_requests):
-        """
-        Test that maintenance can be applied
-        """
-        app_id = self.create_app()
-        app = App.objects.get(id=app_id)
-
-        settings = {'maintenance': True}
-        response = self.client.post(
-            '/v2/apps/{app_id}/settings'.format(**locals()),
-            settings)
-        self.assertEqual(response.status_code, 201, response.data)
-        self.assertTrue(response.data['maintenance'])
-        self.assertTrue(app.appsettings_set.latest().maintenance)
-
-        settings = {'routable': False}
-        response = self.client.post(
-            '/v2/apps/{app_id}/settings'.format(**locals()),
-            settings)
-        self.assertEqual(response.status_code, 201, response.data)
-        self.assertTrue(app.appsettings_set.latest().maintenance)
-
-        settings['maintenance'] = False
-        response = self.client.post(
-            '/v2/apps/{app_id}/settings'.format(**locals()),
-            settings)
-        self.assertEqual(response.status_code, 201, response.data)
-        self.assertFalse(response.data['maintenance'])
-        self.assertFalse(app.appsettings_set.latest().maintenance)
-
-        response = self.client.post(
-            '/v2/apps/{app_id}/settings'.format(**locals()),
-            settings)
-        self.assertEqual(response.status_code, 409, response.data)
-        self.assertFalse(app.appsettings_set.latest().maintenance)
-
-        settings['maintenance'] = "test"
-        response = self.client.post(
-            '/v2/apps/{app_id}/settings'.format(**locals()),
-            settings)
-        self.assertEqual(response.status_code, 400, response.data)
-
     def test_settings_routable(self, mock_requests):
         """
         Create an application with the routable flag turned on or off
@@ -80,13 +38,6 @@ class TestAppSettings(DryccTransactionTestCase):
             '/v2/apps/{app.id}/settings'.format(**locals()),
             {'routable': False}
         )
-        self.assertEqual(response.status_code, 201, response.data)
-        self.assertFalse(app.appsettings_set.latest().routable)
-
-        settings = {'maintenance': True}
-        response = self.client.post(
-            '/v2/apps/{app.id}/settings'.format(**locals()),
-            settings)
         self.assertEqual(response.status_code, 201, response.data)
         self.assertFalse(app.appsettings_set.latest().routable)
 
@@ -163,7 +114,7 @@ class TestAppSettings(DryccTransactionTestCase):
             whitelist)
         self.assertEqual(response.status_code, 400, response.data)
         # update other appsettings and whitelist should be retained
-        settings = {'maintenance': True}
+        settings = {'routable': False}
         response = self.client.post(
             '/v2/apps/{app.id}/settings'.format(**locals()),
             settings)

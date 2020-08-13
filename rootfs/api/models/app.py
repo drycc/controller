@@ -208,6 +208,9 @@ class App(UuidAuditedModel):
     def refresh_ingress_and_tls(self):
         if not getattr(self, 'refresh_ingress_and_tls_enabled', True):
             return
+        app_settings = self.appsettings_set.latest()
+        if not app_settings.routable:
+            return
         ingress = self.id
         hosts, tls_map = [], {}
 
@@ -298,21 +301,23 @@ class App(UuidAuditedModel):
                 raise ServiceUnavailable('Could not delete the Namespace in Kubernetes') from e
 
             raise ServiceUnavailable('Kubernetes resources could not be created') from e
-        setattr(self, 'refresh_ingress_and_tls_enabled', False)  # do not refresh
         try:
-            self.appsettings_set.latest()
-        except AppSettings.DoesNotExist:
-            AppSettings.objects.create(owner=self.owner, app=self)
-        try:
-            self.tls_set.latest()
-        except TLS.DoesNotExist:
-            TLS.objects.create(owner=self.owner, app=self)
-        # Attach the platform specific application sub domain to the k8s service
-        # Only attach it on first release in case a customer has remove the app domain
-        if rel.version == 1 and not Domain.objects.filter(domain=self.id).exists():
-            Domain.objects.create(owner=self.owner, app=self, domain=self.id)
-        # The default routable is true, so refresh ingress and tls
-        setattr(self, 'refresh_ingress_and_tls_enabled', True)
+            setattr(self, 'refresh_ingress_and_tls_enabled', False)  # do not refresh
+            try:
+                self.appsettings_set.latest()
+            except AppSettings.DoesNotExist:
+                AppSettings.objects.create(owner=self.owner, app=self)
+            try:
+                self.tls_set.latest()
+            except TLS.DoesNotExist:
+                TLS.objects.create(owner=self.owner, app=self)
+            # Attach the platform specific application sub domain to the k8s service
+            # Only attach it on first release in case a customer has remove the app domain
+            if rel.version == 1 and not Domain.objects.filter(domain=self.id).exists():
+                Domain.objects.create(owner=self.owner, app=self, domain=self.id)
+            # The default routable is true, so refresh ingress and tls
+        finally:
+            setattr(self, 'refresh_ingress_and_tls_enabled', True)
         self.refresh_ingress_and_tls()  # refresh
 
     def delete(self, *args, **kwargs):
@@ -660,7 +665,8 @@ class App(UuidAuditedModel):
             if in_progress and not deploy_okay:
                 raise AlreadyExists('Deployment for {} is already in progress'.format(name))
 
-    def _default_structure(self, release):
+    @staticmethod
+    def _default_structure(release):
         """Scale to default structure based on release type"""
         # If web in procfile then honor it
         if release.build.procfile and 'web' in release.build.procfile:
@@ -939,23 +945,6 @@ class App(UuidAuditedModel):
         # merge envs on top of default to make envs win
         default_env.update(release.config.values)
         return default_env
-
-    def maintenance_mode(self, mode):
-        """
-        Turn application maintenance mode on/off
-        """
-        if mode:
-            namespace = ingress = self.id
-            try:
-                data = self._scheduler.ingress.get(namespace, ingress).json()
-                for rule in data["spec"]["rules"]:
-                    for path in rule["http"]["paths"]:
-                        path["backend"]["serviceName"] = "drycc-maintenance-proxy"
-                self._scheduler.ingress.patch(ingress, namespace, data)
-            except KubeException:
-                self.log("creating Ingress {}".format(namespace), level=logging.INFO)
-        else:
-            self.refresh_ingress_and_tls()
 
     def routable(self, routable):
         """

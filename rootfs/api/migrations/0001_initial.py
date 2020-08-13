@@ -46,7 +46,6 @@ class Migration(migrations.Migration):
                 ('uuid', models.UUIDField(auto_created=True, default=uuid.uuid4, editable=False, primary_key=True, serialize=False, unique=True, verbose_name='UUID')),
                 ('created', models.DateTimeField(auto_now_add=True)),
                 ('updated', models.DateTimeField(auto_now=True)),
-                ('maintenance', models.NullBooleanField(default=None)),
                 ('routable', models.NullBooleanField(default=None)),
                 ('whitelist', django.contrib.postgres.fields.ArrayField(base_field=models.CharField(max_length=50), default=None, size=None)),
                 ('autoscale', jsonfield.fields.JSONField(blank=True, default={})),
