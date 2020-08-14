@@ -542,7 +542,7 @@ class Pod(Resource):
             events = []
         # make sure that events are sorted
         events.sort(
-            key=lambda x: x['lastTimestamp'] if x['lastTimestamp'] else -1)
+            key=lambda x: x['lastTimestamp'] if x['lastTimestamp'] else "")
         return events
 
     def _handle_pod_errors(self, pod, reason, message):
