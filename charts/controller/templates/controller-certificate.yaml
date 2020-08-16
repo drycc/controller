@@ -3,7 +3,6 @@ apiVersion: cert-manager.io/v1alpha2
 kind: Certificate
 metadata:
   name: drycc-controller
-  namespace: "{{ .Release.Namespace }}"
 spec:
   secretName: drycc-controller-auto-tls
   issuerRef:
