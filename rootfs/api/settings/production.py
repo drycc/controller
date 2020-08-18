@@ -336,6 +336,12 @@ KUBERNETES_POD_TERMINATION_GRACE_PERIOD_SECONDS = int(os.environ.get('KUBERNETES
 # Default quota spec for application namespace
 KUBERNETES_NAMESPACE_DEFAULT_QUOTA_SPEC = os.environ.get('KUBERNETES_NAMESPACE_DEFAULT_QUOTA_SPEC', '')  # noqa
 
+# See spec.containers[].resources.requests.ephemeral-storage
+KUBERNETES_REQUESTS_EPHEMERAL_STORAGE = os.environ.get('KUBERNETES_REQUESTS_EPHEMERAL_STORAGE', '1Gi')  # noqa
+
+# See spec.containers[].resources.limits.ephemeral-storage
+KUBERNETES_LIMITS_EPHEMERAL_STORAGE = os.environ.get('KUBERNETES_LIMITS_EPHEMERAL_STORAGE', '2Gi')  # noqa
+
 # registry settings
 REGISTRY_HOST = os.environ.get('DRYCC_REGISTRY_PROXY_HOST', '127.0.0.1')
 REGISTRY_PORT = os.environ.get('DRYCC_REGISTRY_PROXY_PORT', 5000)

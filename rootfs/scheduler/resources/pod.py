@@ -231,18 +231,16 @@ class Pod(Resource):
         app_type = kwargs.get("app_type")
         mem = kwargs.get("memory", {}).get(app_type)
         cpu = kwargs.get("cpu", {}).get(app_type)
-
+        ephemeral_storage = kwargs.get("ephemeral_storage")
+        resources = defaultdict(dict)
         if mem or cpu:
-            resources = defaultdict(dict)
-
             if mem:
                 if "/" in mem:
                     parts = mem.split("/")
-                    resources["requests"]["memory"] = self._format_memory(parts[0])
-                    resources["limits"]["memory"] = self._format_memory(parts[1])
+                    resources["requests"]["memory"] = self._format_size(parts[0])
+                    resources["limits"]["memory"] = self._format_size(parts[1])
                 else:
-                    resources["limits"]["memory"] = self._format_memory(mem)
-
+                    resources["limits"]["memory"] = self._format_size(mem)
             if cpu:
                 # CPU needs to be defined as lower case
                 if "/" in cpu:
@@ -251,11 +249,20 @@ class Pod(Resource):
                     resources["limits"]["cpu"] = parts[1].lower()
                 else:
                     resources["limits"]["cpu"] = cpu.lower()
-
+            if ephemeral_storage:
+                # ephemeral_storage needs to be defined as lower case
+                if "/" in ephemeral_storage:
+                    parts = ephemeral_storage.split("/")
+                    resources["requests"]["ephemeral_storage"] = self._format_size(parts[0])
+                    resources["limits"]["ephemeral_storage"] = self._format_size(parts[1])
+                else:
+                    resources["limits"]["ephemeral_storage"] = self._format_size(
+                        ephemeral_storage)
             if resources:
                 container["resources"] = dict(resources)
 
-    def _get_termination_grace_period(self, kwargs):
+    @staticmethod
+    def _get_termination_grace_period(kwargs):
         """ return termination grace period """
         app_type = kwargs.get("app_type")
         timeout_global = kwargs.get('pod_termination_grace_period_seconds', 30)
@@ -263,15 +270,16 @@ class Pod(Resource):
 
         return timeout_global if timeout_local is None else int(timeout_local)
 
-    def _format_memory(self, mem):
+    @staticmethod
+    def _format_size(size):
         """ Format memory limit value """
-        if mem[-2:-1].isalpha() and mem[-1].isalpha():
-            mem = mem[:-1]
+        if size[-2:-1].isalpha() and size[-1].isalpha():
+            size = size[:-1]
 
-        if mem[-1].isalpha():
+        if size[-1].isalpha():
             # memory needs to be upper cased (only first char)
-            mem = mem.upper() + "i"
-        return mem
+            size = size.upper() + "i"
+        return size
 
     def _set_health_checks(self, container, env, **kwargs):
         healthchecks = kwargs.get('healthcheck', None)
@@ -288,13 +296,13 @@ class Pod(Resource):
         elif kwargs.get('routable', False):
             self._default_readiness_probe(container, kwargs.get('build_type'), env.get('PORT', None))  # noqa
 
-    def _set_lifecycle_hooks(self, container, env, **kwargs):
+    @staticmethod
+    def _set_lifecycle_hooks(container, env, **kwargs):
         app_type = kwargs.get("app_type")
         lifecycle_post_start = kwargs.get('lifecycle_post_start', {})
         lifecycle_post_start = lifecycle_post_start.get(app_type)
         lifecycle_pre_stop = kwargs.get('lifecycle_pre_stop', {})
         lifecycle_pre_stop = lifecycle_pre_stop.get(app_type)
-        lifecycle = defaultdict(dict)
         if lifecycle_post_start or lifecycle_pre_stop:
             lifecycle = defaultdict(dict)
 
@@ -341,7 +349,8 @@ class Pod(Resource):
     This should be added only for the build pack apps when a custom liveness probe is not set to
     make sure that the pod is ready only when the slug is downloaded and started running.
     """
-    def _default_buildpack_readiness_probe(self, delay=30, timeout=5, period_seconds=5,
+    @staticmethod
+    def _default_buildpack_readiness_probe(delay=30, timeout=5, period_seconds=5,
                                            success_threshold=1, failure_threshold=1):
         readinessprobe = {
             'readinessProbe': {
@@ -364,7 +373,8 @@ class Pod(Resource):
         }
         return readinessprobe
 
-    def _default_dockerapp_readiness_probe(self, port, delay=5, timeout=5, period_seconds=5,
+    @staticmethod
+    def _default_dockerapp_readiness_probe(port, delay=5, timeout=5, period_seconds=5,
                                            success_threshold=1, failure_threshold=1):
         """
         Applies tcp socket readiness probe to the docker app container only if some port is exposed
@@ -387,7 +397,8 @@ class Pod(Resource):
         }
         return readinessprobe
 
-    def _set_custom_termination_period(self, container, period_seconds=900):
+    @staticmethod
+    def _set_custom_termination_period(container, period_seconds=900):
         """
         Applies a custom terminationGracePeriod only if provided as env variable.
         """
@@ -473,7 +484,8 @@ class Pod(Resource):
         # Seems like the most sensible default
         return 'Unknown'
 
-    def liveness_status(self, pod):
+    @staticmethod
+    def liveness_status(pod):
         """Check if the pods liveness probe status has passed all checks"""
         for condition in pod['status']['conditions']:
             # type = Ready is the only binary type right now
