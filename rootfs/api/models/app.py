@@ -286,7 +286,7 @@ class App(UuidAuditedModel):
                 try:
                     self._scheduler.quota.get(namespace, quota_name)
                 except KubeException:
-                    self._scheduler.quota.create(namespace, quota_name, data=quota_spec)
+                    self._scheduler.quota.create(namespace, quota_name, spec=quota_spec)
 
             try:
                 self._scheduler.svc.get(namespace, service)
@@ -1100,6 +1100,9 @@ class App(UuidAuditedModel):
         pod_termination_grace_period_seconds = int(config.values.get(
             'KUBERNETES_POD_TERMINATION_GRACE_PERIOD_SECONDS', settings.KUBERNETES_POD_TERMINATION_GRACE_PERIOD_SECONDS))  # noqa
 
+        # get pod default resources
+        pod_default_resources = json.loads(settings.KUBERNETES_POD_DEFAULT_RESOURCES)
+
         # set the image pull policy that is associated with the application container
         image_pull_policy = config.values.get('IMAGE_PULL_POLICY', settings.IMAGE_PULL_POLICY)
 
@@ -1123,6 +1126,7 @@ class App(UuidAuditedModel):
             'replicas': replicas,
             'version': 'v{}'.format(release.version),
             'app_type': process_type,
+            'resources': pod_default_resources,
             'build_type': release.build.type,
             'healthcheck': healthcheck,
             'lifecycle_post_start': config.lifecycle_post_start,

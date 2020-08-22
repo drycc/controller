@@ -52,4 +52,4 @@ class TestSchedulerPodResources(unittest.TestCase):
         if expected:
             self.assertEqual(resources_parent["resources"], expected, caze)
         else:
-            self.assertTrue("resources" not in resources_parent, caze)
+            self.assertTrue(resources_parent["resources"] == {}, caze)

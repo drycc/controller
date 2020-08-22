@@ -333,19 +333,34 @@ DRYCC_DEFAULT_CONFIG_TAGS = os.environ.get('DRYCC_DEFAULT_CONFIG_TAGS', '')
 # How long k8s waits for a pod to finish work after a SIGTERM before sending SIGKILL
 KUBERNETES_POD_TERMINATION_GRACE_PERIOD_SECONDS = int(os.environ.get('KUBERNETES_POD_TERMINATION_GRACE_PERIOD_SECONDS', 30))  # noqa
 
+# Default pod spec for application
+KUBERNETES_POD_DEFAULT_RESOURCES = os.environ.get(
+    'KUBERNETES_POD_DEFAULT_RESOURCES',
+    json.dumps({
+        "requests": {
+            "cpu": "256m",
+            "memory": "256Mi"
+        },
+        "limits": {
+            "cpu": "512m",
+            "memory": "512Mi"
+        },
+    })
+)
+
 # Default quota spec for application namespace
 KUBERNETES_NAMESPACE_DEFAULT_QUOTA_SPEC = os.environ.get(
     'KUBERNETES_NAMESPACE_DEFAULT_QUOTA_SPEC',
-    json.dumps({"spec": {
+    json.dumps({
         "hard": {
-            "cpu": "4",
-            "memory": "4Gi",
-            "pods": "2",
+            "cpu": "8",
+            "pods": "16",
+            "memory": "32Gi",
             "ephemeral-storage": "1Gi",
             "requests.storage": "10Gi",
             "persistentvolumeclaims": 8,
         }
-    }})
+    })
 )
 
 # registry settings

@@ -1,6 +1,5 @@
 from scheduler.exceptions import KubeHTTPException
 from scheduler.resources import Resource
-from scheduler.utils import dict_merge
 
 
 class Quota(Resource):
@@ -35,11 +34,9 @@ class Quota(Resource):
                     'heritage': 'drycc'
                 },
             },
-            'spec': {}
+            'spec': kwargs.get('spec', {})
         }
-
-        data = dict_merge(manifest, kwargs.get('data', {}))
-        response = self.http_post(url, json=data)
+        response = self.http_post(url, json=manifest)
         if not response.status_code == 201:
             raise KubeHTTPException(response,
                                     "create quota {} for namespace {}".format(

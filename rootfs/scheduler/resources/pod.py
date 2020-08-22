@@ -119,7 +119,6 @@ class Pod(Resource):
             },
             'spec': {}
         }
-
         # pod manifest spec
         spec = manifest['spec']
 
@@ -231,8 +230,8 @@ class Pod(Resource):
         app_type = kwargs.get("app_type")
         mem = kwargs.get("memory", {}).get(app_type)
         cpu = kwargs.get("cpu", {}).get(app_type)
+        resources = kwargs.get("resources", defaultdict(dict))
         if mem or cpu:
-            resources = defaultdict(dict)
             if mem:
                 if "/" in mem:
                     parts = mem.split("/")
@@ -248,8 +247,7 @@ class Pod(Resource):
                     resources["limits"]["cpu"] = parts[1].lower()
                 else:
                     resources["limits"]["cpu"] = cpu.lower()
-            if resources:
-                container["resources"] = dict(resources)
+        container["resources"] = dict(resources)
 
     @staticmethod
     def _get_termination_grace_period(kwargs):
