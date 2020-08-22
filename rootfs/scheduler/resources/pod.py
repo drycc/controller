@@ -231,16 +231,15 @@ class Pod(Resource):
         app_type = kwargs.get("app_type")
         mem = kwargs.get("memory", {}).get(app_type)
         cpu = kwargs.get("cpu", {}).get(app_type)
-        ephemeral_storage = kwargs.get("ephemeral_storage")
-        resources = defaultdict(dict)
         if mem or cpu:
+            resources = defaultdict(dict)
             if mem:
                 if "/" in mem:
                     parts = mem.split("/")
-                    resources["requests"]["memory"] = self._format_size(parts[0])
-                    resources["limits"]["memory"] = self._format_size(parts[1])
+                    resources["requests"]["memory"] = self._get_memory(parts[0])
+                    resources["limits"]["memory"] = self._get_memory(parts[1])
                 else:
-                    resources["limits"]["memory"] = self._format_size(mem)
+                    resources["limits"]["memory"] = self._get_memory(mem)
             if cpu:
                 # CPU needs to be defined as lower case
                 if "/" in cpu:
@@ -249,15 +248,6 @@ class Pod(Resource):
                     resources["limits"]["cpu"] = parts[1].lower()
                 else:
                     resources["limits"]["cpu"] = cpu.lower()
-            if ephemeral_storage:
-                # ephemeral_storage needs to be defined as lower case
-                if "/" in ephemeral_storage:
-                    parts = ephemeral_storage.split("/")
-                    resources["requests"]["ephemeral_storage"] = self._format_size(parts[0])
-                    resources["limits"]["ephemeral_storage"] = self._format_size(parts[1])
-                else:
-                    resources["limits"]["ephemeral_storage"] = self._format_size(
-                        ephemeral_storage)
             if resources:
                 container["resources"] = dict(resources)
 
@@ -271,7 +261,7 @@ class Pod(Resource):
         return timeout_global if timeout_local is None else int(timeout_local)
 
     @staticmethod
-    def _format_size(size):
+    def _get_memory(size, ):
         """ Format memory limit value """
         if size[-2:-1].isalpha() and size[-1].isalpha():
             size = size[:-1]

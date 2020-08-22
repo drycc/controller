@@ -334,13 +334,19 @@ DRYCC_DEFAULT_CONFIG_TAGS = os.environ.get('DRYCC_DEFAULT_CONFIG_TAGS', '')
 KUBERNETES_POD_TERMINATION_GRACE_PERIOD_SECONDS = int(os.environ.get('KUBERNETES_POD_TERMINATION_GRACE_PERIOD_SECONDS', 30))  # noqa
 
 # Default quota spec for application namespace
-KUBERNETES_NAMESPACE_DEFAULT_QUOTA_SPEC = os.environ.get('KUBERNETES_NAMESPACE_DEFAULT_QUOTA_SPEC', '')  # noqa
-
-# See spec.containers[].resources.requests.ephemeral-storage
-KUBERNETES_REQUESTS_EPHEMERAL_STORAGE = os.environ.get('KUBERNETES_REQUESTS_EPHEMERAL_STORAGE', '1Gi')  # noqa
-
-# See spec.containers[].resources.limits.ephemeral-storage
-KUBERNETES_LIMITS_EPHEMERAL_STORAGE = os.environ.get('KUBERNETES_LIMITS_EPHEMERAL_STORAGE', '2Gi')  # noqa
+KUBERNETES_NAMESPACE_DEFAULT_QUOTA_SPEC = os.environ.get(
+    'KUBERNETES_NAMESPACE_DEFAULT_QUOTA_SPEC',
+    json.dumps({"spec": {
+        "hard": {
+            "cpu": "4",
+            "memory": "4Gi",
+            "pods": "2",
+            "ephemeral-storage": "1Gi",
+            "requests.storage": "10Gi",
+            "persistentvolumeclaims": 8,
+        }
+    }})
+)
 
 # registry settings
 REGISTRY_HOST = os.environ.get('DRYCC_REGISTRY_PROXY_HOST', '127.0.0.1')

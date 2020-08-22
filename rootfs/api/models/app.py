@@ -1100,12 +1100,6 @@ class App(UuidAuditedModel):
         pod_termination_grace_period_seconds = int(config.values.get(
             'KUBERNETES_POD_TERMINATION_GRACE_PERIOD_SECONDS', settings.KUBERNETES_POD_TERMINATION_GRACE_PERIOD_SECONDS))  # noqa
 
-        # get limits and requests ephemeral_storage
-        ephemeral_storage = "{}/{}".format(
-            settings.KUBERNETES_REQUESTS_EPHEMERAL_STORAGE,
-            settings.KUBERNETES_LIMITS_EPHEMERAL_STORAGE,
-        )
-
         # set the image pull policy that is associated with the application container
         image_pull_policy = config.values.get('IMAGE_PULL_POLICY', settings.IMAGE_PULL_POLICY)
 
@@ -1123,7 +1117,6 @@ class App(UuidAuditedModel):
         return {
             'memory': config.memory,
             'cpu': config.cpu,
-            'ephemeral_storage': ephemeral_storage,
             'tags': config.tags,
             'envs': envs,
             'registry': config.registry,
@@ -1142,7 +1135,7 @@ class App(UuidAuditedModel):
             'pod_termination_grace_period_seconds': pod_termination_grace_period_seconds,
             'pod_termination_grace_period_each': config.termination_grace_period,
             'image_pull_secret_name': image_pull_secret_name,
-            'image_pull_policy': image_pull_policy
+            'image_pull_policy': image_pull_policy,
         }
 
     def set_application_config(self, release):
