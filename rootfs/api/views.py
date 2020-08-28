@@ -1,6 +1,8 @@
 """
 RESTful view classes for presenting Drycc API objects.
 """
+from copy import deepcopy
+
 from django.http import Http404, HttpResponse
 from django.conf import settings
 from django.contrib.auth.models import User
@@ -17,9 +19,12 @@ from rest_framework.viewsets import GenericViewSet
 from rest_framework.authtoken.models import Token
 
 from api import authentication, models, permissions, serializers, viewsets
-from api.models import AlreadyExists, ServiceUnavailable, DryccException, UnprocessableEntity
+from api.models import AlreadyExists, ServiceUnavailable, DryccException, \
+    UnprocessableEntity
 
 import logging
+
+from api.serializers import VolumeSerializer
 
 logger = logging.getLogger(__name__)
 
@@ -238,7 +243,10 @@ class AppViewSet(BaseDryccViewSet):
         app = self.get_object()
         if not request.data.get('command'):
             raise DryccException("command is a required field")
-        rc, output = app.run(self.request.user, request.data['command'])
+        volumes = request.data.get('volumes', None)
+        if volumes:
+            VolumeSerializer().validate_path(volumes)
+        rc, output = app.run(self.request.user, request.data['command'], volumes)
         return Response({'exit_code': rc, 'output': str(output)})
 
     def update(self, request, **kwargs):
@@ -628,6 +636,93 @@ class AppPermsViewSet(BaseDryccViewSet):
         remove_perm(self.perm, user, app)
         app.log("User {} was revoked access to {}".format(user, app))
         return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class AppVolumesViewSet(ReleasableViewSet):
+    """RESTful views for volumes apps with collaborators."""
+    model = models.Volume
+    serializer_class = serializers.VolumeSerializer
+
+    def destroy(self, request, **kwargs):
+        volume = get_object_or_404(models.Volume,
+                                   app__id=self.kwargs['id'],
+                                   name=self.kwargs['name'])
+        volume.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class AppVolumeMountPathViewSet(ReleasableViewSet):
+    serializer_class = serializers.VolumeSerializer
+
+    def get_object(self):
+        return get_object_or_404(models.Volume,
+                                 app__id=self.kwargs['id'],
+                                 name=self.kwargs['name'])
+
+    def path(self, request, *args, **kwargs):
+        new_path = request.data.get('path')
+        if new_path is None:
+            raise DryccException("path is a required field")
+        obj = self.get_object()
+        container_types = [_ for _ in new_path.keys()
+                           if _ not in obj.app.procfile_structure.keys()]
+        if container_types:
+            raise DryccException("process type {} is not included in profile".
+                                 format(','.join(container_types)))
+        path = obj.path
+        pre_path = deepcopy(path)
+        # merge mount path
+        # remove path keys if a null value is provided
+        for key, value in new_path.items():
+            if value is None:
+                # error if unsetting non-existing key
+                if key not in path:
+                    raise UnprocessableEntity(
+                        '{} does not exist under {}'.format(key, pre_path.keys()))  # noqa
+                path.pop(key)
+            else:
+                path[key] = value
+        obj.path = path  # after merge path
+        obj.save()
+        self.deploy(obj, pre_path)
+        serializer = self.get_serializer(obj, many=False)
+        return Response(serializer.data)
+
+    def deploy(self, volume, pre_mount_path):
+        app = self.get_app()
+        latest_release = app.release_set.filter(failed=False).latest()
+        latest_version = app.release_set.latest().version
+        try:
+            summary = "{user} deployed {app},".\
+                format(user=self.request.user, app=app.id)
+            for container_type, path in volume.path.items():
+                summary += "{container_type} mount path {path} with volume {name}.".\
+                               format(container_type=container_type, path=path, name=volume.name)  # noqa
+            print(summary)
+            self.release = latest_release.new(
+                self.request.user,
+                config=latest_release.config,
+                build=latest_release.build,
+                summary=summary)
+            # It's possible to mount volume before a build
+            if self.release.build is not None:
+                app.deploy(self.release)
+        except Exception as e:
+            if (not hasattr(self, 'release') and
+                    app.release_set.latest().version == latest_version+1):
+                self.release = app.release_set.latest()
+            if hasattr(self, 'release'):
+                self.release.failed = True
+                self.release.summary = "{} deploy with a volume that failed".\
+                    format(self.request.user)  # noqa
+                # Get the exception that has occured
+                self.release.exception = "error: {}".format(str(e))
+                self.release.save()
+            volume.path = pre_mount_path
+            volume.save()
+            if isinstance(e, AlreadyExists):
+                raise
+            raise DryccException(str(e)) from e
 
 
 class AdminPermsViewSet(BaseDryccViewSet):

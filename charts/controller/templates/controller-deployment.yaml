@@ -75,6 +75,10 @@ spec:
               value: "{{ .Values.global.registry_secret_prefix }}"
             - name: "IMAGE_PULL_POLICY"
               value: "{{ .Values.app_pull_policy }}"
+{{- if (.Values.app_storage_class) }}
+            - name: "DRYCC_APP_KUBERNETES_STORAGE_CLASS"
+              value: "{{ .Values.app_storage_class }}"
+{{- end }}
             - name: "TZ"
               value: {{ .Values.time_zone | default "UTC" | quote }}
 {{- if (.Values.deploy_hook_urls) }}

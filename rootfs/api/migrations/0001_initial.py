@@ -233,4 +233,22 @@ class Migration(migrations.Migration):
             name='appsettings',
             unique_together=set([('app', 'uuid')]),
         ),
+        migrations.CreateModel(
+            name='Volume',
+            fields=[
+                ('uuid', models.UUIDField(auto_created=True, default=uuid.uuid4, editable=False, primary_key=True, serialize=False, unique=True, verbose_name='UUID')),
+                ('created', models.DateTimeField(auto_now_add=True)),
+                ('updated', models.DateTimeField(auto_now=True)),
+                ('name', models.CharField(max_length=63, unique=True, validators=[api.models.validate_label])),
+                ('size', models.CharField(max_length=128)),
+                ('path', jsonfield.fields.JSONField(blank=True, default={})),
+                ('app', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, to='api.App')),
+                ('owner', models.ForeignKey(on_delete=django.db.models.deletion.PROTECT, to=settings.AUTH_USER_MODEL)),
+            ],
+            options={
+                'ordering': ['-created'],
+                'get_latest_by': 'created',
+                'unique_together': {('app', 'name')},
+            },
+        ),
     ]
