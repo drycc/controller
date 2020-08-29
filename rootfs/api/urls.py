@@ -75,6 +75,13 @@ urlpatterns = [
         views.AppPermsViewSet.as_view({'delete': 'destroy'})),
     url(r"^apps/(?P<id>{})/perms/?$".format(settings.APP_URL_REGEX),
         views.AppPermsViewSet.as_view({'get': 'list', 'post': 'create'})),
+    # application volumes
+    url(r"^apps/(?P<id>{})/volumes/?$".format(settings.APP_URL_REGEX),
+        views.AppVolumesViewSet.as_view({'get': 'list', 'post': 'create'})),
+    url(r"^apps/(?P<id>{})/volumes/(?P<name>[-_\w]+)/?$".format(settings.APP_URL_REGEX),
+        views.AppVolumesViewSet.as_view({'delete': 'destroy'})),
+    url(r"^apps/(?P<id>{})/volumes/(?P<name>[-_\w]+)/path/?$".format(settings.APP_URL_REGEX),
+        views.AppVolumeMountPathViewSet.as_view({'patch': 'path'})),
     # apps base endpoint
     url(r"^apps/(?P<id>{})/?$".format(settings.APP_URL_REGEX),
         views.AppViewSet.as_view({'get': 'retrieve', 'post': 'update', 'delete': 'destroy'})),

@@ -34,7 +34,7 @@ class Deployment(Resource):
         replicas = kwargs.get('replicas', 0)
         batches = kwargs.get('deploy_batches', None)
         tags = kwargs.get('tags', {})
-
+        volumes = kwargs.get('volumes', [])
         labels = {
             'app': namespace,
             'type': kwargs.get('app_type'),
@@ -106,6 +106,17 @@ class Deployment(Resource):
 
         # set the old deployment spec annotations on this deployment
         manifest['spec']['template']['metadata']['annotations'] = spec_annotations
+
+        # set volumes
+        if volumes:
+            exist_volumes = manifest['spec']['template']['spec'].get("volumes", [])  # noqa
+            for volume in volumes:
+                exist_volumes.append(
+                    {"name": volume.get('name'),
+                     "persistentVolumeClaim": {
+                         "claimName": volume.get('claimName')
+                     }})
+            manifest['spec']['template']['spec']['volumes'] = exist_volumes
 
         return manifest
 

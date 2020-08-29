@@ -28,6 +28,10 @@ CPUSHARE_MATCH = re.compile(
 TAGVAL_MATCH = re.compile(r'^(?:[a-zA-Z\d][-\.\w]{0,61})?[a-zA-Z\d]$')
 CONFIGKEY_MATCH = re.compile(r'^[a-z_]+[a-z0-9_]*$', re.IGNORECASE)
 TERMINATION_GRACE_PERIOD_MATCH = re.compile(r'^[0-9]*$')
+VOLUME_SIZE_MATCH = re.compile(
+    r'^(?P<mem>(([0-9]+(MB|KB|GB|[BKMG])|0)(/([0-9]+(MB|KB|GB|[BKMG])))?))$', re.IGNORECASE)
+VOLUME_PATH = re.compile(r'^\/(\w+\/?)+$', re.IGNORECASE)
+
 PROBE_SCHEMA = {
     "$schema": "http://json-schema.org/schema#",
 
@@ -607,6 +611,41 @@ class TLSSerializer(serializers.ModelSerializer):
     owner = serializers.ReadOnlyField(source='owner.username')
 
     class Meta:
-        """Metadata options for a :class:`AppSettingsSerializer`."""
+        """Metadata options for a :class:`AppTLSSerializer`."""
         model = models.TLS
         fields = '__all__'
+
+
+class VolumeSerializer(serializers.ModelSerializer):
+    """Serialize a :class:`~api.models.Volume` model."""
+
+    app = serializers.SlugRelatedField(slug_field='id', queryset=models.App.objects.all())
+    owner = serializers.ReadOnlyField(source='owner.username')
+    name = serializers.CharField()
+    size = serializers.CharField()
+    path = JSONFieldSerializer(required=False, binary=True)
+
+    class Meta:
+        """Metadata options for a :class:`AppVolumeSerializer`."""
+        model = models.Volume
+        fields = '__all__'
+
+    def validate_size(self, data):
+        if not re.match(VOLUME_SIZE_MATCH, str(data)):
+            raise serializers.ValidationError(
+                "Volume size limit format: <number><unit> or <number><unit>/<number><unit>, "
+                "where unit = B, K, M or G")
+        return data
+
+    def validate_path(self, data):
+        for key, value in data.items():
+            if value is None:  # use NoneType to unset an item
+                continue
+
+            if not re.match(PROCTYPE_MATCH, key):
+                raise serializers.ValidationError(PROCTYPE_MISMATCH_MSG)
+
+            if not re.match(VOLUME_PATH, str(value)):
+                raise serializers.ValidationError(
+                    "Volume path format: /path")
+        return data

@@ -80,7 +80,7 @@ class CacheLock(object):
 resources = [
     'namespaces', 'nodes', 'pods', 'replicationcontrollers',
     'secrets', 'services', 'events', 'deployments', 'replicasets',
-    'horizontalpodautoscalers', 'scale', 'resourcequotas', 'ingresses'
+    'horizontalpodautoscalers', 'scale', 'resourcequotas', 'ingresses', 'persistentvolumeclaims'
 ]
 
 
@@ -1063,3 +1063,5 @@ SchedulerClient = MockSchedulerClient
 # GET                                       /namespaces/{namespace}/pods/{pod}/log  (needs to be special cased)  # noqa
 # POST (NI) | GET                           /namespaces/{namespace}/deployments  # noqa
 # PATCH (NI) | PUT (NI) | GET | DELETE      /namespaces/{namespace}/deployments/{deployment}  # noqa
+# POST (NI) | GET                           /namespaces/{namespace}/persistentvolumeclaims  # noqa
+# DELETE(NI) | GET                          /namespaces/{namespace}/persistentvolumeclaims/{persistentvolumeclaim}  # noqa

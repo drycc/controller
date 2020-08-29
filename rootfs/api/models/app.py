@@ -11,6 +11,7 @@ import re
 import requests
 import string
 import time
+import uuid
 from urllib.parse import urljoin
 
 from django.conf import settings
@@ -25,6 +26,7 @@ from api.models.domain import Domain
 from api.models.release import Release
 from api.models.tls import TLS
 from api.models.appsettings import AppSettings
+from api.models.volume import Volume
 from api.utils import generate_app_name, async_run
 from scheduler import KubeHTTPException, KubeException
 
@@ -497,7 +499,7 @@ class App(UuidAuditedModel):
     def _scale_pods(self, scale_types):
         release = self.release_set.filter(failed=False).latest()
         app_settings = self.appsettings_set.latest()
-
+        volumes = Volume.objects.filter(app=self, path__isnull=False)
         # use slugrunner image for app if buildpack app otherwise use normal image
         if release.build.type == 'buildpack':
             image = next(filter(lambda item: item['name'] == release.build.stack,
@@ -507,7 +509,8 @@ class App(UuidAuditedModel):
 
         tasks = []
         for scale_type, replicas in scale_types.items():
-            data = self._gather_app_settings(release, app_settings, scale_type, replicas)  # noqa
+            scale_type_volumes = [_ for _ in volumes if scale_type in _.path.keys()]
+            data = self._gather_app_settings(release, app_settings, scale_type, replicas, volumes=scale_type_volumes)  # noqa
 
             # gather all proc types to be deployed
             tasks.append(
@@ -577,9 +580,11 @@ class App(UuidAuditedModel):
 
         # deploy application to k8s. Also handles initial scaling
         app_settings = self.appsettings_set.latest()
+        volumes = self.volume_set.all()
         deploys = {}
         for scale_type, replicas in self.structure.items():
-            deploys[scale_type] = self._gather_app_settings(release, app_settings, scale_type, replicas)  # noqa
+            volumes = [_ for _ in volumes if scale_type in _.path.keys()]
+            deploys[scale_type] = self._gather_app_settings(release, app_settings, scale_type, replicas, volumes=volumes)  # noqa
 
         # Sort deploys so routable comes first
         deploys = OrderedDict(sorted(deploys.items(), key=lambda d: d[1].get('routable')))
@@ -798,7 +803,7 @@ class App(UuidAuditedModel):
         # cast content to string since it comes as bytes via the requests object
         return str(r.content.decode('utf-8'))
 
-    def run(self, user, command):
+    def run(self, user, command, volumes=None):
         def pod_name(size=5, chars=string.ascii_lowercase + string.digits):
             return ''.join(random.choice(chars) for _ in range(size))
 
@@ -814,8 +819,13 @@ class App(UuidAuditedModel):
                                 settings.SLUGRUNNER_IMAGES))['image']
         else:
             image = release.image
-
-        data = self._gather_app_settings(release, app_settings, process_type='run', replicas=1)
+        volume_list = []
+        if volumes:
+            volume_objs = Volume.objects.filter(app=release.app, name__in=volumes.keys())
+            for _ in volume_objs:
+                _.path["{}-{}".format(self.app.id, str(uuid.uuid4())[:7])] = volumes.get(_.name, None)  # noqa
+                volume_list.append(_)
+        data = self._gather_app_settings(release, app_settings, process_type='run', replicas=1, volumes=volume_list)  # noqa
 
         # create application config and build the pod manifest
         self.set_application_config(release)
@@ -1076,7 +1086,7 @@ class App(UuidAuditedModel):
         })
         return docker_config, name, True
 
-    def _gather_app_settings(self, release, app_settings, process_type, replicas):
+    def _gather_app_settings(self, release, app_settings, process_type, replicas, volumes=None):
         """
         Gathers all required information needed in one easy place for passing into
         the Kubernetes client to deploy an application
@@ -1116,6 +1126,15 @@ class App(UuidAuditedModel):
         healthcheck = config.get_healthcheck().get(process_type, {})
         if not healthcheck and process_type in ['web', 'cmd']:
             healthcheck = config.get_healthcheck().get('web/cmd', {})
+        volumes_info = [{
+            "name": _.name,
+            "claimName": _.name,
+        } for _ in volumes] if volumes else []
+
+        volume_mounts_info = [{
+            "name": _.name,
+            "mount_path": _.path.get(process_type),
+        } for _ in volumes] if volumes else []
 
         return {
             'memory': config.memory,
@@ -1140,6 +1159,8 @@ class App(UuidAuditedModel):
             'pod_termination_grace_period_each': config.termination_grace_period,
             'image_pull_secret_name': image_pull_secret_name,
             'image_pull_policy': image_pull_policy,
+            'volumes': volumes_info,
+            'volume_mounts': volume_mounts_info,
         }
 
     def set_application_config(self, release):

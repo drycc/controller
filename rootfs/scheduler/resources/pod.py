@@ -225,6 +225,19 @@ class Pod(Resource):
 
         self._set_lifecycle_hooks(data, env, **kwargs)
 
+        self._set_volume_mounts(data, kwargs)
+
+    @staticmethod
+    def _set_volume_mounts(container, kwargs):
+        # set volume_mounts
+        volume_mounts = kwargs.get('volume_mounts', [])
+        exist_volume_mounts = container.get('volumeMounts', [])
+        for volume_mount in volume_mounts:
+            exist_volume_mounts.append(
+                {"name": volume_mount.get('name'),
+                 "mountPath": volume_mount.get('mount_path')})
+        container['volumeMounts'] = exist_volume_mounts
+
     def _set_resources(self, container, kwargs):
         """ Set CPU/memory resource management manifest """
         app_type = kwargs.get("app_type")
