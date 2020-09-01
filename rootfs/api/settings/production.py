@@ -277,8 +277,8 @@ else:
             "image": 'drycc/slugrunner:canary.heroku-18',
         },
         {
-            "name": 'heroku-16',
-            "image": 'drycc/slugrunner:canary.heroku-16',
+            "name": 'heroku-20',
+            "image": 'drycc/slugrunner:canary.heroku-20',
         },
     ]
 IMAGE_PULL_POLICY = os.environ.get('IMAGE_PULL_POLICY', "IfNotPresent")  # noqa
