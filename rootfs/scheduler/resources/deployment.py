@@ -34,7 +34,7 @@ class Deployment(Resource):
         replicas = kwargs.get('replicas', 0)
         batches = kwargs.get('deploy_batches', None)
         tags = kwargs.get('tags', {})
-        volumes = kwargs.get('volumes', [])
+
         labels = {
             'app': namespace,
             'type': kwargs.get('app_type'),
@@ -106,6 +106,8 @@ class Deployment(Resource):
 
         # set the old deployment spec annotations on this deployment
         manifest['spec']['template']['metadata']['annotations'] = spec_annotations
+
+        return manifest
 
     def create(self, namespace, name, image, entrypoint, command, spec_annotations, **kwargs):
         manifest = self.manifest(namespace, name, image,
