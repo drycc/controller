@@ -11,7 +11,6 @@ import re
 import requests
 import string
 import time
-import uuid
 from urllib.parse import urljoin
 
 from django.conf import settings

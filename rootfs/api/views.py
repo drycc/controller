@@ -669,6 +669,22 @@ class AppVolumeMountPathViewSet(ReleasableViewSet):
         if container_types:
             raise DryccException("process type {} is not included in profile".
                                  format(','.join(container_types)))
+
+        if set(new_path.items()).issubset(set(obj.path.items())):
+            raise DryccException("mount path not changed")
+
+        other_volumes = self.get_app().volume_set.exclude(name=obj.name)
+        type_paths = {}  # {'type1':[path1,path2], tyep2:[path3,path4]}
+        for _ in other_volumes:
+            for k, v in _.path.items():
+                if k not in type_paths:
+                    type_paths[k] = [v]
+                else:
+                    type_paths[k].append(k)
+        repeat_path = [v for k, v in new_path.items() if v in type_paths.get(k, [])]  # noqa
+        if repeat_path:
+            raise DryccException("path {} is used by another volume".
+                                 format(','.join(repeat_path)))
         path = obj.path
         pre_path = deepcopy(path)
         # merge mount path
