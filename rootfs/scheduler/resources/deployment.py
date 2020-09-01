@@ -107,19 +107,6 @@ class Deployment(Resource):
         # set the old deployment spec annotations on this deployment
         manifest['spec']['template']['metadata']['annotations'] = spec_annotations
 
-        # set volumes
-        if volumes:
-            exist_volumes = manifest['spec']['template']['spec'].get("volumes", [])  # noqa
-            for volume in volumes:
-                exist_volumes.append(
-                    {"name": volume.get('name'),
-                     "persistentVolumeClaim": {
-                         "claimName": volume.get('claimName')
-                     }})
-            manifest['spec']['template']['spec']['volumes'] = exist_volumes
-
-        return manifest
-
     def create(self, namespace, name, image, entrypoint, command, spec_annotations, **kwargs):
         manifest = self.manifest(namespace, name, image,
                                  entrypoint, command, spec_annotations, **kwargs)

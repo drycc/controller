@@ -99,6 +99,7 @@ class Pod(Resource):
     def manifest(self, namespace, name, image, **kwargs):
         app_type = kwargs.get('app_type')
         build_type = kwargs.get('build_type')
+        volumes = kwargs.get('volumes')
 
         # labels that represent the pod(s)
         labels = {
@@ -147,7 +148,15 @@ class Pod(Resource):
                 'mountPath': '/var/run/secrets/drycc/objectstore/creds',
                 'readOnly': True
             }]
-
+        if volumes:
+            exist_volumes = spec.get('volumes', [])
+            for volume in volumes:
+                exist_volumes.append(
+                    {"name": volume.get('name'),
+                     "persistentVolumeClaim": {
+                         "claimName": volume.get('claimName')
+                     }})
+            spec['volumes'] = exist_volumes
         # create the base container
         container = {}
 
