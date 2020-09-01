@@ -583,8 +583,8 @@ class App(UuidAuditedModel):
         volumes = self.volume_set.all()
         deploys = {}
         for scale_type, replicas in self.structure.items():
-            volumes = [_ for _ in volumes if scale_type in _.path.keys()]
-            deploys[scale_type] = self._gather_app_settings(release, app_settings, scale_type, replicas, volumes=volumes)  # noqa
+            scale_type_volumes = [_ for _ in volumes if scale_type in _.path.keys()]
+            deploys[scale_type] = self._gather_app_settings(release, app_settings, scale_type, replicas, volumes=scale_type_volumes)  # noqa
 
         # Sort deploys so routable comes first
         deploys = OrderedDict(sorted(deploys.items(), key=lambda d: d[1].get('routable')))
@@ -823,7 +823,7 @@ class App(UuidAuditedModel):
         if volumes:
             volume_objs = Volume.objects.filter(app=release.app, name__in=volumes.keys())
             for _ in volume_objs:
-                _.path["{}-{}".format(self.app.id, str(uuid.uuid4())[:7])] = volumes.get(_.name, None)  # noqa
+                _.path["run"] = volumes.get(_.name, None)  # noqa
                 volume_list.append(_)
         data = self._gather_app_settings(release, app_settings, process_type='run', replicas=1, volumes=volume_list)  # noqa
 
