@@ -13,11 +13,8 @@ class Volume(UuidAuditedModel):
     owner = models.ForeignKey(settings.AUTH_USER_MODEL,
                               on_delete=models.PROTECT)
     app = models.ForeignKey('App', on_delete=models.CASCADE)
-
-    name = models.CharField(max_length=63, unique=True,
-                            validators=[validate_label])
-    size = models.CharField(max_length=128, blank=False, null=False,
-                            unique=False)
+    name = models.CharField(max_length=63, validators=[validate_label])
+    size = models.CharField(max_length=128)
     path = JSONField(default={}, blank=True)
 
     class Meta:
