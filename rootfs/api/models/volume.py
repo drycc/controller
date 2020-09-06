@@ -68,3 +68,14 @@ class Volume(UuidAuditedModel):
         except KubeException as e:
             raise ServiceUnavailable("Could not delete volume {} for application \
                 {}".format(name, self.app_id)) from e  # noqa
+
+    def log(self, message, level=logging.INFO):
+        """Logs a message in the context of this service.
+
+        This prefixes log messages with an application "tag" that the customized
+        drycc-logspout will be on the lookout for.  When it's seen, the message-- usually
+        an application event of some sort like releasing or scaling, will be considered
+        as "belonging" to the application instead of the controller and will be handled
+        accordingly.
+        """
+        logger.log(level, "[{}]: {}".format(self.id, message))

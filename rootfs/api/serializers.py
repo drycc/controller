@@ -19,6 +19,8 @@ from api import models
 
 # proc type name is lowercase alphanumeric
 # https://docs-v2.readthedocs.io/en/latest/using-workflow/process-types-and-the-procfile/#declaring-process-types
+from api.exceptions import DryccException
+
 PROCTYPE_MATCH = re.compile(r'^(?P<type>[a-z0-9]+(\-[a-z0-9]+)*)$')
 PROCTYPE_MISMATCH_MSG = "Process types can only contain lowercase alphanumeric characters"
 MEMLIMIT_MATCH = re.compile(
@@ -649,3 +651,27 @@ class VolumeSerializer(serializers.ModelSerializer):
                 raise serializers.ValidationError(
                     "Volume path format: /path")
         return data
+
+
+class ResourceSerializer(serializers.ModelSerializer):
+    """Serialize a :class:`~api.models.Resource` model."""
+    app = serializers.SlugRelatedField(slug_field='id', queryset=models.App.objects.all())
+    owner = serializers.ReadOnlyField(source='owner.username')
+    name = serializers.CharField(max_length=63, required=True)
+    plan = serializers.CharField(max_length=128, required=True)
+    options = JSONFieldSerializer(required=False, binary=True)
+
+    class Meta:
+        """Metadata options for a :class:`ResourceSerializer`."""
+        model = models.Resource
+        fields = '__all__'
+
+    def update(self, instance, validated_data):
+        if instance.plan.split(':')[0] != validated_data.get('plan', '').split(':')[0]:  # noqa
+            raise DryccException("the resource cann't changed")
+        instance.plan = validated_data.get('plan')
+        if validated_data.get('options'):
+            instance.options = validated_data.get('options')
+        instance.attach_update()
+        instance.save()
+        return instance

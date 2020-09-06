@@ -741,6 +741,65 @@ class AppVolumeMountPathViewSet(ReleasableViewSet):
             raise DryccException(str(e)) from e
 
 
+class AppResourcesViewSet(AppResourceViewSet):
+    """RESTful views for resources apps with collaborators."""
+    model = models.Resource
+    serializer_class = serializers.ResourceSerializer
+
+
+class AppSingleResourceViewSet(AppResourceViewSet):
+    """RESTful views for resource apps with collaborators."""
+    model = models.Resource
+    serializer_class = serializers.ResourceSerializer
+
+    def get_object(self):
+        return get_object_or_404(models.Resource,
+                                 app__id=self.kwargs['id'],
+                                 name=self.kwargs['name'])
+
+    def retrieve(self, request, *args, **kwargs):
+        resource = self.get_object()
+        resource.retrieve(request)
+        return super(AppSingleResourceViewSet, self).retrieve(request, *args, **kwargs)  # noqa
+
+    def destroy(self, request, *args, **kwargs):
+        resource = self.get_object()
+        resource.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+    def update(self, request, *args, **kwargs):
+        resource = self.get_object()
+        resource = serializers.ResourceSerializer(data=request.data,
+                                                  instance=resource,
+                                                  partial=True)
+        if resource.is_valid():
+            resource.save()
+        return Response(resource.data)
+
+
+class AppResourceBindingViewSet(AppResourceViewSet):
+    model = models.Resource
+    serializer_class = serializers.ResourceSerializer
+
+    def get_object(self):
+        return get_object_or_404(models.Resource,
+                                 app__id=self.kwargs['id'],
+                                 name=self.kwargs['name'])
+
+    def binding(self, request, *args, **kwargs):
+        resource = self.get_object()
+        # {"bind_action":bind/unbind}
+        bind_action = self.request.data.get('bind_action', '').lower()
+        if bind_action == 'bind':
+            resource.bind()
+            return HttpResponse(status=status.HTTP_202_ACCEPTED)
+        elif bind_action == 'unbind':
+            resource.unbind()
+            return HttpResponse(status=status.HTTP_202_ACCEPTED)
+        else:
+            return Http404("unknown action")
+
+
 class AdminPermsViewSet(BaseDryccViewSet):
     """RESTful views for sharing admin permissions with other users."""
 

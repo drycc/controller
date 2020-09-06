@@ -80,7 +80,8 @@ class CacheLock(object):
 resources = [
     'namespaces', 'nodes', 'pods', 'replicationcontrollers',
     'secrets', 'services', 'events', 'deployments', 'replicasets',
-    'horizontalpodautoscalers', 'scale', 'resourcequotas', 'ingresses', 'persistentvolumeclaims'
+    'horizontalpodautoscalers', 'scale', 'resourcequotas', 'ingresses',
+    'persistentvolumeclaims', "serviceinstances", "servicebindings"
 ]
 
 
@@ -122,7 +123,8 @@ def get_type(key):
 def replace_api_version(old, new='api_v1'):
     return old.replace('apis_autoscaling_v1', new)\
         .replace('apis_apps_v1', new)\
-        .replace('apis_networking.k8s.io_v1beta1', new)
+        .replace('apis_networking.k8s.io_v1beta1', new)\
+        .replace('apis_servicecatalog.k8s.io_v1beta1', new)
 
 
 def get_namespace(url, resource_type):

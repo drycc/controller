@@ -1,0 +1,143 @@
+# -*- coding: utf-8 -*-
+"""
+Unit tests for the Drycc api app.
+
+Run the tests with "./manage.py test api"
+"""
+from django.contrib.auth.models import User
+from django.core.cache import cache
+from django.conf import settings
+from rest_framework.authtoken.models import Token
+from api.tests import adapter, DryccTransactionTestCase
+import requests_mock
+
+
+@requests_mock.Mocker(real_http=True, adapter=adapter)
+class ResourceTest(DryccTransactionTestCase):
+    """Tests setting and updating config values"""
+
+    fixtures = ['tests.json']
+
+    def setUp(self):
+        self.user = User.objects.get(username='autotest')
+        self.token = Token.objects.get(user=self.user).key
+        self.client.credentials(HTTP_AUTHORIZATION='Token ' + self.token)
+        self.app_id = self.create_app()
+
+    def tearDown(self):
+        # Restore default tags to empty string
+        settings.DRYCC_DEFAULT_CONFIG_TAGS = ''
+        # make sure every test has a clean slate for k8s mocking
+        cache.clear()
+
+    def test_resources_create(self, mock_requests):
+        """Test that the serialized response contains only relevant data."""
+        app_id = self.create_app()
+
+        response = self.client.post(
+            '/v2/apps/{}/resources'.format(app_id),
+            data={'name': 'mysql', 'plan': 'mysql:5.6'}
+        )
+        self.assertEqual(response.status_code, 201, response.data)
+
+        for key in response.data:
+            self.assertIn(key,
+                          ['uuid', 'owner', 'created', 'updated', 'app', 'plan',
+                           'options', 'data', 'status', 'binding', 'name'])
+
+        expected = {
+            'owner': self.user.username,
+            'app': app_id,
+            'name': 'mysql',
+            'plan': 'mysql:5.6'
+        }
+        self.assertDictContainsSubset(expected, response.data)
+
+    def test_resources_list(self, mock_requests):
+        """
+        Test that list resources from a app
+        """
+        # create
+        app_id = self.create_app()
+        data = [
+            {'name': 'mysql', 'plan': 'mysql:5.6'}
+        ]
+        for _ in data:
+            self.client.post('/v2/apps/{}/resources'.format(app_id), data=_)
+        # Fetch
+        url = '/v2/apps/{app_id}/resources'.format(app_id=app_id)
+        response = self.client.get(url)
+        expected = [res['name'] for res in response.data['results']]
+        self.assertEqual(sorted([_['name'] for _ in data]), sorted(expected))
+
+    def test_resource_get(self, mock_requests):
+        """
+        Test that resource is get detail from a app
+        """
+        # create
+        app_id = self.create_app()
+        data = {'name': 'mysql', 'plan': 'mysql:5.6'}
+        self.client.post('/v2/apps/{}/resources/'.format(app_id), data=data)
+        # Get
+        url = '/v2/apps/{app_id}/resources/{name}/'.format(app_id=app_id,
+                                                           name='mysql')
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, 200)
+
+    def test_resource_delete(self, mock_requests):
+        """
+        Test that resource is delete from a app
+        """
+        # create
+        app_id = self.create_app()
+        data = [
+            {'name': 'mysql', 'plan': 'mysql:5.6'}
+        ]
+        for _ in data:
+            self.client.post('/v2/apps/{}/resources'.format(app_id), data=_)
+
+        # Delete
+        url = '/v2/apps/{app_id}/resources/{name}'.format(app_id=app_id,
+                                                          name='mysql')
+        response = self.client.delete(url)
+        self.assertEqual(response.status_code, 204)
+
+    def test_resource_update(self, mock_requests):
+        """
+        Test that resource is delete from a app
+        """
+        # create
+        app_id = self.create_app()
+        data = {'name': 'mysql', 'plan': 'mysql:5.6'}
+        self.client.post('/v2/apps/{}/resources'.format(app_id), data=data)
+
+        # Update
+        url = '/v2/apps/{app_id}/resources/{name}'.format(app_id=app_id,
+                                                          name='mysql')
+        data = {'plan': 'mysql:5.7'}
+        response = self.client.put(url, data=data)
+        self.assertEqual(response.status_code, 200)
+
+    def test_resource_bind(self, mock_requests):
+        # create
+        app_id = self.create_app()
+        data = {'name': 'mysql', 'plan': 'mysql:5.6'}
+        self.client.post('/v2/apps/{}/resources'.format(app_id), data=data)
+        # bind
+        url = '/v2/apps/{app_id}/resources/mysql/binding/'.format(app_id=app_id)
+        data = {"bind_action": "bind"}
+        response = self.client.patch(url, data=data)
+        # expected = response.data['path']
+        self.assertEqual(response.status_code, 400)
+
+    def test_resource_unbind(self, mock_requests):
+        # create
+        app_id = self.create_app()
+        data = {'name': 'mysql', 'plan': 'mysql:5.6'}
+        self.client.post('/v2/apps/{}/resources'.format(app_id), data=data)
+        # unbind
+        url = '/v2/apps/{app_id}/resources/mysql/binding/'.format(app_id=app_id)
+        data = {"bind_action": "unbind"}
+        response = self.client.patch(url, data=data)
+        # expected = response.data['path']
+        self.assertEqual(response.status_code, 400)
