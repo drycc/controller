@@ -349,7 +349,7 @@ class BuildTest(DryccTransactionTestCase):
         self.assertEqual(container['type'], 'worker')
         self.assertEqual(container['release'], 'v2')
         # pod name is auto generated so use regex
-        self.assertRegex(container['name'], app_id + '-worker-[0-9]{8,10}-[a-z0-9]{5}')
+        self.assertRegex(container['name'], app_id + '-worker-[0-9]{7,10}-[a-z0-9]{5}')
 
         # do another deploy for this time forget Procfile
         url = "/v2/apps/{app_id}/builds".format(**locals())

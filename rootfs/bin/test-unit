@@ -6,7 +6,14 @@
 # fail hard and fast even on pipelines
 set -eou pipefail
 
+function start_nsq() {
+    cd /tmp
+    nohup nsqd > /var/log/nsqd.log 2>&1 &
+    cd -
+}
+
 su-exec postgres pg_ctl -D "$PGDATA" start
+start_nsq
 python3 manage.py check
-coverage run manage.py test --settings=api.settings.testing --noinput api scheduler.tests
+coverage run manage.py test --settings=api.settings.testing --noinput tasks.tests api scheduler.tests
 coverage report -m

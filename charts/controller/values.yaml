@@ -19,6 +19,11 @@ k8s_api_verify_tls: "true"
 # Set storageClassName, It is used for application mount.
 app_storage_class: ""
 
+nsqd:
+  replicas: 1
+  tcp_port: 4150
+  http_port: 4151
+
 global:
   # Admin email, used for each component to send email to administrator
   email: "drycc@drycc.cc"

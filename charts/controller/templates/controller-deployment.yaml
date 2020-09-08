@@ -1,3 +1,4 @@
+{{ $nsqdNodeCount := .Values.nsqd.replicas | int }}
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -53,86 +54,88 @@ spec:
 {{- end }}
 {{- end }}
           env:
-            - name: REGISTRATION_MODE
-              value: {{ .Values.registration_mode }}
-            # NOTE(bacongobbler): use drycc/registry_proxy to work around Docker --insecure-registry requirements
-            - name: "DRYCC_REGISTRY_PROXY_HOST"
-              value: "127.0.0.1"
-            # Environmental variable value for $INGRESS_CLASS
-            - name: "DRYCC_INGRESS_CLASS"
-              value: "{{ .Values.global.ingress_class }}"
-            - name: "DRYCC_PLATFORM_DOMAIN"
-              value: "{{ .Values.global.platform_domain }}"
-            - name: "K8S_API_VERIFY_TLS"
-              value: "{{ .Values.k8s_api_verify_tls }}"
-            - name: "DRYCC_REGISTRY_PROXY_PORT"
-              value: "{{ .Values.global.registry_proxy_port }}"
-            - name: "APP_STORAGE"
-              value: "{{ .Values.global.storage}}"
-            - name: "DRYCC_REGISTRY_LOCATION"
-              value: "{{ .Values.global.registry_location }}"
-            - name: "DRYCC_REGISTRY_SECRET_PREFIX"
-              value: "{{ .Values.global.registry_secret_prefix }}"
-            - name: "IMAGE_PULL_POLICY"
-              value: "{{ .Values.app_pull_policy }}"
+          - name: REGISTRATION_MODE
+            value: {{ .Values.registration_mode }}
+          # NOTE(bacongobbler): use drycc/registry_proxy to work around Docker --insecure-registry requirements
+          - name: "DRYCC_REGISTRY_PROXY_HOST"
+            value: "127.0.0.1"
+          # Environmental variable value for $INGRESS_CLASS
+          - name: "DRYCC_INGRESS_CLASS"
+            value: "{{ .Values.global.ingress_class }}"
+          - name: "DRYCC_PLATFORM_DOMAIN"
+            value: "{{ .Values.global.platform_domain }}"
+          - name: "K8S_API_VERIFY_TLS"
+            value: "{{ .Values.k8s_api_verify_tls }}"
+          - name: "DRYCC_REGISTRY_PROXY_PORT"
+            value: "{{ .Values.global.registry_proxy_port }}"
+          - name: "APP_STORAGE"
+            value: "{{ .Values.global.storage}}"
+          - name: "DRYCC_REGISTRY_LOCATION"
+            value: "{{ .Values.global.registry_location }}"
+          - name: "DRYCC_REGISTRY_SECRET_PREFIX"
+            value: "{{ .Values.global.registry_secret_prefix }}"
+          - name: "IMAGE_PULL_POLICY"
+            value: "{{ .Values.app_pull_policy }}"
 {{- if (.Values.app_storage_class) }}
-            - name: "DRYCC_APP_KUBERNETES_STORAGE_CLASS"
-              value: "{{ .Values.app_storage_class }}"
+          - name: "DRYCC_APP_KUBERNETES_STORAGE_CLASS"
+            value: "{{ .Values.app_storage_class }}"
 {{- end }}
-            - name: "TZ"
-              value: {{ .Values.time_zone | default "UTC" | quote }}
+          - name: "TZ"
+            value: {{ .Values.time_zone | default "UTC" | quote }}
 {{- if (.Values.deploy_hook_urls) }}
-            - name: DRYCC_DEPLOY_HOOK_URLS
-              value: "{{ .Values.deploy_hook_urls }}"
-            - name: DRYCC_DEPLOY_HOOK_SECRET_KEY
-              valueFrom:
-                secretKeyRef:
-                  name: deploy-hook-key
-                  key: secret-key
+          - name: DRYCC_DEPLOY_HOOK_URLS
+            value: "{{ .Values.deploy_hook_urls }}"
+          - name: DRYCC_DEPLOY_HOOK_SECRET_KEY
+            valueFrom:
+              secretKeyRef:
+                name: deploy-hook-key
+                key: secret-key
 {{- end }}
-            - name: DRYCC_SECRET_KEY
-              valueFrom:
-                secretKeyRef:
-                  name: django-secret-key
-                  key: secret-key
-            - name: DRYCC_BUILDER_KEY
-              valueFrom:
-                secretKeyRef:
-                  name: builder-key-auth
-                  key: builder-key
+          - name: DRYCC_SECRET_KEY
+            valueFrom:
+              secretKeyRef:
+                name: django-secret-key
+                key: secret-key
+          - name: DRYCC_BUILDER_KEY
+            valueFrom:
+              secretKeyRef:
+                name: builder-key-auth
+                key: builder-key
 {{- if eq .Values.global.database_location "off-cluster" }}
-            - name: DRYCC_DATABASE_NAME
-              valueFrom:
-                secretKeyRef:
-                  name: database-creds
-                  key: name
-            - name: DRYCC_DATABASE_SERVICE_HOST
-              valueFrom:
-                secretKeyRef:
-                  name: database-creds
-                  key: host
-            - name: DRYCC_DATABASE_SERVICE_PORT
-              valueFrom:
-                secretKeyRef:
-                  name: database-creds
-                  key: port
+          - name: DRYCC_DATABASE_NAME
+            valueFrom:
+              secretKeyRef:
+                name: database-creds
+                key: name
+          - name: DRYCC_DATABASE_SERVICE_HOST
+            valueFrom:
+              secretKeyRef:
+                name: database-creds
+                key: host
+          - name: DRYCC_DATABASE_SERVICE_PORT
+            valueFrom:
+              secretKeyRef:
+                name: database-creds
+                key: port
 {{- end }}
-            - name: DRYCC_DATABASE_USER
-              valueFrom:
-                secretKeyRef:
-                  name: database-creds
-                  key: user
-            - name: DRYCC_DATABASE_PASSWORD
-              valueFrom:
-                secretKeyRef:
-                  name: database-creds
-                  key: password
-            - name: RESERVED_NAMES
-              value: "drycc, drycc-builder, grafana"
-            - name: WORKFLOW_NAMESPACE
-              valueFrom:
-                fieldRef:
-                  fieldPath: metadata.namespace
+          - name: DRYCC_DATABASE_USER
+            valueFrom:
+              secretKeyRef:
+                name: database-creds
+                key: user
+          - name: DRYCC_DATABASE_PASSWORD
+            valueFrom:
+              secretKeyRef:
+                name: database-creds
+                key: password
+          - name: RESERVED_NAMES
+            value: "drycc, drycc-builder, drycc-monitor-grafana"
+          - name: WORKFLOW_NAMESPACE
+            valueFrom:
+              fieldRef:
+                fieldPath: metadata.namespace
+          - name: DRYCC_NSQD_ADDRS
+            value: "{{range $i := until $nsqdNodeCount}}drycc-nsqd-{{$i}}.drycc-nsqd.{{ $.Release.Namespace }}.svc.cluster.local:{{$.Values.nsqd.tcp_port}}{{if lt (add 1 $i) $nsqdNodeCount}},{{end}}{{end}}"
           volumeMounts:
             - mountPath: /etc/slugrunner
               name: slugrunner-config

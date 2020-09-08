@@ -4,7 +4,8 @@ COPY requirements.txt /app/requirements.txt
 COPY dev_requirements.txt /app/dev_requirements.txt
 
 ENV PGDATA /var/lib/postgresql/12
-RUN apk add --update --virtual .build-deps \
+RUN echo https://dl-cdn.alpinelinux.org/alpine/edge/testing >>/etc/apk/repositories \
+  && apk add --update --virtual .build-deps \
     postgresql-dev \
     gcc \
     libffi-dev \
@@ -26,7 +27,8 @@ RUN apk add --update --virtual .build-deps \
     su-exec \
     bash \
     shadow \
-    postgresql==12.3-r2 \
+    nsq \
+    postgresql \
   && mkdir -p /run/postgresql $PGDATA \
   && chown -R postgres:postgres /run/postgresql $PGDATA \
   && apk del .build-deps \
@@ -37,4 +39,3 @@ COPY . /app
 WORKDIR /app
 CMD ["/app/bin/boot"]
 EXPOSE 8000
-
