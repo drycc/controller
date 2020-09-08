@@ -82,6 +82,17 @@ urlpatterns = [
         views.AppVolumesViewSet.as_view({'delete': 'destroy'})),
     url(r"^apps/(?P<id>{})/volumes/(?P<name>[-_\w]+)/path/?$".format(settings.APP_URL_REGEX),
         views.AppVolumeMountPathViewSet.as_view({'patch': 'path'})),
+    # application resources
+    url(r"^apps/(?P<id>{})/resources/?$".format(settings.APP_URL_REGEX),
+        views.AppResourcesViewSet.as_view({'get': 'list', 'post': 'create'})),
+    url(r"^apps/(?P<id>{})/resources/(?P<name>[-_\w]+)/?$".format(settings.APP_URL_REGEX),
+        views.AppSingleResourceViewSet.as_view({
+            'get': 'retrieve',
+            'delete': 'destroy',
+            'put': 'update'
+        })),
+    url(r"^apps/(?P<id>{})/resources/(?P<name>[-_\w]+)/binding/?$".format(settings.APP_URL_REGEX),
+        views.AppResourceBindingViewSet.as_view({'patch': 'binding'})),
     # apps base endpoint
     url(r"^apps/(?P<id>{})/?$".format(settings.APP_URL_REGEX),
         views.AppViewSet.as_view({'get': 'retrieve', 'post': 'update', 'delete': 'destroy'})),

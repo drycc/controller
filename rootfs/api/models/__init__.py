@@ -151,6 +151,7 @@ from .key import Key, validate_base64  # noqa
 from .release import Release  # noqa
 from .tls import TLS  # noqa
 from .volume import Volume  # noqa
+from .resource import Resource  # noqa
 
 # define update/delete callbacks for synchronizing
 # models with the configuration management backend
@@ -248,6 +249,7 @@ post_delete.connect(_log_instance_removed, sender=Certificate, dispatch_uid='api
 post_delete.connect(_log_instance_removed, sender=Domain, dispatch_uid='api.models.log')
 post_delete.connect(_log_instance_removed, sender=TLS, dispatch_uid='api.models.log')
 post_delete.connect(_log_instance_removed, sender=Volume, dispatch_uid='api.models.log')
+post_delete.connect(_log_instance_removed, sender=Resource, dispatch_uid='api.models.log')
 
 
 # automatically generate a new token on creation

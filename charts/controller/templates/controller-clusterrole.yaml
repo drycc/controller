@@ -65,5 +65,11 @@ rules:
 - apiGroups: [""]
   resources: ["persistentvolumeclaims"]
   verbs: ["get", "list", "watch", "create", "delete", "patch", "update"]
+- apiGroups: ["servicecatalog.k8s.io"]
+  resources: ["serviceinstances"]
+  verbs: ["get", "list", "watch", "create", "delete", "update"]
+- apiGroups: ["servicecatalog.k8s.io"]
+  resources: ["serviceinstances"]
+  verbs: ["get", "list", "watch", "create", "delete", "update"]
 {{- end -}}
 {{- end -}}
