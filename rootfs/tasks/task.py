@@ -1,22 +1,29 @@
 import os
 import json
+import logging
 import threading
 import nsq
 from functools import wraps
 
 
+logger = logging.getLogger(__name__)
+
+
 def _message_handler(message):
-    data = json.loads(message.body)
-    method = TASKS[data["target_id"]]
-    threading.Thread(
-        target=method, args=data["args"], kwargs=data["kwargs"]).start()
-    return True
+
+    def _method():
+        data = json.loads(message.body)
+        fun = TASKS[data["target_id"]]
+        fun(*data["args"], **data["kwargs"])
+        message.finish()
+    message.enable_async()
+    threading.Thread(target=_method).start()
 
 
 TASKS = {}
 NSQD_ADDRS = os.environ.get('DRYCC_NSQD_ADDRS', '127.0.0.1:4150').split(",")
-NSQ_TOPIC = os.environ.get('DRYCC_NSQ_TASKS_TOPIC', 'tasks:topic')
-NSQ_CHANNEL = os.environ.get('DRYCC_NSQ_TASKS_CHANNEL', 'tasks:channel')
+NSQ_TOPIC = os.environ.get('DRYCC_NSQ_TASKS_TOPIC', 'drycc-tasks-topic')
+NSQ_CHANNEL = os.environ.get('DRYCC_NSQ_TASKS_CHANNEL', 'drycc-tasks-channel')
 NSQD_WRITER = nsq.Writer(NSQD_ADDRS)
 NSQD_READER = nsq.Reader(
     message_handler=_message_handler,
