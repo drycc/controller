@@ -51,7 +51,7 @@ def apply_async(target, delay=0, callback=None, args=(), kwargs=None):
     message = json.dumps({
         "target_id": target_id,
         "args": args,
-        "kwargs": {} if kwargs == None else kwargs
+        "kwargs": {} if kwargs is None else kwargs
     }).encode("utf-8")
     if delay <= 0:
         NSQD_WRITER.pub(NSQ_TOPIC, message, callback=callback)
