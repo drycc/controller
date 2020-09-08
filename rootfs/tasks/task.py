@@ -44,14 +44,14 @@ def task(func):
     return register_task
 
 
-def apply_async(target, delay=0, callback=None, *args, **kwargs):
+def apply_async(target, delay=0, callback=None, args=(), kwargs=None):
     target_id = "%s.%s" % (target.__module__, target.__name__)
     if target_id not in TASKS:
         raise NotImplemented("This task is not registered.")
     message = json.dumps({
         "target_id": target_id,
         "args": args,
-        "kwargs": kwargs
+        "kwargs": {} if kwargs == None else kwargs
     }).encode("utf-8")
     if delay <= 0:
         NSQD_WRITER.pub(NSQ_TOPIC, message, callback=callback)

@@ -27,12 +27,12 @@ class TestUtils(unittest.TestCase):
             self.assertEqual(time.time() - t > 3, True)
 
         def callback(addr, msg):
-            self.assertEqual(msg==b'OK', True)
+            self.assertEqual(msg == b'OK', True)
 
         threading.Thread(
             target=tornado.ioloop.IOLoop.current().start).start()
         time.sleep(3)
-        apply_async(t1, callback=callback, name="hello", value="word")
-        apply_async(t2, callback=callback, delay=3000, t=time.time())
+        apply_async(t1, callback=callback, args=("hello", "word"))
+        apply_async(t2, callback=callback, delay=3000, args=(time.time(), ))
         time.sleep(12)
         tornado.ioloop.IOLoop.current().stop()
