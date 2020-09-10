@@ -30,7 +30,7 @@ python /app/manage.py migrate --noinput
 # spawn a gunicorn server in the background
 echo ""
 echo "Starting up Gunicorn"
-gunicorn -c /app/drycc/gunicorn/config.py api.wsgi &
+gunicorn -c /app/drycc/gunicorn/config.py drycc.gunicorn.wsgi &
 
 echo ""
 echo "Loading database information to Kubernetes in the background"
