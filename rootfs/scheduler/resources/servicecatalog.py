@@ -1,5 +1,8 @@
+import logging
 from scheduler.resources import Resource
 from scheduler.exceptions import KubeHTTPException
+
+logger = logging.getLogger(__name__)
 
 
 class ServiceCatalog(Resource):
@@ -22,13 +25,28 @@ class ServiceCatalog(Resource):
             "spec": {
                 "clusterServiceClassExternalName": kwargs.get('instance_class'),
                 "clusterServicePlanExternalName": kwargs.get('instance_plan'),
-                #{"param - 1": "value - 1","param - 2": "value - 2"}  # noqa
-                "parameters": kwargs.get('parameters'),
             }
         }
         if version:
             data["metadata"]["resourceVersion"] = version
+        if kwargs.get('parameters'):
+            data["spec"]["parameters"] = kwargs.get('parameters')
+        if kwargs.get('external_id'):
+            data["spec"]["externalID"] = kwargs.get('external_id')
         return data
+
+    # @staticmethod
+    # def service_instance_patch_manifest(namespace, name, version=None, **kwargs):
+    #     data = {
+    #         "spec": {
+    #             "clusterServicePlanExternalName": kwargs.get('instance_plan'),
+    #             "parameters": kwargs.get('parameters'),
+    #         }
+    #     }
+    #     if version:
+    #         data["metadata"] = {}
+    #         data["metadata"]["resourceVersion"] = version
+    #     return data
 
     def get_instance(self, namespace, name=None):
         """
@@ -52,6 +70,7 @@ class ServiceCatalog(Resource):
         """
         url = self.api('/namespaces/{}/serviceinstances', namespace)
         data = self.service_instance_manifest(namespace, name, **kwargs)
+        logging.info("create_instance_data:{}".format(data))
         response = self.http_post(url, json=data)
         if not response.status_code == 201:
             raise KubeHTTPException(
@@ -65,12 +84,23 @@ class ServiceCatalog(Resource):
         """
         url = self.api('/namespaces/{}/serviceinstances/{}', namespace, name)
         data = self.service_instance_manifest(namespace, name, version, **kwargs)
+        logger.info("put_instance data:{}".format(data))
         response = self.http_put(url, json=data)
         if not response.status_code == 200:
             raise KubeHTTPException(
                 response,
                 "update serviceinstances {}".format(namespace))
         return response
+
+    # def patch_instance(self, namespace, name, version, **kwargs):
+    #     data = self.service_instance_patch_manifest(
+    #         namespace, name, version, **kwargs)
+    #     url = self.api("/namespaces/{}/serviceinstances/{}", namespace, name)
+    #     logger.info("patch_instance data:{}".format(data))
+    #     response = self.http_patch(url, json=data)
+    #     if self.unhealthy(response.status_code):
+    #         raise KubeHTTPException(response, "patch serviceinstances {}".format(namespace))
+    #     return response
 
     def delete_instance(self, namespace, name):
         """
