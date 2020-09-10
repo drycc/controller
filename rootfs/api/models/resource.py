@@ -71,7 +71,7 @@ class Resource(UuidAuditedModel):
 
     @transaction.atomic
     def delete(self, *args, **kwargs):
-        if self.binding and self.binding == "Ready":
+        if self.binding == "Ready":
             raise DryccException("the plan is still binding")
         # Deatch ServiceInstance, updates k8s
         self.detach(*args, **kwargs)
@@ -84,7 +84,7 @@ class Resource(UuidAuditedModel):
             self._scheduler.servicecatalog.get_instance(self.app.id, self.name)
             self._scheduler.servicecatalog.delete_instance(self.app.id, self.name)
         except KubeException as e:
-            raise ServiceUnavailable("Could not delete volume {} for application {}".format(name, self.app_id)) from e  # noqa
+            raise ServiceUnavailable("Could not delete resource {} for application {}".format(self.name, self.app_id)) from e  # noqa
 
     def log(self, message, level=logging.INFO):
         """Logs a message in the context of this service.
@@ -92,10 +92,10 @@ class Resource(UuidAuditedModel):
         This prefixes log messages with an application "tag" that the customized
         drycc-logspout will be on the lookout for.  When it's seen, the message-- usually
         an application event of some sort like releasing or scaling, will be considered
-        as "belonging" to the application instead of the controller and will be handled
+        as "belonging" to the application instead of the contoller and will be handled
         accordingly.
         """
-        logger.log(level, "[{}]: {}".format(self.id, message))
+        logger.log(level, "[{}]: {}".format(self.uuid, message))
 
     def bind(self, *args, **kwargs):
         if self.status != "Ready":
@@ -124,12 +124,14 @@ class Resource(UuidAuditedModel):
                 raise ServiceUnavailable(msg) from e
 
     def unbind(self, *args, **kwargs):
-        if self.binding != "Ready":
+        if not self.binding:
             raise DryccException("the resource is not binding")
         try:
             # We raise an exception when a resource doesn't exist
             self._scheduler.servicecatalog.get_binding(self.app.id, self.name)
             self._scheduler.servicecatalog.delete_binding(self.app.id, self.name)
+            self.binding = None
+            self.save()
         except KubeException as e:
             raise ServiceUnavailable("Could not unbind resource {} for application {}".format(self.name, self.app_id)) from e  # noqa
 
@@ -138,10 +140,7 @@ class Resource(UuidAuditedModel):
             data = self._scheduler.servicecatalog.get_instance(
                 self.app.id, self.name).json()
         except KubeException as e:
-            self.log("certificate {} does not exist".format(self.app.id),
-                     level=logging.INFO)
-            data = None
-            logger.info(e)
+            self.DryccException("resource {} does not exist".format(self.name))
         try:
             version = data["metadata"]["resourceVersion"]
             instance = self.plan.split(":")
@@ -149,10 +148,14 @@ class Resource(UuidAuditedModel):
                 "instance_class": instance[0],
                 "instance_plan": ":".join(instance[1:]),
                 "parameters": self.options,
+                "external_id": data["spec"]["externalID"]
             }
             self._scheduler.servicecatalog.put_instance(
                 self.app.id, self.name, version, **kwargs
             )
+            # self._scheduler.servicecatalog.patch_instance(
+            #     self.app.id, self.name, version, **kwargs
+            # )
             # create/patch/put  retrieve_task
             data = {
                 "task_id": uuid.uuid4().hex,
@@ -171,7 +174,7 @@ class Resource(UuidAuditedModel):
                 resp_i = self._scheduler.servicecatalog.get_instance(
                     self.app.id, self.name).json()
                 self.status = resp_i.get('status', {}).\
-                    get('lastConditionState', '').lower()
+                    get('lastConditionState')
                 update_flag = True
             except KubeException as e:
                 logger.info("retrieve instance info error: {}".format(e))
@@ -181,7 +184,7 @@ class Resource(UuidAuditedModel):
                 resp_b = self._scheduler.servicecatalog.get_binding(
                     self.app.id, self.name).json()
                 self.binding = resp_b.get('status', {}).\
-                    get('lastConditionState', '').lower()
+                    get('lastConditionState')
                 self.options = resp_b.get('spec', {}).get('parameters', {})
                 update_flag = True
                 secret_name = resp_b.get('spec', {}).get('secretName')
@@ -213,12 +216,8 @@ class Resource(UuidAuditedModel):
                 logger.info("delete binding info error: {}".format(e))
             self.binding = None
 
-        if (self.status != "Ready") or (self.binding is None):
-            try:
-                self._scheduler.servicecatalog.delete_instance(
-                    self.app.id, self.name)
-            except KubeException as e:
-                logger.info("retrieve instance info error: {}".format(e))
+        if (self.status != "Ready") or (not self.binding):
+            self.delete()
 
 
 @task
@@ -234,7 +233,7 @@ def retrieve_task(data):
         if _:
             return True
         else:
-            t = time.time() - resource.created.timestamps()
+            t = time.time() - resource.created.timestamp()
             if t < 3600:
                 apply_async(retrieve_task, delay=30000, args=(data, ))
             elif t < 3600 * 12:

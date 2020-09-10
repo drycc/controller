@@ -221,6 +221,11 @@ class KubeHTTPClient(object):
         """
         try:
             url = urljoin(self.url, path)
+            # accepted media types include:
+            # application/json-patch+json,
+            # application/merge-patch+json,
+            # application/apply-patch+yaml
+            # self.session.headers["Content-Type"] = "application/json-patch+json"
             response = self.session.patch(url, data=data, **kwargs)
         except requests.exceptions.ConnectionError as err:
             # reraise as KubeException, but log stacktrace.

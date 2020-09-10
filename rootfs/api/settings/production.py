@@ -392,10 +392,10 @@ DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
         'NAME': os.environ.get(
-            'DRYCC_DATABASE_NAME', os.environ.get('DRYCC_DATABASE_USER', 'drycc')),
-        'USER': os.environ.get('DRYCC_DATABASE_USER', ''),
-        'PASSWORD': os.environ.get('DRYCC_DATABASE_PASSWORD', ''),
-        'HOST': os.environ.get('DRYCC_DATABASE_SERVICE_HOST', ''),
+            'DRYCC_DATABASE_NAME', os.environ.get('DRYCC_DATABASE_USER', 'drycc_controller')),
+        'USER': os.environ.get('DRYCC_DATABASE_USER', 'drycc_controller'),
+        'PASSWORD': os.environ.get('DRYCC_DATABASE_PASSWORD', '123456'),
+        'HOST': os.environ.get('DRYCC_DATABASE_SERVICE_HOST', '192.168.6.50'),
         'PORT': os.environ.get('DRYCC_DATABASE_SERVICE_PORT', 5432),
         # https://docs.djangoproject.com/en/1.11/ref/databases/#persistent-connections
         'CONN_MAX_AGE': 600,
