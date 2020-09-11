@@ -26,7 +26,7 @@ from api.models.release import Release
 from api.models.tls import TLS
 from api.models.appsettings import AppSettings
 from api.models.volume import Volume
-from api.utils import generate_app_name, async_run
+from api.utils import generate_app_name, apply_tasks
 from scheduler import KubeHTTPException, KubeException
 
 logger = logging.getLogger(__name__)
@@ -383,7 +383,7 @@ class App(UuidAuditedModel):
                 ) for pod in self.list_pods(**kwargs)
             ]
 
-            async_run(tasks)
+            apply_tasks(tasks)
         except Exception as e:
             err = "warning, some pods failed to stop:\n{}".format(str(e))
             self.log(err, logging.WARNING)
@@ -528,7 +528,7 @@ class App(UuidAuditedModel):
             # create the application config in k8s (secret in this case) for all deploy objects
             self.set_application_config(release)
 
-            async_run(tasks)
+            apply_tasks(tasks)
         except Exception as e:
             err = '(scale): {}'.format(e)
             self.log(err, logging.ERROR)
@@ -619,7 +619,7 @@ class App(UuidAuditedModel):
             ]
 
             try:
-                async_run(tasks)
+                apply_tasks(tasks)
             except KubeException as e:
                 # Don't rollback if the previous release doesn't have a build which means
                 # this is the first build and all the previous releases are just config changes.
