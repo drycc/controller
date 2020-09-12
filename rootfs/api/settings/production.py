@@ -412,6 +412,9 @@ LDAP_USER_BASEDN = os.environ.get('LDAP_USER_BASEDN', '')
 LDAP_USER_FILTER = os.environ.get('LDAP_USER_FILTER', 'username')
 LDAP_GROUP_BASEDN = os.environ.get('LDAP_GROUP_BASEDN', '')
 LDAP_GROUP_FILTER = os.environ.get('LDAP_GROUP_FILTER', '')
+LDAP_ACTIVE_GROUP = os.environ.get('LDAP_ACTIVE_GROUP', '')
+LDAP_STAFF_GROUP = os.environ.get('LDAP_STAFF_GROUP', '')
+LDAP_SUPERUSER_GROUP = os.environ.get('LDAP_SUPERUSER_GROUP', '')
 
 # Django LDAP backend configuration.
 # See https://pythonhosted.org/django-auth-ldap/reference.html
@@ -435,6 +438,11 @@ if LDAP_ENDPOINT:
         scope=ldap.SCOPE_SUBTREE,
         filterstr="(%s)" % LDAP_GROUP_FILTER
     )
+    AUTH_LDAP_USER_FLAGS_BY_GROUP = {
+        'is_active': LDAP_ACTIVE_GROUP,
+        'is_staff': LDAP_STAFF_GROUP,
+        'is_superuser': LDAP_SUPERUSER_GROUP,
+    }
     AUTH_LDAP_GROUP_TYPE = GroupOfNamesType()
     AUTH_LDAP_USER_ATTR_MAP = {
         "first_name": "givenName",
