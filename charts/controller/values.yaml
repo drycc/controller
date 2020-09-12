@@ -19,6 +19,12 @@ k8s_api_verify_tls: "true"
 # Set storageClassName, It is used for application mount.
 app_storage_class: ""
 
+# Any custom controller environment variables
+# can be specified as key-value pairs under environment
+# this is usually a non required setting.
+environment:
+  RESERVED_NAMES: "drycc, drycc-builder, drycc-monitor-grafana"
+
 nsqd:
   replicas: 1
   tcp_port: 4150
