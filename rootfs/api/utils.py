@@ -1,7 +1,6 @@
 """
 Helper functions used by the Drycc server.
 """
-import asyncio
 import base64
 import concurrent
 import hashlib
@@ -145,7 +144,7 @@ def dict_merge(origin, merge):
     return result
 
 
-def async_run(tasks):
+def apply_tasks(tasks):
     """
     run a group of tasks async
     Requires the tasks arg to be a list of functools.partial()
@@ -153,33 +152,12 @@ def async_run(tasks):
     if not tasks:
         return
 
-    # start a new async event loop
-    loop = asyncio.get_event_loop()
-    # https://github.com/python/asyncio/issues/258
     executor = concurrent.futures.ThreadPoolExecutor(5)
-    loop.set_default_executor(executor)
-
-    async_tasks = [asyncio.ensure_future(async_task(task, loop)) for task in tasks]
-    # run tasks in parallel
-    loop.run_until_complete(asyncio.wait(async_tasks))
-    # deal with errors (exceptions, etc)
-    for task in async_tasks:
-        error = task.exception()
+    for future in [executor.submit(task) for task in tasks]:
+        error = future.exception()
         if error is not None:
             raise error
-
     executor.shutdown(wait=True)
-
-
-async def async_task(params, loop):
-    """
-    Perform a task asynchronously.
-    """
-    # get the calling function
-    logger.debug('Running {}'.format(params))
-    # This executes a task in its own thread (in parallel)
-    await loop.run_in_executor(None, params)
-    logger.debug('Finished running {}'.format(params))
 
 
 if __name__ == "__main__":
