@@ -131,6 +131,7 @@ class Resource(UuidAuditedModel):
             self._scheduler.servicecatalog.get_binding(self.app.id, self.name)
             self._scheduler.servicecatalog.delete_binding(self.app.id, self.name)
             self.binding = None
+            self.data = {}
             self.save()
         except KubeException as e:
             raise ServiceUnavailable("Could not unbind resource {} for application {}".format(self.name, self.app_id)) from e  # noqa
@@ -175,6 +176,7 @@ class Resource(UuidAuditedModel):
                     self.app.id, self.name).json()
                 self.status = resp_i.get('status', {}).\
                     get('lastConditionState')
+                self.options = resp_i.get('spec', {}).get('parameters', {})
                 update_flag = True
             except KubeException as e:
                 logger.info("retrieve instance info error: {}".format(e))
@@ -185,7 +187,6 @@ class Resource(UuidAuditedModel):
                     self.app.id, self.name).json()
                 self.binding = resp_b.get('status', {}).\
                     get('lastConditionState')
-                self.options = resp_b.get('spec', {}).get('parameters', {})
                 update_flag = True
                 secret_name = resp_b.get('spec', {}).get('secretName')
                 if secret_name:
