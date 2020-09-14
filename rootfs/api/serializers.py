@@ -659,6 +659,7 @@ class ResourceSerializer(serializers.ModelSerializer):
     owner = serializers.ReadOnlyField(source='owner.username')
     name = serializers.CharField(max_length=63, required=True)
     plan = serializers.CharField(max_length=128, required=True)
+    data = JSONFieldSerializer(required=False, binary=True)
     options = JSONFieldSerializer(required=False, binary=True)
 
     class Meta:
@@ -670,8 +671,7 @@ class ResourceSerializer(serializers.ModelSerializer):
         if instance.plan.split(':')[0] != validated_data.get('plan', '').split(':')[0]:  # noqa
             raise DryccException("the resource cann't changed")
         instance.plan = validated_data.get('plan')
-        if validated_data.get('options'):
-            instance.options = validated_data.get('options')
+        instance.options = validated_data.get('options')
         instance.attach_update()
         instance.save()
         return instance

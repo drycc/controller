@@ -792,10 +792,14 @@ class AppResourceBindingViewSet(AppResourceViewSet):
         bind_action = self.request.data.get('bind_action', '').lower()
         if bind_action == 'bind':
             resource.bind()
-            return HttpResponse(status=status.HTTP_202_ACCEPTED)
+            serializer = self.get_serializer(resource, many=False)
+            logger.info("resoruce bind response data: {}".format(serializer))
+            return Response(serializer.data)
         elif bind_action == 'unbind':
             resource.unbind()
-            return HttpResponse(status=status.HTTP_202_ACCEPTED)
+            serializer = self.get_serializer(resource, many=False)
+            logger.info("resoruce unbind response data: {}".format(serializer))
+            return Response(serializer.data)
         else:
             return Http404("unknown action")
 

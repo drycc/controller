@@ -67,9 +67,9 @@ rules:
   verbs: ["get", "list", "watch", "create", "delete", "patch", "update"]
 - apiGroups: ["servicecatalog.k8s.io"]
   resources: ["serviceinstances"]
-  verbs: ["get", "list", "watch", "create", "delete", "update"]
+  verbs: ["get", "list", "watch", "create", "delete", "patch", "update"]
 - apiGroups: ["servicecatalog.k8s.io"]
-  resources: ["serviceinstances"]
-  verbs: ["get", "list", "watch", "create", "delete", "update"]
+  resources: ["servicebindings"]
+  verbs: ["get", "list", "watch", "create", "delete", "patch", "update"]
 {{- end -}}
 {{- end -}}
