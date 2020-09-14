@@ -92,7 +92,7 @@ class Resource(UuidAuditedModel):
         This prefixes log messages with an application "tag" that the customized
         drycc-logspout will be on the lookout for.  When it's seen, the message-- usually
         an application event of some sort like releasing or scaling, will be considered
-        as "belonging" to the application instead of the contoller and will be handled
+        as "belonging" to the application instead of the controller and will be handled
         accordingly.
         """
         logger.log(level, "[{}]: {}".format(self.uuid, message))
@@ -197,7 +197,7 @@ class Resource(UuidAuditedModel):
                 logger.info("retrieve binding info error: {}".format(e))
         if update_flag is True:
             self.save()
-        if self.status and self.binding:
+        if self.status == "Ready" and self.binding == "Ready":
             return True
         else:
             return False
