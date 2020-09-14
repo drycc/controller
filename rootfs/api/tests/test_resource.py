@@ -102,23 +102,6 @@ class ResourceTest(DryccTransactionTestCase):
         response = self.client.delete(url)
         self.assertEqual(response.status_code, 204)
 
-
-    # def test_resource_update(self, mock_requests):
-    #     """
-    #     Test that update resource from a app, Associated with apply_async
-    #     """
-    #     # create
-    #     app_id = self.create_app()
-    #     data = {'name': 'mysql', 'plan': 'mysql:5.6'}
-    #     self.client.post('/v2/apps/{}/resources'.format(app_id), data=data)
-    #
-    #     # Update
-    #     url = '/v2/apps/{app_id}/resources/{name}'.format(app_id=app_id,
-    #                                                       name='mysql')
-    #     data = {'plan': 'mysql:5.7'}
-    #     response = self.client.put(url, data=data)
-    #     self.assertEqual(response.status_code, 200)
-
     def test_resource_bind(self, mock_requests):
         # create
         app_id = self.create_app()

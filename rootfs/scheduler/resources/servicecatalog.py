@@ -35,19 +35,6 @@ class ServiceCatalog(Resource):
             data["spec"]["externalID"] = kwargs.get('external_id')
         return data
 
-    # @staticmethod
-    # def service_instance_patch_manifest(namespace, name, version=None, **kwargs):
-    #     data = {
-    #         "spec": {
-    #             "clusterServicePlanExternalName": kwargs.get('instance_plan'),
-    #             "parameters": kwargs.get('parameters'),
-    #         }
-    #     }
-    #     if version:
-    #         data["metadata"] = {}
-    #         data["metadata"]["resourceVersion"] = version
-    #     return data
-
     def get_instance(self, namespace, name=None):
         """
         Fetch a single serviceinstance or a list of serviceinstances
@@ -91,16 +78,6 @@ class ServiceCatalog(Resource):
                 response,
                 "update serviceinstances {}".format(namespace))
         return response
-
-    # def patch_instance(self, namespace, name, version, **kwargs):
-    #     data = self.service_instance_patch_manifest(
-    #         namespace, name, version, **kwargs)
-    #     url = self.api("/namespaces/{}/serviceinstances/{}", namespace, name)
-    #     logger.info("patch_instance data:{}".format(data))
-    #     response = self.http_patch(url, json=data)
-    #     if self.unhealthy(response.status_code):
-    #         raise KubeHTTPException(response, "patch serviceinstances {}".format(namespace))
-    #     return response
 
     def delete_instance(self, namespace, name):
         """

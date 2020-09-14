@@ -58,7 +58,6 @@ class Resource(UuidAuditedModel):
                 self._scheduler.servicecatalog.create_instance(
                     self.app.id, self.name, **kwargs
                 )
-                # create/patch/put  retrieve_task
                 data = {
                     "task_id": uuid.uuid4().hex,
                     "resource_id": str(self.uuid),
@@ -112,7 +111,6 @@ class Resource(UuidAuditedModel):
             try:
                 self._scheduler.servicecatalog.create_binding(
                     self.app.id, self.name, **kwargs)
-                # create/patch/put  retrieve_task
                 data = {
                     "task_id": uuid.uuid4().hex,
                     "resource_id": str(self.uuid),
@@ -154,10 +152,6 @@ class Resource(UuidAuditedModel):
             self._scheduler.servicecatalog.put_instance(
                 self.app.id, self.name, version, **kwargs
             )
-            # self._scheduler.servicecatalog.patch_instance(
-            #     self.app.id, self.name, version, **kwargs
-            # )
-            # create/patch/put  retrieve_task
             data = {
                 "task_id": uuid.uuid4().hex,
                 "resource_id": str(self.uuid),

@@ -101,13 +101,6 @@ class ServiceCatalogTest(TestCase):
         self.scheduler.ns.create("test-serviceinstance")
         self.create_binding(namespace="test-serviceinstance")
 
-    # def test_create_binding_failure(self):
-    #     with self.assertRaises(
-    #         KubeHTTPException,
-    #         msg='failed to create servicebindings doesnotexist in Namespace {}: 404 Not Found'.format(self.namespace) # noqa
-    #     ):
-    #         self.create_binding(self.namespace, 'doesnotexist')
-
     def test_binding_delete(self):
         # test success
         name = self.create_binding(namespace="test-serviceinstance")
