@@ -431,12 +431,12 @@ if LDAP_ENDPOINT:
     AUTH_LDAP_USER_SEARCH = LDAPSearch(
         base_dn=LDAP_USER_BASEDN,
         scope=ldap.SCOPE_SUBTREE,
-        filterstr="(%s=%%(user)s)" % LDAP_USER_FILTER
+        filterstr="%s" % LDAP_USER_FILTER
     )
     AUTH_LDAP_GROUP_SEARCH = LDAPSearch(
         base_dn=LDAP_GROUP_BASEDN,
         scope=ldap.SCOPE_SUBTREE,
-        filterstr="(%s)" % LDAP_GROUP_FILTER
+        filterstr="%s" % LDAP_GROUP_FILTER
     )
     AUTH_LDAP_USER_FLAGS_BY_GROUP = {
         'is_active': LDAP_ACTIVE_GROUP,
