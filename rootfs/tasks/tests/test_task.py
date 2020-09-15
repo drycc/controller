@@ -18,21 +18,21 @@ class TestUtils(unittest.TestCase):
     def test_apply_async(self):
 
         @task
-        def t1(name, value):
-            self.assertEqual(name == "hello", True)
+        def t1(name, value, t):
+            self.assertEqual(name == "hi", True)
             self.assertEqual(value == "word", True)
 
         @task
         def t2(t):
             self.assertEqual(time.time() - t > 3, True)
 
-        def callback(addr, msg):
+        def callback(_, msg):
             self.assertEqual(msg == b'OK', True)
 
-        threading.Thread(
-            target=tornado.ioloop.IOLoop.current().start).start()
-        time.sleep(3)
-        apply_async(t1, callback=callback, args=("hello", "word"))
+        loop = tornado.ioloop.IOLoop.current()
+        threading.Thread(target=loop.start).start()
+        time.sleep(9)
+        apply_async(t1, callback=callback, args=("hi", "word", time.time()))
         apply_async(t2, callback=callback, delay=3000, args=(time.time(), ))
-        time.sleep(12)
-        tornado.ioloop.IOLoop.current().stop()
+        time.sleep(9)
+        loop.stop()
