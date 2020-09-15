@@ -173,7 +173,7 @@ APPEND_SLASH = False
 LOGGING = {
     'version': 1,
     'disable_existing_loggers': False,
-    'root': {'level': 'DEBUG' if DEBUG else 'INFO'},
+    'root': {'level': 'DEBUG' if DEBUG else 'WARN'},
     'formatters': {
         'verbose': {
             'format': '%(levelname)s %(asctime)s %(module)s %(process)d %(thread)d %(message)s'
