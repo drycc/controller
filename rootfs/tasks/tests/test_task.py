@@ -1,6 +1,6 @@
 import unittest
 import time
-import threading
+import datetime
 import tornado.ioloop
 from tasks.task import TASKS
 from tasks import task, apply_async
@@ -18,7 +18,7 @@ class TestUtils(unittest.TestCase):
     def test_apply_async(self):
 
         @task
-        def t1(name, value, t):
+        def t1(name, value):
             self.assertEqual(name == "hi", True)
             self.assertEqual(value == "word", True)
 
@@ -29,10 +29,14 @@ class TestUtils(unittest.TestCase):
         def callback(_, msg):
             self.assertEqual(msg == b'OK', True)
 
-        loop = tornado.ioloop.IOLoop.current()
-        threading.Thread(target=loop.start).start()
-        time.sleep(9)
-        apply_async(t1, callback=callback, args=("hi", "word", time.time()))
-        apply_async(t2, callback=callback, delay=3000, args=(time.time(), ))
-        time.sleep(9)
-        loop.stop()
+        def run_test_task():
+            loop = tornado.ioloop.IOLoop.current()
+            try:
+                apply_async(t1, callback=callback, args=("hi", "word"))
+                apply_async(t2, callback=callback, delay=3000, args=(time.time(),))
+            finally:
+                _loop.add_timeout(datetime.timedelta(seconds=9), loop.stop)
+
+        _loop = tornado.ioloop.IOLoop.current()
+        _loop.add_timeout(datetime.timedelta(seconds=3), run_test_task)
+        _loop.start()
