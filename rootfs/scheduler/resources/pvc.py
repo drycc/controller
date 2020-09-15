@@ -3,7 +3,9 @@ from scheduler.resources import Resource
 from scheduler.exceptions import KubeHTTPException
 
 
-class PVC(Resource):
+class PersistentVolumeClaim(Resource):
+    short_name = 'pvc'
+
     @staticmethod
     def manifest(namespace, name, version=None, **kwargs):
         labels = {
