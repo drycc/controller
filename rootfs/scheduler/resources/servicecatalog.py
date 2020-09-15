@@ -1,8 +1,5 @@
-import logging
 from scheduler.resources import Resource
 from scheduler.exceptions import KubeHTTPException
-
-logger = logging.getLogger(__name__)
 
 
 class ServiceCatalog(Resource):
@@ -57,7 +54,6 @@ class ServiceCatalog(Resource):
         """
         url = self.api('/namespaces/{}/serviceinstances', namespace)
         data = self.service_instance_manifest(namespace, name, **kwargs)
-        logging.info("create_instance_data:{}".format(data))
         response = self.http_post(url, json=data)
         if not response.status_code == 201:
             raise KubeHTTPException(
@@ -71,7 +67,6 @@ class ServiceCatalog(Resource):
         """
         url = self.api('/namespaces/{}/serviceinstances/{}', namespace, name)
         data = self.service_instance_manifest(namespace, name, version, **kwargs)
-        logger.info("put_instance data:{}".format(data))
         response = self.http_put(url, json=data)
         if not response.status_code == 200:
             raise KubeHTTPException(
