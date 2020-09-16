@@ -25,8 +25,8 @@ class ServiceCatalogTest(TestCase):
                 "param-2": "value-2"
             }
         }
-        instance = self.scheduler.servicecatalog.create_instance(namespace,
-                                                                 name, **kwargs)
+        instance = self.scheduler.svcat.create_instance(
+            namespace, name, **kwargs)
         self.assertEqual(instance.status_code, 201, instance.json())
         return name
 
@@ -49,20 +49,19 @@ class ServiceCatalogTest(TestCase):
             KubeHTTPException,
             msg='failed to delete serviceinstance foo in Namespace {}: 404 Not Found'.format(self.namespace)  # noqa
         ):
-            self.scheduler.servicecatalog.delete_instance(self.namespace, 'foo')
+            self.scheduler.svcat.delete_instance(self.namespace, 'foo')
 
     def test_instince_delete(self):
         # test success
         name = self.create_instince()
-        response = self.scheduler.servicecatalog.delete_instance(self.namespace,
-                                                                 name)
+        response = self.scheduler.svcat.delete_instance(self.namespace, name)
         data = response.json()
         self.assertEqual(response.status_code, 200, data)
 
     def test_get_serviceinstances(self):
         # test success
         name = self.create_instince()
-        response = self.scheduler.servicecatalog.get_instance(self.namespace)
+        response = self.scheduler.svcat.get_instance(self.namespace)
         data = response.json()
         self.assertEqual(response.status_code, 200, data)
         self.assertIn('items', data)
@@ -73,7 +72,7 @@ class ServiceCatalogTest(TestCase):
     def test_get_serviceinstance(self):
         # test success
         name = self.create_instince()
-        response = self.scheduler.servicecatalog.get_instance(self.namespace, name)
+        response = self.scheduler.svcat.get_instance(self.namespace, name)
         data = response.json()
         self.assertEqual(response.status_code, 200, data)
         # simple verify of data
@@ -85,15 +84,14 @@ class ServiceCatalogTest(TestCase):
             KubeHTTPException,
             msg='failed to get Pod doesnotexist in Namespace {}: 404 Not Found'.format(self.namespace)  # noqa
         ):
-            self.scheduler.servicecatalog.get_instance(self.namespace,
-                                                       'doesnotexist')
+            self.scheduler.svcat.get_instance(self.namespace, 'doesnotexist')
 
     def create_binding(self, namespace=None, name=generate_random_name(),
                        **kwargs):
         name = self.create_instince()
         # these are all required even if it is kwargs...
-        instance = self.scheduler.servicecatalog.create_binding(self.namespace,
-                                                                name)
+        instance = self.scheduler.svcat.create_binding(
+            self.namespace, name)
         self.assertEqual(instance.status_code, 201, instance.json())
         return name
 
@@ -104,15 +102,15 @@ class ServiceCatalogTest(TestCase):
     def test_binding_delete(self):
         # test success
         name = self.create_binding(namespace="test-serviceinstance")
-        response = self.scheduler.servicecatalog.delete_binding(self.namespace,
-                                                                name)
+        response = self.scheduler.svcat.delete_binding(
+            self.namespace, name)
         data = response.json()
         self.assertEqual(response.status_code, 200, data)
 
     def test_get_servicebindings(self):
         # test success
         name = self.create_binding()
-        response = self.scheduler.servicecatalog.get_binding(self.namespace)
+        response = self.scheduler.svcat.get_binding(self.namespace)
         data = response.json()
         self.assertEqual(response.status_code, 200, data)
         self.assertIn('items', data)
@@ -126,5 +124,4 @@ class ServiceCatalogTest(TestCase):
             KubeHTTPException,
             msg='failed to get Pod doesnotexist in Namespace {}: 404 Not Found'.format(self.namespace)  # noqa
         ):
-            self.scheduler.servicecatalog.get_binding(self.namespace,
-                                                      'doesnotexist')
+            self.scheduler.svcat.get_binding(self.namespace, 'doesnotexist')

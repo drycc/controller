@@ -5,6 +5,7 @@ from scheduler.exceptions import KubeHTTPException
 class ServiceCatalog(Resource):
     api_version = 'servicecatalog.k8s.io/v1beta1'
     api_prefix = 'apis'
+    short_name = 'svcat'
 
     @staticmethod
     def service_instance_manifest(namespace, name, version=None, **kwargs):
