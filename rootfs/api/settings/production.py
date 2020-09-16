@@ -326,7 +326,7 @@ except KeyError:
 
 DRYCC_DEPLOY_HOOK_SECRET_KEY = os.environ.get('DRYCC_DEPLOY_HOOK_SECRET_KEY', None)
 
-DRYCC_APP_KUBERNETES_STORAGE_CLASS = os.environ.get('DRYCC_APP_KUBERNETES_STORAGE_CLASS', "")  # noqa
+DRYCC_APP_STORAGE_CLASS = os.environ.get('DRYCC_APP_STORAGE_CLASS', "")
 
 KUBERNETES_DEPLOYMENTS_REVISION_HISTORY_LIMIT = os.environ.get('KUBERNETES_DEPLOYMENTS_REVISION_HISTORY_LIMIT', None)  # noqa
 
@@ -340,12 +340,14 @@ KUBERNETES_POD_DEFAULT_RESOURCES = os.environ.get(
     'KUBERNETES_POD_DEFAULT_RESOURCES',
     json.dumps({
         "requests": {
-            "cpu": "256m",
-            "memory": "256Mi"
+            "cpu": "200m",
+            "memory": "256Mi",
+            "ephemeral-storage": "1Gi"
         },
         "limits": {
-            "cpu": "512m",
-            "memory": "512Mi"
+            "cpu": "500m",
+            "memory": "512Mi",
+            "ephemeral-storage": "2Gi"
         },
     })
 )
@@ -355,11 +357,11 @@ KUBERNETES_NAMESPACE_DEFAULT_QUOTA_SPEC = os.environ.get(
     'KUBERNETES_NAMESPACE_DEFAULT_QUOTA_SPEC',
     json.dumps({
         "hard": {
-            "cpu": "8",
-            "pods": "16",
-            "memory": "32Gi",
-            "ephemeral-storage": "1Gi",
-            "requests.storage": "10Gi",
+            "cpu": "64",
+            "pods": "64",
+            "memory": "128Gi",
+            "ephemeral-storage": "64Gi",
+            "requests.storage": "256Gi",
             "persistentvolumeclaims": 8,
         }
     })

@@ -18,7 +18,8 @@ class PVCTest(TestCase):
         namespace = self.namespace if namespace is None else namespace
         # these are all required even if it is kwargs...
         kwargs = {
-            'size': '500M'
+            'size': '500M',
+            'storage_class': 'default'
         }
         pvc = self.scheduler.pvc.create(namespace, name, **kwargs)
         self.assertEqual(pvc.status_code, 201, pvc.json())

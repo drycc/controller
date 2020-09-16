@@ -1,4 +1,3 @@
-from api.settings.production import DRYCC_APP_KUBERNETES_STORAGE_CLASS
 from scheduler.resources import Resource
 from scheduler.exceptions import KubeHTTPException
 
@@ -28,7 +27,7 @@ class PersistentVolumeClaim(Resource):
                         "storage": kwargs.get('size')
                     },
                 },
-                "storageClassName": DRYCC_APP_KUBERNETES_STORAGE_CLASS,
+                "storageClassName": kwargs.get("storage_class"),
                 "volumeMode": "Filesystem",
             }
         }

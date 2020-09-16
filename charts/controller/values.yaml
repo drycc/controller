@@ -24,8 +24,6 @@ app_storage_class: ""
 # this is usually a non required setting.
 environment:
   RESERVED_NAMES: "drycc, drycc-builder, drycc-monitor-grafana"
-  KUBERNETES_POD_DEFAULT_RESOURCES: "{}"
-  KUBERNETES_NAMESPACE_DEFAULT_QUOTA_SPEC: "{}"
 
 nsqd:
   replicas: 1

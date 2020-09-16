@@ -36,7 +36,9 @@ class VolumeTest(DryccTransactionTestCase):
 
         response = self.client.post(
             '/v2/apps/{}/volumes'.format(app_id),
-            data={'name': 'myvolume', 'size': '500M'}
+            data={
+                'name': 'myvolume', 'size': '500M'
+            }
         )
         self.assertEqual(response.status_code, 201, response.data)
 
