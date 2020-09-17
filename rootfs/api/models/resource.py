@@ -42,7 +42,7 @@ class Resource(UuidAuditedModel):
 
     def attach(self, *args, **kwargs):
         try:
-            self._scheduler.servicecatalog.get_instance(self.app.id, self.name)
+            self._scheduler.svcat.get_instance(self.app.id, self.name)
             err = "Resource {} already exists in this namespace".format(self.name)  # noqa
             self.log(err, logging.INFO)
             raise AlreadyExists(err)
@@ -55,7 +55,7 @@ class Resource(UuidAuditedModel):
                     "instance_plan": ":".join(instance[1:]),
                     "parameters": self.options,
                 }
-                self._scheduler.servicecatalog.create_instance(
+                self._scheduler.svcat.create_instance(
                     self.app.id, self.name, **kwargs
                 )
                 data = {
@@ -80,8 +80,8 @@ class Resource(UuidAuditedModel):
     def detach(self, *args, **kwargs):
         try:
             # We raise an exception when a resource doesn't exist
-            self._scheduler.servicecatalog.get_instance(self.app.id, self.name)
-            self._scheduler.servicecatalog.delete_instance(self.app.id, self.name)
+            self._scheduler.svcat.get_instance(self.app.id, self.name)
+            self._scheduler.svcat.delete_instance(self.app.id, self.name)
         except KubeException as e:
             raise ServiceUnavailable("Could not delete resource {} for application {}".format(self.name, self.app_id)) from e  # noqa
 
@@ -102,14 +102,14 @@ class Resource(UuidAuditedModel):
         if self.binding == "Ready":
             raise DryccException("the resource is binding")
         try:
-            self._scheduler.servicecatalog.get_binding(self.app.id, self.name)
+            self._scheduler.svcat.get_binding(self.app.id, self.name)
             err = "Resource {} is binding".format(self.name)
             self.log(err, logging.INFO)
             raise AlreadyExists(err)
         except KubeException as e:
             logger.info(e)
             try:
-                self._scheduler.servicecatalog.create_binding(
+                self._scheduler.svcat.create_binding(
                     self.app.id, self.name, **kwargs)
                 data = {
                     "task_id": uuid.uuid4().hex,
@@ -126,8 +126,8 @@ class Resource(UuidAuditedModel):
             raise DryccException("the resource is not binding")
         try:
             # We raise an exception when a resource doesn't exist
-            self._scheduler.servicecatalog.get_binding(self.app.id, self.name)
-            self._scheduler.servicecatalog.delete_binding(self.app.id, self.name)
+            self._scheduler.svcat.get_binding(self.app.id, self.name)
+            self._scheduler.svcat.delete_binding(self.app.id, self.name)
             self.binding = None
             self.data = {}
             self.save()
@@ -136,7 +136,7 @@ class Resource(UuidAuditedModel):
 
     def attach_update(self, *args, **kwargs):
         try:
-            data = self._scheduler.servicecatalog.get_instance(
+            data = self._scheduler.svcat.get_instance(
                 self.app.id, self.name).json()
         except KubeException as e:
             self.DryccException("resource {} does not exist".format(self.name))
@@ -149,7 +149,7 @@ class Resource(UuidAuditedModel):
                 "parameters": self.options,
                 "external_id": data["spec"]["externalID"]
             }
-            self._scheduler.servicecatalog.put_instance(
+            self._scheduler.svcat.put_instance(
                 self.app.id, self.name, version, **kwargs
             )
             data = {
@@ -166,7 +166,7 @@ class Resource(UuidAuditedModel):
         update_flag = False
         if self.status != "Ready":
             try:
-                resp_i = self._scheduler.servicecatalog.get_instance(
+                resp_i = self._scheduler.svcat.get_instance(
                     self.app.id, self.name).json()
                 self.status = resp_i.get('status', {}).\
                     get('lastConditionState')
@@ -177,7 +177,7 @@ class Resource(UuidAuditedModel):
         if self.binding != "Ready":
             try:
                 # We raise an exception when a resource doesn't exist
-                resp_b = self._scheduler.servicecatalog.get_binding(
+                resp_b = self._scheduler.svcat.get_binding(
                     self.app.id, self.name).json()
                 self.binding = resp_b.get('status', {}).\
                     get('lastConditionState')
@@ -200,12 +200,12 @@ class Resource(UuidAuditedModel):
     def detach_resource(self, *args, **kwargs):
         if self.binding != "Ready":
             try:
-                resp_b = self._scheduler.servicecatalog.get_binding(
+                resp_b = self._scheduler.svcat.get_binding(
                     self.app.id, self.name).json()
                 secret_name = resp_b.get('spec', {}).get('secretName')
                 if secret_name:
                     self._scheduler.secret.delete(self.app.id, secret_name)
-                self._scheduler.servicecatalog.delete_binding(
+                self._scheduler.svcat.delete_binding(
                     self.app.id, self.name)
             except KubeException as e:
                 logger.info("delete binding info error: {}".format(e))

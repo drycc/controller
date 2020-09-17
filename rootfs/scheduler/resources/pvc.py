@@ -1,9 +1,10 @@
-from api.settings.production import DRYCC_APP_KUBERNETES_STORAGE_CLASS
 from scheduler.resources import Resource
 from scheduler.exceptions import KubeHTTPException
 
 
-class PVC(Resource):
+class PersistentVolumeClaim(Resource):
+    short_name = 'pvc'
+
     @staticmethod
     def manifest(namespace, name, version=None, **kwargs):
         labels = {
@@ -26,7 +27,7 @@ class PVC(Resource):
                         "storage": kwargs.get('size')
                     },
                 },
-                "storageClassName": DRYCC_APP_KUBERNETES_STORAGE_CLASS,
+                "storageClassName": kwargs.get("storage_class"),
                 "volumeMode": "Filesystem",
             }
         }

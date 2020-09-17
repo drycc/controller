@@ -77,7 +77,7 @@ spec:
           - name: "IMAGE_PULL_POLICY"
             value: "{{ .Values.app_pull_policy }}"
 {{- if (.Values.app_storage_class) }}
-          - name: "DRYCC_APP_KUBERNETES_STORAGE_CLASS"
+          - name: "DRYCC_APP_STORAGE_CLASS"
             value: "{{ .Values.app_storage_class }}"
 {{- end }}
           - name: "TZ"

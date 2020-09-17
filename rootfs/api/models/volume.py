@@ -29,7 +29,7 @@ class Volume(UuidAuditedModel):
     def save(self, *args, **kwargs):
         # Attach volume, updates k8s
         if self.created == self.updated:
-            self.attach(*args, **kwargs)
+            self.attach()
         # Save to DB
         return super(Volume, self).save(*args, **kwargs)
 
@@ -38,11 +38,11 @@ class Volume(UuidAuditedModel):
         if self.path:
             raise DryccException("the volume is not unmounted")
         # Deatch volume, updates k8s
-        self.detach(*args, **kwargs)
+        self.detach()
         # Delete from DB
         return super(Volume, self).delete(*args, **kwargs)
 
-    def attach(self, *args, **kwargs):
+    def attach(self):
         try:
             self._scheduler.pvc.get(self.app.id, self.name)
             err = "Volume {} already exists in this namespace".format(self.name)  # noqa
@@ -52,7 +52,8 @@ class Volume(UuidAuditedModel):
             logger.info(e)
             try:
                 kwargs = {
-                    "size": self.size
+                    "size": self.size,
+                    "storage_class": settings.DRYCC_APP_STORAGE_CLASS,
                 }
                 self._scheduler.pvc.create(self.app.id, self.name, **kwargs)
             except KubeException as e:
@@ -60,7 +61,7 @@ class Volume(UuidAuditedModel):
                       '{} for {}'.format(self.name, self.app_id)
                 raise ServiceUnavailable(msg) from e
 
-    def detach(self, *args, **kwargs):
+    def detach(self):
         try:
             # We raise an exception when a volume doesn't exist
             self._scheduler.pvc.get(self.app.id, self.name)

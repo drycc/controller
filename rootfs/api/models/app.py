@@ -267,8 +267,7 @@ class App(UuidAuditedModel):
             )
 
         # create required minimum resources in k8s for the application
-        namespace = service = self.id
-        quota_name = '{}-quota'.format(self.id)
+        namespace = quota_name = service = self.id
         try:
             self.log('creating Namespace {} and services'.format(namespace), level=logging.DEBUG)
             # Create essential resources

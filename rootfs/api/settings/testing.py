@@ -42,7 +42,7 @@ KUBERNETES_NAMESPACE_DEFAULT_QUOTA_SPEC = '{"spec":{"hard":{"pods":"10"}}}'
 
 DRYCC_DEFAULT_CONFIG_TAGS = os.environ.get('DRYCC_DEFAULT_CONFIG_TAGS', '')
 
-DRYCC_APP_KUBERNETES_STORAGE_CLASS = os.environ.get('DRYCC_APP_KUBERNETES_STORAGE_CLASS', '')  # noqa
+DRYCC_APP_STORAGE_CLASS = os.environ.get('DRYCC_APP_STORAGE_CLASS', '')
 
 
 class DisableMigrations(object):

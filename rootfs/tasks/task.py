@@ -1,23 +1,27 @@
 import os
 import json
 import logging
-import threading
+import asyncio
+import concurrent
 import nsq
-from functools import wraps
-
+from functools import wraps, partial
 
 logger = logging.getLogger(__name__)
 
 
 def _message_handler(message):
 
-    def _method():
+    async def _async_task(loop):
         data = json.loads(message.body)
-        fun = TASKS[data["target_id"]]
-        fun(*data["args"], **data["kwargs"])
-        message.finish()
+        function = TASKS[data["target_id"]]
+        _sync_task = partial(function, *data["args"], **data["kwargs"])
+        with concurrent.futures.ThreadPoolExecutor() as executor:
+            await loop.run_in_executor(executor, _sync_task)
+            message.finish()
+
     message.enable_async()
-    threading.Thread(target=_method).start()
+    asyncio.set_event_loop(asyncio.new_event_loop())
+    asyncio.ensure_future(_async_task(asyncio.get_event_loop()))
 
 
 TASKS = {}
@@ -41,6 +45,7 @@ def task(func):
     @wraps(func)
     def register_task(*args, **kwargs):
         return func(*args, **kwargs)
+
     return register_task
 
 
@@ -53,6 +58,8 @@ def apply_async(target, delay=0, callback=None, args=(), kwargs=None):
         "args": args,
         "kwargs": {} if kwargs is None else kwargs
     }).encode("utf-8")
+
+    asyncio.set_event_loop(asyncio.new_event_loop())
     if delay <= 0:
         NSQD_WRITER.pub(NSQ_TOPIC, message, callback=callback)
     else:
