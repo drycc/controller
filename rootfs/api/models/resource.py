@@ -20,8 +20,8 @@ class Resource(UuidAuditedModel):
     name = models.CharField(max_length=63, validators=[validate_label])
     plan = models.CharField(max_length=128)
     data = JSONField(default={}, blank=True)
-    status = models.CharField(max_length=32, null=True)
-    binding = models.CharField(max_length=32, null=True)
+    status = models.TextField(blank=True, null=True)
+    binding = models.TextField(blank=True, null=True)
     options = JSONField(default={}, blank=True)
 
     class Meta:
