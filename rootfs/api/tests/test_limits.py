@@ -27,8 +27,8 @@ class TestLimits(DryccTransactionTestCase):
 
     def test_memlimit_regex(self, mock_requests):
         """Tests the regex for unit format used by "drycc limits:set --memory=<limit>"."""
-        self.assertTrue(MEMLIMIT_MATCH.match("0/100MB"))
-        self.assertTrue(MEMLIMIT_MATCH.match("200GB/100MB"))
+        self.assertTrue(MEMLIMIT_MATCH.match("0"))
+        self.assertTrue(MEMLIMIT_MATCH.match("200GB"))
         self.assertTrue(MEMLIMIT_MATCH.match("20MB"))
         self.assertTrue(MEMLIMIT_MATCH.match("20gb"))
         self.assertTrue(MEMLIMIT_MATCH.match("0m"))
@@ -39,8 +39,8 @@ class TestLimits(DryccTransactionTestCase):
 
     def test_cpushare_regex(self, mock_requests):
         """Tests the regex for unit format used by "drycc limits:set --cpu=<limit>"."""
-        self.assertTrue(CPUSHARE_MATCH.match("0/2"))
-        self.assertTrue(CPUSHARE_MATCH.match("500m/600m"))
+        self.assertTrue(CPUSHARE_MATCH.match("0"))
+        self.assertTrue(CPUSHARE_MATCH.match("500m"))
         self.assertTrue(CPUSHARE_MATCH.match("0.5"))
         self.assertTrue(CPUSHARE_MATCH.match(".123"))
         self.assertTrue(CPUSHARE_MATCH.match("1.123"))
@@ -122,7 +122,7 @@ class TestLimits(DryccTransactionTestCase):
         self.assertEqual(memory['web'], '1G')
 
         # add with requests/limits
-        body = {'memory': json.dumps({'db': '1G/2G'})}
+        body = {'memory': json.dumps({'db': '1G'})}
         response = self.client.post(url, body)
         self.assertEqual(response.status_code, 201, response.data)
 
@@ -135,10 +135,10 @@ class TestLimits(DryccTransactionTestCase):
         self.assertIn('web', memory)
         self.assertEqual(memory['web'], '1G')
         self.assertIn('db', memory)
-        self.assertEqual(memory['db'], '1G/2G')
+        self.assertEqual(memory['db'], '1G')
 
         # replace one with requests/limits
-        body = {'memory': json.dumps({'web': '3G/4G'})}
+        body = {'memory': json.dumps({'web': '3G'})}
         response = self.client.post(url, body)
         self.assertEqual(response.status_code, 201, response.data)
 
@@ -149,9 +149,9 @@ class TestLimits(DryccTransactionTestCase):
         self.assertIn('worker', memory)
         self.assertEqual(memory['worker'], '512M')
         self.assertIn('web', memory)
-        self.assertEqual(memory['web'], '3G/4G')
+        self.assertEqual(memory['web'], '3G')
         self.assertIn('db', memory)
-        self.assertEqual(memory['db'], '1G/2G')
+        self.assertEqual(memory['db'], '1G')
 
         # unset a value
         body = {'memory': json.dumps({'worker': None})}
@@ -234,7 +234,7 @@ class TestLimits(DryccTransactionTestCase):
         self.assertEqual(cpu['web'], '1024')
 
         # add with requests/limits
-        body = {'cpu': json.dumps({'db': '1/2'})}
+        body = {'cpu': json.dumps({'db': '1'})}
         response = self.client.post(url, body)
         self.assertEqual(response.status_code, 201, response.data)
 
@@ -247,10 +247,10 @@ class TestLimits(DryccTransactionTestCase):
         self.assertIn('web', cpu)
         self.assertEqual(cpu['web'], '1024')
         self.assertIn('db', cpu)
-        self.assertEqual(cpu['db'], '1/2')
+        self.assertEqual(cpu['db'], '1')
 
         # replace one with requests/limits
-        body = {'cpu': json.dumps({'web': '300m/4000m'})}
+        body = {'cpu': json.dumps({'web': '300m'})}
         response = self.client.post(url, body)
         self.assertEqual(response.status_code, 201, response.data)
 
@@ -261,9 +261,9 @@ class TestLimits(DryccTransactionTestCase):
         self.assertIn('worker', cpu)
         self.assertEqual(cpu['worker'], '512m')
         self.assertIn('web', cpu)
-        self.assertEqual(cpu['web'], '300m/4000m')
+        self.assertEqual(cpu['web'], '300m')
         self.assertIn('db', cpu)
-        self.assertEqual(cpu['db'], '1/2')
+        self.assertEqual(cpu['db'], '1')
 
         # unset a value
         body = {'cpu': json.dumps({'worker': None})}

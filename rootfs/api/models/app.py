@@ -1,5 +1,6 @@
 import backoff
 import base64
+import math
 from collections import OrderedDict
 from datetime import datetime
 from docker import auth as docker_auth
@@ -11,7 +12,9 @@ import re
 import requests
 import string
 import time
+from itertools import groupby
 from urllib.parse import urljoin
+from collections import defaultdict
 
 from django.conf import settings
 from django.db import models
@@ -1084,6 +1087,46 @@ class App(UuidAuditedModel):
         })
         return docker_config, name, True
 
+    @staticmethod
+    def _get_cpu_allocation(size):
+        cpu_allocation_ratio = settings.KUBERNETES_CPU_ALLOCATION_RATIO
+        num, unit = (
+            ''.join(item[1]) for item in groupby(
+                size, key=lambda x: x.isdigit()
+            )
+        )
+        return "{num}{unit}".format(
+            num=math.ceil(int(num) / cpu_allocation_ratio),
+            unit=unit
+        )
+
+    @staticmethod
+    def _get_ram_allocation(size):
+        ram_allocation_ratio = settings.KUBERNETES_RAM_ALLOCATION_RATIO
+        num, unit = (
+            ''.join(item[1]) for item in groupby(
+                size, key=lambda x: x.isdigit()
+            )
+        )
+        return "{num}{unit}".format(
+            num=math.ceil(int(num) / ram_allocation_ratio),
+            unit=unit
+        )
+
+    def _get_default_resources(self):
+        resources = defaultdict(dict)
+        resources.update(
+            json.loads(settings.KUBERNETES_POD_DEFAULT_RESOURCES))
+        if "cpu" in resources["limits"]:
+            if "cpu" not in resources["requests"]:
+                resources["requests"]["cpu"] = self._get_cpu_allocation(
+                    resources["limits"]["cpu"])
+        if "memory" in resources["limits"]:
+            if "memory" not in resources["requests"]:
+                resources["requests"]["memory"] = self._get_ram_allocation(
+                    resources["limits"]["memory"])
+        return resources
+
     def _gather_app_settings(self, release, app_settings, process_type, replicas, volumes=None):
         """
         Gathers all required information needed in one easy place for passing into
@@ -1093,7 +1136,11 @@ class App(UuidAuditedModel):
         """
         envs = self._build_env_vars(release)
         config = release.config
-
+        cpu, ram = {}, {}
+        for key, value in config.cpu.items():
+            cpu[key] = "%s/%s" % (self._get_cpu_allocation(value), value)
+        for key, value in config.memory.items():
+            ram[key] = "%s/%s" % (self._get_ram_allocation(value), value)
         # see if the app config has deploy batch preference, otherwise use global
         batches = int(config.values.get('DRYCC_DEPLOY_BATCHES', settings.DRYCC_DEPLOY_BATCHES))  # noqa
 
@@ -1107,9 +1154,6 @@ class App(UuidAuditedModel):
         # get application level pod termination grace period
         pod_termination_grace_period_seconds = int(config.values.get(
             'KUBERNETES_POD_TERMINATION_GRACE_PERIOD_SECONDS', settings.KUBERNETES_POD_TERMINATION_GRACE_PERIOD_SECONDS))  # noqa
-
-        # get pod default resources
-        pod_default_resources = json.loads(settings.KUBERNETES_POD_DEFAULT_RESOURCES)
 
         # set the image pull policy that is associated with the application container
         image_pull_policy = config.values.get('IMAGE_PULL_POLICY', settings.IMAGE_PULL_POLICY)
@@ -1135,15 +1179,15 @@ class App(UuidAuditedModel):
         } for _ in volumes] if volumes else []
 
         return {
-            'memory': config.memory,
-            'cpu': config.cpu,
+            'memory': ram,
+            'cpu': cpu,
             'tags': config.tags,
             'envs': envs,
             'registry': config.registry,
             'replicas': replicas,
             'version': 'v{}'.format(release.version),
             'app_type': process_type,
-            'resources': pod_default_resources,
+            'resources': self._get_default_resources(),
             'build_type': release.build.type,
             'healthcheck': healthcheck,
             'lifecycle_post_start': config.lifecycle_post_start,

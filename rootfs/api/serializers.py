@@ -24,14 +24,14 @@ from api.exceptions import DryccException
 PROCTYPE_MATCH = re.compile(r'^(?P<type>[a-z0-9]+(\-[a-z0-9]+)*)$')
 PROCTYPE_MISMATCH_MSG = "Process types can only contain lowercase alphanumeric characters"
 MEMLIMIT_MATCH = re.compile(
-    r'^(?P<mem>(([0-9]+(MB|KB|GB|[BKMG])|0)(/([0-9]+(MB|KB|GB|[BKMG])))?))$', re.IGNORECASE)
+    r'^(?P<mem>([0-9]+(MB|KB|GB|[BKMG])|0))$', re.IGNORECASE)
 CPUSHARE_MATCH = re.compile(
-    r'^(?P<cpu>(([-+]?[0-9]*\.?[0-9]+[m]?)(/([-+]?[0-9]*\.?[0-9]+[m]?))?))$')
+    r'^(?P<cpu>([-+]?[0-9]*\.?[0-9]+[m]?))$')
 TAGVAL_MATCH = re.compile(r'^(?:[a-zA-Z\d][-\.\w]{0,61})?[a-zA-Z\d]$')
 CONFIGKEY_MATCH = re.compile(r'^[a-z_]+[a-z0-9_]*$', re.IGNORECASE)
 TERMINATION_GRACE_PERIOD_MATCH = re.compile(r'^[0-9]*$')
 VOLUME_SIZE_MATCH = re.compile(
-    r'^(?P<mem>(([0-9]+(MB|KB|GB|[BKMG])|0)(/([0-9]+(MB|KB|GB|[BKMG])))?))$', re.IGNORECASE)
+    r'^(?P<mem>([0-9]+(MB|KB|GB|[BKMG])|0))$', re.IGNORECASE)
 VOLUME_PATH = re.compile(r'^\/(\w+\/?)+$', re.IGNORECASE)
 
 PROBE_SCHEMA = {
@@ -201,7 +201,8 @@ class BuildSerializer(serializers.ModelSerializer):
         fields = ['owner', 'app', 'image', 'stack', 'sha', 'procfile',
                   'dockerfile', 'created', 'updated', 'uuid']
 
-    def validate_procfile(self, data):
+    @staticmethod
+    def validate_procfile(data):
         for key, value in data.items():
             if value is None or value == "":
                 raise serializers.ValidationError("Command can't be empty for process type")
@@ -233,7 +234,8 @@ class ConfigSerializer(serializers.ModelSerializer):
         model = models.Config
         fields = '__all__'
 
-    def validate_values(self, data):
+    @staticmethod
+    def validate_values(data):
         for key, value in data.items():
             if value is None:  # use NoneType to unset an item
                 continue
@@ -278,7 +280,8 @@ class ConfigSerializer(serializers.ModelSerializer):
 
         return data
 
-    def validate_memory(self, data):
+    @staticmethod
+    def validate_memory(data):
         for key, value in data.items():
             if value is None:  # use NoneType to unset an item
                 continue
@@ -288,12 +291,13 @@ class ConfigSerializer(serializers.ModelSerializer):
 
             if not re.match(MEMLIMIT_MATCH, str(value)):
                 raise serializers.ValidationError(
-                    "Memory limit format: <number><unit> or <number><unit>/<number><unit>, "
+                    "Memory limit format: <number><unit>, "
                     "where unit = B, K, M or G")
 
         return data
 
-    def validate_cpu(self, data):
+    @staticmethod
+    def validate_cpu(data):
         for key, value in data.items():
             if value is None:  # use NoneType to unset an item
                 continue
@@ -304,11 +308,12 @@ class ConfigSerializer(serializers.ModelSerializer):
             shares = re.match(CPUSHARE_MATCH, str(value))
             if not shares:
                 raise serializers.ValidationError(
-                    "CPU limit format: <value> or <value>/<value>, where value must be a numeric")
+                    "CPU limit format: <value>, where value must be a numeric")
 
         return data
 
-    def validate_termination_grace_period(self, data):
+    @staticmethod
+    def validate_termination_grace_period(data):
         for key, value in data.items():
             if value is None:  # use NoneType to unset an item
                 continue
@@ -323,7 +328,8 @@ class ConfigSerializer(serializers.ModelSerializer):
 
         return data
 
-    def validate_tags(self, data):
+    @staticmethod
+    def validate_tags(data):
         for key, value in data.items():
             if value is None:  # use NoneType to unset an item
                 continue
@@ -357,7 +363,8 @@ class ConfigSerializer(serializers.ModelSerializer):
 
         return data
 
-    def validate_registry(self, data):
+    @staticmethod
+    def validate_registry(data):
         for key, value in data.items():
             if value is None:  # use NoneType to unset an item
                 continue
@@ -369,7 +376,8 @@ class ConfigSerializer(serializers.ModelSerializer):
 
         return data
 
-    def validate_healthcheck(self, data):
+    @staticmethod
+    def validate_healthcheck(data):
         for procType, healthcheck in data.items():
             if healthcheck is None:
                 continue
@@ -432,7 +440,8 @@ class DomainSerializer(serializers.ModelSerializer):
         fields = ['owner', 'created', 'updated', 'app', 'domain']
         read_only_fields = ['uuid']
 
-    def validate_domain(self, value):
+    @staticmethod
+    def validate_domain(value):
         """
         Check that the hostname is valid
         """
@@ -496,13 +505,15 @@ class ServiceSerializer(serializers.ModelSerializer):
         fields = ['owner', 'created', 'updated', 'app', 'procfile_type', 'path_pattern']
         read_only_fields = ['uuid']
 
-    def validate_procfile_type(self, value):
+    @staticmethod
+    def validate_procfile_type(value):
         if not re.match(PROCTYPE_MATCH, value):
             raise serializers.ValidationError(PROCTYPE_MISMATCH_MSG)
 
         return value
 
-    def validate_path_pattern(self, value):
+    @staticmethod
+    def validate_path_pattern(value):
         for pattern in str(value).split(","):
             if not pattern.strip():
                 raise serializers.ValidationError(
@@ -561,7 +572,8 @@ class AppSettingsSerializer(serializers.ModelSerializer):
         model = models.AppSettings
         fields = '__all__'
 
-    def validate_whitelist(self, data):
+    @staticmethod
+    def validate_whitelist(data):
         for address in data:
             try:
                 ipaddress.ip_address(address)
@@ -577,7 +589,8 @@ class AppSettingsSerializer(serializers.ModelSerializer):
 
         return data
 
-    def validate_autoscale(self, data):
+    @staticmethod
+    def validate_autoscale(data):
         schema = {
             "$schema": "http://json-schema.org/schema#",
             "type": "object",
@@ -632,14 +645,16 @@ class VolumeSerializer(serializers.ModelSerializer):
         model = models.Volume
         fields = '__all__'
 
-    def validate_size(self, data):
+    @staticmethod
+    def validate_size(data):
         if not re.match(VOLUME_SIZE_MATCH, str(data)):
             raise serializers.ValidationError(
                 "Volume size limit format: <number><unit> or <number><unit>/<number><unit>, "
                 "where unit = B, K, M or G")
         return data
 
-    def validate_path(self, data):
+    @staticmethod
+    def validate_path(data):
         for key, value in data.items():
             if value is None:  # use NoneType to unset an item
                 continue

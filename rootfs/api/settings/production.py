@@ -335,23 +335,25 @@ DRYCC_DEFAULT_CONFIG_TAGS = os.environ.get('DRYCC_DEFAULT_CONFIG_TAGS', '')
 # How long k8s waits for a pod to finish work after a SIGTERM before sending SIGKILL
 KUBERNETES_POD_TERMINATION_GRACE_PERIOD_SECONDS = int(os.environ.get('KUBERNETES_POD_TERMINATION_GRACE_PERIOD_SECONDS', 30))  # noqa
 
-# Default pod spec for application
+KUBERNETES_CPU_ALLOCATION_RATIO = int(os.environ.get('KUBERNETES_CPU_ALLOCATION_RATIO', '10'))
+KUBERNETES_RAM_ALLOCATION_RATIO = int(os.environ.get('KUBERNETES_RAM_ALLOCATION_RATIO', '2'))
+# Default pod spec for application.
+# Please do not set requests.cpu and requests.memory.
+# If set, they will not be dynamically computed when the first resource is allocated;
+# unless in the future through `drycc limits:set` manual setting
 KUBERNETES_POD_DEFAULT_RESOURCES = os.environ.get(
     'KUBERNETES_POD_DEFAULT_RESOURCES',
     json.dumps({
         "requests": {
-            "cpu": "200m",
-            "memory": "256Mi",
-            "ephemeral-storage": "1Gi"
+            "ephemeral-storage": "256Mi"
         },
         "limits": {
             "cpu": "500m",
             "memory": "512Mi",
-            "ephemeral-storage": "2Gi"
-        },
+            "ephemeral-storage": "1Gi"
+        }
     })
 )
-
 # Default quota spec for application namespace
 KUBERNETES_NAMESPACE_DEFAULT_QUOTA_SPEC = os.environ.get(
     'KUBERNETES_NAMESPACE_DEFAULT_QUOTA_SPEC',

@@ -204,7 +204,7 @@ class ConfigTest(DryccTransactionTestCase):
         response = self.client.post(url, body)
         self.assertEqual(response.status_code, 400, response.data)
         self.assertIn(
-            'CPU limit format: <value> or <value>/<value>, where value must be a numeric',
+            'CPU limit format: <value>, where value must be a numeric',
             response.data['cpu'])
 
     def test_config_set_same_key(self, mock_requests):
