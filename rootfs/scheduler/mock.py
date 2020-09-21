@@ -81,7 +81,8 @@ resources = [
     'namespaces', 'nodes', 'pods', 'replicationcontrollers',
     'secrets', 'services', 'events', 'deployments', 'replicasets',
     'horizontalpodautoscalers', 'scale', 'resourcequotas', 'ingresses',
-    'persistentvolumeclaims', "serviceinstances", "servicebindings"
+    'persistentvolumeclaims', 'serviceinstances', 'servicebindings',
+    'limitranges'
 ]
 
 

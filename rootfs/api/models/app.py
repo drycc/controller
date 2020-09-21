@@ -14,7 +14,6 @@ import string
 import time
 from itertools import groupby
 from urllib.parse import urljoin
-from collections import defaultdict
 
 from django.conf import settings
 from django.db import models
@@ -270,7 +269,7 @@ class App(UuidAuditedModel):
             )
 
         # create required minimum resources in k8s for the application
-        namespace = quota_name = service = self.id
+        namespace = limits_name = quota_name = service = self.id
         try:
             self.log('creating Namespace {} and services'.format(namespace), level=logging.DEBUG)
             # Create essential resources
@@ -290,7 +289,14 @@ class App(UuidAuditedModel):
                     self._scheduler.quota.get(namespace, quota_name)
                 except KubeException:
                     self._scheduler.quota.create(namespace, quota_name, spec=quota_spec)
-
+            if settings.KUBERNETES_NAMESPACE_DEFAULT_LIMIT_RANGES_SPEC != '':
+                limits_spec = json.loads(settings.KUBERNETES_NAMESPACE_DEFAULT_LIMIT_RANGES_SPEC)
+                self.log('creating LimitRanges {} for namespace {}'.format(limits_name, namespace),
+                         level=logging.DEBUG)
+                try:
+                    self._scheduler.limits.get(namespace, limits_name)
+                except KubeException:
+                    self._scheduler.limits.create(namespace, limits_name, spec=limits_spec)
             try:
                 self._scheduler.svc.get(namespace, service)
             except KubeException:
@@ -1096,7 +1102,7 @@ class App(UuidAuditedModel):
             )
         )
         return "{num}{unit}".format(
-            num=math.ceil(int(num) / cpu_allocation_ratio),
+            num=math.floor(int(num) / cpu_allocation_ratio),
             unit=unit
         )
 
@@ -1109,23 +1115,9 @@ class App(UuidAuditedModel):
             )
         )
         return "{num}{unit}".format(
-            num=math.ceil(int(num) / ram_allocation_ratio),
+            num=math.floor(int(num) / ram_allocation_ratio),
             unit=unit
         )
-
-    def _get_default_resources(self):
-        resources = defaultdict(dict)
-        resources.update(
-            json.loads(settings.KUBERNETES_POD_DEFAULT_RESOURCES))
-        if "cpu" in resources["limits"]:
-            if "cpu" not in resources["requests"]:
-                resources["requests"]["cpu"] = self._get_cpu_allocation(
-                    resources["limits"]["cpu"])
-        if "memory" in resources["limits"]:
-            if "memory" not in resources["requests"]:
-                resources["requests"]["memory"] = self._get_ram_allocation(
-                    resources["limits"]["memory"])
-        return resources
 
     def _gather_app_settings(self, release, app_settings, process_type, replicas, volumes=None):
         """
@@ -1187,7 +1179,7 @@ class App(UuidAuditedModel):
             'replicas': replicas,
             'version': 'v{}'.format(release.version),
             'app_type': process_type,
-            'resources': self._get_default_resources(),
+            'resources': json.loads(settings.KUBERNETES_POD_DEFAULT_RESOURCES),
             'build_type': release.build.type,
             'healthcheck': healthcheck,
             'lifecycle_post_start': config.lifecycle_post_start,

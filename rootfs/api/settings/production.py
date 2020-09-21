@@ -337,35 +337,61 @@ KUBERNETES_POD_TERMINATION_GRACE_PERIOD_SECONDS = int(os.environ.get('KUBERNETES
 
 KUBERNETES_CPU_ALLOCATION_RATIO = int(os.environ.get('KUBERNETES_CPU_ALLOCATION_RATIO', '10'))
 KUBERNETES_RAM_ALLOCATION_RATIO = int(os.environ.get('KUBERNETES_RAM_ALLOCATION_RATIO', '2'))
+
 # Default pod spec for application.
-# Please do not set requests.cpu and requests.memory.
-# If set, they will not be dynamically computed when the first resource is allocated;
-# unless in the future through `drycc limits:set` manual setting
 KUBERNETES_POD_DEFAULT_RESOURCES = os.environ.get(
     'KUBERNETES_POD_DEFAULT_RESOURCES',
     json.dumps({
         "requests": {
-            "ephemeral-storage": "256Mi"
+            "cpu": "100m",
+            "memory": "128M",
+            "ephemeral-storage": "256Mi",
         },
         "limits": {
-            "cpu": "500m",
-            "memory": "512Mi",
-            "ephemeral-storage": "1Gi"
+            "cpu": "1",
+            "memory": "256M",
+            "ephemeral-storage": "512Mi",
         }
     })
 )
 # Default quota spec for application namespace
 KUBERNETES_NAMESPACE_DEFAULT_QUOTA_SPEC = os.environ.get(
-    'KUBERNETES_NAMESPACE_DEFAULT_QUOTA_SPEC',
+    'KUBERNETES_NAMESPACE_DEFAULT_QUOTA_SPEC', ''
+)
+# Default limit range spec for application namespace
+KUBERNETES_NAMESPACE_DEFAULT_LIMIT_RANGES_SPEC = os.environ.get(
+    'KUBERNETES_NAMESPACE_DEFAULT_LIMIT_RANGES_SPEC',
     json.dumps({
-        "hard": {
-            "cpu": "64",
-            "pods": "64",
-            "memory": "128Gi",
-            "ephemeral-storage": "64Gi",
-            "requests.storage": "256Gi",
-            "persistentvolumeclaims": 8,
-        }
+        "limits": [
+            {
+                "default": {
+                    "cpu": "100m",
+                    "memory": "128Mi"
+                },
+                "defaultRequest": {
+                    "cpu": "100m",
+                    "memory": "128Mi"
+                },
+                "max": {
+                    "cpu": "32",
+                    "memory": "128Gi"
+                },
+                "min": {
+                    "cpu": "100m",
+                    "memory": "128Mi"
+                },
+                "type": "Container"
+            },
+            {
+                "max": {
+                    "storage": "100Gi"
+                },
+                "min": {
+                    "storage": "100Mi"
+                },
+                "type": "PersistentVolumeClaim"
+            }
+        ]
     })
 )
 
