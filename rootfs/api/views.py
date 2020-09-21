@@ -665,7 +665,8 @@ class AppVolumeMountPathViewSet(ReleasableViewSet):
             raise DryccException("path is a required field")
         obj = self.get_object()
         container_types = [_ for _ in new_path.keys()
-                           if _ not in obj.app.procfile_structure.keys()]
+                           if _ not in obj.app.procfile_structure.keys() or
+                           _ not in obj.app.structure.keys()]
         if container_types:
             raise DryccException("process type {} is not included in profile".
                                  format(','.join(container_types)))
