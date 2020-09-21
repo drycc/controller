@@ -23,15 +23,12 @@ from api.exceptions import DryccException
 
 PROCTYPE_MATCH = re.compile(r'^(?P<type>[a-z0-9]+(\-[a-z0-9]+)*)$')
 PROCTYPE_MISMATCH_MSG = "Process types can only contain lowercase alphanumeric characters"
-MEMLIMIT_MATCH = re.compile(
-    r'^(?P<mem>([0-9]+(MB|KB|GB|[BKMG])|0))$', re.IGNORECASE)
-CPUSHARE_MATCH = re.compile(
-    r'^(?P<cpu>([-+]?[0-9]*\.?[0-9]+[m]?))$')
+MEMLIMIT_MATCH = re.compile(r'^(?P<mem>([1-9][0-9]*[mgMG]))$', re.IGNORECASE)
+CPUSHARE_MATCH = re.compile(r'^(?P<cpu>([-+]?[1-9][0-9]*[m]?))$')
 TAGVAL_MATCH = re.compile(r'^(?:[a-zA-Z\d][-\.\w]{0,61})?[a-zA-Z\d]$')
 CONFIGKEY_MATCH = re.compile(r'^[a-z_]+[a-z0-9_]*$', re.IGNORECASE)
 TERMINATION_GRACE_PERIOD_MATCH = re.compile(r'^[0-9]*$')
-VOLUME_SIZE_MATCH = re.compile(
-    r'^(?P<mem>([0-9]+(MB|KB|GB|[BKMG])|0))$', re.IGNORECASE)
+VOLUME_SIZE_MATCH = re.compile(r'^(?P<volume>([1-9][0-9]*[mgMG]))$', re.IGNORECASE)
 VOLUME_PATH = re.compile(r'^\/(\w+\/?)+$', re.IGNORECASE)
 
 PROBE_SCHEMA = {
@@ -292,7 +289,7 @@ class ConfigSerializer(serializers.ModelSerializer):
             if not re.match(MEMLIMIT_MATCH, str(value)):
                 raise serializers.ValidationError(
                     "Memory limit format: <number><unit>, "
-                    "where unit = B, K, M or G")
+                    "where unit = M or G")
 
         return data
 
