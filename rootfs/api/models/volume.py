@@ -42,6 +42,16 @@ class Volume(UuidAuditedModel):
         # Delete from DB
         return super(Volume, self).delete(*args, **kwargs)
 
+    @staticmethod
+    def _get_size(size):
+        """ Format volume limit value """
+        if size[-2:-1].isalpha() and size[-1].isalpha():
+            size = size[:-1]
+
+        if size[-1].isalpha():
+            size = size.upper() + "i"
+        return size
+
     def attach(self):
         try:
             self._scheduler.pvc.get(self.app.id, self.name)
@@ -52,7 +62,7 @@ class Volume(UuidAuditedModel):
             logger.info(e)
             try:
                 kwargs = {
-                    "size": self.size,
+                    "size": self._get_size(self.size),
                     "storage_class": settings.DRYCC_APP_STORAGE_CLASS,
                 }
                 self._scheduler.pvc.create(self.app.id, self.name, **kwargs)
