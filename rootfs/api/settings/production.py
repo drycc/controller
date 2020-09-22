@@ -335,7 +335,17 @@ DRYCC_DEFAULT_CONFIG_TAGS = os.environ.get('DRYCC_DEFAULT_CONFIG_TAGS', '')
 # How long k8s waits for a pod to finish work after a SIGTERM before sending SIGKILL
 KUBERNETES_POD_TERMINATION_GRACE_PERIOD_SECONDS = int(os.environ.get('KUBERNETES_POD_TERMINATION_GRACE_PERIOD_SECONDS', 30))  # noqa
 
+# Minimum allocation cpu, units are represented in the millicpu of CPUs
+KUBERNETES_CPU_MIN_ALLOCATION = int(os.environ.get('KUBERNETES_RAM_MIN_ALLOCATION', '100'))
+# Minimum allocation memory, units are represented in Megabytes(M)
+KUBERNETES_RAM_MIN_ALLOCATION = int(os.environ.get('KUBERNETES_RAM_MIN_ALLOCATION', '128'))
+# Maximum allocation cpu, units are represented in the millicpu of CPUs
+KUBERNETES_CPU_MAX_ALLOCATION = int(os.environ.get('KUBERNETES_RAM_MIN_ALLOCATION', '32000'))
+# Maximum allocation memory, units are represented in Megabytes(M)
+KUBERNETES_RAM_MAX_ALLOCATION = int(os.environ.get('KUBERNETES_RAM_MIN_ALLOCATION', '131072'))
+# CPU allocation ratio
 KUBERNETES_CPU_ALLOCATION_RATIO = int(os.environ.get('KUBERNETES_CPU_ALLOCATION_RATIO', '10'))
+# RAM allocation ratio
 KUBERNETES_RAM_ALLOCATION_RATIO = int(os.environ.get('KUBERNETES_RAM_ALLOCATION_RATIO', '2'))
 
 # Default pod spec for application.
@@ -343,14 +353,10 @@ KUBERNETES_POD_DEFAULT_RESOURCES = os.environ.get(
     'KUBERNETES_POD_DEFAULT_RESOURCES',
     json.dumps({
         "requests": {
-            "cpu": "100m",
-            "memory": "128M",
-            "ephemeral-storage": "256Mi",
+            "ephemeral-storage": "1Gi",
         },
         "limits": {
-            "cpu": "1",
-            "memory": "256M",
-            "ephemeral-storage": "512Mi",
+            "ephemeral-storage": "2Gi",
         }
     })
 )
@@ -365,20 +371,20 @@ KUBERNETES_NAMESPACE_DEFAULT_LIMIT_RANGES_SPEC = os.environ.get(
         "limits": [
             {
                 "default": {
-                    "cpu": "100m",
-                    "memory": "128Mi"
+                    "cpu": "%sm" % KUBERNETES_CPU_MIN_ALLOCATION * KUBERNETES_CPU_ALLOCATION_RATIO,  # noqa
+                    "memory": "%sMi" % KUBERNETES_RAM_MIN_ALLOCATION * KUBERNETES_RAM_ALLOCATION_RATIO  # noqa
                 },
                 "defaultRequest": {
-                    "cpu": "100m",
-                    "memory": "128Mi"
+                    "cpu": "%sm" % KUBERNETES_CPU_MIN_ALLOCATION,
+                    "memory": "%sMi" % KUBERNETES_RAM_MIN_ALLOCATION
                 },
                 "max": {
-                    "cpu": "32",
-                    "memory": "128Gi"
+                    "cpu": "%sm" % KUBERNETES_CPU_MAX_ALLOCATION,
+                    "memory": "%sMi" % KUBERNETES_RAM_MAX_ALLOCATION
                 },
                 "min": {
-                    "cpu": "100m",
-                    "memory": "128Mi"
+                    "cpu": "%sm" % (KUBERNETES_CPU_MIN_ALLOCATION - 1),
+                    "memory": "%sMi" % (KUBERNETES_RAM_MIN_ALLOCATION - 1)
                 },
                 "type": "Container"
             },

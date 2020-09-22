@@ -1096,15 +1096,20 @@ class App(UuidAuditedModel):
     @staticmethod
     def _get_cpu_allocation(size):
         cpu_allocation_ratio = settings.KUBERNETES_CPU_ALLOCATION_RATIO
-        num, unit = (
-            ''.join(item[1]) for item in groupby(
-                size, key=lambda x: x.isdigit()
+        if size.isdigit():
+            unit = 'm'
+            num = (int(size) * 1000) / cpu_allocation_ratio
+        else:
+            num, unit = (
+                ''.join(item[1]) for item in groupby(
+                    size, key=lambda x: x.isdigit()
+                )
             )
-        )
-        return "{num}{unit}".format(
-            num=math.floor(int(num) / cpu_allocation_ratio),
-            unit=unit
-        )
+            if unit not in ["m", "M"]:
+                raise DryccException("Units are represented in the number or milli of CPUs")
+            else:
+                num = int(num) / cpu_allocation_ratio
+        return "{num}{unit}".format(num=math.ceil(num), unit=unit)
 
     @staticmethod
     def _get_ram_allocation(size):
@@ -1114,10 +1119,14 @@ class App(UuidAuditedModel):
                 size, key=lambda x: x.isdigit()
             )
         )
-        return "{num}{unit}".format(
-            num=math.floor(int(num) / ram_allocation_ratio),
-            unit=unit
-        )
+        if unit in ['G', 'g']:
+            unit = 'M'
+            num = (int(num) * 1024) / ram_allocation_ratio
+        elif unit in ['M', 'm']:
+            num = int(num) / ram_allocation_ratio
+        else:
+            raise DryccException('Units are represented in Megabytes(M), or Gigabytes (G)')
+        return "{num}{unit}".format(num=math.ceil(num), unit=unit)
 
     def _gather_app_settings(self, release, app_settings, process_type, replicas, volumes=None):
         """

@@ -182,7 +182,7 @@ class ConfigTest(DryccTransactionTestCase):
 
         url = "/v2/apps/{app_id}/config".format(**locals())
 
-        body = {'values': json.dumps({'PORT': 5000}), 'cpu': json.dumps({'web': '1024'})}
+        body = {'values': json.dumps({'PORT': 5000}), 'cpu': json.dumps({'web': '1000m'})}
         response = self.client.post(url, body)
         self.assertEqual(response.status_code, 201, response.data)
         for key in response.data:
@@ -194,7 +194,7 @@ class ConfigTest(DryccTransactionTestCase):
             'app': app_id,
             'values': {'PORT': '5000'},
             'memory': {},
-            'cpu': {'web': "1024"},
+            'cpu': {'web': "1000m"},
             'tags': {},
             'registry': {}
         }

@@ -279,6 +279,8 @@ class ConfigSerializer(serializers.ModelSerializer):
 
     @staticmethod
     def validate_memory(data):
+        max_memory = settings.KUBERNETES_RAM_MAX_ALLOCATION
+        min_memory = settings.KUBERNETES_RAM_MIN_ALLOCATION * settings.KUBERNETES_RAM_ALLOCATION_RATIO  # noqa
         for key, value in data.items():
             if value is None:  # use NoneType to unset an item
                 continue
@@ -290,11 +292,20 @@ class ConfigSerializer(serializers.ModelSerializer):
                 raise serializers.ValidationError(
                     "Memory limit format: <number><unit>, "
                     "where unit = M or G")
-
+            range_error = "Memory setting is not in allowed range: %sM~%sM" % (
+                min_memory, max_memory)
+            if str(value).endswith("G"):
+                if int(value[:-1]) * 1024 < min_memory or int(value[:-1]) * 1024 > max_memory:
+                    raise serializers.ValidationError(range_error)
+            else:
+                if int(value[:-1]) < min_memory or int(value[:-1]) > max_memory:
+                    raise serializers.ValidationError(range_error)
         return data
 
     @staticmethod
     def validate_cpu(data):
+        max_cpu = settings.KUBERNETES_CPU_MAX_ALLOCATION
+        min_cpu = settings.KUBERNETES_CPU_MIN_ALLOCATION * settings.KUBERNETES_CPU_ALLOCATION_RATIO  # noqa
         for key, value in data.items():
             if value is None:  # use NoneType to unset an item
                 continue
@@ -306,7 +317,14 @@ class ConfigSerializer(serializers.ModelSerializer):
             if not shares:
                 raise serializers.ValidationError(
                     "CPU limit format: <value>, where value must be a numeric")
-
+            range_error = "CPU setting is not in allowed range: %sm~%sm" % (
+                min_cpu, max_cpu)
+            if str(value).isdigit():
+                if int(value) * 1000 < min_cpu or int(value) * 1000 > max_cpu:
+                    raise serializers.ValidationError(range_error)
+            else:
+                if int(value[:-1]) < min_cpu or int(value[:-1]) > max_cpu:
+                    raise serializers.ValidationError(range_error)
         return data
 
     @staticmethod

@@ -171,6 +171,13 @@ class TestLimits(DryccTransactionTestCase):
         body = {'memory': json.dumps(mem)}
         response = self.client.post(url, body)
         self.assertEqual(response.status_code, 400, response.data)
+        # out of range
+        body = {'memory': json.dumps({'web': '64M'})}
+        response = self.client.post(url, body)
+        self.assertEqual(response.status_code, 400, response.data)
+        body = {'memory': json.dumps({'web': '1024G'})}
+        response = self.client.post(url, body)
+        self.assertEqual(response.status_code, 400, response.data)
 
         mem = {'w3&b': '1G'}
         body = {'memory': json.dumps(mem)}
@@ -202,7 +209,7 @@ class TestLimits(DryccTransactionTestCase):
         self.assertNotIn('"', response.data['cpu'])
 
         # set an initial limit
-        body = {'cpu': json.dumps({'web': '1024'})}
+        body = {'cpu': json.dumps({'web': '1000m'})}
         response = self.client.post(url, body)
         self.assertEqual(response.status_code, 201, response.data)
         limit1 = response.data
@@ -213,19 +220,19 @@ class TestLimits(DryccTransactionTestCase):
         self.assertIn('cpu', response.data)
         cpu = response.data['cpu']
         self.assertIn('web', cpu)
-        self.assertEqual(cpu['web'], '1024')
+        self.assertEqual(cpu['web'], '1000m')
 
         # set an additional value
-        body = {'cpu': json.dumps({'worker': '512m'})}
+        body = {'cpu': json.dumps({'worker': '2000m'})}
         response = self.client.post(url, body)
         self.assertEqual(response.status_code, 201, response.data)
         limit2 = response.data
         self.assertNotEqual(limit1['uuid'], limit2['uuid'])
         cpu = response.data['cpu']
         self.assertIn('worker', cpu)
-        self.assertEqual(cpu['worker'], '512m')
+        self.assertEqual(cpu['worker'], '2000m')
         self.assertIn('web', cpu)
-        self.assertEqual(cpu['web'], '1024')
+        self.assertEqual(cpu['web'], '1000m')
 
         # read the limit again
         response = self.client.get(url)
@@ -234,9 +241,9 @@ class TestLimits(DryccTransactionTestCase):
         self.assertEqual(limit2, limit3)
         cpu = response.data['cpu']
         self.assertIn('worker', cpu)
-        self.assertEqual(cpu['worker'], '512m')
+        self.assertEqual(cpu['worker'], '2000m')
         self.assertIn('web', cpu)
-        self.assertEqual(cpu['web'], '1024')
+        self.assertEqual(cpu['web'], '1000m')
 
         # add with requests/limits
         body = {'cpu': json.dumps({'db': '1'})}
@@ -248,14 +255,14 @@ class TestLimits(DryccTransactionTestCase):
         self.assertEqual(response.status_code, 200, response.data)
         cpu = response.data['cpu']
         self.assertIn('worker', cpu)
-        self.assertEqual(cpu['worker'], '512m')
+        self.assertEqual(cpu['worker'], '2000m')
         self.assertIn('web', cpu)
-        self.assertEqual(cpu['web'], '1024')
+        self.assertEqual(cpu['web'], '1000m')
         self.assertIn('db', cpu)
         self.assertEqual(cpu['db'], '1')
 
         # replace one with requests/limits
-        body = {'cpu': json.dumps({'web': '300m'})}
+        body = {'cpu': json.dumps({'web': '3000m'})}
         response = self.client.post(url, body)
         self.assertEqual(response.status_code, 201, response.data)
 
@@ -264,9 +271,9 @@ class TestLimits(DryccTransactionTestCase):
         self.assertEqual(response.status_code, 200, response.data)
         cpu = response.data['cpu']
         self.assertIn('worker', cpu)
-        self.assertEqual(cpu['worker'], '512m')
+        self.assertEqual(cpu['worker'], '2000m')
         self.assertIn('web', cpu)
-        self.assertEqual(cpu['web'], '300m')
+        self.assertEqual(cpu['web'], '3000m')
         self.assertIn('db', cpu)
         self.assertEqual(cpu['db'], '1')
 
@@ -281,6 +288,13 @@ class TestLimits(DryccTransactionTestCase):
         # bad cpu values
         mem = {'web': '1G'}
         body = {'cpu': json.dumps(mem)}
+        response = self.client.post(url, body)
+        self.assertEqual(response.status_code, 400, response.data)
+        # out of range
+        body = {'cpu': json.dumps({'web': '1000'})}
+        response = self.client.post(url, body)
+        self.assertEqual(response.status_code, 400, response.data)
+        body = {'cpu': json.dumps({'web': '100m'})}
         response = self.client.post(url, body)
         self.assertEqual(response.status_code, 400, response.data)
 
