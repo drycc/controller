@@ -666,7 +666,7 @@ class VolumeSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError(
                 "Volume size limit format: <number><unit> or <number><unit>/<number><unit>, "
                 "where unit = B, K, M or G")
-        return data
+        return data.upper()
 
     @staticmethod
     def validate_path(data):

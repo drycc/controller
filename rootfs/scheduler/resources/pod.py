@@ -281,7 +281,7 @@ class Pod(Resource):
         return timeout_global if timeout_local is None else int(timeout_local)
 
     @staticmethod
-    def _get_memory(size, ):
+    def _get_memory(size):
         """ Format memory limit value """
         if size[-2:-1].isalpha() and size[-1].isalpha():
             size = size[:-1]
