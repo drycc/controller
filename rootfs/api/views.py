@@ -375,9 +375,16 @@ class DomainViewSet(AppResourceViewSet):
                 ace_domain = "*." + idna.encode(domain[2:]).decode("utf-8", "strict")
             else:
                 ace_domain = idna.encode(domain).decode("utf-8", "strict")
-        except:
+        except:  # noqa
             ace_domain = domain
         return get_object_or_404(qs, domain=ace_domain)
+
+    def destroy(self, request, **kwargs):
+        domain = self.get_object()
+        if "%s.%s" % (domain.app.id, settings.PLATFORM_DOMAIN) == domain.domain:
+            return Response(status=status.HTTP_403_FORBIDDEN)
+        domain.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
 
 class ServiceViewSet(AppResourceViewSet):

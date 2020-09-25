@@ -16,7 +16,7 @@ class Certificate(Resource):
                 "namespace": namespace
             },
             "spec": {
-                "secretName": "%s-auto-tls" % name,
+                "secretName": "%s-certificate-auto" % name,
                 "issuerRef": {
                     "name": "drycc-cluster-issuer",
                     "kind": "ClusterIssuer"

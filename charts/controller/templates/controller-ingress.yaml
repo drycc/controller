@@ -27,7 +27,7 @@ spec:
           servicePort: 80
   {{ if .Values.global.cert_manager_enabled }}
   tls:
-    - secretName: drycc-controller-auto-tls
+    - secretName: drycc-controller-certificate-auto
       hosts:
         - drycc.{{ .Values.global.platform_domain }}
   {{- end }}

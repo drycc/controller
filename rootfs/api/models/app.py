@@ -1,7 +1,7 @@
 import backoff
 import base64
 import math
-from collections import OrderedDict
+from collections import OrderedDict, defaultdict
 from datetime import datetime
 from docker import auth as docker_auth
 import functools
@@ -162,7 +162,7 @@ class App(UuidAuditedModel):
 
         return entrypoint
 
-    def _refresh_tls(self, certs_auto_enabled, hosts):
+    def _refresh_certificate(self, certs_auto_enabled, hosts):
         namespace = name = self.id
         try:
             data = self._scheduler.certificate.get(namespace, name).json()
@@ -208,35 +208,27 @@ class App(UuidAuditedModel):
         except KubeException as e:
             raise ServiceUnavailable('Could not create Ingress in Kubernetes') from e
 
-    def refresh_ingress_and_tls(self):
-        if not getattr(self, 'refresh_ingress_and_tls_enabled', True):
+    def refresh(self):
+        if not getattr(self, 'refresh_enabled', True):
             return
         app_settings = self.appsettings_set.latest()
         if not app_settings.routable:
             return
-        ingress = self.id
-        hosts, tls_map = [], {}
-
         tls = self.tls_set.latest()
         ssl_redirect = "true" if bool(tls.https_enforced) else "false"
         certs_auto_enabled = bool(tls.certs_auto_enabled)
-
+        hosts, tls_map = [], defaultdict(list)
         for domain in Domain.objects.filter(app=self):
-            if str(domain.domain) == self.id:
-                host = "%s.%s" % (ingress, settings.PLATFORM_DOMAIN)
-            else:
-                host = str(domain.domain)
+            host = str(domain.domain)
             hosts.append(host)
-            if certs_auto_enabled or domain.certificate:
-                if certs_auto_enabled:
-                    secret_name = '%s-auto-tls' % self.id
-                elif domain.certificate:
-                    secret_name = '%s-cert' % domain.certificate.name
-                if secret_name not in tls_map:
-                    tls_map[secret_name] = []
+            if domain.certificate:
+                secret_name = '%s-certificate' % domain.certificate.name
                 tls_map[secret_name].append(host)
-        self._refresh_ingress(hosts, tls_map, ssl_redirect)
-        self._refresh_tls(certs_auto_enabled, hosts)
+            if certs_auto_enabled and not domain.domain.startswith("*."):
+                secret_name = '%s-certificate-auto' % self.id
+                tls_map[secret_name].append(host)
+        self._refresh_ingress(hosts, dict(tls_map), ssl_redirect)
+        self._refresh_certificate(certs_auto_enabled, hosts)
 
     def log(self, message, level=logging.INFO):
         """Logs a message in the context of this application.
@@ -311,7 +303,7 @@ class App(UuidAuditedModel):
 
             raise ServiceUnavailable('Kubernetes resources could not be created') from e
         try:
-            setattr(self, 'refresh_ingress_and_tls_enabled', False)  # do not refresh
+            setattr(self, 'refresh_enabled', False)  # do not refresh
             try:
                 self.appsettings_set.latest()
             except AppSettings.DoesNotExist:
@@ -322,12 +314,13 @@ class App(UuidAuditedModel):
                 TLS.objects.create(owner=self.owner, app=self)
             # Attach the platform specific application sub domain to the k8s service
             # Only attach it on first release in case a customer has remove the app domain
-            if rel.version == 1 and not Domain.objects.filter(domain=self.id).exists():
-                Domain.objects.create(owner=self.owner, app=self, domain=self.id)
+            domain = "%s.%s" % (self.id, settings.PLATFORM_DOMAIN)
+            if rel.version == 1 and not Domain.objects.filter(domain=domain).exists():
+                Domain.objects.create(owner=self.owner, app=self, domain=domain)
             # The default routable is true, so refresh ingress and tls
         finally:
-            setattr(self, 'refresh_ingress_and_tls_enabled', True)
-        self.refresh_ingress_and_tls()  # refresh
+            setattr(self, 'refresh_enabled', True)
+        self.refresh()  # refresh
 
     def delete(self, *args, **kwargs):
         """Delete this application including all containers"""
@@ -968,7 +961,7 @@ class App(UuidAuditedModel):
         Turn on/off if an application is publically routable
         """
         if routable:
-            self.refresh_ingress_and_tls()
+            self.refresh()
         else:
             try:
                 namespace = ingress = self.id

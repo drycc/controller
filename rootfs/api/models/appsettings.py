@@ -182,5 +182,5 @@ class AppSettings(UuidAuditedModel):
         try:
             return super(AppSettings, self).save(**kwargs)
         finally:
-            self.app.refresh_ingress_and_tls()
+            self.app.refresh()
         self.app.log('summary of app setting changes: {}'.format(summary), logging.DEBUG)

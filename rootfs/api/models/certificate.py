@@ -181,7 +181,7 @@ class Certificate(AuditedModel):
         """Creates the certificate as a kubernetes secret"""
         # only create if it exists - We raise an exception when a secret doesn't exist
         try:
-            name = '%s-cert' % self.name
+            name = '%s-certificate' % self.name
             namespace = domain.app.id
             data = {
                 'tls.crt': self.certificate,
@@ -207,7 +207,7 @@ class Certificate(AuditedModel):
         domain.certificate = None
         domain.save()
 
-        name = '%s-cert' % self.name
+        name = '%s-certificate' % self.name
         namespace = domain.app.id
 
         # only delete if it exists and if no other domains depend on secret
