@@ -371,8 +371,8 @@ KUBERNETES_NAMESPACE_DEFAULT_LIMIT_RANGES_SPEC = os.environ.get(
         "limits": [
             {
                 "default": {
-                    "cpu": "%sm" % KUBERNETES_CPU_MIN_ALLOCATION * KUBERNETES_CPU_ALLOCATION_RATIO,  # noqa
-                    "memory": "%sMi" % KUBERNETES_RAM_MIN_ALLOCATION * KUBERNETES_RAM_ALLOCATION_RATIO  # noqa
+                    "cpu": "%sm" % (KUBERNETES_CPU_MIN_ALLOCATION * KUBERNETES_CPU_ALLOCATION_RATIO),  # noqa
+                    "memory": "%sMi" % (KUBERNETES_RAM_MIN_ALLOCATION * KUBERNETES_RAM_ALLOCATION_RATIO)  # noqa
                 },
                 "defaultRequest": {
                     "cpu": "%sm" % KUBERNETES_CPU_MIN_ALLOCATION,
