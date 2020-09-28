@@ -143,7 +143,7 @@ class BuildTest(DryccTransactionTestCase):
         self.assertEqual(container['type'], 'web')
         self.assertEqual(container['release'], 'v2')
         # pod name is auto generated so use regex
-        self.assertRegex(container['name'], app_id + '-web-[0-9]{8,10}-[a-z0-9]{5}')
+        self.assertRegex(container['name'], app_id + '-web-[0-9]{7,10}-[a-z0-9]{5}')
 
         # start with a new app
         app_id = self.create_app()

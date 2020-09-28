@@ -296,7 +296,7 @@ class TestLimits(DryccTransactionTestCase):
         self.assertEqual(response.status_code, 400, response.data)
         body = {'cpu': json.dumps({'web': '100m'})}
         response = self.client.post(url, body)
-        self.assertEqual(response.status_code, 400, response.data)
+        self.assertEqual(response.status_code, 201, response.data)
 
         mem = {'w3&b': '1G'}
         body = {'cpu': json.dumps(mem)}
