@@ -1,3 +1,4 @@
+import logging
 from django.conf import settings
 from django.db import models
 from jsonfield import JSONField
@@ -6,6 +7,9 @@ import json
 from api.models.release import Release
 from api.models import UuidAuditedModel
 from api.exceptions import DryccException, UnprocessableEntity
+
+
+logger = logging.getLogger(__name__)
 
 
 class Config(UuidAuditedModel):
@@ -100,6 +104,7 @@ class Config(UuidAuditedModel):
                     tags = json.loads(settings.DRYCC_DEFAULT_CONFIG_TAGS)
                     self.tags = tags
                 except json.JSONDecodeError as e:
+                    logger.exception(e)
                     return
             else:
                 return

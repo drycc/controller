@@ -1,6 +1,10 @@
+import logging
 from django.contrib.auth.models import AnonymousUser
 from rest_framework import authentication
 from rest_framework.authentication import TokenAuthentication
+
+
+logger = logging.getLogger(__name__)
 
 
 class AnonymousAuthentication(authentication.BaseAuthentication):
@@ -20,5 +24,6 @@ class AnonymousOrAuthenticatedAuthentication(authentication.BaseAuthentication):
         """
         try:
             return TokenAuthentication.authenticate(TokenAuthentication(), request)
-        except:
+        except Exception as e:
+            logger.debug(e)
             return AnonymousUser(), None

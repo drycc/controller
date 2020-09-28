@@ -3,6 +3,7 @@ Classes to serialize the RESTful representation of Drycc API models.
 """
 
 import json
+import logging
 import jmespath
 import re
 import jsonschema
@@ -20,6 +21,9 @@ from api import models
 # proc type name is lowercase alphanumeric
 # https://docs-v2.readthedocs.io/en/latest/using-workflow/process-types-and-the-procfile/#declaring-process-types
 from api.exceptions import DryccException
+
+
+logger = logging.getLogger(__name__)
 
 PROCTYPE_MATCH = re.compile(r'^(?P<type>[a-z0-9]+(\-[a-z0-9]+)*)$')
 PROCTYPE_MISMATCH_MSG = "Process types can only contain lowercase alphanumeric characters"
@@ -536,6 +540,7 @@ class ServiceSerializer(serializers.ModelSerializer):
             try:
                 re.compile(pattern)
             except re.error as e:
+                logger.exception(e)
                 raise serializers.ValidationError(
                     "Service value should be valid regex (or set of regex split by comma)")
 
@@ -592,13 +597,16 @@ class AppSettingsSerializer(serializers.ModelSerializer):
         for address in data:
             try:
                 ipaddress.ip_address(address)
-            except:
+            except Exception as e:
+                logger.exception(e)
                 try:
                     ipaddress.ip_network(address)
-                except:
+                except Exception as e:
+                    logger.exception(e)
                     try:
                         ipaddress.ip_interface(address)
-                    except:
+                    except Exception as e:
+                        logger.exception(e)
                         raise serializers.ValidationError(
                            "The address {} is not valid".format(address))
 

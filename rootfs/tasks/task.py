@@ -52,7 +52,7 @@ def task(func):
 def apply_async(target, delay=0, callback=None, args=(), kwargs=None):
     target_id = "%s.%s" % (target.__module__, target.__name__)
     if target_id not in TASKS:
-        raise NotImplemented("This task is not registered.")
+        raise NotImplementedError("This task is not registered.")
     message = json.dumps({
         "target_id": target_id,
         "args": args,

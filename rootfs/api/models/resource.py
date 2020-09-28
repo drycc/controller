@@ -139,6 +139,7 @@ class Resource(UuidAuditedModel):
             data = self._scheduler.svcat.get_instance(
                 self.app.id, self.name).json()
         except KubeException as e:
+            logger.debug(e)
             self.DryccException("resource {} does not exist".format(self.name))
         try:
             version = data["metadata"]["resourceVersion"]

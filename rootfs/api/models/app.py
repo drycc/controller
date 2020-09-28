@@ -896,7 +896,7 @@ class App(UuidAuditedModel):
             data.sort(key=lambda x: x['started'], reverse=True)
             return data
         except KubeHTTPException as e:
-            pass
+            logger.debug(e)
         except Exception as e:
             err = '(list pods): {}'.format(e)
             self.log(err, logging.ERROR)
