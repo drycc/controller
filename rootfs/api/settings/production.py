@@ -336,13 +336,13 @@ DRYCC_DEFAULT_CONFIG_TAGS = os.environ.get('DRYCC_DEFAULT_CONFIG_TAGS', '')
 KUBERNETES_POD_TERMINATION_GRACE_PERIOD_SECONDS = int(os.environ.get('KUBERNETES_POD_TERMINATION_GRACE_PERIOD_SECONDS', 30))  # noqa
 
 # Minimum allocation cpu, units are represented in the millicpu of CPUs
-KUBERNETES_CPU_MIN_ALLOCATION = int(os.environ.get('KUBERNETES_RAM_MIN_ALLOCATION', '10'))
+KUBERNETES_CPU_MIN_ALLOCATION = int(os.environ.get('KUBERNETES_CPU_MIN_ALLOCATION', '10'))
 # Minimum allocation memory, units are represented in Megabytes(M)
 KUBERNETES_RAM_MIN_ALLOCATION = int(os.environ.get('KUBERNETES_RAM_MIN_ALLOCATION', '64'))
 # Maximum allocation cpu, units are represented in the millicpu of CPUs
-KUBERNETES_CPU_MAX_ALLOCATION = int(os.environ.get('KUBERNETES_RAM_MIN_ALLOCATION', '32000'))
+KUBERNETES_CPU_MAX_ALLOCATION = int(os.environ.get('KUBERNETES_CPU_MAX_ALLOCATION', '32000'))
 # Maximum allocation memory, units are represented in Megabytes(M)
-KUBERNETES_RAM_MAX_ALLOCATION = int(os.environ.get('KUBERNETES_RAM_MIN_ALLOCATION', '131072'))
+KUBERNETES_RAM_MAX_ALLOCATION = int(os.environ.get('KUBERNETES_RAM_MAX_ALLOCATION', '131072'))
 # CPU allocation ratio
 KUBERNETES_CPU_ALLOCATION_RATIO = int(os.environ.get('KUBERNETES_CPU_ALLOCATION_RATIO', '10'))
 # RAM allocation ratio
