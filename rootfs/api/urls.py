@@ -142,6 +142,11 @@ urlpatterns = [
         })),
     url(r'^certs/?$',
         views.CertificateViewSet.as_view({'get': 'list', 'post': 'create'})),
-    # list users
-    url(r'^users/?$', views.UserView.as_view({'get': 'list'})),
+    # users
+    url(r'^users/?$',
+        views.UserView.as_view({'get': 'list'})),
+    url(r'^users/(?P<username>[\w.@+-]+)/enable/?$',
+        views.UserView.as_view({'patch': 'enable'})),
+    url(r'^users/(?P<username>[\w.@+-]+)/disable/?$',
+        views.UserView.as_view({'patch': 'disable'})),
 ]

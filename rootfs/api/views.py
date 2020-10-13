@@ -824,13 +824,13 @@ class AdminPermsViewSet(BaseDryccViewSet):
         return self.model.objects.filter(is_active=True, is_superuser=True)
 
     def create(self, request, **kwargs):
-        user = get_object_or_404(User, username=request.data['username'])
+        user = get_object_or_404(self.model, username=request.data['username'])
         user.is_superuser = user.is_staff = True
         user.save(update_fields=['is_superuser', 'is_staff'])
         return Response(status=status.HTTP_201_CREATED)
 
     def destroy(self, request, **kwargs):
-        user = get_object_or_404(User, username=kwargs['username'])
+        user = get_object_or_404(self.model, username=kwargs['username'])
         user.is_superuser = user.is_staff = False
         user.save(update_fields=['is_superuser', 'is_staff'])
         return Response(status=status.HTTP_204_NO_CONTENT)
@@ -844,3 +844,19 @@ class UserView(BaseDryccViewSet):
 
     def get_queryset(self):
         return self.model.objects.exclude(username='AnonymousUser')
+
+    def enable(self, request, **kwargs):
+        if request.user.username == kwargs['username']:
+            return Response(status=status.HTTP_423_LOCKED)
+        user = get_object_or_404(self.model, username=kwargs['username'])
+        user.is_active = True
+        user.save(update_fields=['is_active', ])
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+    def disable(self, request, **kwargs):
+        if request.user.username == kwargs['username']:
+            return Response(status=status.HTTP_423_LOCKED)
+        user = get_object_or_404(self.model, username=kwargs['username'])
+        user.is_active = False
+        user.save(update_fields=['is_active', ])
+        return Response(status=status.HTTP_204_NO_CONTENT)
