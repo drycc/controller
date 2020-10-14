@@ -226,6 +226,20 @@ class AppViewSet(BaseDryccViewSet):
         self.get_object().scale(request.user, request.data)
         return Response(status=status.HTTP_204_NO_CONTENT)
 
+    def stop(self, request, **kwargs):
+        types = request.data.get("types")
+        if not types:
+            raise DryccException("types is a required field")
+        self.get_object().stop(request.user, types)
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+    def start(self, request, **kwargs):
+        types = request.data.get("types")
+        if not types:
+            raise DryccException("types is a required field")
+        self.get_object().start(request.user, types)
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
     def logs(self, request, **kwargs):
         app = self.get_object()
         try:
@@ -314,7 +328,23 @@ class PodViewSet(AppResourceViewSet):
     def list(self, *args, **kwargs):
         pods = self.get_app().list_pods(*args, **kwargs)
         data = self.get_serializer(pods, many=True).data
-        # fake out pagination for now
+
+        if not kwargs.get("type"):
+            exist_pod_type = list(set([_["type"] for _ in data if _["type"]]))
+            for _ in self.get_app().structure.keys():
+                if _ not in exist_pod_type:
+                    exist_pod_type.append(_)
+                    data.append({"type": _,
+                                 "type_rs_num": self.get_app().structure[_],
+                                 "state": "stopped"})
+
+            for _ in self.get_app().procfile_structure.keys():
+                if _ not in exist_pod_type:
+                    data.append({"type": _,
+                                 "type_rs_num": 0,
+                                 "state": "stopped"})
+
+        # # fake out pagination for now
         pagination = {'results': data, 'count': len(data)}
         return Response(pagination, status=status.HTTP_200_OK)
 

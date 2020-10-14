@@ -569,11 +569,12 @@ class CertificateSerializer(serializers.ModelSerializer):
 
 
 class PodSerializer(serializers.BaseSerializer):
-    name = serializers.CharField()
+    name = serializers.CharField(required=False)
     state = serializers.CharField()
     type = serializers.CharField()
-    release = serializers.CharField()
-    started = serializers.DateTimeField()
+    release = serializers.CharField(required=False)
+    started = serializers.DateTimeField(required=False)
+    type_rs_num = serializers.IntegerField(required=False)
 
     def to_representation(self, obj):
         return obj
