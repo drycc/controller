@@ -496,6 +496,65 @@ class App(UuidAuditedModel):
 
         return False
 
+    def stop(self, user, types):  # noqa
+        """scale containers which types contained down """
+
+        if self.release_set.filter(failed=False).latest().build is None:
+            raise DryccException('No build associated with this release')
+
+        release = self.release_set.filter(failed=False).latest()
+        structure = {_: 0 for _ in types}
+
+        # test for available process types
+        available_process_types = release.build.procfile or {}
+        for container_type in types:
+            if container_type == 'cmd':
+                continue  # allow docker cmd types in case we don't have the image source
+
+            if container_type not in available_process_types:
+                raise NotFound(
+                    'Container type {} does not exist in application'.format(container_type))
+
+        # merge current structure and the new items together
+        old_structure = self.structure
+        new_structure = old_structure.copy()
+        new_structure.update(structure)
+
+        if new_structure != self.structure:
+            try:
+                self._scale_pods(structure)
+            except ServiceUnavailable:
+                # scaling failed, go back to old scaling numbers
+                self._scale_pods(old_structure)
+                raise
+
+            msg = '{} stopped pods '.format(user.username) + ' '.join(types)
+            self.log(msg)
+
+            return True
+
+        return False
+
+    def start(self, user, types):  # noqa
+        """scale containers which types contained up."""
+        # use create to make sure minimum resources are created
+        self.create()
+        if self.release_set.filter(failed=False).latest().build is None:
+            raise DryccException('No build associated with this release')
+
+        structure = {}
+        for k, v in self.structure.items():
+            if k in types:
+                structure[k] = v
+        try:
+            self._scale_pods(structure)
+        except ServiceUnavailable:
+            # scaling failed, go back to old scaling numbers
+            raise
+        msg = '{} stopped pods '.format(user.username) + ' '.join(types)
+        self.log(msg)
+        return True
+
     def _scale_pods(self, scale_types):
         release = self.release_set.filter(failed=False).latest()
         app_settings = self.appsettings_set.latest()
@@ -863,6 +922,7 @@ class App(UuidAuditedModel):
                     pods = []
 
             data = []
+            exist_pod_type = []
             for p in pods:
                 labels = p['metadata']['labels']
                 # specifically ignore run pods
@@ -889,7 +949,9 @@ class App(UuidAuditedModel):
                 else:
                     started = str(datetime.utcnow().strftime(settings.DRYCC_DATETIME_FORMAT))
                 item['started'] = started
-
+                item['replicas'] = self.structure.get(labels['type'])
+                if labels['type'] not in exist_pod_type:
+                    exist_pod_type.append(labels['type'])
                 data.append(item)
 
             # sorting so latest start date is first
