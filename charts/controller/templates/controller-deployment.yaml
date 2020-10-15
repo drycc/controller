@@ -76,6 +76,8 @@ spec:
             value: "{{ .Values.global.registry_secret_prefix }}"
           - name: "IMAGE_PULL_POLICY"
             value: "{{ .Values.app_pull_policy }}"
+          - name: "KUBERNETES_CLUSTER_DOMAIN"
+            value: "{{ .Values.global.cluster_domain }}"
 {{- if (.Values.app_storage_class) }}
           - name: "DRYCC_APP_STORAGE_CLASS"
             value: "{{ .Values.app_storage_class }}"
@@ -133,7 +135,7 @@ spec:
               fieldRef:
                 fieldPath: metadata.namespace
           - name: DRYCC_NSQD_ADDRS
-            value: "{{range $i := until $nsqdNodeCount}}drycc-nsqd-{{$i}}.drycc-nsqd.{{ $.Release.Namespace }}.svc.cluster.local:{{$.Values.nsqd.tcp_port}}{{if lt (add 1 $i) $nsqdNodeCount}},{{end}}{{end}}"
+            value: "{{range $i := until $nsqdNodeCount}}drycc-nsqd-{{$i}}.drycc-nsqd.{{$.Release.Namespace}}.svc.{{$.Values.global.cluster_domain}}:{{$.Values.nsqd.tcp_port}}{{if lt (add 1 $i) $nsqdNodeCount}},{{end}}{{end}}"
           {{- range $key, $value := .Values.environment }}
           - name: {{ $key }}
             value: {{ $value | quote }}

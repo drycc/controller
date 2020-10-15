@@ -250,7 +250,12 @@ SCHEDULER_MODULE = 'scheduler'
 SCHEDULER_URL = "https://{}:{}".format(
     # accessing the k8s api server by IP address rather than hostname avoids
     # intermittent DNS errors
-    os.environ.get('KUBERNETES_SERVICE_HOST', 'kubernetes.default.svc.cluster.local'),
+    os.environ.get(
+        'KUBERNETES_SERVICE_HOST',
+        'kubernetes.default.svc.{}'.format(os.environ.get(
+            "KUBERNETES_CLUSTER_DOMAIN", "cluster.local"
+        ))
+    ),
     os.environ.get('KUBERNETES_SERVICE_PORT', '443')
 )
 
