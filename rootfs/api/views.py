@@ -342,7 +342,7 @@ class PodViewSet(AppResourceViewSet):
                 if _ not in exist_pod_type:
                     data.append({"type": _,
                                  "replicas": 0,
-                                 "state": "stopped"})
+                                 "state": "started"})
 
         # # fake out pagination for now
         pagination = {'results': data, 'count': len(data)}

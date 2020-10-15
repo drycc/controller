@@ -498,6 +498,12 @@ class App(UuidAuditedModel):
 
     def stop(self, user, types):  # noqa
         """scale containers which types contained down """
+        rs_zero = []
+        for _ in types:
+            if not self.structure.get(_, 0):
+                rs_zero.append(_)
+        if rs_zero:
+            raise DryccException("process {} replicas is zero".format(",".join(rs_zero))) # noqa
 
         if self.release_set.filter(failed=False).latest().build is None:
             raise DryccException('No build associated with this release')
@@ -541,6 +547,13 @@ class App(UuidAuditedModel):
         self.create()
         if self.release_set.filter(failed=False).latest().build is None:
             raise DryccException('No build associated with this release')
+
+        rs_zero = []
+        for _ in types:
+            if not self.structure.get(_, 0):
+                rs_zero.append(_)
+        if rs_zero:
+            raise DryccException("process {} replicas is zero".format(",".join(rs_zero))) # noqa
 
         structure = {}
         for k, v in self.structure.items():
