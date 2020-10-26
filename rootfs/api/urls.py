@@ -131,6 +131,8 @@ urlpatterns = [
         views_obtain_auth_token),
     url(r'^auth/tokens/$',
         views.TokenManagementViewSet.as_view({'post': 'regenerate'})),
+    url(r'^auth/tokens/(?P<username>[\w.@+-]+)/?$',
+        views.TokenManagementViewSet.as_view({'get': 'token'})),
     # admin sharing
     url(r'^admin/perms/(?P<username>[\w.@+-]+)/?$',
         views.AdminPermsViewSet.as_view({'delete': 'destroy'})),

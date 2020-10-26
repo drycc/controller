@@ -80,6 +80,8 @@ class UserManagementViewSet(GenericViewSet):
         return Response(serializer.data)
 
     def destroy(self, request, **kwargs):
+        if settings.LDAP_ENDPOINT:
+            raise DryccException("You cannot destroy user when ldap is enabled.")
         calling_obj = self.get_object()
         target_obj = calling_obj
 
@@ -104,6 +106,8 @@ class UserManagementViewSet(GenericViewSet):
     def passwd(self, request, **kwargs):
         if not request.data.get('new_password'):
             raise DryccException("new_password is a required field")
+        if settings.LDAP_ENDPOINT:
+            raise DryccException("You cannot change password when ldap is enabled.")
 
         caller_obj = self.get_object()
         target_obj = self.get_object()
@@ -156,6 +160,14 @@ class TokenManagementViewSet(GenericViewSet,
         token.delete()
         token = Token.objects.create(user=obj)
         return Response({'token': token.key})
+
+    def token(self, request, **kwargs):
+        if self.request.user.username == kwargs['username'] \
+                or self.request.user.is_superuser:
+            obj = get_object_or_404(User, username=kwargs['username'])
+            token = Token.objects.get(user=obj)
+            return Response({'token': token.key})
+        return Response(status=status.HTTP_403_FORBIDDEN)
 
 
 class BaseDryccViewSet(viewsets.OwnerViewSet):
