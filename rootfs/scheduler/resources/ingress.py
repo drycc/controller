@@ -52,10 +52,10 @@ class NginxManifest(BaseManifest):
     def manifest(self, api_version, ingress, ingress_class, namespace, **kwargs):
         data = BaseManifest.manifest(
             self, api_version, ingress, ingress_class, namespace, **kwargs)
-        if "whitelist" in kwargs:
-            whitelist = ", ".join(kwargs.pop("whitelist"))
+        if "allowlist" in kwargs:
+            allowlist = ", ".join(kwargs.pop("allowlist"))
             data["metadata"]["annotations"].update({
-                "nginx.ingress.kubernetes.io/whitelist-source-range": whitelist
+                "nginx.ingress.kubernetes.io/whitelist-source-range": allowlist
             })
         if "ssl_redirect" in kwargs:
             ssl_redirect = kwargs.pop("ssl_redirect")
@@ -73,11 +73,11 @@ class TraefikManifest(BaseManifest):
     def manifest(self, api_version, ingress, ingress_class, namespace, **kwargs):
         data = BaseManifest.manifest(
             self, api_version, ingress, ingress_class, namespace, **kwargs)
-        if "whitelist" in kwargs:
-            whitelist = ", ".join(kwargs.pop("whitelist"))
+        if "allowlist" in kwargs:
+            allowlist = ", ".join(kwargs.pop("allowlist"))
             data["metadata"]["annotations"].update({
                 "ingress.kubernetes.io/whitelist-x-forwarded-for": "true",
-                "traefik.ingress.kubernetes.io/whitelist-source-range": whitelist
+                "traefik.ingress.kubernetes.io/whitelist-source-range": allowlist
             })
         if "ssl_redirect" in kwargs:
             ssl_redirect = kwargs.pop("ssl_redirect")

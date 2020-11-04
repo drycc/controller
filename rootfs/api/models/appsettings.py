@@ -19,9 +19,9 @@ class AppSettings(UuidAuditedModel):
     owner = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT)
     app = models.ForeignKey('App', on_delete=models.CASCADE)
     routable = models.NullBooleanField(default=None)
-    # the default values is None to differentiate from user sending an empty whitelist
+    # the default values is None to differentiate from user sending an empty allowlist
     # and user just updating other fields meaning the values needs to be copied from prev release
-    whitelist = ArrayField(models.CharField(max_length=50), default=None)
+    allowlist = ArrayField(models.CharField(max_length=50), default=None)
     autoscale = JSONField(default={}, blank=True)
     label = JSONField(default={}, blank=True)
 
@@ -37,14 +37,14 @@ class AppSettings(UuidAuditedModel):
     def __str__(self):
         return "{}-{}".format(self.app.id, str(self.uuid)[:7])
 
-    def new(self, user, whitelist):
+    def new(self, user, allowlist):
         """
-        Create a new application appSettings using the provided whitelist
+        Create a new application appSettings using the provided allowlist
         on behalf of a user.
         """
 
         app_settings = AppSettings.objects.create(
-            owner=user, app=self.app, whitelist=whitelist)
+            owner=user, app=self.app, allowlist=allowlist)
 
         return app_settings
 
@@ -62,16 +62,16 @@ class AppSettings(UuidAuditedModel):
             self.app.routable(new)
             self.summary += ["{} changed routablity from {} to {}".format(self.owner, old, new)]
 
-    def _update_whitelist(self, previous_settings):
+    def _update_allowlist(self, previous_settings):
         # If no previous settings then assume it is the first record and set as empty
         # to prevent from database constraint violation
         if not previous_settings:
-            setattr(self, 'whitelist', [])
-        old = getattr(previous_settings, 'whitelist', [])
-        new = getattr(self, 'whitelist', None)
+            setattr(self, 'allowlist', [])
+        old = getattr(previous_settings, 'allowlist', [])
+        new = getattr(self, 'allowlist', None)
         # if nothing changed copy the settings from previous
         if new is None and old is not None:
-            setattr(self, 'whitelist', old)
+            setattr(self, 'allowlist', old)
         elif set(old) != set(new):
             added = ', '.join(k for k in set(new)-set(old))
             added = 'added ' + added if added else ''
@@ -165,7 +165,7 @@ class AppSettings(UuidAuditedModel):
 
         try:
             self._update_routable(previous_settings)
-            self._update_whitelist(previous_settings)
+            self._update_allowlist(previous_settings)
             self._update_autoscale(previous_settings)
             self._update_label(previous_settings)
         except (UnprocessableEntity, NotFound):

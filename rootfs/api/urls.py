@@ -68,9 +68,9 @@ urlpatterns = [
     # application settings
     url(r"^apps/(?P<id>{})/settings/?$".format(settings.APP_URL_REGEX),
         views.AppSettingsViewSet.as_view({'get': 'retrieve', 'post': 'create'})),
-    # application ip whitelist
-    url(r"^apps/(?P<id>{})/whitelist/?$".format(settings.APP_URL_REGEX),
-        views.WhitelistViewSet.as_view({'post': 'create', 'get': 'list', 'delete': 'delete'})),
+    # application ip allowlist
+    url(r"^apps/(?P<id>{})/allowlist/?$".format(settings.APP_URL_REGEX),
+        views.AllowlistViewSet.as_view({'post': 'create', 'get': 'list', 'delete': 'delete'})),
     # application TLS settings
     url(r"^apps/(?P<id>{})/tls/?$".format(settings.APP_URL_REGEX),
         views.TLSViewSet.as_view({'get': 'retrieve', 'post': 'create'})),

@@ -374,31 +374,31 @@ class AppSettingsViewSet(AppResourceViewSet):
     serializer_class = serializers.AppSettingsSerializer
 
 
-class WhitelistViewSet(AppResourceViewSet):
+class AllowlistViewSet(AppResourceViewSet):
     model = models.AppSettings
     serializer_class = serializers.AppSettingsSerializer
 
     def list(self, *args, **kwargs):
         appSettings = self.get_app().appsettings_set.latest()
-        data = {"addresses": appSettings.whitelist}
+        data = {"addresses": appSettings.allowlist}
         return Response(data, status=status.HTTP_200_OK)
 
     def create(self, request, **kwargs):
         appSettings = self.get_app().appsettings_set.latest()
-        addresses = self.get_serializer().validate_whitelist(request.data.get('addresses'))
-        addresses = list(set(appSettings.whitelist) | set(addresses))
-        new_appsettings = appSettings.new(self.request.user, whitelist=addresses)
-        return Response({"addresses": new_appsettings.whitelist}, status=status.HTTP_201_CREATED)
+        addresses = self.get_serializer().validate_allowlist(request.data.get('addresses'))
+        addresses = list(set(appSettings.allowlist) | set(addresses))
+        new_appsettings = appSettings.new(self.request.user, allowlist=addresses)
+        return Response({"addresses": new_appsettings.allowlist}, status=status.HTTP_201_CREATED)
 
     def delete(self, request, **kwargs):
         appSettings = self.get_app().appsettings_set.latest()
-        addresses = self.get_serializer().validate_whitelist(request.data.get('addresses'))
+        addresses = self.get_serializer().validate_allowlist(request.data.get('addresses'))
 
-        unfound_addresses = set(addresses) - set(appSettings.whitelist)
+        unfound_addresses = set(addresses) - set(appSettings.allowlist)
         if len(unfound_addresses) != 0:
-            raise UnprocessableEntity('addresses {} does not exist in whitelist'.format(unfound_addresses))  # noqa
-        addresses = list(set(appSettings.whitelist) - set(addresses))
-        appSettings.new(self.request.user, whitelist=addresses)
+            raise UnprocessableEntity('addresses {} does not exist in allowlist'.format(unfound_addresses))  # noqa
+        addresses = list(set(appSettings.allowlist) - set(addresses))
+        appSettings.new(self.request.user, allowlist=addresses)
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 
@@ -764,7 +764,6 @@ class AppVolumeMountPathViewSet(ReleasableViewSet):
             for container_type, path in volume.path.items():
                 summary += "{container_type} mount path {path} with volume {name}.".\
                                format(container_type=container_type, path=path, name=volume.name)  # noqa
-            print(summary)
             self.release = latest_release.new(
                 self.request.user,
                 config=latest_release.config,

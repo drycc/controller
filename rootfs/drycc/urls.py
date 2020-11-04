@@ -1,7 +1,7 @@
 """
 URL routing patterns for the Drycc project.
 
-This is the "master" urls.py which then includes the urls.py files of
+This is the "main" urls.py which then includes the urls.py files of
 installed apps.
 """
 

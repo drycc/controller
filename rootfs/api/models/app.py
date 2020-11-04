@@ -189,9 +189,9 @@ class App(UuidAuditedModel):
             "tls": [{"secretName": k, "hosts": v} for k, v in tls_map.items()],
             "ssl_redirect": ssl_redirect
         }
-        whitelist = self.appsettings_set.latest().whitelist
-        if whitelist:
-            kwargs.update({"whitelist": whitelist})
+        allowlist = self.appsettings_set.latest().allowlist
+        if allowlist:
+            kwargs.update({"allowlist": allowlist})
         try:
             # In order to create an ingress, we must first have a namespace.
             if ingress == "":
