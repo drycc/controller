@@ -374,6 +374,20 @@ class AuthTest(DryccTestCase):
         response = self.client.post(url, {})
         self.assertEqual(response.status_code, 401, response.data)
 
+    def test_key(self):
+        url = '/v2/auth/tokens/autotest2/'
+        self.client.credentials(HTTP_AUTHORIZATION='Token ' + self.admin_token)
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, 200, response.data)
+
+        self.client.credentials(HTTP_AUTHORIZATION='Token ' + self.user1_token)
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, 200, response.data)
+
+        self.client.credentials(HTTP_AUTHORIZATION='Token ' + self.user2_token)
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, 403, response.data)
+
     @mock.patch('django_auth_ldap.backend.logger')
     def test_auth_no_ldap_by_default(self, mock_logger):
         """Ensure that LDAP authentication is disabled by default."""

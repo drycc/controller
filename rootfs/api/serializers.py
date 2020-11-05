@@ -594,7 +594,7 @@ class AppSettingsSerializer(serializers.ModelSerializer):
         fields = '__all__'
 
     @staticmethod
-    def validate_whitelist(data):
+    def validate_allowlist(data):
         for address in data:
             try:
                 ipaddress.ip_address(address)

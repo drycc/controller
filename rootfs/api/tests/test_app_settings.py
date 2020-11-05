@@ -41,85 +41,85 @@ class TestAppSettings(DryccTransactionTestCase):
         self.assertEqual(response.status_code, 201, response.data)
         self.assertFalse(app.appsettings_set.latest().routable)
 
-    def test_settings_whitelist(self, mock_requests):
+    def test_settings_allowlist(self, mock_requests):
         """
-        Test that addresses can be added/deleted to whitelist
+        Test that addresses can be added/deleted to allowlist
         """
         app_id = self.create_app()
         app = App.objects.get(id=app_id)
-        # add addresses to empty whitelist
+        # add addresses to empty allowlist
         addresses = ["0.0.0.0/0"]
-        whitelist = {'addresses': addresses}
+        allowlist = {'addresses': addresses}
         response = self.client.post(
-            '/v2/apps/{app_id}/whitelist'.format(**locals()),
-            whitelist)
+            '/v2/apps/{app_id}/allowlist'.format(**locals()),
+            allowlist)
         self.assertEqual(response.status_code, 201, response.data)
         self.assertEqual(set(response.data['addresses']),
-                         set(app.appsettings_set.latest().whitelist), response.data)
+                         set(app.appsettings_set.latest().allowlist), response.data)
         self.assertEqual(set(response.data['addresses']), set(addresses), response.data)
 
-        # get the whitelist
-        response = self.client.get('/v2/apps/{app_id}/whitelist'.format(**locals()))
+        # get the allowlist
+        response = self.client.get('/v2/apps/{app_id}/allowlist'.format(**locals()))
         self.assertEqual(response.status_code, 200, response.data)
         self.assertEqual(set(response.data['addresses']),
-                         set(app.appsettings_set.latest().whitelist), response.data)
+                         set(app.appsettings_set.latest().allowlist), response.data)
         self.assertEqual(set(response.data['addresses']), set(addresses), response.data)
 
-        # delete an address from whitelist
-        whitelist = {'addresses': ["0.0.0.0/0"]}
+        # delete an address from allowlist
+        allowlist = {'addresses': ["0.0.0.0/0"]}
         addresses.remove("0.0.0.0/0")
         response = self.client.delete(
-            '/v2/apps/{app_id}/whitelist'.format(**locals()),
-            whitelist)
+            '/v2/apps/{app_id}/allowlist'.format(**locals()),
+            allowlist)
         self.assertEqual(response.status_code, 204, response.data)
-        self.assertEqual(set(addresses), set(app.appsettings_set.latest().whitelist))
+        self.assertEqual(set(addresses), set(app.appsettings_set.latest().allowlist))
 
-        # add addresses to empty whitelist
+        # add addresses to empty allowlist
         addresses = ["0.0.0.0/0"]
-        whitelist = {'addresses': addresses}
+        allowlist = {'addresses': addresses}
         response = self.client.post(
-            '/v2/apps/{app_id}/whitelist'.format(**locals()),
-            whitelist)
+            '/v2/apps/{app_id}/allowlist'.format(**locals()),
+            allowlist)
         self.assertEqual(response.status_code, 201, response.data)
         self.assertEqual(set(response.data['addresses']),
-                         set(app.appsettings_set.latest().whitelist), response.data)
+                         set(app.appsettings_set.latest().allowlist), response.data)
         self.assertEqual(set(response.data['addresses']), set(addresses), response.data)
 
-        # add addresses to non-empty whitelist
-        whitelist = {'addresses': ["2.3.4.5"]}
+        # add addresses to non-empty allowlist
+        allowlist = {'addresses': ["2.3.4.5"]}
         addresses.extend(["2.3.4.5"])
         response = self.client.post(
-            '/v2/apps/{app_id}/whitelist'.format(**locals()),
-            whitelist)
+            '/v2/apps/{app_id}/allowlist'.format(**locals()),
+            allowlist)
         self.assertEqual(response.status_code, 201, response.data)
         self.assertEqual(set(response.data['addresses']),
-                         set(app.appsettings_set.latest().whitelist), response.data)
+                         set(app.appsettings_set.latest().allowlist), response.data)
         self.assertEqual(set(response.data['addresses']), set(addresses), response.data)
 
-        # add exisitng addresses to whitelist
+        # add exisitng addresses to allowlist
         response = self.client.post(
-            '/v2/apps/{app_id}/whitelist'.format(**locals()),
-            whitelist)
+            '/v2/apps/{app_id}/allowlist'.format(**locals()),
+            allowlist)
         self.assertEqual(response.status_code, 409, response.data)
-        # delete non-exisitng address from whitelist
-        whitelist = {'addresses': ["2.3.4.6"]}
+        # delete non-exisitng address from allowlist
+        allowlist = {'addresses': ["2.3.4.6"]}
         response = self.client.delete(
-            '/v2/apps/{app_id}/whitelist'.format(**locals()),
-            whitelist)
+            '/v2/apps/{app_id}/allowlist'.format(**locals()),
+            allowlist)
         self.assertEqual(response.status_code, 422)
         # pass invalid address
-        whitelist = {'addresses': ["2.3.4.6.7"]}
+        allowlist = {'addresses': ["2.3.4.6.7"]}
         response = self.client.post(
-            '/v2/apps/{app_id}/whitelist'.format(**locals()),
-            whitelist)
+            '/v2/apps/{app_id}/allowlist'.format(**locals()),
+            allowlist)
         self.assertEqual(response.status_code, 400, response.data)
-        # update other appsettings and whitelist should be retained
+        # update other appsettings and allowlist should be retained
         settings = {'routable': False}
         response = self.client.post(
             '/v2/apps/{app.id}/settings'.format(**locals()),
             settings)
         self.assertEqual(response.status_code, 201, response.data)
-        self.assertEqual(set(addresses), set(app.appsettings_set.latest().whitelist))
+        self.assertEqual(set(addresses), set(app.appsettings_set.latest().allowlist))
 
     def test_kubernetes_service_failure(self, mock_requests):
         """
@@ -131,7 +131,7 @@ class TestAppSettings(DryccTransactionTestCase):
         with mock.patch('scheduler.resources.service.Service.update') as mock_kube:
             mock_kube.side_effect = KubeException('Boom!')
             addresses = ["2.3.4.5"]
-            url = '/v2/apps/{}/whitelist'.format(app_id)
+            url = '/v2/apps/{}/allowlist'.format(app_id)
             response = self.client.post(url, {'addresses': addresses})
             self.assertEqual(response.status_code, 201, response.data)
 

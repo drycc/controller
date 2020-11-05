@@ -47,7 +47,7 @@ class Migration(migrations.Migration):
                 ('created', models.DateTimeField(auto_now_add=True)),
                 ('updated', models.DateTimeField(auto_now=True)),
                 ('routable', models.NullBooleanField(default=None)),
-                ('whitelist', django.contrib.postgres.fields.ArrayField(base_field=models.CharField(max_length=50), default=None, size=None)),
+                ('allowlist', django.contrib.postgres.fields.ArrayField(base_field=models.CharField(max_length=50), default=None, size=None)),
                 ('autoscale', jsonfield.fields.JSONField(blank=True, default={})),
                 ('label', jsonfield.fields.JSONField(blank=True, default={})),
                 ('app', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, to='api.App')),
