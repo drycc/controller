@@ -923,6 +923,7 @@ class App(UuidAuditedModel):
 
     def list_pods(self, *args, **kwargs):
         """Used to list basic information about pods running for a given application"""
+        autoscale = self.appsettings_set.latest().autoscale
         try:
             labels = self._scheduler_filter(**kwargs)
 
@@ -935,7 +936,6 @@ class App(UuidAuditedModel):
                     pods = []
 
             data = []
-            exist_pod_type = []
             for p in pods:
                 labels = p['metadata']['labels']
                 # specifically ignore run pods
@@ -962,9 +962,9 @@ class App(UuidAuditedModel):
                 else:
                     started = str(datetime.utcnow().strftime(settings.DRYCC_DATETIME_FORMAT))
                 item['started'] = started
-                item['replicas'] = self.structure.get(labels['type'])
-                if labels['type'] not in exist_pod_type:
-                    exist_pod_type.append(labels['type'])
+                replicas = str(autoscale[labels['type']]['min']) + '-' + str(autoscale[labels['type']]['max']) \
+                    if autoscale.get(labels['type']) is not None else self.structure.get(labels['type'])  # noqa
+                item['replicas'] = str(replicas)
                 data.append(item)
 
             # sorting so latest start date is first
