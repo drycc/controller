@@ -342,18 +342,23 @@ class PodViewSet(AppResourceViewSet):
         data = self.get_serializer(pods, many=True).data
 
         if not kwargs.get("type"):
+            autoscale = self.get_app().appsettings_set.latest().autoscale
             exist_pod_type = list(set([_["type"] for _ in data if _["type"]]))
-            for _ in self.get_app().structure.keys():
+            structure = self.get_app().structure
+            procfile_structure = self.get_app().procfile_structure
+            for _ in structure.keys():
                 if _ not in exist_pod_type:
+                    replicas = str(autoscale[_]['min']) + '-' + str(autoscale[_]['max']) \
+                        if (autoscale.get(_) is not None and structure[_] !=0) else structure[_]  # noqa
                     exist_pod_type.append(_)
                     data.append({"type": _,
-                                 "replicas": self.get_app().structure[_],
+                                 "replicas": str(replicas),
                                  "state": "stopped"})
 
-            for _ in self.get_app().procfile_structure.keys():
+            for _ in procfile_structure:
                 if _ not in exist_pod_type:
                     data.append({"type": _,
-                                 "replicas": 0,
+                                 "replicas": str(0),
                                  "state": "started"})
 
         # # fake out pagination for now
