@@ -64,6 +64,11 @@ class UserRegistrationViewSet(GenericViewSet,
     permission_classes = [permissions.HasRegistrationAuth]
     serializer_class = serializers.UserSerializer
 
+    def create(self, request, *args, **kwargs):
+        if settings.LDAP_ENDPOINT:
+            raise DryccException("You cannot register user when ldap is enabled.")
+        return super(UserRegistrationViewSet, self).create(request, *args, **kwargs)
+
 
 class UserManagementViewSet(GenericViewSet):
     serializer_class = serializers.UserSerializer
