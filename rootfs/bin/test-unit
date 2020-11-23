@@ -12,8 +12,22 @@ function start_nsq() {
     cd -
 }
 
+function start_redis() {
+    cd /tmp
+    nohup redis-server > /var/log/redis.log 2>&1 &
+    cd -
+}
+
+function start_celery() {
+    cd /tmp
+    nohup su-exec nobody celery -A api worker -Q priority.low,priority.middle,priority.high --loglevel=info > /var/log/celery.log 2>&1 &
+    cd -
+}
+
 su-exec postgres pg_ctl -D "$PGDATA" start
 start_nsq
+start_redis
+start_celery
 python3 manage.py check
-coverage run manage.py test --settings=api.settings.testing --noinput tasks.tests api scheduler.tests
+coverage run manage.py test --settings=api.settings.testing --noinput api scheduler.tests
 coverage report -m

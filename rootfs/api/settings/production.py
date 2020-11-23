@@ -443,6 +443,18 @@ DATABASES = {
     }
 }
 
+REDIS_ADDRS = os.environ.get('REDIS_ADDRS', 'redis://127.0.0.1:6379/0').split(",")
+
+CACHES = {
+    "default": {
+        "BACKEND": "django_redis.cache.RedisCache",
+        "LOCATION": REDIS_ADDRS,
+        "OPTIONS": {
+            "CLIENT_CLASS": "django_redis.client.ShardClient",
+        }
+    }
+}
+
 APP_URL_REGEX = '[a-z0-9-]+'
 
 # LDAP settings taken from environment variables.
@@ -499,3 +511,12 @@ if LDAP_ENDPOINT:
     AUTH_LDAP_MIRROR_GROUPS = True
     AUTH_LDAP_FIND_GROUP_PERMS = True
     AUTH_LDAP_CACHE_GROUPS = False
+
+# Celery Configuration Options
+CELERY_TIMEZONE = "Asia/Shanghai"
+CELERY_TASK_TRACK_STARTED = True
+CELERY_TASK_TIME_LIMIT = 30 * 60
+CELERY_BROKER_URL = REDIS_ADDRS[0]
+CELERY_RESULT_BACKEND = REDIS_ADDRS[0]
+CELERY_CACHE_BACKEND = 'django-cache'
+CELERY_DEFAULT_QUEUE = 'priority.middle'
