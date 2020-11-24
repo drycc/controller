@@ -1,4 +1,4 @@
-{{ $nsqdNodeCount := .Values.nsqd.replicas | int }}
+{{ $redisNodeCount := .Values.redis.replicas | int }}
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -134,23 +134,21 @@ spec:
             valueFrom:
               fieldRef:
                 fieldPath: metadata.namespace
-          - name: DRYCC_NSQD_ADDRS
-            value: "{{range $i := until $nsqdNodeCount}}drycc-nsqd-{{$i}}.drycc-nsqd.{{$.Release.Namespace}}.svc.{{$.Values.global.cluster_domain}}:{{$.Values.nsqd.tcp_port}}{{if lt (add 1 $i) $nsqdNodeCount}},{{end}}{{end}}"
 {{ if eq .Values.global.redis_location "on-cluster"}}
-        - name: DRYCC_REDIS_ADDRS
-          value: "{{range $i := until $redisNodeCount}}drycc-redis-{{$i}}.drycc-redis.{{$.Release.Namespace}}.svc.{{$.Values.global.cluster_domain}}:{{$.Values.redis.port}}{{if lt (add 1 $i) $redisNodeCount}},{{end}}{{end}}"
+          - name: DRYCC_REDIS_ADDRS
+            value: "{{range $i := until $redisNodeCount}}drycc-redis-{{$i}}.drycc-redis.{{$.Release.Namespace}}.svc.{{$.Values.global.cluster_domain}}:{{$.Values.redis.port}}{{if lt (add 1 $i) $redisNodeCount}},{{end}}{{end}}"
 {{- else if eq .Values.global.redis_location "off-cluster" }}
-        - name: DRYCC_REDIS_ADDRS
-          valueFrom:
-            secretKeyRef:
-              name: redis-creds
-              key: addrs
+          - name: DRYCC_REDIS_ADDRS
+            valueFrom:
+              secretKeyRef:
+                name: redis-creds
+                key: addrs
 {{- end }}
-        - name: DRYCC_REDIS_PASSWORD
-          valueFrom:
-            secretKeyRef:
-              name: redis-creds
-              key: password
+          - name: DRYCC_REDIS_PASSWORD
+            valueFrom:
+              secretKeyRef:
+                name: redis-creds
+                key: password
           {{- range $key, $value := .Values.environment }}
           - name: {{ $key }}
             value: {{ $value | quote }}
