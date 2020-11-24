@@ -11,25 +11,25 @@ import morph
 import re
 import urllib.parse
 import uuid
+import requests
 
+from datetime import timedelta
 from django.conf import settings
 from django.db import models
 from django.db.models.signals import post_delete, post_save
-from django.dispatch import receiver
+from django.utils.timezone import now
+from django.dispatch import receiver, Signal
 from rest_framework.exceptions import ValidationError
 from rest_framework.authtoken.models import Token
-import requests
 from requests_toolbelt import user_agent
-
-from api import __version__ as drycc_version
-from api.exceptions import DryccException, AlreadyExists, ServiceUnavailable, UnprocessableEntity  # noqa
-from api.utils import dict_merge
-from scheduler import KubeException
+from scheduler.exceptions import KubeException
+from .. import __version__ as drycc_version
+from ..exceptions import DryccException, AlreadyExists, ServiceUnavailable, UnprocessableEntity  # noqa
 
 
 logger = logging.getLogger(__name__)
-
 session = None
+resource_changed = Signal(providing_args=["resource_id"])
 
 
 def get_session():
@@ -153,6 +153,9 @@ from .tls import TLS  # noqa
 from .volume import Volume  # noqa
 from .resource import Resource  # noqa
 
+from ..tasks import retrieve_resource  # noqa
+from ..utils import dict_merge  # noqa
+
 # define update/delete callbacks for synchronizing
 # models with the configuration management backend
 
@@ -257,3 +260,15 @@ post_delete.connect(_log_instance_removed, sender=Resource, dispatch_uid='api.mo
 def create_auth_token(sender, instance=None, created=False, **kwargs):
     if created:
         Token.objects.create(user=instance)
+
+
+@receiver(resource_changed)
+def resource_changed_handle(sender, **kwargs):
+    data = {
+        "task_id": uuid.uuid4().hex,
+        "resource_id": kwargs.get("resource_id"),
+    }
+    retrieve_resource.apply_async(
+        args=(data, ),
+        eta=now() + timedelta(seconds=30)
+    )

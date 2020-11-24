@@ -30,14 +30,17 @@ python /app/manage.py migrate --noinput
 # spawn a gunicorn server in the background
 echo ""
 echo "Starting up Gunicorn"
-gunicorn -c /app/drycc/gunicorn/config.py drycc.gunicorn.wsgi &
+gunicorn -c /app/drycc/gunicorn/config.py api.wsgi &
 
 echo ""
 echo "Loading database information to Kubernetes in the background"
 echo "Log of the run can be found in /app/data/logs/load_db_state_to_k8s.log"
 # python -u avoids output buffering
 nohup python -u /app/manage.py load_db_state_to_k8s > /app/data/logs/load_db_state_to_k8s.log &
-
+# celery
+nohup su-exec nobody celery -A api worker -Q priority.low --autoscale=8,1 --loglevel=WARNING > /app/data/logs/celery.log 2>&1 &
+nohup su-exec nobody celery -A api worker -Q priority.middle --autoscale=16,1 --loglevel=WARNING > /app/data/logs/celery.log 2>&1 &
+nohup su-exec nobody celery -A api worker -Q priority.high --autoscale=32,1 --loglevel=WARNING > /app/data/logs/celery.log 2>&1 &
 # smart shutdown on SIGTERM (SIGINT is handled by gunicorn)
 function on_exit() {
 	GUNICORN_PID=$(cat /tmp/gunicorn.pid)

@@ -1,14 +1,11 @@
 import logging
-import uuid
-import time
-from django.core import signals
 from django.conf import settings
 from django.db import models, transaction
 from jsonfield import JSONField
 from api.exceptions import DryccException, AlreadyExists, ServiceUnavailable
 from api.models import UuidAuditedModel, validate_label
 from scheduler import KubeException
-from tasks import task, apply_async
+from . import resource_changed
 
 logger = logging.getLogger(__name__)
 
@@ -58,11 +55,7 @@ class Resource(UuidAuditedModel):
                 self._scheduler.svcat.create_instance(
                     self.app.id, self.name, **kwargs
                 )
-                data = {
-                    "task_id": uuid.uuid4().hex,
-                    "resource_id": str(self.uuid),
-                }
-                apply_async(retrieve_task, delay=30000, args=(data, ))
+                resource_changed.send(sender=Resource, resource_id=str(self.uuid))
             except KubeException as e:
                 msg = 'There was a problem creating the resource ' \
                       '{} for {}'.format(self.name, self.app_id)
@@ -111,11 +104,7 @@ class Resource(UuidAuditedModel):
             try:
                 self._scheduler.svcat.create_binding(
                     self.app.id, self.name, **kwargs)
-                data = {
-                    "task_id": uuid.uuid4().hex,
-                    "resource_id": str(self.uuid),
-                }
-                apply_async(retrieve_task, delay=30000, args=(data, ))
+                resource_changed.send(sender=Resource, resource_id=str(self.uuid))
             except KubeException as e:
                 msg = 'There was a problem binding the resource ' \
                       '{} for {}'.format(self.name, self.app_id)
@@ -153,11 +142,7 @@ class Resource(UuidAuditedModel):
             self._scheduler.svcat.put_instance(
                 self.app.id, self.name, version, **kwargs
             )
-            data = {
-                "task_id": uuid.uuid4().hex,
-                "resource_id": str(self.uuid),
-            }
-            apply_async(retrieve_task, delay=30000, args=(data, ))
+            resource_changed.send(sender=Resource, resource_id=str(self.uuid))
         except KubeException as e:
             msg = 'There was a problem update the resource ' \
                   '{} for {}'.format(self.name, self.app_id)
@@ -214,27 +199,3 @@ class Resource(UuidAuditedModel):
 
         if (self.status != "Ready") or (not self.binding):
             self.delete()
-
-
-@task
-def retrieve_task(data):
-    try:
-        signals.request_started.send(sender=data['task_id'])
-        try:
-            resource = Resource.objects.get(uuid=data['resource_id'])
-        except Resource.DoesNotExist:
-            logger.info("retrieve task not found resource: {}".format(data['resource_id']))  # noqa
-            return True
-        _ = resource.retrieve()
-        if _:
-            return True
-        else:
-            t = time.time() - resource.created.timestamp()
-            if t < 3600:
-                apply_async(retrieve_task, delay=30000, args=(data, ))
-            elif t < 3600 * 12:
-                apply_async(retrieve_task, delay=1800000, args=(data, ))
-            else:
-                resource.detach_resource()
-    finally:
-        signals.request_finished.send(sender=data['task_id'])
