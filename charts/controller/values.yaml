@@ -25,10 +25,9 @@ app_storage_class: ""
 environment:
   RESERVED_NAMES: "drycc, drycc-builder, drycc-monitor-grafana"
 
-nsqd:
+redis:
   replicas: 1
-  tcp_port: 4150
-  http_port: 4151
+  port: '6379'
 
 global:
   # Admin email, used for each component to send email to administrator
