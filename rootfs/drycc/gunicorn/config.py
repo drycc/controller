@@ -8,9 +8,6 @@ faulthandler.enable()
 bind = '0.0.0.0'
 workers = int(os.environ.get('GUNICORN_WORKERS', cpu_count() * 4 + 1))
 
-# Use tornado, otherwise NSQ needs to be started separately
-worker_class = 'tornado'
-
 pythonpath = dirname(dirname(dirname(realpath(__file__))))
 timeout = 1200
 pidfile = '/tmp/gunicorn.pid'
