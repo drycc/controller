@@ -443,12 +443,14 @@ DATABASES = {
     }
 }
 
-REDIS_ADDRS = os.environ.get('REDIS_ADDRS', 'redis://127.0.0.1:6379/0').split(",")
+DRYCC_REDIS_ADDRS = os.environ.get('DRYCC_REDIS_ADDRS', '127.0.0.1:6379').split(",")
+DRYCC_REDIS_PASSWORD = os.environ.get('DRYCC_REDIS_PASSWORD', '')
 
 CACHES = {
     "default": {
         "BACKEND": "django_redis.cache.RedisCache",
-        "LOCATION": REDIS_ADDRS,
+        "LOCATION": ['redis://:{}@{}'.format(DRYCC_REDIS_PASSWORD, DRYCC_REDIS_ADDR) \
+                     for DRYCC_REDIS_ADDR in DRYCC_REDIS_ADDRS],  # noqa
         "OPTIONS": {
             "CLIENT_CLASS": "django_redis.client.ShardClient",
         }
@@ -514,9 +516,12 @@ if LDAP_ENDPOINT:
 
 # Celery Configuration Options
 CELERY_TIMEZONE = "Asia/Shanghai"
+CELERY_ENABLE_UTC = True
 CELERY_TASK_TRACK_STARTED = True
 CELERY_TASK_TIME_LIMIT = 30 * 60
-CELERY_BROKER_URL = REDIS_ADDRS[0]
-CELERY_RESULT_BACKEND = REDIS_ADDRS[0]
+CELERYD_MAX_TASKS_PER_CHILD = 200
+CELERY_TASK_RESULT_EXPIRES = 24 * 60 * 60
+CELERY_BROKER_URL ='redis://:{}@{}'.format(DRYCC_REDIS_PASSWORD, DRYCC_REDIS_ADDRS[0])  # noqa
+CELERY_RESULT_BACKEND = 'redis://:{}@{}'.format(DRYCC_REDIS_PASSWORD, DRYCC_REDIS_ADDRS[0])  # noqa
 CELERY_CACHE_BACKEND = 'django-cache'
 CELERY_DEFAULT_QUEUE = 'priority.middle'
