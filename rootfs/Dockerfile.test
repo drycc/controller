@@ -27,7 +27,6 @@ RUN echo https://dl-cdn.alpinelinux.org/alpine/edge/testing >>/etc/apk/repositor
     su-exec \
     bash \
     shadow \
-    nsq \
     postgresql \
     redis \
   && mkdir -p /run/postgresql $PGDATA \

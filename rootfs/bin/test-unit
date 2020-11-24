@@ -6,12 +6,6 @@
 # fail hard and fast even on pipelines
 set -eou pipefail
 
-function start_nsq() {
-    cd /tmp
-    nohup nsqd > /var/log/nsqd.log 2>&1 &
-    cd -
-}
-
 function start_redis() {
     cd /tmp
     nohup redis-server > /var/log/redis.log 2>&1 &
@@ -25,7 +19,6 @@ function start_celery() {
 }
 
 su-exec postgres pg_ctl -D "$PGDATA" start
-start_nsq
 start_redis
 start_celery
 python3 manage.py check
