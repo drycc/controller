@@ -3,6 +3,7 @@ DRYCC_REGISTRY ?= $(DEV_REGISTRY)
 IMAGE_PREFIX ?= drycc
 COMPONENT ?= controller
 SHORT_NAME ?= $(COMPONENT)
+PLATFORM ?= linux/amd64,linux/arm64
 
 include versioning.mk
 
@@ -29,6 +30,9 @@ build: docker-build
 docker-build: check-docker
 	docker build ${DOCKER_BUILD_FLAGS} -t ${IMAGE} rootfs
 	docker tag ${IMAGE} ${MUTABLE_IMAGE}
+
+docker-buildx:
+	docker buildx build --platform ${PLATFORM} -t ${IMAGE} rootfs --push
 
 docker-build-test: check-docker
 	docker build ${DOCKER_BUILD_FLAGS} -t ${IMAGE}.test -f rootfs/Dockerfile.test rootfs
