@@ -31,7 +31,7 @@ docker-build: check-docker
 	docker build ${DOCKER_BUILD_FLAGS} -t ${IMAGE} rootfs
 	docker tag ${IMAGE} ${MUTABLE_IMAGE}
 
-docker-buildx:
+docker-buildx: check-docker
 	docker buildx build --platform ${PLATFORM} -t ${IMAGE} rootfs --push
 
 docker-build-test: check-docker
