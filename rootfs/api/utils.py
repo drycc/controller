@@ -6,8 +6,14 @@ import concurrent
 import hashlib
 import logging
 import random
+import threading
 from copy import deepcopy
+from urllib.parse import urlparse
+from django.conf import settings
+from influxdb import InfluxDBClient
 
+
+local = threading.local()
 logger = logging.getLogger(__name__)
 
 
@@ -158,6 +164,23 @@ def apply_tasks(tasks):
         if error is not None:
             raise error
     executor.shutdown(wait=True)
+
+
+def get_influxdb_client():
+    if not hasattr(local, "influxdb_client"):
+        addr = urlparse(settings.INFLUXDB_URL).netloc
+        if ":" in addr:
+            host, port = addr.rsplit(":")
+        else:
+            host, port = addr, 8086
+        local.influxdb_client = InfluxDBClient(
+            host,
+            port,
+            settings.INFLUXDB_USER,
+            settings.INFLUXDB_PASSWORD,
+            settings.INFLUXDB_DATABASE
+        )
+    return local.influxdb_client
 
 
 if __name__ == "__main__":

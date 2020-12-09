@@ -443,20 +443,6 @@ DATABASES = {
     }
 }
 
-DRYCC_REDIS_ADDRS = os.environ.get('DRYCC_REDIS_ADDRS', '127.0.0.1:6379').split(",")
-DRYCC_REDIS_PASSWORD = os.environ.get('DRYCC_REDIS_PASSWORD', '')
-
-CACHES = {
-    "default": {
-        "BACKEND": "django_redis.cache.RedisCache",
-        "LOCATION": ['redis://:{}@{}'.format(DRYCC_REDIS_PASSWORD, DRYCC_REDIS_ADDR) \
-                     for DRYCC_REDIS_ADDR in DRYCC_REDIS_ADDRS],  # noqa
-        "OPTIONS": {
-            "CLIENT_CLASS": "django_redis.client.ShardClient",
-        }
-    }
-}
-
 APP_URL_REGEX = '[a-z0-9-]+'
 
 # LDAP settings taken from environment variables.
@@ -514,6 +500,22 @@ if LDAP_ENDPOINT:
     AUTH_LDAP_FIND_GROUP_PERMS = True
     AUTH_LDAP_CACHE_GROUPS = False
 
+# Redis Configuration
+DRYCC_REDIS_ADDRS = os.environ.get('DRYCC_REDIS_ADDRS', '127.0.0.1:6379').split(",")
+DRYCC_REDIS_PASSWORD = os.environ.get('DRYCC_REDIS_PASSWORD', '')
+
+# Cache Configuration
+CACHES = {
+    "default": {
+        "BACKEND": "django_redis.cache.RedisCache",
+        "LOCATION": ['redis://:{}@{}'.format(DRYCC_REDIS_PASSWORD, DRYCC_REDIS_ADDR) \
+                     for DRYCC_REDIS_ADDR in DRYCC_REDIS_ADDRS],  # noqa
+        "OPTIONS": {
+            "CLIENT_CLASS": "django_redis.client.ShardClient",
+        }
+    }
+}
+
 # Celery Configuration Options
 CELERY_TIMEZONE = "Asia/Shanghai"
 CELERY_ENABLE_UTC = True
@@ -525,3 +527,9 @@ CELERY_BROKER_URL ='redis://:{}@{}'.format(DRYCC_REDIS_PASSWORD, DRYCC_REDIS_ADD
 CELERY_RESULT_BACKEND = 'redis://:{}@{}'.format(DRYCC_REDIS_PASSWORD, DRYCC_REDIS_ADDRS[0])  # noqa
 CELERY_CACHE_BACKEND = 'django-cache'
 CELERY_DEFAULT_QUEUE = 'priority.middle'
+
+# Influxdb Configuration Options
+INFLUXDB_URL = os.environ.get('DRYCC_INFLUXDB_URL', 'http://localhost:8086')
+INFLUXDB_DATABASE = os.environ.get('DRYCC_INFLUXDB_DATABASE', 'drycc')
+INFLUXDB_USER = os.environ.get('DRYCC_INFLUXDB_USER', 'root')
+INFLUXDB_PASSWORD = os.environ.get('DRYCC_INFLUXDB_PASSWORD', 'root')
