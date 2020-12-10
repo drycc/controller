@@ -22,3 +22,4 @@ requests==2.24.0
 requests-toolbelt==0.9.1
 celery==5.0.2
 django_redis==4.12.1
+influxdb==5.3.1

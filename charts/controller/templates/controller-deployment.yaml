@@ -149,6 +149,31 @@ spec:
               secretKeyRef:
                 name: redis-creds
                 key: password
+          {{- if eq .Values.global.influxdb_location "off-cluster" }}
+          - name: "INFLUXDB_URL"
+            valueFrom:
+              secretKeyRef:
+                name: influxdb-creds
+                key: url
+          - name: "INFLUXDB_DATABASE"
+            valueFrom:
+              secretKeyRef:
+                name: influxdb-creds
+                key: database
+          - name: "INFLUXDB_USER"
+            valueFrom:
+              secretKeyRef:
+                name: influxdb-creds
+                key: user
+          - name: "INFLUXDB_PASSWORD"
+            valueFrom:
+              secretKeyRef:
+                name: influxdb-creds
+                key: password
+          {{- else }}
+          - name: "INFLUXDB_URL"
+            value: http://$(DRYCC_INFLUXDB_SERVICE_HOST):$(DRYCC_INFLUXDB_SERVICE_PORT_TRANSPORT)
+          {{- end }}
           {{- range $key, $value := .Values.environment }}
           - name: {{ $key }}
             value: {{ $value | quote }}
