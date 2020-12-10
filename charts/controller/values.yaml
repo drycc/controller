@@ -1,8 +1,8 @@
 org: "drycc"
-pull_policy: "Always"
-docker_tag: "canary"
-docker_registry: ""
-app_pull_policy: "Always"
+image_pull_policy: "Always"
+image_tag: "canary"
+image_registry: ""
+app_image_pull_policy: "Always"
 # A comma-separated list of URLs to send app release information to
 # See https://drycc.com/docs/workflow/managing-workflow/deploy-hooks
 deploy_hook_urls: ""

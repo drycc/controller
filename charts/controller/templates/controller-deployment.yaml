@@ -6,7 +6,7 @@ metadata:
   labels:
     heritage: drycc
   annotations:
-    component.drycc.cc/version: {{ .Values.docker_tag }}
+    component.drycc.cc/version: {{ .Values.image_tag }}
 spec:
   replicas: 1
   strategy:
@@ -25,8 +25,8 @@ spec:
       serviceAccount: drycc-controller
       containers:
         - name: drycc-controller
-          image: {{.Values.docker_registry}}{{.Values.org}}/controller:{{.Values.docker_tag}}
-          imagePullPolicy: {{.Values.pull_policy}}
+          image: {{.Values.image_registry}}{{.Values.org}}/controller:{{.Values.image_tag}}
+          imagePullPolicy: {{.Values.image_pull_policy}}
           livenessProbe:
             httpGet:
               path: /healthz
@@ -75,7 +75,7 @@ spec:
           - name: "DRYCC_REGISTRY_SECRET_PREFIX"
             value: "{{ .Values.global.registry_secret_prefix }}"
           - name: "IMAGE_PULL_POLICY"
-            value: "{{ .Values.app_pull_policy }}"
+            value: "{{ .Values.app_image_pull_policy }}"
           - name: "KUBERNETES_CLUSTER_DOMAIN"
             value: "{{ .Values.global.cluster_domain }}"
 {{- if (.Values.app_storage_class) }}
