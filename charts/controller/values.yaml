@@ -15,9 +15,10 @@ deploy_hook_urls: ""
 registration_mode: "admin_only"
 # Option to disable ssl verification to connect to k8s api server
 k8s_api_verify_tls: "true"
-
 # Set storageClassName, It is used for application mount.
 app_storage_class: ""
+# Set celery replicas
+celery_replicas: 1
 
 # Any custom controller environment variables
 # can be specified as key-value pairs under environment

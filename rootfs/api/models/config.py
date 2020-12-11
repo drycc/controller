@@ -4,6 +4,7 @@ from django.db import models
 from jsonfield import JSONField
 import json
 
+from api.influxdata import influx_client
 from api.models.release import Release
 from api.models import UuidAuditedModel
 from api.exceptions import DryccException, UnprocessableEntity
@@ -195,3 +196,16 @@ class Config(UuidAuditedModel):
             self.set_tags({'tags': {}})
 
         return super(Config, self).save(**kwargs)
+
+    def to_influx(self):
+        bodys = []
+        types = self.app.procfile_structure.keys()
+        limits = json.loads(settings.KUBERNETES_NAMESPACE_DEFAULT_LIMIT_RANGES_SPEC)
+        limits_default = limits.get('limits')[0].get('default')
+        for type in types:
+            body = influx_client.drycc_limit_manifest(
+                self.app, type,
+                cpu=self.cpu.get(type, limits_default.get('cpu')),
+                memory=self.memory.get(type, limits_default.get('memory')))
+            bodys.append(body)
+        influx_client.write_points(bodys)
