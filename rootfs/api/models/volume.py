@@ -3,6 +3,7 @@ from django.db import models, transaction
 from django.conf import settings
 from jsonfield import JSONField
 from api.exceptions import DryccException, ServiceUnavailable, AlreadyExists
+from api.influxdata import influx_client
 from api.models import UuidAuditedModel, validate_label
 from scheduler import KubeException
 
@@ -90,3 +91,8 @@ class Volume(UuidAuditedModel):
         accordingly.
         """
         logger.log(level, "[{}]: {}".format(self.id, message))
+
+    def to_influx(self):
+        body = influx_client.drycc_volume_manifest(
+            self.app, self.name, size=self.size)
+        influx_client.write_points(body)

@@ -6,6 +6,7 @@ from api.exceptions import DryccException, AlreadyExists, ServiceUnavailable
 from api.models import UuidAuditedModel, validate_label
 from scheduler import KubeException
 from . import resource_changed
+from ..influxdata import influx_client
 
 logger = logging.getLogger(__name__)
 
@@ -199,3 +200,8 @@ class Resource(UuidAuditedModel):
 
         if (self.status != "Ready") or (not self.binding):
             self.delete()
+
+    def to_influx(self):
+        body = influx_client.drycc_resource_manifest(
+            self.app, self.name, plan=self.plan)
+        influx_client.write_points(body)
