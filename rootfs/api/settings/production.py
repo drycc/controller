@@ -530,6 +530,6 @@ CELERY_DEFAULT_QUEUE = 'priority.middle'
 
 # Influxdb Configuration Options
 INFLUXDB_URL = os.environ.get('DRYCC_INFLUXDB_URL', 'http://localhost:8086')
-INFLUXDB_DATABASE = os.environ.get('DRYCC_INFLUXDB_DATABASE', 'drycc')
-INFLUXDB_USER = os.environ.get('DRYCC_INFLUXDB_USER', 'root')
-INFLUXDB_PASSWORD = os.environ.get('DRYCC_INFLUXDB_PASSWORD', 'root')
+INFLUXDB_BUCKET = os.environ.get('DRYCC_INFLUXDB_BUCKET', 'drycc')
+INFLUXDB_ORG = os.environ.get('DRYCC_INFLUXDB_ORG', 'root')
+INFLUXDB_TOKEN = os.environ.get('DRYCC_INFLUXDB_TOKEN', 'root')

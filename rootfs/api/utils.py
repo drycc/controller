@@ -8,10 +8,8 @@ import logging
 import random
 import threading
 from copy import deepcopy
-from urllib.parse import urlparse
 from django.conf import settings
-from influxdb import InfluxDBClient
-
+from influxdb_client import InfluxDBClient
 
 local = threading.local()
 logger = logging.getLogger(__name__)
@@ -168,17 +166,10 @@ def apply_tasks(tasks):
 
 def get_influxdb_client():
     if not hasattr(local, "influxdb_client"):
-        addr = urlparse(settings.INFLUXDB_URL).netloc
-        if ":" in addr:
-            host, port = addr.rsplit(":")
-        else:
-            host, port = addr, 8086
         local.influxdb_client = InfluxDBClient(
-            host,
-            port,
-            settings.INFLUXDB_USER,
-            settings.INFLUXDB_PASSWORD,
-            settings.INFLUXDB_DATABASE
+            url=settings.INFLUXDB_URL,
+            token=settings.INFLUXDB_TOKEN,
+            org=settings.INFLUXDB_ORG
         )
     return local.influxdb_client
 
