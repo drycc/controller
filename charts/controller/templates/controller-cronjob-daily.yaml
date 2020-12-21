@@ -1,0 +1,48 @@
+apiVersion: batch/v1beta1
+kind: CronJob
+metadata:
+  name: drycc-controller-cronjob-daily
+  labels:
+    heritage: drycc
+  annotations:
+    component.drycc.cc/version: {{ .Values.image_tag }}
+spec:
+  failedJobsHistoryLimit: 1
+  schedule: "0 0 * * *"
+  successfulJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          restartPolicy: OnFailure
+          containers:
+          - image: {{.Values.image_registry}}{{.Values.org}}/controller:{{.Values.image_tag}}
+            imagePullPolicy: {{.Values.image_pull_policy}}
+            name: drycc-controller-push-data-to-influxdb
+            command:
+              - /bin/bash
+              - -c
+            args:
+              - python /app/manage.py push_data_to_influxdb
+            {{- include "controller.envs" . | indent 12 }}
+            volumeMounts:
+            - mountPath: /etc/slugrunner
+              name: slugrunner-config
+              readOnly: true
+          - image: {{.Values.image_registry}}{{.Values.org}}/controller:{{.Values.image_tag}}
+            imagePullPolicy: {{.Values.pull_policy}}
+            name: drycc-controller-load-db-state-to-k8s
+            command:
+              - /bin/bash
+              - -c
+            args:
+              - python -u /app/manage.py load_db_state_to_k8s
+            {{- include "controller.envs" . | indent 12 }}
+            volumeMounts:
+            - mountPath: /etc/slugrunner
+              name: slugrunner-config
+              readOnly: true
+          volumes:
+            - name: slugrunner-config
+              configMap:
+                name: slugrunner-config

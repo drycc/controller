@@ -55,7 +55,7 @@ class Resource(UuidAuditedModel):
                 self._scheduler.svcat.create_instance(
                     self.app.id, self.name, **kwargs
                 )
-                resource_changed.send(sender=Resource, resource_id=str(self.uuid))
+                resource_changed.send(sender=Resource, resource=self)
             except KubeException as e:
                 msg = 'There was a problem creating the resource ' \
                       '{} for {}'.format(self.name, self.app_id)
@@ -104,7 +104,7 @@ class Resource(UuidAuditedModel):
             try:
                 self._scheduler.svcat.create_binding(
                     self.app.id, self.name, **kwargs)
-                resource_changed.send(sender=Resource, resource_id=str(self.uuid))
+                resource_changed.send(sender=Resource, resource=self)
             except KubeException as e:
                 msg = 'There was a problem binding the resource ' \
                       '{} for {}'.format(self.name, self.app_id)
@@ -142,7 +142,7 @@ class Resource(UuidAuditedModel):
             self._scheduler.svcat.put_instance(
                 self.app.id, self.name, version, **kwargs
             )
-            resource_changed.send(sender=Resource, resource_id=str(self.uuid))
+            resource_changed.send(sender=Resource, resource=self)
         except KubeException as e:
             msg = 'There was a problem update the resource ' \
                   '{} for {}'.format(self.name, self.app_id)
