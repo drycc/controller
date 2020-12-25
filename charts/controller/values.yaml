@@ -18,6 +18,10 @@ k8s_api_verify_tls: "true"
 
 # Set storageClassName, It is used for application mount.
 app_storage_class: ""
+# Set controller deployment  replicas
+replicas: 1
+# Set celery replicas
+celery_replicas: 1
 
 # Any custom controller environment variables
 # can be specified as key-value pairs under environment
