@@ -1,0 +1,71 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: drycc-controller-celery
+  labels:
+    heritage: drycc
+  annotations:
+    component.drycc.cc/version: {{ .Values.image_tag }}
+spec:
+  replicas: {{ .Values.celery_replicas }}
+  strategy:
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+    type: RollingUpdate
+  selector:
+    matchLabels:
+      app: drycc-controller-celery
+  template:
+    metadata:
+      labels:
+        app: drycc-controller-celery
+    spec:
+      serviceAccount: drycc-controller-celery
+      containers:
+        - name: drycc-controller-celery-high
+          image: {{.Values.image_registry}}{{.Values.org}}/controller:{{.Values.image_tag}}
+          command:
+            - /bin/bash
+            - -c
+          args:
+            - celery -A api worker -Q priority.high --autoscale=32,1 --loglevel=WARNING
+          imagePullPolicy: {{.Values.image_pull_policy}}
+          {{- include "controller.limits" . | indent 10 }}
+          {{- include "controller.envs" . | indent 10 }}
+          volumeMounts:
+            - mountPath: /etc/slugrunner
+              name: slugrunner-config
+              readOnly: true
+        - name: drycc-controller-celery-middle
+          image: {{.Values.image_registry}}{{.Values.org}}/controller:{{.Values.image_tag}}
+          command:
+            - /bin/bash
+            - -c
+          args:
+          - celery -A api worker -Q priority.middle --autoscale=16,1 --loglevel=WARNING
+          {{- include "controller.limits" . | indent 10 }}
+          {{- include "controller.envs" . | indent 10 }}
+          volumeMounts:
+            - mountPath: /etc/slugrunner
+              name: slugrunner-config
+              readOnly: true
+          imagePullPolicy: {{.Values.image_pull_policy}}
+        - name: drycc-controller-celery-low
+          image: {{.Values.image_registry}}{{.Values.org}}/controller:{{.Values.image_tag}}
+          command:
+            - /bin/bash
+            - -c
+          args:
+            - celery -A api worker -Q priority.low --autoscale=8,1 --loglevel=WARNING
+          {{- include "controller.limits" . | indent 10 }}
+          {{- include "controller.envs" . | indent 10 }}
+          volumeMounts:
+            - mountPath: /etc/slugrunner
+              name: slugrunner-config
+              readOnly: true
+          imagePullPolicy: {{.Values.image_pull_policy}}
+      volumes:
+        - name: slugrunner-config
+          configMap:
+            name: slugrunner-config

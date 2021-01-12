@@ -1,6 +1,7 @@
 """
 RESTful view classes for presenting Drycc API objects.
 """
+import logging
 from copy import deepcopy
 
 from django.http import Http404, HttpResponse
@@ -21,12 +22,10 @@ from rest_framework.authtoken.models import Token
 from api import authentication, models, permissions, serializers, viewsets
 from api.models import AlreadyExists, ServiceUnavailable, DryccException, \
     UnprocessableEntity
-
-import logging
-
-from api.serializers import VolumeSerializer
+from api.utils import get_influxdb_client
 
 logger = logging.getLogger(__name__)
+client = get_influxdb_client()
 
 
 class ReadinessCheckView(View):
@@ -276,7 +275,7 @@ class AppViewSet(BaseDryccViewSet):
             raise DryccException("command is a required field")
         volumes = request.data.get('volumes', None)
         if volumes:
-            VolumeSerializer().validate_path(volumes)
+            serializers.VolumeSerializer().validate_path(volumes)
         rc, output = app.run(self.request.user, request.data['command'], volumes)
         return Response({'exit_code': rc, 'output': str(output)})
 
@@ -724,7 +723,7 @@ class AppVolumeMountPathViewSet(ReleasableViewSet):
             raise DryccException("path is a required field")
         obj = self.get_object()
         container_types = [_ for _ in new_path.keys()
-                           if _ not in obj.app.procfile_structure.keys() or
+                           if _ not in obj.app.types or
                            _ not in obj.app.structure.keys()]
         if container_types:
             raise DryccException("process type {} is not included in profile".

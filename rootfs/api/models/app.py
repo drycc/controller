@@ -115,6 +115,10 @@ class App(UuidAuditedModel):
         app = self.id
         return "{app}-{container_type}".format(**locals())
 
+    @property
+    def types(self):
+        return list(self.procfile_structure.keys())
+
     def _get_command(self, container_type):
         """
         Return the kubernetes "container arguments" to be sent off to the scheduler.

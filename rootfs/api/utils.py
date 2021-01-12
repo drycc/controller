@@ -7,6 +7,7 @@ import hashlib
 import logging
 import random
 import threading
+import math
 from copy import deepcopy
 from django.conf import settings
 from influxdb_client import InfluxDBClient
@@ -172,6 +173,31 @@ def get_influxdb_client():
             org=settings.INFLUXDB_ORG
         )
     return local.influxdb_client
+
+
+def unit_to_byte(size):
+    """
+    size: str
+    where unit in K, M, G, T convert to B
+    """
+    if size[-2:-1].isalpha() and size[-1].isalpha():
+        size = size[:-1]
+    if size[-1].isalpha():
+        size = size.upper()
+    _ = float(size[:-1])
+    if size[-1] == 'K':
+        _ *= math.pow(1024, 1)
+    elif size[-1] == 'M':
+        _ *= math.pow(1024, 2)
+    elif size[-1] == 'G':
+        _ *= math.pow(1024, 3)
+    elif size[-1] == 'G':
+        _ *= math.pow(1024, 3)
+    elif size[-1] == 'T':
+        _ *= math.pow(1024, 4)
+    elif size[-1] == 'P':
+        _ *= math.pow(1024, 5)
+    return round(_)
 
 
 if __name__ == "__main__":

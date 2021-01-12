@@ -3,7 +3,7 @@ from django.db import models, transaction
 from django.conf import settings
 from jsonfield import JSONField
 from api.exceptions import DryccException, ServiceUnavailable, AlreadyExists
-from api.models import UuidAuditedModel, validate_label
+from api.models import UuidAuditedModel, validate_label, volume_changed
 from scheduler import KubeException
 
 logger = logging.getLogger(__name__)
@@ -30,6 +30,7 @@ class Volume(UuidAuditedModel):
         # Attach volume, updates k8s
         if self.created == self.updated:
             self.attach()
+        volume_changed.send(sender=Volume, volume=self)
         # Save to DB
         return super(Volume, self).save(*args, **kwargs)
 

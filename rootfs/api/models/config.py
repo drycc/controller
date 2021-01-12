@@ -5,7 +5,7 @@ from jsonfield import JSONField
 import json
 
 from api.models.release import Release
-from api.models import UuidAuditedModel
+from api.models import UuidAuditedModel, config_changed
 from api.exceptions import DryccException, UnprocessableEntity
 
 
@@ -186,7 +186,7 @@ class Config(UuidAuditedModel):
                     else:
                         data[key] = value
                 setattr(self, attr, data)
-
+            config_changed.send(sender=Config, config=self)
             self.set_healthcheck(previous_config)
             self._migrate_legacy_healthcheck()
             self.set_registry()
