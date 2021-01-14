@@ -1,11 +1,11 @@
+import json
 import logging
 from django.conf import settings
 from django.db import models
 from jsonfield import JSONField
-import json
-
 from api.models.release import Release
-from api.models import UuidAuditedModel, config_changed
+from api.models import UuidAuditedModel
+from api.utils import unit_to_bytes, unit_to_millicpu
 from api.exceptions import DryccException, UnprocessableEntity
 
 
@@ -186,7 +186,6 @@ class Config(UuidAuditedModel):
                     else:
                         data[key] = value
                 setattr(self, attr, data)
-            config_changed.send(sender=Config, config=self)
             self.set_healthcheck(previous_config)
             self._migrate_legacy_healthcheck()
             self.set_registry()
@@ -195,3 +194,14 @@ class Config(UuidAuditedModel):
             self.set_tags({'tags': {}})
 
         return super(Config, self).save(**kwargs)
+
+    def to_measurements(self, timestamp: float):
+        assert len(set(self.memory.keys()).difference(self.cpu.keys())) == 0
+        return [{
+            "app_id": self.app_id,
+            "user_id": self.user_id,
+            "container_type": container_type,
+            "cpu": unit_to_millicpu(self.cpu.get(container_type)),
+            "memory": unit_to_bytes(self.memory.get(container_type)),
+            "timestamp": "%f" % timestamp
+        } for container_type in self.memory.keys()]

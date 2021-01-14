@@ -7,7 +7,7 @@ PLATFORM ?= linux/amd64,linux/arm64
 
 include versioning.mk
 
-SHELLCHECK_PREFIX := docker run -v ${CURDIR}:/workdir -w /workdir drycc/go-dev shellcheck
+SHELLCHECK_PREFIX := docker run -v ${CURDIR}:/workdir -w /workdir ${DRYCC_REGISTRY}drycc/go-dev shellcheck
 SHELL_SCRIPTS = $(wildcard rootfs/bin/*) $(shell find "rootfs" -name '*.sh') $(wildcard _scripts/*.sh)
 
 # Test processes used in quick unit testing

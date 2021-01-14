@@ -5,7 +5,6 @@ from jsonfield import JSONField
 from api.exceptions import DryccException, AlreadyExists, ServiceUnavailable
 from api.models import UuidAuditedModel, validate_label
 from scheduler import KubeException
-from . import resource_changed
 
 logger = logging.getLogger(__name__)
 
@@ -55,7 +54,6 @@ class Resource(UuidAuditedModel):
                 self._scheduler.svcat.create_instance(
                     self.app.id, self.name, **kwargs
                 )
-                resource_changed.send(sender=Resource, resource=self)
             except KubeException as e:
                 msg = 'There was a problem creating the resource ' \
                       '{} for {}'.format(self.name, self.app_id)
@@ -94,6 +92,8 @@ class Resource(UuidAuditedModel):
             raise DryccException("the resource is not ready")
         if self.binding == "Ready":
             raise DryccException("the resource is binding")
+        self.binding = "Binding"
+        self.save()
         try:
             self._scheduler.svcat.get_binding(self.app.id, self.name)
             err = "Resource {} is binding".format(self.name)
@@ -104,7 +104,6 @@ class Resource(UuidAuditedModel):
             try:
                 self._scheduler.svcat.create_binding(
                     self.app.id, self.name, **kwargs)
-                resource_changed.send(sender=Resource, resource=self)
             except KubeException as e:
                 msg = 'There was a problem binding the resource ' \
                       '{} for {}'.format(self.name, self.app_id)
@@ -142,7 +141,6 @@ class Resource(UuidAuditedModel):
             self._scheduler.svcat.put_instance(
                 self.app.id, self.name, version, **kwargs
             )
-            resource_changed.send(sender=Resource, resource=self)
         except KubeException as e:
             msg = 'There was a problem update the resource ' \
                   '{} for {}'.format(self.name, self.app_id)
@@ -199,3 +197,12 @@ class Resource(UuidAuditedModel):
 
         if (self.status != "Ready") or (not self.binding):
             self.delete()
+
+    def to_measurements(self, timestamp: float):
+        return [{
+            "name": self.name,
+            "app_id": self.app_id,
+            "user_id": self.user_id,
+            "plan": self.plan,
+            "timestamp": "%f" % timestamp
+        }]

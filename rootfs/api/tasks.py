@@ -1,61 +1,190 @@
 # Create your tasks here
 import time
+import uuid
+import json
 import logging
+import requests
 from datetime import timedelta
-
+from typing import List, Dict
 from django.core import signals
-from django.utils.timezone import now
 from django.conf import settings
+from django.utils.timezone import now
 from celery import shared_task
-from influxdb_client import Point, WritePrecision
-from influxdb_client.client.write_api import SYNCHRONOUS
-
 from api.models.resource import Resource
-from api.utils import get_influxdb_client
 
 logger = logging.getLogger(__name__)
 
 
 @shared_task
-def retrieve_resource(data):
-    signals.request_started.send(sender=data['task_id'])
+def retrieve_resource(resource):
+    task_id = uuid.uuid4().hex
+    signals.request_started.send(sender=task_id)
     try:
-        resource = Resource.objects.get(uuid=data['resource_id'])
         if not resource.retrieve():
             t = time.time() - resource.created.timestamp()
             if t < 3600:
                 retrieve_resource.apply_async(
-                    args=(data, ),
+                    args=(resource, ),
                     eta=now() + timedelta(seconds=30))
             elif t < 3600 * 12:
                 retrieve_resource.apply_async(
-                    args=(data, ),
+                    args=(resource, ),
                     eta=now() + timedelta(seconds=1800))
             else:
                 resource.detach_resource()
     except Resource.DoesNotExist:
-        logger.info("retrieve task not found resource: {}".format(data['resource_id']))  # noqa
+        logger.info("retrieve task not found resource: {}".format(resource.id))  # noqa
     finally:
-        signals.request_finished.send(sender=data['task_id'])
+        signals.request_finished.send(sender=task_id)
 
 
 @shared_task
-def write_point(data):
-    signals.request_started.send(sender=data['task_id'])
+def measure_config(config: List[Dict[str, str]]):
+    """
+    [
+        {
+            "app_id":  "test",
+            "user_id": "test",
+            "container_type": web,
+            "cpu": "1",
+            "memory": "2G",
+            "timestamp": 1609231998.9103732
+        }
+    ]
+    """
+    task_id = uuid.uuid4().hex
+    signals.request_started.send(sender=task_id)
     try:
-        client = get_influxdb_client()
-        write_api = client.write_api(write_options=SYNCHRONOUS)
-        ps = []
-        for r in data["records"]:
-            p = Point(data["measurement"])
-            for k, v in r["tag"].items():
-                p.tag(k, v)
-            for k, v in r["field"].items():
-                p.field(k, v)
-            p.time(now(), WritePrecision.MS)
-            ps.append(p)
-        write_api.write(bucket=settings.INFLUXDB_BUCKET, record=ps)
+        requests.post(
+            url="%s/measurements/config/" % settings.WORKFLOW_MANAGER_URL,
+            headers={
+                'Content-Type': 'application/json',
+                'Authorization': 'token %s' % settings.WORKFLOW_MANAGER_TOKEN
+            },
+            data=json.dumps(config)
+        )
     except Exception as e:
         logger.info("write influxdb point fail: {}".format(e))
     finally:
-        signals.request_finished.send(sender=data['task_id'])
+        signals.request_finished.send(sender=task_id)
+
+
+@shared_task
+def measure_volumes(volumes: List[Dict[str, str]]):
+    """
+    [
+        {
+            "name": "disk",
+            "app_id": "test",
+            "user_id": "test",
+            "size": "100G",
+            "timestamp": "1609231998.9103732"
+        }
+    ]
+    """
+    task_id = uuid.uuid4().hex
+    signals.request_started.send(sender=task_id)
+    try:
+        requests.post(
+            url="%s/measurements/volumes/" % settings.WORKFLOW_MANAGER_URL,
+            headers={
+                'Content-Type': 'application/json',
+                'Authorization': 'token %s' % settings.WORKFLOW_MANAGER_TOKEN
+            },
+            data=json.dumps(volumes)
+        )
+    except Exception as e:
+        logger.info("write influxdb point fail: {}".format(e))
+    finally:
+        signals.request_finished.send(sender=task_id)
+
+
+@shared_task
+def measure_networks(networks: List[Dict[str, str]]):
+    """
+    [
+        {
+            "app_id": "test",
+            "user_id": "test",
+            "pod_name": "django2test-web-xxxxxx",
+            "rx_bytes": "10000",
+            "tx_bytes": "200000",
+            "timestamp": "1609231998.9103732"
+        }
+    ]
+    """
+    task_id = uuid.uuid4().hex
+    signals.request_started.send(sender=task_id)
+    try:
+        requests.post(
+            url="%s/measurements/networks/" % settings.WORKFLOW_MANAGER_URL,
+            headers={
+                'Content-Type': 'application/json',
+                'Authorization': 'token %s' % settings.WORKFLOW_MANAGER_TOKEN
+            },
+            data=json.dumps(networks)
+        )
+    except Exception as e:
+        logger.info("write influxdb point fail: {}".format(e))
+    finally:
+        signals.request_finished.send(sender=task_id)
+
+
+@shared_task
+def measure_instances(instances: List[Dict[str, str]]):
+    """
+    [
+        {
+            "app_id": "test",
+            "user_id":  "test",
+            "container_type": "web",
+            "container_count": 1,
+            "timestamp": "1609231998.9103732"
+        }
+    ]
+    """
+    task_id = uuid.uuid4().hex
+    signals.request_started.send(sender=task_id)
+    try:
+        requests.post(
+            url="%s/measurements/instances/" % settings.WORKFLOW_MANAGER_URL,
+            headers={
+                'Content-Type': 'application/json',
+                'Authorization': 'token %s' % settings.WORKFLOW_MANAGER_TOKEN
+            },
+            data=json.dumps(instances)
+        )
+    except Exception as e:
+        logger.info("write influxdb point fail: {}".format(e))
+    finally:
+        signals.request_finished.send(sender=task_id)
+
+
+@shared_task
+def measure_resources(resources: List[Dict[str, str]]):
+    """
+    [
+        {
+            "name": "test1",
+            "app_id": "redis",
+            "user_id": "test",
+            "plan": "redis:small",
+            "timestamp": "1609231998.9103732"
+        }
+    ]
+    """
+    task_id = uuid.uuid4().hex
+    signals.request_started.send(sender=task_id)
+    try:
+        requests.post(
+            url="%s/measurements/resources/" % settings.WORKFLOW_MANAGER_URL,
+            headers={
+                'Content-Type': 'application/json',
+                'Authorization': 'token %s' % settings.WORKFLOW_MANAGER_TOKEN
+            },
+            data=json.dumps(resources)
+        )
+    except Exception as e:
+        logger.info("write influxdb point fail: {}".format(e))
+    finally:
+        signals.request_finished.send(sender=task_id)

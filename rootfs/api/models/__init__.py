@@ -12,13 +12,12 @@ import re
 import urllib.parse
 import uuid
 import requests
-import json
 from datetime import timedelta
 from django.conf import settings
 from django.db import models
 from django.db.models.signals import post_delete, post_save
 from django.utils.timezone import now
-from django.dispatch import receiver, Signal
+from django.dispatch import receiver
 from rest_framework.exceptions import ValidationError
 from rest_framework.authtoken.models import Token
 from requests_toolbelt import user_agent
@@ -28,9 +27,6 @@ from ..exceptions import DryccException, AlreadyExists, ServiceUnavailable, Unpr
 
 logger = logging.getLogger(__name__)
 session = None
-config_changed = Signal(providing_args=["config"])
-resource_changed = Signal(providing_args=["resource"])
-volume_changed = Signal(providing_args=["volume"])
 
 
 def get_session():
@@ -153,9 +149,8 @@ from .release import Release  # noqa
 from .tls import TLS  # noqa
 from .volume import Volume  # noqa
 from .resource import Resource  # noqa
-
-from ..tasks import retrieve_resource, write_point  # noqa
-from ..utils import dict_merge, unit_to_byte  # noqa
+from ..tasks import retrieve_resource, measure_config, measure_volumes, measure_resources # noqa
+from ..utils import dict_merge  # noqa
 
 # define update/delete callbacks for synchronizing
 # models with the configuration management backend
@@ -258,78 +253,41 @@ post_delete.connect(_log_instance_removed, sender=Resource, dispatch_uid='api.mo
 
 # automatically generate a new token on creation
 @receiver(post_save, sender=settings.AUTH_USER_MODEL)
-def create_auth_token(sender, instance=None, created=False, **kwargs):
+def create_auth_token_handle(sender, instance=None, created=False, **kwargs):
     if created:
         Token.objects.create(user=instance)
 
 
-@receiver(resource_changed)
-def resource_changed_handle(sender, **kwargs):
-    resource = kwargs.get('resource')
+@receiver(post_save, sender=Config)
+def config_changed_handle(sender, instance=None, created=False, update_fields=None, **kwargs):
+    # measure limits to workflow manager
+    if settings.WORKFLOW_MANAGER_URL is not None and (
+        created or (
+            update_fields is not None and (
+                "cpu" in update_fields or "memory" in update_fields))):
+        measure_config.delay(instance.to_measurements())
+
+
+@receiver(post_save, sender=Volume)
+def volume_changed_handle(sender, instance=None, created=False, update_fields=None, **kwargs):
+    # measure volumes to workflow manager
+    if settings.WORKFLOW_MANAGER_URL is not None and created:
+        measure_volumes.delay(instance.to_measurements())
+
+
+@receiver(post_save, sender=Resource)
+def resource_changed_handle(sender, instance=None, created=False, update_fields=None, **kwargs):
     # retrieve_resource
-    data = {
-        "task_id": uuid.uuid4().hex,
-        "resource_id": resource.uuid,
-    }
-    retrieve_resource.apply_async(
-        args=(data, ),
-        eta=now() + timedelta(seconds=30)
-    )
-    # influxdb write point
-    data = {
-        "task_id": uuid.uuid4().hex,
-        "measurement": "drycc_resource",
-        "records": [{
-            "tag": {
-                "name":  resource.name,
-                "namespace":  resource.app.id,
-            },
-            "field": {
-                "plan": resource.plan
-            }
-        }]
-    }
-    write_point.apply_async(args=(data, ))
-
-
-@receiver(config_changed)
-def config_changed_handle(sender, **kwargs):
-    # influxdb write point
-    config = kwargs.get('config')
-    limits = json.loads(settings.KUBERNETES_NAMESPACE_DEFAULT_LIMIT_RANGES_SPEC)
-    limits_default = limits.get('limits')[0].get('default')
-    data = {
-        "task_id": uuid.uuid4().hex,
-        "measurement": "drycc_limit",
-        "records": [{
-            "tag": {
-                "type":  _,
-                "namespace":  config.app.id,
-            },
-            "field": {
-                "memory": unit_to_byte(config.memory.get(type, limits_default.get('memory'))),  # noqa
-                "cpu": int(config.cpu.get(type, limits_default.get('cpu'))[:-1])
-            }
-        } for _ in config.app.types]
-    }
-    write_point.apply_async(args=(data, ))
-
-
-@receiver(volume_changed)
-def volume_changed_handle(sender, **kwargs):
-    # influxdb write point
-    volume = kwargs.get('volume')
-    data = {
-        "task_id": uuid.uuid4().hex,
-        "measurement": "drycc_volume",
-        "records": [{
-            "tag": {
-                "name":  volume.name,
-                "namespace":  volume.app.id,
-            },
-            "field": {
-                "size": unit_to_byte(volume.size)
-            }
-        }]
-    }
-    write_point.apply_async(args=(data, ))
+    if created or instance.binding == "Binding" or (
+            update_fields is not None and "plan" in update_fields):
+        retrieve_resource.apply_async(
+            args=(instance, ),
+            eta=now() + timedelta(seconds=30)
+        )
+    # measure resources to workflow manager
+    if settings.WORKFLOW_MANAGER_URL is not None and (
+        created or (
+            update_fields is not None and (
+                "plan" in update_fields
+            ))):
+        measure_resources.delay(instance.to_measurements())

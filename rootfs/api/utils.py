@@ -175,7 +175,7 @@ def get_influxdb_client():
     return local.influxdb_client
 
 
-def unit_to_byte(size):
+def unit_to_bytes(size):
     """
     size: str
     where unit in K, M, G, T convert to B
@@ -198,6 +198,16 @@ def unit_to_byte(size):
     elif size[-1] == 'P':
         _ *= math.pow(1024, 5)
     return round(_)
+
+
+def unit_to_millicpu(cpu):
+    cpu = cpu.lower()
+    if cpu.endswith("m") and cpu[:-1].isdigit():
+        return int(cpu[:-1])
+    elif cpu.isdigit():
+        return int(cpu) * 1000
+    else:
+        raise ValueError("Unrecognized CPU unit: %s" % cpu)
 
 
 if __name__ == "__main__":

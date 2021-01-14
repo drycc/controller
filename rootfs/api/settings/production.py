@@ -340,18 +340,22 @@ DRYCC_DEFAULT_CONFIG_TAGS = os.environ.get('DRYCC_DEFAULT_CONFIG_TAGS', '')
 # How long k8s waits for a pod to finish work after a SIGTERM before sending SIGKILL
 KUBERNETES_POD_TERMINATION_GRACE_PERIOD_SECONDS = int(os.environ.get('KUBERNETES_POD_TERMINATION_GRACE_PERIOD_SECONDS', 30))  # noqa
 
-# Minimum allocation cpu, units are represented in the millicpu of CPUs
-KUBERNETES_CPU_MIN_ALLOCATION = int(os.environ.get('KUBERNETES_CPU_MIN_ALLOCATION', '10'))
-# Minimum allocation memory, units are represented in Megabytes(M)
-KUBERNETES_RAM_MIN_ALLOCATION = int(os.environ.get('KUBERNETES_RAM_MIN_ALLOCATION', '64'))
-# Maximum allocation cpu, units are represented in the millicpu of CPUs
-KUBERNETES_CPU_MAX_ALLOCATION = int(os.environ.get('KUBERNETES_CPU_MAX_ALLOCATION', '32000'))
-# Maximum allocation memory, units are represented in Megabytes(M)
-KUBERNETES_RAM_MAX_ALLOCATION = int(os.environ.get('KUBERNETES_RAM_MAX_ALLOCATION', '131072'))
-# CPU allocation ratio
-KUBERNETES_CPU_ALLOCATION_RATIO = int(os.environ.get('KUBERNETES_CPU_ALLOCATION_RATIO', '10'))
-# RAM allocation ratio
-KUBERNETES_RAM_ALLOCATION_RATIO = int(os.environ.get('KUBERNETES_RAM_ALLOCATION_RATIO', '2'))
+# CPU request ratio
+KUBERNETES_REQUEST_CPU_RATIO = int(os.environ.get('KUBERNETES_REQUEST_CPU_RATIO', '10'))
+# Memory request ratio
+KUBERNETES_REQUEST_MEMORY_RATIO = int(os.environ.get('KUBERNETES_REQUEST_MEMORY_RATIO', '2'))
+# Minimum limits cpu, units are represented in the millicpu of CPUs
+KUBERNETES_LIMITS_MIN_CPU = int(os.environ.get('KUBERNETES_LIMITS_MIN_CPU', '9'))
+# Minimum limits memory, units are represented in Megabytes(M)
+KUBERNETES_LIMITS_MIN_MEMORY = int(os.environ.get('KUBERNETES_LIMITS_MIN_MEMORY', '63'))
+# Maximum limits cpu, units are represented in the millicpu of CPUs
+KUBERNETES_LIMITS_MAX_CPU = int(os.environ.get('KUBERNETES_LIMITS_MAX_CPU', '32000'))
+# Maximum limits memory, units are represented in Megabytes(M)
+KUBERNETES_LIMITS_MAX_MEMORY = int(os.environ.get('KUBERNETES_LIMITS_MAX_MEMORY', '131072'))
+# Default CPU limit, units are represented in the millicpu of CPUs
+KUBERNETES_LIMITS_DEFAULT_CPU = (KUBERNETES_LIMITS_MIN_CPU + 1) * KUBERNETES_REQUEST_CPU_RATIO
+# Default Memory limit, units are represented in Megabytes(M)
+KUBERNETES_LIMITS_DEFAULT_MEMORY = (KUBERNETES_LIMITS_MIN_MEMORY + 1) * KUBERNETES_REQUEST_MEMORY_RATIO  # noqa
 
 # Default pod spec for application.
 KUBERNETES_POD_DEFAULT_RESOURCES = os.environ.get(
@@ -376,20 +380,20 @@ KUBERNETES_NAMESPACE_DEFAULT_LIMIT_RANGES_SPEC = os.environ.get(
         "limits": [
             {
                 "default": {
-                    "cpu": "%sm" % (KUBERNETES_CPU_MIN_ALLOCATION * KUBERNETES_CPU_ALLOCATION_RATIO),  # noqa
-                    "memory": "%sMi" % (KUBERNETES_RAM_MIN_ALLOCATION * KUBERNETES_RAM_ALLOCATION_RATIO)  # noqa
+                    "cpu": "%sm" % KUBERNETES_LIMITS_DEFAULT_CPU,
+                    "memory": "%sMi" % KUBERNETES_LIMITS_DEFAULT_MEMORY
                 },
                 "defaultRequest": {
-                    "cpu": "%sm" % KUBERNETES_CPU_MIN_ALLOCATION,
-                    "memory": "%sMi" % KUBERNETES_RAM_MIN_ALLOCATION
+                    "cpu": "%sm" % (KUBERNETES_LIMITS_MIN_CPU + 1),
+                    "memory": "%sMi" % (KUBERNETES_LIMITS_MIN_MEMORY + 1)
                 },
                 "max": {
-                    "cpu": "%sm" % KUBERNETES_CPU_MAX_ALLOCATION,
-                    "memory": "%sMi" % KUBERNETES_RAM_MAX_ALLOCATION
+                    "cpu": "%sm" % KUBERNETES_LIMITS_MAX_CPU,
+                    "memory": "%sMi" % KUBERNETES_LIMITS_MAX_MEMORY
                 },
                 "min": {
-                    "cpu": "%sm" % (KUBERNETES_CPU_MIN_ALLOCATION - 1),
-                    "memory": "%sMi" % (KUBERNETES_RAM_MIN_ALLOCATION - 1)
+                    "cpu": "%sm" % KUBERNETES_LIMITS_MIN_CPU,
+                    "memory": "%sMi" % KUBERNETES_LIMITS_MIN_MEMORY
                 },
                 "type": "Container"
             },
@@ -519,6 +523,13 @@ CACHES = {
 # Celery Configuration Options
 CELERY_TIMEZONE = "Asia/Shanghai"
 CELERY_ENABLE_UTC = True
+CELERY_TASK_SERIALIZER = 'pickle'
+CELERY_ACCEPT_CONTENT = frozenset([
+    'application/data',
+    'application/text',
+    'application/json',
+    'application/x-python-serialize',
+])
 CELERY_TASK_TRACK_STARTED = True
 CELERY_TASK_TIME_LIMIT = 30 * 60
 CELERYD_MAX_TASKS_PER_CHILD = 200
@@ -533,3 +544,8 @@ INFLUXDB_URL = os.environ.get('DRYCC_INFLUXDB_URL', 'http://localhost:8086')
 INFLUXDB_BUCKET = os.environ.get('DRYCC_INFLUXDB_BUCKET', 'drycc')
 INFLUXDB_ORG = os.environ.get('DRYCC_INFLUXDB_ORG', 'root')
 INFLUXDB_TOKEN = os.environ.get('DRYCC_INFLUXDB_TOKEN', 'root')
+
+
+# Workflow-manager Configuration Options
+WORKFLOW_MANAGER_URL = os.environ.get('DRYCC_WORKFLOW_MANAGER_URL', None)
+WORKFLOW_MANAGER_TOKEN = os.environ.get('DRYCC_WORKFLOW_MANAGER_TOKEN', None)

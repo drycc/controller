@@ -654,6 +654,8 @@ class App(UuidAuditedModel):
             self.procfile_structure = release.build.procfile
             self.save()
 
+        # always set default config
+        self._set_default_config()
         # deploy application to k8s. Also handles initial scaling
         app_settings = self.appsettings_set.latest()
         volumes = self.volume_set.all()
@@ -731,6 +733,18 @@ class App(UuidAuditedModel):
                 self.verify_application_health(**deploys[app_type])
         # cleanup old release objects from kubernetes
         release.cleanup_old()
+
+    def _set_default_config(self):
+        default_cpu = "{}m".format(settings.KUBERNETES_LIMITS_DEFAULT_CPU)
+        default_memory = "{}M".format(settings.KUBERNETES_LIMITS_DEFAULT_MEMORY)
+        config = self.config_set.latest()
+        new_cpu, new_memory = {}, {}
+        for _type in self.types:
+            new_cpu[_type] = config.cpu.get(_type, default_cpu)
+            new_memory[_type] = config.memory.get(_type, default_memory)
+        config.cpu = new_cpu
+        config.memory = new_memory
+        config.save()
 
     def _check_deployment_in_progress(self, deploys, force_deploy=False):
         if force_deploy:
@@ -1166,11 +1180,11 @@ class App(UuidAuditedModel):
         return docker_config, name, True
 
     @staticmethod
-    def _get_cpu_allocation(size):
-        cpu_allocation_ratio = settings.KUBERNETES_CPU_ALLOCATION_RATIO
+    def _get_request_cpu(size):
+        cpu_request_ratio = settings.KUBERNETES_REQUEST_CPU_RATIO
         if size.isdigit():
             unit = 'm'
-            num = (int(size) * 1000) / cpu_allocation_ratio
+            num = (int(size) * 1000) / cpu_request_ratio
         else:
             num, unit = (
                 ''.join(item[1]) for item in groupby(
@@ -1180,12 +1194,12 @@ class App(UuidAuditedModel):
             if unit not in ["m", "M"]:
                 raise DryccException("Units are represented in the number or milli of CPUs")
             else:
-                num = int(num) / cpu_allocation_ratio
+                num = int(num) / cpu_request_ratio
         return "{num}{unit}".format(num=math.ceil(num), unit=unit)
 
     @staticmethod
-    def _get_ram_allocation(size):
-        ram_allocation_ratio = settings.KUBERNETES_RAM_ALLOCATION_RATIO
+    def _get_request_memory(size):
+        memory_request_ratio = settings.KUBERNETES_REQUEST_MEMORY_RATIO
         num, unit = (
             ''.join(item[1]) for item in groupby(
                 size, key=lambda x: x.isdigit()
@@ -1193,9 +1207,9 @@ class App(UuidAuditedModel):
         )
         if unit in ['G', 'g']:
             unit = 'M'
-            num = (int(num) * 1024) / ram_allocation_ratio
+            num = (int(num) * 1024) / memory_request_ratio
         elif unit in ['M', 'm']:
-            num = int(num) / ram_allocation_ratio
+            num = int(num) / memory_request_ratio
         else:
             raise DryccException('Units are represented in Megabytes(M), or Gigabytes (G)')
         return "{num}{unit}".format(num=math.ceil(num), unit=unit)
@@ -1209,11 +1223,11 @@ class App(UuidAuditedModel):
         """
         envs = self._build_env_vars(release)
         config = release.config
-        cpu, ram = {}, {}
+        cpu, memory = {}, {}
         for key, value in config.cpu.items():
-            cpu[key] = "%s/%s" % (self._get_cpu_allocation(value), value)
+            cpu[key] = "%s/%s" % (self._get_request_cpu(value), value)
         for key, value in config.memory.items():
-            ram[key] = "%s/%s" % (self._get_ram_allocation(value), value)
+            memory[key] = "%s/%s" % (self._get_request_memory(value), value)
         # see if the app config has deploy batch preference, otherwise use global
         batches = int(config.values.get('DRYCC_DEPLOY_BATCHES', settings.DRYCC_DEPLOY_BATCHES))  # noqa
 
@@ -1252,7 +1266,7 @@ class App(UuidAuditedModel):
         } for _ in volumes] if volumes else []
 
         return {
-            'memory': ram,
+            'memory': memory,
             'cpu': cpu,
             'tags': config.tags,
             'envs': envs,

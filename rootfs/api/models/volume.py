@@ -2,8 +2,9 @@ import logging
 from django.db import models, transaction
 from django.conf import settings
 from jsonfield import JSONField
+from api.utils import unit_to_bytes
 from api.exceptions import DryccException, ServiceUnavailable, AlreadyExists
-from api.models import UuidAuditedModel, validate_label, volume_changed
+from api.models import UuidAuditedModel, validate_label
 from scheduler import KubeException
 
 logger = logging.getLogger(__name__)
@@ -30,7 +31,6 @@ class Volume(UuidAuditedModel):
         # Attach volume, updates k8s
         if self.created == self.updated:
             self.attach()
-        volume_changed.send(sender=Volume, volume=self)
         # Save to DB
         return super(Volume, self).save(*args, **kwargs)
 
@@ -79,7 +79,7 @@ class Volume(UuidAuditedModel):
             self._scheduler.pvc.delete(self.app.id, self.name)
         except KubeException as e:
             raise ServiceUnavailable("Could not delete volume {} for application \
-                {}".format(name, self.app_id)) from e  # noqa
+                {}".format(self.name, self.app_id)) from e  # noqa
 
     def log(self, message, level=logging.INFO):
         """Logs a message in the context of this service.
@@ -91,3 +91,12 @@ class Volume(UuidAuditedModel):
         accordingly.
         """
         logger.log(level, "[{}]: {}".format(self.id, message))
+
+    def to_measurements(self, timestamp: float):
+        return [{
+            "name": self.name,
+            "app_id": self.app_id,
+            "user_id": self.user_id,
+            "size": unit_to_bytes(self.size),
+            "timestamp": "%f" % timestamp
+        }]
