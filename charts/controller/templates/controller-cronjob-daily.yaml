@@ -77,12 +77,6 @@ spec:
             args:
               - python -u /app/manage.py measure_volumes
             {{- include "controller.envs" . | indent 12 }}
-            volumeMounts:
-            - mountPath: /etc/slugrunner
-              name: slugrunner-config
-              readOnly: true
-          volumes:
-            - name: slugrunner-config
-              configMap:
-                name: slugrunner-config
+            {{- include "controller.volumeMounts" . | indent 12 }}
+          {{- include "controller.volumes" . | indent 10 }}
 

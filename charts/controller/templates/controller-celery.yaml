@@ -60,12 +60,6 @@ spec:
             - celery -A api worker -Q priority.low --autoscale=8,1 --loglevel=WARNING
           {{- include "controller.limits" . | indent 10 }}
           {{- include "controller.envs" . | indent 10 }}
-          volumeMounts:
-            - mountPath: /etc/slugrunner
-              name: slugrunner-config
-              readOnly: true
+          {{- include "controller.volumeMounts" . | indent 10 }}
           imagePullPolicy: {{.Values.image_pull_policy}}
-      volumes:
-        - name: slugrunner-config
-          configMap:
-            name: slugrunner-config
+      {{- include "controller.volumes" . | indent 6 }}

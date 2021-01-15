@@ -136,6 +136,26 @@ env:
     secretKeyRef:
       name: influxdb-creds
       key: token
+{{ if eq .Values.global.rabbitmq_location "off-cluster"}}
+- name: "DRYCC_RABBITMQ_URL"
+  valueFrom:
+    secretKeyRef:
+      name: rabbitmq-creds
+      key: url
+{{- else if eq .Values.global.rabbitmq_location "on-cluster" }}
+- name: "DRYCC_RABBITMQ_USERNAME"
+  valueFrom:
+    secretKeyRef:
+      name: rabbitmq-creds
+      key: username
+- name: "DRYCC_RABBITMQ_PASSWORD"
+  valueFrom:
+    secretKeyRef:
+      name: rabbitmq-creds
+      key: password
+- name: "DRYCC_RABBITMQ_URL"
+  value: "amqp://$DRYCC_RABBITMQ_USERNAME:$DRYCC_RABBITMQ_PASSWORD@drycc-rabbitmq-0.drycc-rabbitmq.{{$.Release.Namespace}}.svc.{{$.Values.global.cluster_domain}}:5672/drycc"
+{{- end }}
 {{- range $key, $value := .Values.environment }}
 - name: {{ $key }}
   value: {{ $value | quote }}
@@ -157,10 +177,23 @@ resources:
 {{- end }}
 
 
+
+
 {{/* Generate controller deployment volumeMounts */}}
 {{- define "controller.volumeMounts" -}}
 volumeMounts:
   - mountPath: /etc/slugrunner
     name: slugrunner-config
     readOnly: true
+{{- end }}
+
+{{/* Generate controller deployment volumes */}}
+{{- define "controller.volumes" -}}
+volumes:
+  - name: rabbitmq-creds
+    secret:
+      secretName: rabbitmq-creds
+  - name: slugrunner-config
+    configMap:
+      name: slugrunner-config
 {{- end }}

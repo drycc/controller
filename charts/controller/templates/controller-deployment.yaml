@@ -44,11 +44,5 @@ spec:
               name: http
           {{- include "controller.limits" . | indent 10 }}
           {{- include "controller.envs" . | indent 10 }}
-          volumeMounts:
-            - mountPath: /etc/slugrunner
-              name: slugrunner-config
-              readOnly: true
-      volumes:
-        - name: slugrunner-config
-          configMap:
-            name: slugrunner-config
+          {{- include "controller.volumeMounts" . | indent 10 }}
+      {{- include "controller.volumes" . | indent 6 }}
