@@ -29,6 +29,7 @@ RUN echo https://dl-cdn.alpinelinux.org/alpine/edge/testing >>/etc/apk/repositor
     shadow \
     postgresql \
     redis \
+    rabbitmq-server \
   && mkdir -p /run/postgresql $PGDATA \
   && chown -R postgres:postgres /run/postgresql $PGDATA \
   && apk del .build-deps \

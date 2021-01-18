@@ -21,7 +21,6 @@ spec:
       labels:
         app: drycc-controller-celery
     spec:
-      serviceAccount: drycc-controller-celery
       containers:
         - name: drycc-controller-celery-high
           image: {{.Values.image_registry}}{{.Values.org}}/controller:{{.Values.image_tag}}
