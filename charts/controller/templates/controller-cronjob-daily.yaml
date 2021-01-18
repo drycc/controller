@@ -23,7 +23,7 @@ spec:
               - /bin/bash
               - -c
             args:
-              - python /app/manage.py push_data_to_influxdb
+              - python /app/manage.py load_db_state_to_k8s
             {{- include "controller.envs" . | indent 12 }}
             volumeMounts:
             - mountPath: /etc/slugrunner
@@ -79,4 +79,3 @@ spec:
             {{- include "controller.envs" . | indent 12 }}
             {{- include "controller.volumeMounts" . | indent 12 }}
           {{- include "controller.volumes" . | indent 10 }}
-

@@ -12,6 +12,12 @@ function start_redis() {
     cd -
 }
 
+function start_rabbitmq() {
+    cd /tmp
+    nohup rabbitmq-server > /var/log/rabbitmq.log 2>&1 &
+    cd -
+}
+
 function start_celery() {
     cd /tmp
     nohup su-exec nobody celery -A api worker -Q priority.low,priority.middle,priority.high --loglevel=info > /var/log/celery.log 2>&1 &
@@ -20,6 +26,7 @@ function start_celery() {
 
 su-exec postgres pg_ctl -D "$PGDATA" start
 start_redis
+start_rabbitmq
 start_celery
 python3 manage.py check
 coverage run manage.py test --settings=api.settings.testing --noinput api scheduler.tests
