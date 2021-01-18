@@ -22,10 +22,8 @@ from rest_framework.authtoken.models import Token
 from api import authentication, models, permissions, serializers, viewsets
 from api.models import AlreadyExists, ServiceUnavailable, DryccException, \
     UnprocessableEntity
-from api.utils import get_influxdb_client
 
 logger = logging.getLogger(__name__)
-client = get_influxdb_client()
 
 
 class ReadinessCheckView(View):
