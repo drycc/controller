@@ -168,9 +168,9 @@ def apply_tasks(tasks):
 def get_influxdb_client():
     if not hasattr(local, "influxdb_client"):
         local.influxdb_client = InfluxDBClient(
-            url=settings.INFLUXDB_URL,
-            token=settings.INFLUXDB_TOKEN,
-            org=settings.INFLUXDB_ORG
+            url=settings.DRYCC_INFLUXDB_URL,
+            token=settings.DRYCC_INFLUXDB_TOKEN,
+            org=settings.DRYCC_INFLUXDB_ORG
         )
     return local.influxdb_client
 

@@ -6,6 +6,7 @@ import os.path
 import tempfile
 import ldap
 import json
+import dj_database_url
 
 from django_auth_ldap.config import LDAPSearch, GroupOfNamesType
 
@@ -433,18 +434,10 @@ APP_STORAGE = os.environ.get('APP_STORAGE')
 # check if we can register users with `drycc register`
 REGISTRATION_MODE = os.environ.get('REGISTRATION_MODE', 'enabled')
 
+
+DRYCC_DATABASE_URL = os.environ.get('DRYCC_DATABASE_URL', 'postgres://:@:5432/drycc')
 DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.postgresql',
-        'NAME': os.environ.get(
-            'DRYCC_DATABASE_NAME', os.environ.get('DRYCC_DATABASE_USER', 'drycc')),
-        'USER': os.environ.get('DRYCC_DATABASE_USER', ''),
-        'PASSWORD': os.environ.get('DRYCC_DATABASE_PASSWORD', ''),
-        'HOST': os.environ.get('DRYCC_DATABASE_SERVICE_HOST', ''),
-        'PORT': os.environ.get('DRYCC_DATABASE_SERVICE_PORT', 5432),
-        # https://docs.djangoproject.com/en/1.11/ref/databases/#persistent-connections
-        'CONN_MAX_AGE': 600,
-    }
+    'default': dj_database_url.config(default=DRYCC_DATABASE_URL, conn_max_age=600)
 }
 
 APP_URL_REGEX = '[a-z0-9-]+'
@@ -540,10 +533,10 @@ CELERY_CACHE_BACKEND = 'django-cache'
 CELERY_DEFAULT_QUEUE = 'priority.middle'
 
 # Influxdb Configuration Options
-INFLUXDB_URL = os.environ.get('DRYCC_INFLUXDB_URL', 'http://localhost:8086')
-INFLUXDB_BUCKET = os.environ.get('DRYCC_INFLUXDB_BUCKET', 'drycc')
-INFLUXDB_ORG = os.environ.get('DRYCC_INFLUXDB_ORG', 'root')
-INFLUXDB_TOKEN = os.environ.get('DRYCC_INFLUXDB_TOKEN', 'root')
+DRYCC_INFLUXDB_URL = os.environ.get('DRYCC_INFLUXDB_URL', 'http://localhost:8086')
+DRYCC_INFLUXDB_BUCKET = os.environ.get('DRYCC_INFLUXDB_BUCKET', 'drycc')
+DRYCC_INFLUXDB_ORG = os.environ.get('DRYCC_INFLUXDB_ORG', 'root')
+DRYCC_INFLUXDB_TOKEN = os.environ.get('DRYCC_INFLUXDB_TOKEN', 'root')
 
 
 # Workflow-manager Configuration Options

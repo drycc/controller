@@ -66,22 +66,12 @@ env:
       name: builder-key-auth
       key: builder-key
 {{- if eq .Values.global.database_location "off-cluster" }}
-- name: DRYCC_DATABASE_NAME
+- name: DRYCC_DATABASE_URL
   valueFrom:
     secretKeyRef:
       name: database-creds
-      key: name
-- name: DRYCC_DATABASE_SERVICE_HOST
-  valueFrom:
-    secretKeyRef:
-      name: database-creds
-      key: host
-- name: DRYCC_DATABASE_SERVICE_PORT
-  valueFrom:
-    secretKeyRef:
-      name: database-creds
-      key: port
-{{- end }}
+      key: url
+{{- else if .Values.global.database_location "on-cluster"  }}
 - name: DRYCC_DATABASE_USER
   valueFrom:
     secretKeyRef:
@@ -92,13 +82,16 @@ env:
     secretKeyRef:
       name: database-creds
       key: password
+- name: DRYCC_DATABASE_URL
+  value: "postgres://$DRYCC_DATABASE_USER:$DRYCC_DATABASE_PASSPORT@$DRYCC_DATABASE_SERVICE_HOST:$DRYCC_DATABASE_SERVICE_PORT/$DRYCC_DATABASE_USER"
+{{ end }}
 - name: WORKFLOW_NAMESPACE
   valueFrom:
     fieldRef:
       fieldPath: metadata.namespace
 {{ if eq .Values.global.redis_location "on-cluster"}}
 - name: DRYCC_REDIS_ADDRS
-  value: "{{range $i := until $redisNodeCount}}drycc-redis-{{$i}}.drycc-redis.{{$.Release.Namespace}}.svc.{{$.Values.global.cluster_domain}}:{{$.Values.redis.port}}{{if lt (add 1 $i) $redisNodeCount}},{{end}}{{end}}"
+  value: "{{range $i := until $redisNodeCount}}drycc-redis-{{$i}}.drycc-redis.{{$.Release.Namespace}}.svc.{{$.Values.global.cluster_domain}}:6379{{if lt (add 1 $i) $redisNodeCount}},{{end}}{{end}}"
 {{- else if eq .Values.global.redis_location "off-cluster" }}
 - name: DRYCC_REDIS_ADDRS
   valueFrom:
@@ -112,26 +105,26 @@ env:
       name: redis-creds
       key: password
 {{- if eq .Values.global.influxdb_location "off-cluster" }}
-- name: "INFLUXDB_URL"
+- name: "DRYCC_INFLUXDB_URL"
   valueFrom:
     secretKeyRef:
       name: influxdb-creds
       key: url
 {{- else }}
-- name: "INFLUXDB_URL"
+- name: "DRYCC_INFLUXDB_URL"
   value: http://$(DRYCC_INFLUXDB_SERVICE_HOST):$(DRYCC_INFLUXDB_SERVICE_PORT_TRANSPORT)
 {{- end }}
-- name: "INFLUXDB_BUCKET"
+- name: "DRYCC_INFLUXDB_BUCKET"
   valueFrom:
     secretKeyRef:
       name: influxdb-creds
       key: bucket
-- name: "INFLUXDB_ORG"
+- name: "DRYCC_INFLUXDB_ORG"
   valueFrom:
     secretKeyRef:
       name: influxdb-creds
       key: org
-- name: "INFLUXDB_TOKEN"
+- name: "DRYCC_INFLUXDB_TOKEN"
   valueFrom:
     secretKeyRef:
       name: influxdb-creds
@@ -162,6 +155,7 @@ env:
 {{- end }}
 {{- end }}
 
+
 {{/* Generate controller deployment limits */}}
 {{- define "controller.limits" -}}
 {{- if or (.Values.limits_cpu) (.Values.limits_memory) }}
@@ -177,8 +171,6 @@ resources:
 {{- end }}
 
 
-
-
 {{/* Generate controller deployment volumeMounts */}}
 {{- define "controller.volumeMounts" -}}
 volumeMounts:
@@ -186,6 +178,7 @@ volumeMounts:
     name: slugrunner-config
     readOnly: true
 {{- end }}
+
 
 {{/* Generate controller deployment volumes */}}
 {{- define "controller.volumes" -}}
