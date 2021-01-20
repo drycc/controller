@@ -125,3 +125,27 @@ class ResourceTest(DryccTransactionTestCase):
         response = self.client.patch(url, data=data)
         # expected = response.data['path']
         self.assertEqual(response.status_code, 400)
+
+    def call_command(self, *args, **kwargs):
+        from io import StringIO
+        from django.core.management import call_command
+        out = StringIO()
+        call_command(
+            "measure_resources",
+            *args,
+            stdout=out,
+            stderr=StringIO(),
+            **kwargs,
+        )
+        return out.getvalue()
+
+    def test_measure_resources(self, *args, **kwargs):
+        # create
+        app_id = self.create_app()
+        data = [
+            {'name': 'mysql', 'plan': 'mysql:5.6'}
+        ]
+        for _ in data:
+            self.client.post('/v2/apps/{}/resources'.format(app_id), data=_)
+        out = self.call_command()
+        self.assertIn(out, "done\n")

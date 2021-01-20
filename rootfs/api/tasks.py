@@ -33,7 +33,7 @@ def retrieve_resource(resource):
             else:
                 resource.detach_resource()
     except Resource.DoesNotExist:
-        logger.info("retrieve task not found resource: {}".format(resource.id))  # noqa
+        logger.exception("retrieve task not found resource: {}".format(resource.id))  # noqa
     finally:
         signals.request_finished.send(sender=task_id)
 
@@ -44,7 +44,7 @@ def measure_config(config: List[Dict[str, str]]):
     [
         {
             "app_id":  "test",
-            "user_id": "test",
+            "owner_id": "test",
             "container_type": web,
             "cpu": "1",
             "memory": "2G",
@@ -64,7 +64,7 @@ def measure_config(config: List[Dict[str, str]]):
             data=json.dumps(config)
         )
     except Exception as e:
-        logger.info("write influxdb point fail: {}".format(e))
+        logger.exception("write influxdb point fail: {}".format(e))
     finally:
         signals.request_finished.send(sender=task_id)
 
@@ -76,7 +76,7 @@ def measure_volumes(volumes: List[Dict[str, str]]):
         {
             "name": "disk",
             "app_id": "test",
-            "user_id": "test",
+            "owner_id": "test",
             "size": "100G",
             "timestamp": "1609231998.9103732"
         }
@@ -94,7 +94,7 @@ def measure_volumes(volumes: List[Dict[str, str]]):
             data=json.dumps(volumes)
         )
     except Exception as e:
-        logger.info("write influxdb point fail: {}".format(e))
+        logger.exception("write influxdb point fail: {}".format(e))
     finally:
         signals.request_finished.send(sender=task_id)
 
@@ -105,7 +105,7 @@ def measure_networks(networks: List[Dict[str, str]]):
     [
         {
             "app_id": "test",
-            "user_id": "test",
+            "owner_id": "test",
             "pod_name": "django2test-web-xxxxxx",
             "rx_bytes": "10000",
             "tx_bytes": "200000",
@@ -125,7 +125,7 @@ def measure_networks(networks: List[Dict[str, str]]):
             data=json.dumps(networks)
         )
     except Exception as e:
-        logger.info("write influxdb point fail: {}".format(e))
+        logger.exception("write influxdb point fail: {}".format(e))
     finally:
         signals.request_finished.send(sender=task_id)
 
@@ -136,7 +136,7 @@ def measure_instances(instances: List[Dict[str, str]]):
     [
         {
             "app_id": "test",
-            "user_id":  "test",
+            "owner_id":  "test",
             "container_type": "web",
             "container_count": 1,
             "timestamp": "1609231998.9103732"
@@ -155,7 +155,7 @@ def measure_instances(instances: List[Dict[str, str]]):
             data=json.dumps(instances)
         )
     except Exception as e:
-        logger.info("write influxdb point fail: {}".format(e))
+        logger.exception("write influxdb point fail: {}".format(e))
     finally:
         signals.request_finished.send(sender=task_id)
 
@@ -167,7 +167,7 @@ def measure_resources(resources: List[Dict[str, str]]):
         {
             "name": "test1",
             "app_id": "redis",
-            "user_id": "test",
+            "owener_id": "test",
             "plan": "redis:small",
             "timestamp": "1609231998.9103732"
         }
@@ -185,6 +185,6 @@ def measure_resources(resources: List[Dict[str, str]]):
             data=json.dumps(resources)
         )
     except Exception as e:
-        logger.info("write influxdb point fail: {}".format(e))
+        logger.exception("write influxdb point fail: {}".format(e))
     finally:
         signals.request_finished.send(sender=task_id)

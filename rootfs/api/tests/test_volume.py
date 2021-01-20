@@ -163,3 +163,28 @@ class VolumeTest(DryccTransactionTestCase):
         }
         response = self.client.post(url, body)
         self.assertEqual(response.status_code, 201, response.data)
+
+    def call_command(self, *args, **kwargs):
+        from io import StringIO
+        from django.core.management import call_command
+        out = StringIO()
+        call_command(
+            "measure_volumes",
+            *args,
+            stdout=out,
+            stderr=StringIO(),
+            **kwargs,
+        )
+        return out.getvalue()
+
+    def test_measure_volumes(self, *args, **kwargs):
+        # create
+        app_id = self.create_app()
+        data = [
+            {'name': 'myvolume1', 'size': '500M'},
+            {'name': 'myvolume2', 'size': '500M'}
+        ]
+        for _ in data:
+            self.client.post('/v2/apps/{}/volumes'.format(app_id), data=_)
+        out = self.call_command()
+        self.assertIn(out, "done\n")
