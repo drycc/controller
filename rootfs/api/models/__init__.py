@@ -3,6 +3,7 @@
 """
 Data models for the Drycc API.
 """
+import time
 import hashlib
 import hmac
 import importlib
@@ -265,14 +266,16 @@ def config_changed_handle(sender, instance=None, created=False, update_fields=No
         created or (
             update_fields is not None and (
                 "cpu" in update_fields or "memory" in update_fields))):
-        measure_config.delay(instance.to_measurements())
+        timestamp = time.time()
+        measure_config.delay(instance.to_measurements(timestamp))
 
 
 @receiver(post_save, sender=Volume)
 def volume_changed_handle(sender, instance=None, created=False, update_fields=None, **kwargs):
     # measure volumes to workflow manager
     if settings.WORKFLOW_MANAGER_URL is not None and created:
-        measure_volumes.delay(instance.to_measurements())
+        timestamp = time.time()
+        measure_volumes.delay(instance.to_measurements(timestamp))
 
 
 @receiver(post_save, sender=Resource)
@@ -290,4 +293,5 @@ def resource_changed_handle(sender, instance=None, created=False, update_fields=
             update_fields is not None and (
                 "plan" in update_fields
             ))):
-        measure_resources.delay(instance.to_measurements())
+        timestamp = time.time()
+        measure_resources.delay(instance.to_measurements(timestamp))

@@ -405,3 +405,25 @@ class ConfigTest(DryccTransactionTestCase):
         self.assertEqual(app.release_set.latest().version, 5)
         self.assertEqual(app.release_set.latest().config, success_config)
         self.assertEqual(app.config_set.count(), 3)
+
+    def call_command(self, *args, **kwargs):
+        from io import StringIO
+        from django.core.management import call_command
+        out = StringIO()
+        call_command(
+            "measure_config",
+            *args,
+            stdout=out,
+            stderr=StringIO(),
+            **kwargs,
+        )
+        return out.getvalue()
+
+    def test_measure_config(self, *args, **kwargs):
+        # create
+        app_id = self.create_app()
+        url = "/v2/apps/{app_id}/config".format(**locals())
+        body = {'values': json.dumps({'PORT': 5000}), 'cpu': json.dumps({'web': '1000m'})}
+        response = self.client.post(url, body)
+        out = self.call_command()
+        self.assertIn(out, "done\n")

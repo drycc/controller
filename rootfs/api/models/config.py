@@ -198,8 +198,8 @@ class Config(UuidAuditedModel):
     def to_measurements(self, timestamp: float):
         assert len(set(self.memory.keys()).difference(self.cpu.keys())) == 0
         return [{
-            "app_id": self.app_id,
-            "user_id": self.user_id,
+            "app_id": str(self.app_id),
+            "owner_id": str(self.owner_id),
             "container_type": container_type,
             "cpu": unit_to_millicpu(self.cpu.get(container_type)),
             "memory": unit_to_bytes(self.memory.get(container_type)),

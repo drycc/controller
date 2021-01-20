@@ -1,5 +1,6 @@
 import uuid
 import time
+import logging
 from contextlib import closing
 from django.utils import timezone
 from django.core.management.base import BaseCommand
@@ -8,9 +9,11 @@ from api.tasks import measure_networks, measure_instances
 from api.models import App
 from api.utils import get_influxdb_client
 
+logger = logging.getLogger(__name__)
+
 
 class Command(BaseCommand):
-    """Management command for push data to influxdb"""
+    """Management command for push data to manager"""
 
     def _build_query_networks_flux(self, app_map, timestamp):
         timestamp = int(timestamp)
@@ -60,10 +63,10 @@ class Command(BaseCommand):
                         ) as records:
                     for record in records:
                         app_id = record["namespace"]
-                        user_id = app_map[app_id].user_id
+                        owner_id = app_map[app_id].owner_id
                         networks.append({
                             "app_id": app_id,
-                            "user_id":  user_id,
+                            "owner_id":  owner_id,
                             "pod_name": record["pod_name"],
                             "rx_bytes": record["rx_bytes"],
                             "tx_bytes": record["tx_bytes"],
@@ -80,11 +83,11 @@ class Command(BaseCommand):
                         ) as records:
                     for record in records:
                         app_id = record["namespace"]
-                        user_id = app_map[app_id].user_id
+                        owner_id = app_map[app_id].owner_id
                         container_type = record["container_name"].replace(f"-{app_id}", "", 1)
                         instances.append({
                             "app_id": app_id,
-                            "user_id":  user_id,
+                            "owner_id":  owner_id,
                             "container_type": container_type,
                             "container_count": record["_value"],
                             "timestamp": timestamp
@@ -95,10 +98,10 @@ class Command(BaseCommand):
         if settings.WORKFLOW_MANAGER_URL is not None:
             timestamp = time.time()
             task_id = uuid.uuid4().hex
-            print(f"pushing {task_id} networks to workflow_manager when {timezone.now()}")
+            logger.info(f"pushing {task_id} networks to workflow_manager when {timezone.now()}")
             app_map = {}
             for app in App.objects.all():
-                app_map[app.pk] = app
+                app_map[app.id] = app
                 if len(app_map) % 1000 == 0:
                     self._measure_networks(app_map, timestamp)
                     self._measure_instances(app_map, timestamp)
@@ -106,4 +109,5 @@ class Command(BaseCommand):
             if len(app_map) > 0:
                 self._measure_networks(app_map, timestamp)
                 self._measure_instances(app_map, timestamp)
-            print(f"pushed {task_id} networks to workflow_manager when {timezone.now()}")
+            logger.info(f"pushed {task_id} networks to workflow_manager when {timezone.now()}")
+            self.stdout.write("done")
