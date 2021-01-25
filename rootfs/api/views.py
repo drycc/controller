@@ -3,7 +3,6 @@ RESTful view classes for presenting Drycc API objects.
 """
 import logging
 from copy import deepcopy
-
 from django.http import Http404, HttpResponse
 from django.conf import settings
 from django.contrib.auth.models import User
@@ -19,9 +18,10 @@ from rest_framework.response import Response
 from rest_framework.viewsets import GenericViewSet
 from rest_framework.authtoken.models import Token
 
-from api import authentication, models, permissions, serializers, viewsets
+from api import influxdb, authentication, models, permissions, serializers, viewsets
 from api.models import AlreadyExists, ServiceUnavailable, DryccException, \
     UnprocessableEntity
+
 
 logger = logging.getLogger(__name__)
 
@@ -908,3 +908,81 @@ class UserView(BaseDryccViewSet):
         user.is_active = False
         user.save(update_fields=['is_active', ])
         return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class MetricView(BaseDryccViewSet):
+    """Getting monitoring indicators from influxdb"""
+
+    def _get_app(self):
+        app = get_object_or_404(models.App, id=self.kwargs['app_id'])
+        self.check_object_permissions(self.request, app)
+        return app
+
+    def _get_cpus(self, app_id, container_type, start, stop, every):
+        avg_total, max_total = [], []
+        for record in influxdb.query_memory_usage(app_id, container_type, start, stop, every):
+            if record["result"] == "mean":
+                avg_total.append((record["_value"], record["timestamp"]))
+            else:
+                max_total.append((record["_value"], record["timestamp"]))
+        return {
+            "max_total": max_total,
+            "avg_total": avg_total
+        }
+
+    def _get_memory(self, app_id, container_type, start, stop, every):
+        max_total, avg_total = [], []
+        for record in influxdb.query_memory_usage(app_id, container_type, start, stop, every):
+            if record["result"] == "mean":
+                avg_total.append((record["_value"], record["timestamp"]))
+            else:
+                max_total.append((record["_value"], record["timestamp"]))
+        return {
+            "max_total": max_total,
+            "avg_total": avg_total
+        }
+
+    def _get_networks(self, app_id, container_type, start, stop, every):
+        networks = []
+        for record in influxdb.query_network_usage(app_id, container_type, start, stop, every):
+            networks.append((record["rx_bytes"], record["tx_bytes"], record["timestamp"]))
+        return networks
+
+    def _get_container_count(self, app_id, container_type, start, stop):
+        for record in influxdb.query_container_count([app_id, ], start, stop):
+            if record["container_name"] == "%s-%s" % (app_id, container_type):
+                return record["_value"]
+        return 0
+
+    def status(self, request, **kwargs):
+        """
+        {
+
+            app_id: "django_t1",
+            container_type: "web",
+            container_count: 1
+            cpus: {
+                max_total: [(50000, 1611023853)],
+                avg_total: [(50000, 1611023853)],
+                timestamp: 1611023853
+            },
+            memory: {
+                max_total: [(50000, 1611023853)],
+                avg_total: [(50000, 1611023853)],
+                timestamp: 1611023853
+            },
+            networks: [
+                (10000, 50000, 1611023853)
+            ],
+        }
+        """
+        app_id, container_type = self._get_app().pk, kwargs['container_type']
+        start, stop, every = kwargs['start'], kwargs['stop'], kwargs["every"]
+        return {
+            "app_id": app_id,
+            "container_type": container_type,
+            "container_count": self._get_container_count(app_id, container_type, start, stop),
+            "cpu_usage_list": self._get_cpus(app_id, container_type, start, stop, every),
+            "memory": self._get_memory(app_id, container_type, start, stop, every),
+            "networks": self._get_networks(app_id, container_type, start, stop, every)
+        }

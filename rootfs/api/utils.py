@@ -6,13 +6,9 @@ import concurrent
 import hashlib
 import logging
 import random
-import threading
 import math
 from copy import deepcopy
-from django.conf import settings
-from influxdb_client import InfluxDBClient
 
-local = threading.local()
 logger = logging.getLogger(__name__)
 
 
@@ -163,16 +159,6 @@ def apply_tasks(tasks):
         if error is not None:
             raise error
     executor.shutdown(wait=True)
-
-
-def get_influxdb_client():
-    if not hasattr(local, "influxdb_client"):
-        local.influxdb_client = InfluxDBClient(
-            url=settings.DRYCC_INFLUXDB_URL,
-            token=settings.DRYCC_INFLUXDB_TOKEN,
-            org=settings.DRYCC_INFLUXDB_ORG
-        )
-    return local.influxdb_client
 
 
 def unit_to_bytes(size):
