@@ -71,7 +71,7 @@ env:
     secretKeyRef:
       name: database-creds
       key: url
-{{- else if .Values.global.database_location "on-cluster"  }}
+{{- else if eq .Values.global.database_location "on-cluster"  }}
 - name: DRYCC_DATABASE_USER
   valueFrom:
     secretKeyRef:
@@ -83,13 +83,13 @@ env:
       name: database-creds
       key: password
 - name: DRYCC_DATABASE_URL
-  value: "postgres://$DRYCC_DATABASE_USER:$DRYCC_DATABASE_PASSPORT@$DRYCC_DATABASE_SERVICE_HOST:$DRYCC_DATABASE_SERVICE_PORT/$DRYCC_DATABASE_USER"
-{{ end }}
+  value: "postgres://$(DRYCC_DATABASE_USER):$(DRYCC_DATABASE_PASSPORT)@$(DRYCC_DATABASE_SERVICE_HOST):$(DRYCC_DATABASE_SERVICE_PORT)/$(DRYCC_DATABASE_USER)"
+{{- end }}
 - name: WORKFLOW_NAMESPACE
   valueFrom:
     fieldRef:
       fieldPath: metadata.namespace
-{{ if eq .Values.global.redis_location "on-cluster"}}
+{{- if eq .Values.global.redis_location "on-cluster"}}
 - name: DRYCC_REDIS_ADDRS
   value: "{{range $i := until $redisNodeCount}}drycc-redis-{{$i}}.drycc-redis.{{$.Release.Namespace}}.svc.{{$.Values.global.cluster_domain}}:6379{{if lt (add 1 $i) $redisNodeCount}},{{end}}{{end}}"
 {{- else if eq .Values.global.redis_location "off-cluster" }}
@@ -129,7 +129,7 @@ env:
     secretKeyRef:
       name: influxdb-creds
       key: token
-{{ if eq .Values.global.rabbitmq_location "off-cluster"}}
+{{- if eq .Values.global.rabbitmq_location "off-cluster"}}
 - name: "DRYCC_RABBITMQ_URL"
   valueFrom:
     secretKeyRef:
@@ -147,7 +147,7 @@ env:
       name: rabbitmq-creds
       key: password
 - name: "DRYCC_RABBITMQ_URL"
-  value: "amqp://$DRYCC_RABBITMQ_USERNAME:$DRYCC_RABBITMQ_PASSWORD@drycc-rabbitmq-0.drycc-rabbitmq.{{$.Release.Namespace}}.svc.{{$.Values.global.cluster_domain}}:5672/drycc"
+  value: "amqp://$(DRYCC_RABBITMQ_USERNAME):$(DRYCC_RABBITMQ_PASSWORD)@drycc-rabbitmq-0.drycc-rabbitmq.{{$.Release.Namespace}}.svc.{{$.Values.global.cluster_domain}}:5672/drycc"
 {{- end }}
 {{- range $key, $value := .Values.environment }}
 - name: {{ $key }}
@@ -172,7 +172,7 @@ resources:
 
 
 {{/* Generate controller deployment volumeMounts */}}
-{{- define "controller.volumeMounts" -}}
+{{- define "controller.volumeMounts" }}
 volumeMounts:
   - mountPath: /etc/slugrunner
     name: slugrunner-config
@@ -181,7 +181,7 @@ volumeMounts:
 
 
 {{/* Generate controller deployment volumes */}}
-{{- define "controller.volumes" -}}
+{{- define "controller.volumes" }}
 volumes:
   - name: rabbitmq-creds
     secret:

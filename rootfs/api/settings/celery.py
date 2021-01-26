@@ -11,4 +11,3 @@ app.conf.update(
 )
 app.autodiscover_tasks()
 platforms.C_FORCE_ROOT = True
-
