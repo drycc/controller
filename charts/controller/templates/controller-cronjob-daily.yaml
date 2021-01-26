@@ -15,8 +15,9 @@ spec:
       template:
         spec:
           restartPolicy: OnFailure
+          serviceAccount: drycc-controller
           containers:
-          - image: {{.Values.image_registry}}{{.Values.org}}/controller:{{.Values.image_tag}}
+          - image: {{.Values.image_registry}}/{{.Values.org}}/controller:{{.Values.image_tag}}
             imagePullPolicy: {{.Values.image_pull_policy}}
             name: drycc-controller-push-data-to-influxdb
             command:
@@ -29,7 +30,7 @@ spec:
             - mountPath: /etc/slugrunner
               name: slugrunner-config
               readOnly: true
-          - image: {{.Values.image_registry}}{{.Values.org}}/controller:{{.Values.image_tag}}
+          - image: {{.Values.image_registry}}/{{.Values.org}}/controller:{{.Values.image_tag}}
             imagePullPolicy: {{.Values.pull_policy}}
             name: drycc-controller-measure-app
             command:
@@ -42,7 +43,7 @@ spec:
             - mountPath: /etc/slugrunner
               name: slugrunner-config
               readOnly: true
-          - image: {{.Values.image_registry}}{{.Values.org}}/controller:{{.Values.image_tag}}
+          - image: {{.Values.image_registry}}/{{.Values.org}}/controller:{{.Values.image_tag}}
             imagePullPolicy: {{.Values.pull_policy}}
             name: drycc-controller-measure-config
             command:
@@ -55,7 +56,7 @@ spec:
             - mountPath: /etc/slugrunner
               name: slugrunner-config
               readOnly: true
-          - image: {{.Values.image_registry}}{{.Values.org}}/controller:{{.Values.image_tag}}
+          - image: {{.Values.image_registry}}/{{.Values.org}}/controller:{{.Values.image_tag}}
             imagePullPolicy: {{.Values.pull_policy}}
             name: drycc-controller-measure-resources
             command:
@@ -68,7 +69,7 @@ spec:
             - mountPath: /etc/slugrunner
               name: slugrunner-config
               readOnly: true
-          - image: {{.Values.image_registry}}{{.Values.org}}/controller:{{.Values.image_tag}}
+          - image: {{.Values.image_registry}}/{{.Values.org}}/controller:{{.Values.image_tag}}
             imagePullPolicy: {{.Values.pull_policy}}
             name: drycc-controller-measure-volumes
             command:

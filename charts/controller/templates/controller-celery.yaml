@@ -21,9 +21,10 @@ spec:
       labels:
         app: drycc-controller-celery
     spec:
+      serviceAccount: drycc-controller
       containers:
         - name: drycc-controller-celery-high
-          image: {{.Values.image_registry}}{{.Values.org}}/controller:{{.Values.image_tag}}
+          image: {{.Values.image_registry}}/{{.Values.org}}/controller:{{.Values.image_tag}}
           command:
             - /bin/bash
             - -c
@@ -37,7 +38,7 @@ spec:
               name: slugrunner-config
               readOnly: true
         - name: drycc-controller-celery-middle
-          image: {{.Values.image_registry}}{{.Values.org}}/controller:{{.Values.image_tag}}
+          image: {{.Values.image_registry}}/{{.Values.org}}/controller:{{.Values.image_tag}}
           command:
             - /bin/bash
             - -c
@@ -51,7 +52,7 @@ spec:
               readOnly: true
           imagePullPolicy: {{.Values.image_pull_policy}}
         - name: drycc-controller-celery-low
-          image: {{.Values.image_registry}}{{.Values.org}}/controller:{{.Values.image_tag}}
+          image: {{.Values.image_registry}}/{{.Values.org}}/controller:{{.Values.image_tag}}
           command:
             - /bin/bash
             - -c

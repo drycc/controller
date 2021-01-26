@@ -1,5 +1,5 @@
 import os
-from celery import Celery
+from celery import Celery, platforms
 
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'api.settings.production')
 app = Celery('drycc')
@@ -10,3 +10,5 @@ app.conf.update(
     },
 )
 app.autodiscover_tasks()
+platforms.C_FORCE_ROOT = True
+
