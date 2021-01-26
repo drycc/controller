@@ -25,34 +25,29 @@ spec:
       containers:
         - name: drycc-controller-celery-high
           image: {{.Values.image_registry}}/{{.Values.org}}/controller:{{.Values.image_tag}}
+          imagePullPolicy: {{.Values.image_pull_policy}}
           command:
             - /bin/bash
             - -c
           args:
             - celery -A api worker -Q priority.high --autoscale=32,1 --loglevel=WARNING
-          imagePullPolicy: {{.Values.image_pull_policy}}
           {{- include "controller.limits" . | indent 10 }}
           {{- include "controller.envs" . | indent 10 }}
-          volumeMounts:
-            - mountPath: /etc/slugrunner
-              name: slugrunner-config
-              readOnly: true
+          {{- include "controller.volumeMounts" . | indent 10 }}
         - name: drycc-controller-celery-middle
           image: {{.Values.image_registry}}/{{.Values.org}}/controller:{{.Values.image_tag}}
+          imagePullPolicy: {{.Values.image_pull_policy}}
           command:
             - /bin/bash
             - -c
           args:
-          - celery -A api worker -Q priority.middle --autoscale=16,1 --loglevel=WARNING
+            - celery -A api worker -Q priority.middle --autoscale=16,1 --loglevel=WARNING
           {{- include "controller.limits" . | indent 10 }}
           {{- include "controller.envs" . | indent 10 }}
-          volumeMounts:
-            - mountPath: /etc/slugrunner
-              name: slugrunner-config
-              readOnly: true
-          imagePullPolicy: {{.Values.image_pull_policy}}
+          {{- include "controller.volumeMounts" . | indent 10 }}
         - name: drycc-controller-celery-low
           image: {{.Values.image_registry}}/{{.Values.org}}/controller:{{.Values.image_tag}}
+          imagePullPolicy: {{.Values.image_pull_policy}}
           command:
             - /bin/bash
             - -c
@@ -61,5 +56,4 @@ spec:
           {{- include "controller.limits" . | indent 10 }}
           {{- include "controller.envs" . | indent 10 }}
           {{- include "controller.volumeMounts" . | indent 10 }}
-          imagePullPolicy: {{.Values.image_pull_policy}}
       {{- include "controller.volumes" . | indent 6 }}

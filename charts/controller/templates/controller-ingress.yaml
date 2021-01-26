@@ -11,7 +11,7 @@ metadata:
     kubernetes.io/tls-acme: "true"
     {{- if not (eq .Values.global.ingress_class "") }}
     kubernetes.io/ingress.class: "{{ .Values.global.ingress_class }}"
-    {{ end }}
+    {{- end }}
 spec:
   rules:
   - host: drycc.{{ .Values.global.platform_domain }}
@@ -25,7 +25,7 @@ spec:
         backend:
           serviceName: drycc-controller
           servicePort: 80
-  {{ if .Values.global.cert_manager_enabled }}
+  {{- if .Values.global.cert_manager_enabled }}
   tls:
     - secretName: drycc-controller-certificate-auto
       hosts:
