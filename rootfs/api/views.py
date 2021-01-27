@@ -914,7 +914,7 @@ class MetricView(BaseDryccViewSet):
     """Getting monitoring indicators from influxdb"""
 
     def _get_app(self):
-        app = get_object_or_404(models.App, id=self.kwargs['app_id'])
+        app = get_object_or_404(models.App, id=self.kwargs['id'])
         self.check_object_permissions(self.request, app)
         return app
 
@@ -976,13 +976,22 @@ class MetricView(BaseDryccViewSet):
             ],
         }
         """
-        app_id, container_type = self._get_app().pk, kwargs['container_type']
-        start, stop, every = kwargs['start'], kwargs['stop'], kwargs["every"]
-        return {
+        app_id, container_type = self._get_app().id, kwargs['container_type']
+
+        data = serializers.MetricSerializer(data=self.request.query_params)
+        if not data.is_valid():
+            return Response(data.errors, status=422)
+        start, stop, every = data.validated_data['start'], data.validated_data[
+            'stop'], data.validated_data["every"]
+        return Response({
             "app_id": app_id,
             "container_type": container_type,
-            "container_count": self._get_container_count(app_id, container_type, start, stop),
-            "cpu_usage_list": self._get_cpus(app_id, container_type, start, stop, every),
-            "memory": self._get_memory(app_id, container_type, start, stop, every),
-            "networks": self._get_networks(app_id, container_type, start, stop, every)
-        }
+            "container_count": self._get_container_count(
+                app_id, container_type, start, stop),
+            "cpu_usage_list": self._get_cpus(
+                app_id, container_type, start, stop, every),
+            "memory": self._get_memory(
+                app_id, container_type, start, stop, every),
+            "networks": self._get_networks(
+                app_id, container_type, start, stop, every)
+        })

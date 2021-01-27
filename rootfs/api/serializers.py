@@ -716,3 +716,13 @@ class ResourceSerializer(serializers.ModelSerializer):
         instance.attach_update()
         instance.save()
         return instance
+
+
+class MetricSerializer(serializers.Serializer):
+    import time
+    now = int(time.time())
+    default_start = (now - now % 3600) - 3600
+    default_stop = now - now % 3600
+    start = serializers.IntegerField(min_value=946656000, max_value=4102416000, required=False, default=default_start)  # noqa
+    stop = serializers.IntegerField(min_value=946656000, max_value=4102416000, required=False, default=default_stop)  # noqa
+    every = serializers.CharField(max_length=50, required=False, default='5m')  # noqa
