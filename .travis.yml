@@ -3,8 +3,8 @@ language: go
 services:
   - docker
 script: 
-  - make test
-  - make docker-build-test upload-coverage
+  - DEV_REGISTRY="docker.io" make test
+  - DEV_REGISTRY="docker.io" make docker-build-test upload-coverage
 notifications:
   slack:
     rooms:

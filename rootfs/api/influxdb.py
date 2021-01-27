@@ -1,28 +1,36 @@
 import threading
+import logging
 from typing import Iterator
 from contextlib import closing
 from django.conf import settings
 from influxdb_client import InfluxDBClient
 from influxdb_client.client.flux_table import FluxRecord
+from influxdb_client.rest import ApiException
 
 local = threading.local()
+logger = logging.getLogger(__name__)
 
 
 def _get_influxdb_client() -> InfluxDBClient:
     if not hasattr(local, "influxdb_client"):
         local.influxdb_client = InfluxDBClient(
-            url=settings.INFLUXDB_URL,
-            token=settings.INFLUXDB_TOKEN,
-            org=settings.INFLUXDB_ORG
+            url=settings.DRYCC_INFLUXDB_URL,
+            token=settings.DRYCC_INFLUXDB_TOKEN,
+            org=settings.DRYCC_INFLUXDB_ORG
         )
     return local.influxdb_client
 
 
 def _query_stream(flux_script: str) -> Iterator[FluxRecord]:
     with closing(_get_influxdb_client()) as client:
-        with closing(client.query_api()) as query_api:
-            with closing(query_api.query_stream(flux_script)) as records:
-                yield from records
+        try:
+            query_api = client.query_api()
+            records = query_api.query_stream(flux_script)
+        except ApiException as e:
+            logger.exception(e)
+            yield from []
+        else:
+            yield from records
 
 
 def query_container_count(
