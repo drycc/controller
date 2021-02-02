@@ -1,0 +1,151 @@
+kind: pipeline
+type: docker
+name: linux-amd64
+
+platform:
+  arch: amd64
+  os: linux
+
+steps:
+- name: test
+  image: docker.io/drycc/go-dev
+  pull: if-not-exists
+  privileged: true
+  commands:
+  - make test docker-build-test upload-coverage
+  environment:
+    VERSION: ${DRONE_TAG:-latest}-linux-amd64
+    DEV_REGISTRY: ${DEV_REGISTRY:-docker.io}
+    DRYCC_REGISTRY: ${DRYCC_REGISTRY:-docker.io}
+    CODECOV_TOKEN:
+      from_secret: codecov_token
+  when:
+    event:
+    - push
+    - tag
+    - pull_request
+
+- name: publish
+  image: docker.io/drycc/go-dev
+  pull: if-not-exists
+  privileged: true
+  commands:
+  - echo $DOCKER_PASSWORD | docker login $DRYCC_REGISTRY --username $DOCKER_USERNAME --password-stdin
+  - make docker-build docker-immutable-push
+  environment:
+    VERSION: ${DRONE_TAG:-latest}-linux-amd64
+    DEV_REGISTRY:
+      from_secret: dev_registry
+    DRYCC_REGISTRY:
+      from_secret: drycc_registry
+    DOCKER_USERNAME:
+      from_secret: docker_username
+    DOCKER_PASSWORD:
+      from_secret: docker_password
+  when:
+    event:
+    - push
+    - tag
+
+trigger:
+  event:
+  - push
+  - tag
+  - pull_request
+
+---
+kind: pipeline
+type: docker
+name: linux-arm64
+
+platform:
+  arch: arm64
+  os: linux
+
+steps:
+- name: publish
+  image: docker.io/drycc/go-dev
+  pull: if-not-exists
+  privileged: true
+  commands:
+  - echo $DOCKER_PASSWORD | docker login $DRYCC_REGISTRY --username $DOCKER_USERNAME --password-stdin
+  - make docker-build docker-immutable-push
+  environment:
+    VERSION: ${DRONE_TAG:-latest}-linux-arm64
+    DEV_REGISTRY:
+      from_secret: dev_registry
+    DRYCC_REGISTRY:
+      from_secret: drycc_registry
+    DOCKER_USERNAME:
+      from_secret: docker_username
+    DOCKER_PASSWORD:
+      from_secret: docker_password
+
+trigger:
+  event:
+  - push
+  - tag
+
+---
+kind: pipeline
+type: docker
+name: manifest
+
+steps:
+- name: generate manifest
+  image: docker.io/library/alpine
+  pull: if-not-exists
+  commands:
+  - sed -i "s/docker.io/$${DRYCC_REGISTRY}/g" .drone/manifest.tmpl
+  environment:
+    DRYCC_REGISTRY:
+      from_secret: drycc_registry
+
+- name: publish
+  image: plugins/manifest
+  settings:
+    spec: .drone/manifest.tmpl
+    username:
+      from_secret: docker_username
+    password:
+      from_secret: docker_password
+  environment:
+    DEV_REGISTRY:
+      from_secret: dev_registry
+    DRYCC_REGISTRY:
+      from_secret: drycc_registry
+
+trigger:
+  event:
+  - push
+  - tag
+
+depends_on:
+- linux-amd64
+- linux-arm64
+
+---
+kind: pipeline
+type: docker
+name: chart
+
+steps:
+- name: generate chart
+  image: docker.io/drycc/python-dev
+  commands:
+  - IMAGE_TAG=$([ ! -z $DRONE_TAG ] && echo \"${DRONE_TAG:1}\" || echo \"canary\")
+  - sed -i "s/image_tag:\ \"canary\"/image_tag:\ $IMAGE_TAG/g" charts/controller/values.yaml
+  - helm package charts/controller --version ${DRONE_TAG:-v1.0.0}
+  - curl -u $CHARTMUSEUM_USERNAME:$CHARTMUSEUM_PASSWORD -F chart=@controller-${DRONE_TAG:-v1.0.0}.tgz "$CHARTMUSEUM_API/api/$([ -z $DRONE_TAG ] && echo testing || echo stable)/charts"
+  environment:
+    CHARTMUSEUM_USERNAME:
+      from_secret: chartmuseum_username
+    CHARTMUSEUM_PASSWORD:
+      from_secret: chartmuseum_password
+    CHARTMUSEUM_API:
+      from_secret: chartmuseum_api
+
+trigger:
+  event:
+  - push
+  - tag
