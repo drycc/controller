@@ -1,4 +1,4 @@
-FROM docker.io/library/python:3.8-alpine
+FROM docker.io/library/python:3.9-alpine
 
 COPY requirements.txt /app/requirements.txt
 COPY dev_requirements.txt /app/dev_requirements.txt
@@ -8,6 +8,8 @@ RUN echo https://dl-cdn.alpinelinux.org/alpine/edge/testing >>/etc/apk/repositor
   && apk add --update --virtual .build-deps \
     postgresql-dev \
     gcc \
+    rust \
+    cargo \
     libffi-dev \
     musl-dev \
     openldap-dev \

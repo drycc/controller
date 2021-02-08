@@ -1,10 +1,12 @@
-FROM docker.io/library/python:3.8-alpine
+FROM docker.io/library/python:3.9-alpine
 
 COPY requirements.txt /app/requirements.txt
 
 RUN apk add --update --virtual .build-deps \
     postgresql-dev \
     gcc \
+    rust \
+    cargo \
     libffi-dev \
     musl-dev \
     openldap-dev \
