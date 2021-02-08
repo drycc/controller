@@ -1,6 +1,6 @@
 name: controller
 home: https://github.com/drycc/controller
-version: <Will be populated by the ci before publishing the chart>
+version: v1.0.0
 description: Drycc Workflow Controller (API).
 maintainers:
   - name: Drycc Team
