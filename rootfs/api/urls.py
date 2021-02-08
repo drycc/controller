@@ -155,4 +155,6 @@ urlpatterns = [
         views.UserView.as_view({'patch': 'enable'})),
     url(r'^users/(?P<username>[\w.@+-]+)/disable/?$',
         views.UserView.as_view({'patch': 'disable'})),
+    url(r'^apps/(?P<id>{})/metrics/(?P<container_type>[a-z0-9]+(\-[a-z0-9]+)*)?$'.format(settings.APP_URL_REGEX),  # noqa
+        views.MetricView.as_view({'get': 'status'})),
 ]
