@@ -751,7 +751,7 @@ class AppVolumeMountPathViewSet(ReleasableViewSet):
                 # error if unsetting non-existing key
                 if key not in path:
                     raise UnprocessableEntity(
-                        '{} does not exist under {}'.format(key, pre_path.keys()))  # noqa
+                        '{} does not exist under {}'.format(key, "volume"))  # noqa
                 path.pop(key)
             else:
                 path[key] = value
@@ -766,11 +766,8 @@ class AppVolumeMountPathViewSet(ReleasableViewSet):
         latest_release = app.release_set.filter(failed=False).latest()
         latest_version = app.release_set.latest().version
         try:
-            summary = "{user} deployed {app},".\
-                format(user=self.request.user, app=app.id)
-            for container_type, path in volume.path.items():
-                summary += "{container_type} mount path {path} with volume {name}.".\
-                               format(container_type=container_type, path=path, name=volume.name)  # noqa
+            summary = "{user} changed volume mount for {volume}".\
+                format(user=self.request.user, volume=volume.name)
             self.release = latest_release.new(
                 self.request.user,
                 config=latest_release.config,
