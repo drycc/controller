@@ -1,11 +1,12 @@
 """
 RESTful view classes for presenting Drycc API objects.
 """
+import json
 import logging
 from copy import deepcopy
-from django.http import Http404, HttpResponse
 from django.conf import settings
 from django.contrib.auth.models import User
+from django.http import Http404, HttpResponse
 from django.shortcuts import get_object_or_404
 from guardian.shortcuts import assign_perm, get_objects_for_user, \
     get_users_with_perms, remove_perm
@@ -15,13 +16,15 @@ from rest_framework import mixins, renderers, status
 from rest_framework.exceptions import PermissionDenied, NotFound, AuthenticationFailed
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
+from rest_framework.views import APIView
 from rest_framework.viewsets import GenericViewSet
 from rest_framework.authtoken.models import Token
 
 from api import influxdb, authentication, models, permissions, serializers, viewsets
 from api.models import AlreadyExists, ServiceUnavailable, DryccException, \
     UnprocessableEntity
-
+from api.oauth2.manager import oauth_client
+from api.permissions import IsAnonymous
 
 logger = logging.getLogger(__name__)
 
@@ -64,6 +67,8 @@ class UserRegistrationViewSet(GenericViewSet,
     def create(self, request, *args, **kwargs):
         if settings.LDAP_ENDPOINT:
             raise DryccException("You cannot register user when ldap is enabled.")
+        if settings.OAUTH2_ACCESS_TOKEN_URL:
+            raise DryccException("You cannot register user when oauth2 is enabled.")
         return super(UserRegistrationViewSet, self).create(request, *args, **kwargs)
 
 
@@ -84,6 +89,8 @@ class UserManagementViewSet(GenericViewSet):
     def destroy(self, request, **kwargs):
         if settings.LDAP_ENDPOINT:
             raise DryccException("You cannot destroy user when ldap is enabled.")
+        if settings.OAUTH2_ACCESS_TOKEN_URL:
+            raise DryccException("You cannot destroy user when oauth2 is enabled.")
         calling_obj = self.get_object()
         target_obj = calling_obj
 
@@ -110,7 +117,8 @@ class UserManagementViewSet(GenericViewSet):
             raise DryccException("new_password is a required field")
         if settings.LDAP_ENDPOINT:
             raise DryccException("You cannot change password when ldap is enabled.")
-
+        if settings.OAUTH2_ACCESS_TOKEN_URL:
+            raise DryccException("You cannot change user when oauth2 is enabled.")
         caller_obj = self.get_object()
         target_obj = self.get_object()
         if request.data.get('username'):
@@ -992,3 +1000,26 @@ class MetricView(BaseDryccViewSet):
             "networks": self._get_networks(
                 app_id, container_type, start, stop, every)
         })
+
+
+class AuthToken(APIView):
+    permission_classes = [IsAnonymous]
+
+    def post(self, request):
+        serializer = serializers.AuthTokenSerializer(data=self.request.data)
+        serializer.is_valid(raise_exception=True)
+        username = serializer.validated_data.get('username')
+        password = serializer.validated_data.get('password')
+        token_response = oauth_client.get_password_token(username, password)
+        user_info = oauth_client.get_user_info()
+        user_info['username'] = username
+        user_info['password'] = password
+        if not user_info.get('email'):
+            user_info['email'] = oauth_client.get_email()
+        user = serializer.update_or_create(user_info)
+        Token.objects.filter(user=user).delete()
+        token = Token.objects.create(
+            key=token_response['access_token'],
+            user=user
+        )
+        return HttpResponse(json.dumps({"token": token.key}))

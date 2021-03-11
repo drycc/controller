@@ -167,6 +167,30 @@ class UserSerializer(serializers.ModelSerializer):
         return user
 
 
+class AuthTokenSerializer(serializers.Serializer):
+    username = serializers.CharField(max_length=150, required=True)
+    password = serializers.CharField(required=True)
+
+    def update_or_create(self, data):
+        now = timezone.now()
+        user, created = User.objects.update_or_create(
+            username=data['username'],
+            defaults={
+                'email': data['email'],
+                'first_name': data.get('first_name', ''),
+                'last_name': data.get('first_name', '')})
+        if created:
+            user.last_login = now,
+            user.date_joined = now
+            user.is_active = True
+        user.set_password(data['password'])
+        # Make the first signup an admin / superuser
+        if not User.objects.filter(is_superuser=True).exists():
+            user.is_superuser = user.is_staff = True
+        user.save()
+        return user
+
+
 class AdminUserSerializer(serializers.ModelSerializer):
     """Serialize admin status for a User model."""
 

@@ -127,8 +127,6 @@ urlpatterns = [
         views.UserManagementViewSet.as_view({'post': 'passwd'})),
     url(r'^auth/whoami/?$',
         views.UserManagementViewSet.as_view({'get': 'list'})),
-    url(r'^auth/login/$',
-        views_obtain_auth_token),
     url(r'^auth/tokens/$',
         views.TokenManagementViewSet.as_view({'post': 'regenerate'})),
     url(r'^auth/tokens/(?P<username>[\w.@+-]+)/?$',
@@ -158,3 +156,12 @@ urlpatterns = [
     url(r'^apps/(?P<id>{})/metrics/(?P<container_type>[a-z0-9]+(\-[a-z0-9]+)*)?$'.format(settings.APP_URL_REGEX),  # noqa
         views.MetricView.as_view({'get': 'status'})),
 ]
+
+if settings.OAUTH2_ACCESS_TOKEN_URL:
+    urlpatterns += [
+        url(r'auth/login/$', views.AuthToken.as_view())
+    ]
+else:
+    urlpatterns += [
+        url(r'^auth/login/$', views_obtain_auth_token),
+    ]

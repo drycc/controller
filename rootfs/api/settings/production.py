@@ -434,7 +434,6 @@ APP_STORAGE = os.environ.get('APP_STORAGE')
 # check if we can register users with `drycc register`
 REGISTRATION_MODE = os.environ.get('REGISTRATION_MODE', 'enabled')
 
-
 DRYCC_DATABASE_URL = os.environ.get('DRYCC_DATABASE_URL', 'postgres://:@:5432/drycc')
 DATABASES = {
     'default': dj_database_url.config(default=DRYCC_DATABASE_URL, conn_max_age=600)
@@ -537,7 +536,18 @@ DRYCC_INFLUXDB_BUCKET = os.environ.get('DRYCC_INFLUXDB_BUCKET', 'drycc')
 DRYCC_INFLUXDB_ORG = os.environ.get('DRYCC_INFLUXDB_ORG', 'root')
 DRYCC_INFLUXDB_TOKEN = os.environ.get('DRYCC_INFLUXDB_TOKEN', 'root')
 
-
 # Workflow-manager Configuration Options
 WORKFLOW_MANAGER_URL = os.environ.get('DRYCC_WORKFLOW_MANAGER_URL', None)
 WORKFLOW_MANAGER_TOKEN = os.environ.get('DRYCC_WORKFLOW_MANAGER_TOKEN', None)
+
+OAUTH2_ACCESS_TOKEN_URL = None
+if not LDAP_ENDPOINT:
+    OAUTH2_ACCESS_TOKEN_URL = os.environ.get('OAUTH2_ACCESS_TOKEN_URL', '')
+    OAUTH2_ACCESS_API_URL = os.environ.get('OAUTH2_ACCESS_API_URL', '')
+    OAUTH2_CLIENT_ID = os.environ.get('OAUTH2_CLIENT_ID', '')
+    OAUTH2_CLIENT_SECRET = os.environ.get('OAUTH2_CLIENT_SECRET', '')
+
+    if OAUTH2_ACCESS_TOKEN_URL:
+        REST_FRAMEWORK['DEFAULT_AUTHENTICATION_CLASSES'] = (
+            'api.authentication.ExpiringTokenAuthentication',
+        )

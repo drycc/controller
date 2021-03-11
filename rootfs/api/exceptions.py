@@ -53,3 +53,8 @@ def custom_exception_handler(exc, context):
         logging.exception(exc.__cause__, exc_info=exc)
 
     return response
+
+
+class Oauth2Exception(APIException):
+    """Exception class used for when the application's health check fails"""
+    pass
