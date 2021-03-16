@@ -55,13 +55,12 @@ class DryccTokenAuthentication(TokenAuthentication):
             except UnicodeError:
                 msg = _('Invalid token header. Token string should not contain invalid characters.')  # noqa
                 raise exceptions.AuthenticationFailed(msg)
-            return self._check_oauth_token(token)
+            return cache.get_or_set(
+                token, lambda: self._get_user(token), settings.OAUTH_CACHE_USER_TIME), None  # noqa
         return super(DryccTokenAuthentication, self).authenticate(request)  # noqa
 
-    def _check_oauth_token(self, key):
-        user = cache.get(key)
-        if user:
-            return user, None
+    @staticmethod
+    def _get_user(key):
         try:
             user_info = OAuthManager().get_user_by_token(key)
             if not user_info.get('email'):
@@ -70,6 +69,4 @@ class DryccTokenAuthentication(TokenAuthentication):
             logger.info(e)
             raise exceptions.AuthenticationFailed(_('Verify token fail.'))
         from api import serializers
-        user = serializers.UserSerializer.update_or_create(user_info)
-        cache.set(key, user, settings.OAUTH_USER_CACHE_TIME)
-        return user, None
+        return serializers.UserSerializer.update_or_create(user_info)
