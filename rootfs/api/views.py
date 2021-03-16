@@ -22,7 +22,6 @@ from api import influxdb, authentication, models, permissions, serializers, view
 from api.models import AlreadyExists, ServiceUnavailable, DryccException, \
     UnprocessableEntity
 
-
 logger = logging.getLogger(__name__)
 
 
@@ -64,6 +63,8 @@ class UserRegistrationViewSet(GenericViewSet,
     def create(self, request, *args, **kwargs):
         if settings.LDAP_ENDPOINT:
             raise DryccException("You cannot register user when ldap is enabled.")
+        if settings.OAUTH_ACCESS_TOKEN_URL:
+            raise DryccException("You cannot register user when oauth2 is enabled.")
         return super(UserRegistrationViewSet, self).create(request, *args, **kwargs)
 
 
@@ -84,6 +85,8 @@ class UserManagementViewSet(GenericViewSet):
     def destroy(self, request, **kwargs):
         if settings.LDAP_ENDPOINT:
             raise DryccException("You cannot destroy user when ldap is enabled.")
+        if settings.OAUTH_ACCESS_TOKEN_URL:
+            raise DryccException("You cannot destroy user when oauth2 is enabled.")
         calling_obj = self.get_object()
         target_obj = calling_obj
 
@@ -110,7 +113,8 @@ class UserManagementViewSet(GenericViewSet):
             raise DryccException("new_password is a required field")
         if settings.LDAP_ENDPOINT:
             raise DryccException("You cannot change password when ldap is enabled.")
-
+        if settings.OAUTH_ACCESS_TOKEN_URL:
+            raise DryccException("You cannot change user when oauth2 is enabled.")
         caller_obj = self.get_object()
         target_obj = self.get_object()
         if request.data.get('username'):
