@@ -166,6 +166,29 @@ class UserSerializer(serializers.ModelSerializer):
         user.save()
         return user
 
+    @staticmethod
+    def update_or_create(data):
+        now = timezone.now()
+        user, created = User.objects.update_or_create(
+            username=data['username'],
+            defaults={
+                'email': data['email'],
+                'first_name': data.get('first_name', ''),
+                'last_name': data.get('first_name', ''),
+                'last_login': now})
+        if created:
+            user.date_joined = now
+            user.is_active = True
+        if data.get('password'):
+            user.set_password(data['password'])
+        elif created and not data.get('password'):
+            user.set_unusable_password()
+        # Make the first signup an admin / superuser
+        if not User.objects.filter(is_superuser=True).exists():
+            user.is_superuser = user.is_staff = True
+        user.save()
+        return user
+
 
 class AdminUserSerializer(serializers.ModelSerializer):
     """Serialize admin status for a User model."""

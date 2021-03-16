@@ -24,3 +24,4 @@ celery==5.0.2
 django_redis==4.12.1
 influxdb-client==1.13.0
 dj-database-url
+Authlib
