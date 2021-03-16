@@ -1,8 +1,14 @@
 import logging
+from django.conf import settings
 from django.contrib.auth.models import AnonymousUser
+from django.core.cache import cache
+from django.utils.translation import gettext_lazy as _
 from rest_framework import authentication
-from rest_framework.authentication import TokenAuthentication
+from rest_framework.authentication import TokenAuthentication, \
+    get_authorization_header
+from rest_framework import exceptions
 
+from api.oauth import OAuthManager
 
 logger = logging.getLogger(__name__)
 
@@ -27,3 +33,43 @@ class AnonymousOrAuthenticatedAuthentication(authentication.BaseAuthentication):
         except Exception as e:
             logger.debug(e)
             return AnonymousUser(), None
+
+
+class DryccTokenAuthentication(TokenAuthentication):
+    def authenticate(self, request):
+        if 'manager' in request.META.get('HTTP_USER_AGENT', ''):
+            auth = get_authorization_header(request).split()
+
+            if not auth or auth[0].lower() != self.keyword.lower().encode():
+                return None
+
+            if len(auth) == 1:
+                msg = _('Invalid token header. No credentials provided.')
+                raise exceptions.AuthenticationFailed(msg)
+            elif len(auth) > 2:
+                msg = _('Invalid token header. Token string should not contain spaces.')  # noqa
+                raise exceptions.AuthenticationFailed(msg)
+
+            try:
+                token = auth[1].decode()
+            except UnicodeError:
+                msg = _('Invalid token header. Token string should not contain invalid characters.')  # noqa
+                raise exceptions.AuthenticationFailed(msg)
+            return self._check_oauth_token(token)
+        return super(DryccTokenAuthentication, self).authenticate(request)  # noqa
+
+    def _check_oauth_token(self, key):
+        user = cache.get(key)
+        if user:
+            return user, None
+        try:
+            user_info = OAuthManager().get_user_by_token(key)
+            if not user_info.get('email'):
+                user_info['email'] = OAuthManager().get_email_by_token(key)
+        except Exception as e:
+            logger.info(e)
+            raise exceptions.AuthenticationFailed(_('Verify token fail.'))
+        from api import serializers
+        user = serializers.UserSerializer.update_or_create(user_info)
+        cache.set(key, user, settings.OAUTH_USER_CACHE_TIME)
+        return user, None
