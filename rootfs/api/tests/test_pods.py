@@ -492,7 +492,7 @@ class PodTest(DryccTransactionTestCase):
         app = App.objects.get(id=app_id)
         user = User.objects.get(username='autotest')
 
-        # Heroku Buildpack app
+        # CNCF Buildpack app
         build = Build.objects.create(
             owner=user,
             app=app,
@@ -514,9 +514,9 @@ class PodTest(DryccTransactionTestCase):
             build=build
         )
 
-        # use `start web` for backwards compatibility with slugrunner
-        self.assertEqual(app._get_command('web'), ['start', 'web'])
-        self.assertEqual(app._get_command('worker'), ['start', 'worker'])
+        # use `start web` for backwards compatibility with buildpacks
+        self.assertEqual(app._get_command('web'), [])
+        self.assertEqual(app._get_command('worker'), [])
 
         # switch to docker image app
         build.sha = ''
@@ -541,7 +541,7 @@ class PodTest(DryccTransactionTestCase):
         # for backwards compatibility if no Procfile is supplied
         build.procfile = {}
         build.save()
-        self.assertEqual(app._get_command('worker'), ['start', 'worker'])
+        self.assertEqual(app._get_command('worker'), [])
 
     def test_run_command_good(self, mock_requests):
         """Test the run command for each container workflow"""
@@ -598,7 +598,7 @@ class PodTest(DryccTransactionTestCase):
         response = self.client.post(url, body)
         self.assertEqual(response.status_code, 200, response.data)
         app = App.objects.get(id=app_id)
-        self.assertEqual(app._get_entrypoint('web'), ['/runner/init'])
+        self.assertEqual(app._get_entrypoint('web'), ['web'])
 
     def test_run_not_fail_on_debug(self, mock_requests):
         """

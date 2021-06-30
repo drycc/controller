@@ -122,48 +122,37 @@ class App(UuidAuditedModel):
     def _get_command(self, container_type):
         """
         Return the kubernetes "container arguments" to be sent off to the scheduler.
-
-        In reality this is the command that the user it attempting to run.
         """
-        try:
-            # FIXME: remove slugrunner's hardcoded entrypoint
-            release = self.release_set.filter(failed=False).latest()
+        release = self.release_set.filter(failed=False).latest()
+        if release is not None and release.build is not None:
+            # dockerfile or container image
             if release.build.dockerfile or not release.build.sha:
-                cmd = release.build.procfile[container_type]
-                # if the entrypoint is `/bin/bash -c`, we want to supply the list
-                # as a script. Otherwise, we want to send it as a list of arguments.
-                if self._get_entrypoint(container_type) == ['/bin/bash', '-c']:
-                    return [cmd]
-                else:
-                    return cmd.split()
-
-            return ['start', container_type]
-        # if the key is not present or if a parent attribute is None
-        except (KeyError, TypeError, AttributeError):
-            # handle special case for Dockerfile deployments
-            return [] if container_type == 'cmd' else ['start', container_type]
+                # has profile
+                if release.build.procfile and container_type in release.build.procfile:
+                    cmd = release.build.procfile[container_type]
+                    # if the entrypoint is `/bin/bash -c`, we want to supply the list
+                    # as a script. Otherwise, we want to send it as a list of arguments.
+                    if self._get_entrypoint(container_type) == ['/bin/bash', '-c']:
+                        return [cmd]
+                    else:
+                        return cmd.split()
+        return []
 
     def _get_entrypoint(self, container_type):
         """
         Return the kubernetes "container command" to be sent off to the scheduler.
-
-        In this case, it is the entrypoint for the docker image. Because of Heroku compatibility,
-        Any containers that are not from a buildpack are run under /bin/bash.
         """
-        # handle special case for Dockerfile deployments
         if container_type == 'cmd':
             return []
-
-        # if this is a procfile-based app, switch the entrypoint to slugrunner's default
-        # FIXME: remove slugrunner's hardcoded entrypoint
+        entrypoint = ['/bin/bash', '-c']
         release = self.release_set.filter(failed=False).latest()
         if release.build.procfile \
                 and release.build.sha \
                 and not release.build.dockerfile:
-            entrypoint = ['/runner/init']
-        else:
-            entrypoint = ['/bin/bash', '-c']
-
+            if container_type in release.build.procfile:
+                entrypoint = [container_type]
+            else:
+                entrypoint = ['launcher']
         return entrypoint
 
     def _refresh_certificate(self, certs_auto_enabled, hosts):
@@ -576,12 +565,6 @@ class App(UuidAuditedModel):
         release = self.release_set.filter(failed=False).latest()
         app_settings = self.appsettings_set.latest()
         volumes = Volume.objects.filter(app=self, path__isnull=False)
-        # use slugrunner image for app if buildpack app otherwise use normal image
-        if release.build.type == 'buildpack':
-            image = next(filter(lambda item: item['name'] == release.build.stack,
-                                settings.SLUGRUNNER_IMAGES))['image']
-        else:
-            image = release.image
 
         tasks = []
         for scale_type, replicas in scale_types.items():
@@ -594,7 +577,7 @@ class App(UuidAuditedModel):
                     self._scheduler.scale,
                     namespace=self.id,
                     name=self._get_job_id(scale_type),
-                    image=image,
+                    image=release.image,
                     entrypoint=self._get_entrypoint(scale_type),
                     command=self._get_command(scale_type),
                     **data
@@ -670,19 +653,9 @@ class App(UuidAuditedModel):
         # Check if any proc type has a Deployment in progress
         self._check_deployment_in_progress(deploys, force_deploy)
 
-        # use slugrunner image for app if buildpack app otherwise use normal image
-        if release.build.type == 'buildpack':
-            image = next(filter(lambda item: item['name'] == release.build.stack,
-                                settings.SLUGRUNNER_IMAGES))['image']
-        else:
-            image = release.image
-
         try:
             # create the application config in k8s (secret in this case) for all deploy objects
             self.set_application_config(release)
-            # only buildpack apps need access to object storage
-            if release.build.type == 'buildpack':
-                self.create_object_store_secret()
 
             # gather all proc types to be deployed
             tasks = [
@@ -690,7 +663,7 @@ class App(UuidAuditedModel):
                     self._scheduler.deploy,
                     namespace=self.id,
                     name=self._get_job_id(scale_type),
-                    image=image,
+                    image=release.image,
                     entrypoint=self._get_entrypoint(scale_type),
                     command=self._get_command(scale_type),
                     **kwargs
@@ -903,12 +876,6 @@ class App(UuidAuditedModel):
             raise DryccException('No build associated with this release to run this command')
 
         app_settings = self.appsettings_set.latest()
-        # use slugrunner image for app if buildpack app otherwise use normal image
-        if release.build.type == 'buildpack':
-            image = next(filter(lambda item: item['name'] == release.build.stack,
-                                settings.SLUGRUNNER_IMAGES))['image']
-        else:
-            image = release.image
         volume_list = []
         if volumes:
             volume_objs = Volume.objects.filter(app=release.app, name__in=volumes.keys())
@@ -928,7 +895,7 @@ class App(UuidAuditedModel):
             exit_code, output = self._scheduler.run(
                 self.id,
                 name,
-                image,
+                release.image,
                 self._get_entrypoint(scale_type),
                 [command],
                 **data
@@ -1029,16 +996,7 @@ class App(UuidAuditedModel):
                 settings.DRYCC_DATETIME_FORMAT))
         }
 
-        # Check if it is a slug builder image.
-        if release.build.type == 'buildpack':
-            # overwrite image so slugrunner image is used in the container
-            default_env['SLUG_URL'] = release.image
-            default_env['BUILDER_STORAGE'] = settings.APP_STORAGE
-            default_env['DRYCC_MINIO_SERVICE_HOST'] = settings.MINIO_HOST
-            default_env['DRYCC_MINIO_SERVICE_PORT'] = settings.MINIO_PORT
-
-        if release.build.sha:
-            default_env['SOURCE_VERSION'] = release.build.sha
+        default_env['SOURCE_VERSION'] = release.build.sha
 
         # fetch application port and inject into ENV vars as needed
         port = release.get_port()
@@ -1319,11 +1277,3 @@ class App(UuidAuditedModel):
             self._scheduler.secret.create(self.id, secret_name, secrets_env, labels=labels)
         else:
             self._scheduler.secret.update(self.id, secret_name, secrets_env, labels=labels)
-
-    def create_object_store_secret(self):
-        try:
-            self._scheduler.secret.get(self.id, 'objectstorage-keyfile')
-        except KubeException:
-            secret = self._scheduler.secret.get(
-                settings.WORKFLOW_NAMESPACE, 'objectstorage-keyfile').json()
-            self._scheduler.secret.create(self.id, 'objectstorage-keyfile', secret['data'])

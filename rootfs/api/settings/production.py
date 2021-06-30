@@ -272,21 +272,6 @@ INGRESS_CLASS = os.environ.get('DRYCC_INGRESS_CLASS', '')
 
 PLATFORM_DOMAIN = os.environ.get('DRYCC_PLATFORM_DOMAIN', 'local.drycc.cc')
 
-# k8s image policies
-if os.path.exists('/etc/slugrunner/images.json'):
-    with open('/etc/slugrunner/images.json') as fb:
-        SLUGRUNNER_IMAGES = json.load(fb)
-else:
-    SLUGRUNNER_IMAGES = [
-        {
-            "name": 'heroku-18',
-            "image": 'drycc/slugrunner:canary.heroku-18',
-        },
-        {
-            "name": 'heroku-20',
-            "image": 'drycc/slugrunner:canary.heroku-20',
-        },
-    ]
 IMAGE_PULL_POLICY = os.environ.get('IMAGE_PULL_POLICY', "IfNotPresent")  # noqa
 
 # True, true, yes, y and more evaluate to True

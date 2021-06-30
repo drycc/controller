@@ -98,7 +98,6 @@ class Pod(Resource):
 
     def manifest(self, namespace, name, image, **kwargs):
         app_type = kwargs.get('app_type')
-        build_type = kwargs.get('build_type')
         volumes = kwargs.get('volumes')
 
         # labels that represent the pod(s)
@@ -132,22 +131,6 @@ class Pod(Resource):
         # How long until a pod is forcefully terminated. 30 is kubernetes default
         spec['terminationGracePeriodSeconds'] = self._get_termination_grace_period(kwargs)  # noqa
 
-        # Check if it is a slug builder image.
-        if build_type == "buildpack":
-            # add the required volume to the top level pod spec
-            spec['volumes'] = [{
-                'name': 'objectstorage-keyfile',
-                'secret': {
-                    'secretName': 'objectstorage-keyfile'
-                }
-            }]
-
-            # added to kwargs to send to the container function
-            kwargs['volumeMounts'] = [{
-                'name': 'objectstorage-keyfile',
-                'mountPath': '/var/run/secrets/drycc/objectstore/creds',
-                'readOnly': True
-            }]
         if volumes:
             exist_volumes = spec.get('volumes', [])
             for volume in volumes:
@@ -304,7 +287,7 @@ class Pod(Resource):
                 healthchecks['livenessProbe']['httpGet']['port'] = env['PORT']
             container.update(healthchecks)
         elif kwargs.get('routable', False):
-            self._default_readiness_probe(container, kwargs.get('build_type'), env.get('PORT', None))  # noqa
+            self._default_readiness_probe(container, kwargs.get('build_type'), env.get('PORT', 5000))  # noqa
 
     @staticmethod
     def _set_lifecycle_hooks(container, env, **kwargs):
@@ -338,53 +321,15 @@ class Pod(Resource):
                 }
             container["lifecycle"] = dict(lifecycle)
 
-    def _default_readiness_probe(self, container, build_type, port=None):
+    def _default_readiness_probe(self, container, build_type, port=5000):
         # Update only the application container with the health check
         if build_type == "buildpack":
-            container.update(self._default_buildpack_readiness_probe())
+            container.update(self._default_container_readiness_probe(port))
         elif port:
-            container.update(self._default_dockerapp_readiness_probe(port))
-
-    """
-    Applies exec readiness probe to the slugrunner container.
-    http://kubernetes.io/docs/user-guide/pod-states/#container-probes
-
-    /runner/init is the entry point of the slugrunner.
-    https://github.com/drycc/slugrunner/blob/01eac53f1c5f1d1dfa7570bbd6b9e45c00441fea/rootfs/Dockerfile#L20
-    Once it downloads the slug it starts running using `exec` which means the pid 1
-    will point to the slug/application command instead of entry point once the application has
-    started.
-    https://github.com/drycc/slugrunner/blob/01eac53f1c5f1d1dfa7570bbd6b9e45c00441fea/rootfs/runner/init#L90
-
-    This should be added only for the build pack apps when a custom liveness probe is not set to
-    make sure that the pod is ready only when the slug is downloaded and started running.
-    """
-    @staticmethod
-    def _default_buildpack_readiness_probe(delay=30, timeout=5, period_seconds=5,
-                                           success_threshold=1, failure_threshold=1):
-        readinessprobe = {
-            'readinessProbe': {
-                # an exec probe
-                'exec': {
-                    "command": [
-                        "bash",
-                        "-c",
-                        "[[ '$(ps -p 1 -o args)' != *'bash /runner/init'* ]]"
-                    ]
-                },
-                # length of time to wait for a pod to initialize
-                # after pod startup, before applying health checking
-                'initialDelaySeconds': delay,
-                'timeoutSeconds': timeout,
-                'periodSeconds': period_seconds,
-                'successThreshold': success_threshold,
-                'failureThreshold': failure_threshold,
-            },
-        }
-        return readinessprobe
+            container.update(self._default_container_readiness_probe(port))
 
     @staticmethod
-    def _default_dockerapp_readiness_probe(port, delay=5, timeout=5, period_seconds=5,
+    def _default_container_readiness_probe(port, delay=5, timeout=5, period_seconds=5,
                                            success_threshold=1, failure_threshold=1):
         """
         Applies tcp socket readiness probe to the docker app container only if some port is exposed

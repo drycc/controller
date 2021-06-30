@@ -656,6 +656,7 @@ class AppTest(DryccTestCase):
                 'DRYCC_APP': app.id,
                 'WORKFLOW_RELEASE': 'v2',
                 'PORT': 5000,
+                'SOURCE_VERSION': '',
                 'WORKFLOW_RELEASE_SUMMARY': 'autotest deployed autotest/example',
                 'WORKFLOW_RELEASE_CREATED_AT': str(time_created.strftime(
                     settings.DRYCC_DATETIME_FORMAT))
@@ -670,10 +671,6 @@ class AppTest(DryccTestCase):
                 'DRYCC_APP': app.id,
                 'WORKFLOW_RELEASE': 'v3',
                 'PORT': 5000,
-                'SLUG_URL': 'autotest/example',
-                'BUILDER_STORAGE': None,
-                'DRYCC_MINIO_SERVICE_HOST': '127.0.0.1',
-                'DRYCC_MINIO_SERVICE_PORT': 80,
                 'SOURCE_VERSION': 'abc1234',
                 'WORKFLOW_RELEASE_SUMMARY': 'autotest deployed abc1234',
                 'WORKFLOW_RELEASE_CREATED_AT': str(time_created.strftime(

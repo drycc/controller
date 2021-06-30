@@ -60,14 +60,11 @@ class Release(UuidAuditedModel):
             return self.build.image
 
         # Sort out image information based on build type
-        if self.build.type == 'dockerfile':
-            # DockerFile
+        if self.build.type == 'dockerfile' or self.build.type == 'buildpack':
+            # DockerFile or buildpack
             return '{}/{}:git-{}'.format(settings.REGISTRY_URL, self.app.id, str(self.build.sha))
         elif self.build.type == 'image':
             # Drycc Pull, docker image in local registry
-            return self.build.image
-        elif self.build.type == 'buildpack':
-            # Build Pack - Registry URL not prepended since slugrunner image will download slug
             return self.build.image
 
     def new(self, user, config, build, summary=None, source_version='latest'):

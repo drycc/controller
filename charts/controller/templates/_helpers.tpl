@@ -169,24 +169,3 @@ resources:
 {{- end }}
 {{- end }}
 {{- end }}
-
-
-{{/* Generate controller deployment volumeMounts */}}
-{{- define "controller.volumeMounts" }}
-volumeMounts:
-  - mountPath: /etc/slugrunner
-    name: slugrunner-config
-    readOnly: true
-{{- end }}
-
-
-{{/* Generate controller deployment volumes */}}
-{{- define "controller.volumes" }}
-volumes:
-  - name: rabbitmq-creds
-    secret:
-      secretName: rabbitmq-creds
-  - name: slugrunner-config
-    configMap:
-      name: slugrunner-config
-{{- end }}

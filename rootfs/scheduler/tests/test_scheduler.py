@@ -22,25 +22,16 @@ class SchedulerTest(TestCase):
                 }
             }
         }
-
         readinessHealthCheck = {
-                # an exec probe
-                'exec': {
-                    "command": [
-                        "bash",
-                        "-c",
-                        "[[ '$(ps -p 1 -o args)' != *'bash /runner/init'* ]]"
-                    ]
-                },
-                # length of time to wait for a pod to initialize
-                # after pod startup, before applying health checking
-                'initialDelaySeconds': 30,
-                'timeoutSeconds': 5,
-                'periodSeconds': 5,
-                'successThreshold': 1,
-                'failureThreshold': 1,
-            }
-
+            'tcpSocket': {
+                "port": 5000
+            },
+            'initialDelaySeconds': 5,
+            'timeoutSeconds': 5,
+            'periodSeconds': 5,
+            'successThreshold': 1,
+            'failureThreshold': 1,
+        }
         self.scheduler.pod._set_container(
             'foo', 'bar', data, routable=True, healthcheck=healthcheck
         )
