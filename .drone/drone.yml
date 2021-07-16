@@ -9,7 +9,7 @@ platform:
 steps:
 - name: test
   image: docker.io/drycc/go-dev
-  pull: if-not-exists
+  pull: always
   privileged: true
   commands:
   - make test docker-build-test upload-coverage
@@ -30,7 +30,7 @@ steps:
 
 - name: publish
   image: docker.io/drycc/go-dev
-  pull: if-not-exists
+  pull: always
   privileged: true
   commands:
   - echo $DOCKER_PASSWORD | docker login $DRYCC_REGISTRY --username $DOCKER_USERNAME --password-stdin
@@ -76,7 +76,7 @@ platform:
 steps:
 - name: publish
   image: docker.io/drycc/go-dev
-  pull: if-not-exists
+  pull: always
   privileged: true
   commands:
   - echo $DOCKER_PASSWORD | docker login $DRYCC_REGISTRY --username $DOCKER_USERNAME --password-stdin
@@ -113,7 +113,7 @@ name: manifest
 steps:
 - name: generate manifest
   image: docker.io/library/alpine
-  pull: if-not-exists
+  pull: always
   commands:
   - sed -i "s/docker.io/$${DRYCC_REGISTRY}/g" .drone/manifest.tmpl
   environment:
