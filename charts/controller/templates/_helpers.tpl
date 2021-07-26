@@ -52,25 +52,25 @@ env:
 - name: DRYCC_DEPLOY_HOOK_SECRET_KEY
   valueFrom:
     secretKeyRef:
-      name: deploy-hook-key
-      key: secret-key
+      name: controller-creds
+      key: deploy-hook-secret-key
 {{- end }}
 - name: DRYCC_SECRET_KEY
   valueFrom:
     secretKeyRef:
-      name: django-secret-key
-      key: secret-key
+      name: controller-creds
+      key: django-secret-key
 - name: DRYCC_BUILDER_KEY
   valueFrom:
     secretKeyRef:
       name: builder-key-auth
       key: builder-key
-{{- if eq .Values.global.database_location "off-cluster" }}
+{{- if (.Values.database_url) }}
 - name: DRYCC_DATABASE_URL
   valueFrom:
     secretKeyRef:
-      name: database-creds
-      key: url
+      name: controller-creds
+      key: database_url
 {{- else if eq .Values.global.database_location "on-cluster"  }}
 - name: DRYCC_DATABASE_USER
   valueFrom:

@@ -22,6 +22,8 @@ app_storage_class: ""
 replicas: 1
 # Set celery replicas
 celery_replicas: 1
+# Configuring this will no longer use the built-in database component
+database_url: ""
 
 # Any custom controller environment variables
 # can be specified as key-value pairs under environment
