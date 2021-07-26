@@ -352,6 +352,8 @@ class PodViewSet(AppResourceViewSet):
             exist_pod_type = list(set([_["type"] for _ in data if _["type"]]))
             structure = self.get_app().structure
             procfile_structure = self.get_app().procfile_structure
+            # remove prev release container type
+            structure = {k: v for k, v in structure.items() if (v != 0 or k in procfile_structure)} # noqa
             for _ in structure.keys():
                 if _ not in exist_pod_type:
                     replicas = str(autoscale[_]['min']) + '-' + str(autoscale[_]['max']) \
