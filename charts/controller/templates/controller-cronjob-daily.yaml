@@ -26,7 +26,6 @@ spec:
             args:
               - python /app/manage.py load_db_state_to_k8s
             {{- include "controller.envs" . | indent 12 }}
-            {{- include "controller.volumeMounts" . | indent 12 }}
           - image: {{.Values.image_registry}}/{{.Values.org}}/controller:{{.Values.image_tag}}
             imagePullPolicy: {{.Values.pull_policy}}
             name: drycc-controller-measure-app
@@ -36,7 +35,6 @@ spec:
             args:
               - python -u /app/manage.py measure_app
             {{- include "controller.envs" . | indent 12 }}
-            {{- include "controller.volumeMounts" . | indent 12 }}
           - image: {{.Values.image_registry}}/{{.Values.org}}/controller:{{.Values.image_tag}}
             imagePullPolicy: {{.Values.pull_policy}}
             name: drycc-controller-measure-config
@@ -46,7 +44,6 @@ spec:
             args:
               - python -u /app/manage.py measure_config
             {{- include "controller.envs" . | indent 12 }}
-            {{- include "controller.volumeMounts" . | indent 12 }}
           - image: {{.Values.image_registry}}/{{.Values.org}}/controller:{{.Values.image_tag}}
             imagePullPolicy: {{.Values.pull_policy}}
             name: drycc-controller-measure-resources
@@ -56,7 +53,6 @@ spec:
             args:
               - python -u /app/manage.py measure_resources
             {{- include "controller.envs" . | indent 12 }}
-            {{- include "controller.volumeMounts" . | indent 12 }}
           - image: {{.Values.image_registry}}/{{.Values.org}}/controller:{{.Values.image_tag}}
             imagePullPolicy: {{.Values.pull_policy}}
             name: drycc-controller-measure-volumes
@@ -66,5 +62,3 @@ spec:
             args:
               - python -u /app/manage.py measure_volumes
             {{- include "controller.envs" . | indent 12 }}
-            {{- include "controller.volumeMounts" . | indent 12 }}
-          {{- include "controller.volumes" . | indent 10 }}

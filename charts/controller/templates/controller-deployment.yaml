@@ -44,5 +44,3 @@ spec:
               name: http
           {{- include "controller.limits" . | indent 10 }}
           {{- include "controller.envs" . | indent 10 }}
-          {{- include "controller.volumeMounts" . | indent 10 }}
-      {{- include "controller.volumes" . | indent 6 }}
