@@ -263,7 +263,7 @@ class PodTest(DryccTransactionTestCase):
         url = "/v2/apps/{app_id}/pods".format(**locals())
         response = self.client.get(url)
         self.assertEqual(response.status_code, 200, response.data)
-        self.assertEqual(len(response.data['results']), 2)
+        self.assertEqual(len(response.data['results']), 1)
         self.assertEqual(response.data['results'][0]['release'], 'v3')
 
         # post new config
@@ -275,7 +275,7 @@ class PodTest(DryccTransactionTestCase):
         url = "/v2/apps/{app_id}/pods".format(**locals())
         response = self.client.get(url)
         self.assertEqual(response.status_code, 200, response.data)
-        self.assertEqual(len(response.data['results']), 2)
+        self.assertEqual(len(response.data['results']), 1)
         self.assertEqual(response.data['results'][0]['release'], 'v4')
 
     def test_container_errors(self, mock_requests):
