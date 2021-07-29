@@ -240,7 +240,7 @@ class HookTest(DryccTransactionTestCase):
         self.assertEqual(container['type'], 'web')
         self.assertEqual(container['release'], 'v2')
         # pod name is auto generated so use regex
-        self.assertRegex(container['name'], app_id + '-web-[0-9]{8,10}-[a-z0-9]{5}')
+        self.assertRegex(container['name'], app_id + '-web-[0-9]{1,10}-[a-z0-9]{5}')
 
         # post the build without an auth token
         self.client.credentials()
@@ -285,7 +285,7 @@ class HookTest(DryccTransactionTestCase):
         self.assertEqual(container['type'], 'cmd')
         self.assertEqual(container['release'], 'v2')
         # pod name is auto generated so use regex
-        self.assertRegex(container['name'], app_id + '-cmd-[0-9]{8,10}-[a-z0-9]{5}')
+        self.assertRegex(container['name'], app_id + '-cmd-[0-9]{1,10}-[a-z0-9]{5}')
 
         # post the build without an auth token
         self.client.credentials()

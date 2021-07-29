@@ -35,9 +35,9 @@ class AnonymousOrAuthenticatedAuthentication(authentication.BaseAuthentication):
             return AnonymousUser(), None
 
 
-class DryccTokenAuthentication(TokenAuthentication):
+class DryccOIDCAuthentication(TokenAuthentication):
     def authenticate(self, request):
-        if 'manager' in request.META.get('HTTP_USER_AGENT', ''):
+        if 'Drycc' in request.META.get('HTTP_USER_AGENT', ''):
             auth = get_authorization_header(request).split()
 
             if not auth or auth[0].lower() != self.keyword.lower().encode():
@@ -57,7 +57,7 @@ class DryccTokenAuthentication(TokenAuthentication):
                 raise exceptions.AuthenticationFailed(msg)
             return cache.get_or_set(
                 token, lambda: self._get_user(token), settings.OAUTH_CACHE_USER_TIME), None  # noqa
-        return super(DryccTokenAuthentication, self).authenticate(request)  # noqa
+        return super(DryccOIDCAuthentication, self).authenticate(request)  # noqa
 
     @staticmethod
     def _get_user(key):

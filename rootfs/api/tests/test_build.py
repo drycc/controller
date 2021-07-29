@@ -119,7 +119,7 @@ class BuildTest(DryccTransactionTestCase):
         self.assertEqual(container['type'], 'cmd')
         self.assertEqual(container['release'], 'v2')
         # pod name is auto generated so use regex
-        self.assertRegex(container['name'], app_id + '-cmd-[0-9]{8,10}-[a-z0-9]{5}')
+        self.assertRegex(container['name'], app_id + '-cmd-[0-9]{1,10}-[a-z0-9]{5}')
 
         # post an image as a build with a procfile
         app_id = self.create_app()
@@ -143,7 +143,7 @@ class BuildTest(DryccTransactionTestCase):
         self.assertEqual(container['type'], 'web')
         self.assertEqual(container['release'], 'v2')
         # pod name is auto generated so use regex
-        self.assertRegex(container['name'], app_id + '-web-[0-9]{7,10}-[a-z0-9]{5}')
+        self.assertRegex(container['name'], app_id + '-web-[0-9]{1,10}-[a-z0-9]{5}')
 
         # start with a new app
         app_id = self.create_app()
@@ -166,7 +166,7 @@ class BuildTest(DryccTransactionTestCase):
         self.assertEqual(container['type'], 'cmd')
         self.assertEqual(container['release'], 'v2')
         # pod name is auto generated so use regex
-        self.assertRegex(container['name'], app_id + '-cmd-[0-9]{8,10}-[a-z0-9]{5}')
+        self.assertRegex(container['name'], app_id + '-cmd-[0-9]{1,10}-[a-z0-9]{5}')
 
         # start with a new app
         app_id = self.create_app()
@@ -193,7 +193,7 @@ class BuildTest(DryccTransactionTestCase):
         self.assertEqual(container['type'], 'cmd')
         self.assertEqual(container['release'], 'v2')
         # pod name is auto generated so use regex
-        self.assertRegex(container['name'], app_id + '-cmd-[0-9]{8,10}-[a-z0-9]{5}')
+        self.assertRegex(container['name'], app_id + '-cmd-[0-9]{1,10}-[a-z0-9]{5}')
 
         # start with a new app
         app_id = self.create_app()
@@ -220,7 +220,7 @@ class BuildTest(DryccTransactionTestCase):
         self.assertEqual(container['type'], 'web')
         self.assertEqual(container['release'], 'v2')
         # pod name is auto generated so use regex
-        self.assertRegex(container['name'], app_id + '-web-[0-9]{7,10}-[a-z0-9]{5}')
+        self.assertRegex(container['name'], app_id + '-web-[0-9]{1,10}-[a-z0-9]{5}')
 
         # start with a new app
         app_id = self.create_app()
@@ -278,7 +278,7 @@ class BuildTest(DryccTransactionTestCase):
         self.assertEqual(container['type'], 'worker')
         self.assertEqual(container['release'], 'v2')
         # pod name is auto generated so use regex
-        self.assertRegex(container['name'], app_id + '-worker-[0-9]{8,10}-[a-z0-9]{5}')
+        self.assertRegex(container['name'], app_id + '-worker-[0-9]{1,10}-[a-z0-9]{5}')
 
         # do another deploy for this time forget Procfile
         url = "/v2/apps/{app_id}/builds".format(**locals())
@@ -349,7 +349,7 @@ class BuildTest(DryccTransactionTestCase):
         self.assertEqual(container['type'], 'worker')
         self.assertEqual(container['release'], 'v2')
         # pod name is auto generated so use regex
-        self.assertRegex(container['name'], app_id + '-worker-[0-9]{7,10}-[a-z0-9]{5}')
+        self.assertRegex(container['name'], app_id + '-worker-[0-9]{1,10}-[a-z0-9]{5}')
 
         # do another deploy for this time forget Procfile
         url = "/v2/apps/{app_id}/builds".format(**locals())
@@ -366,7 +366,7 @@ class BuildTest(DryccTransactionTestCase):
         self.assertEqual(container['type'], 'worker')
         self.assertEqual(container['release'], 'v3')
         # pod name is auto generated so use regex
-        self.assertRegex(container['name'], app_id + '-worker-[0-9]{8,10}-[a-z0-9]{5}')
+        self.assertRegex(container['name'], app_id + '-worker-[0-9]{1,10}-[a-z0-9]{5}')
 
         # verify web is still there
         url = "/v2/apps/{app_id}/pods/web".format(**locals())
@@ -377,7 +377,7 @@ class BuildTest(DryccTransactionTestCase):
         self.assertEqual(container['type'], 'web')
         self.assertEqual(container['release'], 'v3')
         # pod name is auto generated so use regex
-        self.assertRegex(container['name'], app_id + '-web-[0-9]{8,10}-[a-z0-9]{5}')
+        self.assertRegex(container['name'], app_id + '-web-[0-9]{1,10}-[a-z0-9]{5}')
 
         # look at the app structure
         url = "/v2/apps/{app_id}".format(**locals())
@@ -400,7 +400,7 @@ class BuildTest(DryccTransactionTestCase):
         self.assertEqual(container['type'], 'worker')
         self.assertEqual(container['release'], 'v3')
         # pod name is auto generated so use regex
-        self.assertRegex(container['name'], app_id + '-worker-[0-9]{8,10}-[a-z0-9]{5}')
+        self.assertRegex(container['name'], app_id + '-worker-[0-9]{1,10}-[a-z0-9]{5}')
 
     @override_settings(DRYCC_DEPLOY_REJECT_IF_PROCFILE_MISSING=True)
     def test_build_forgotten_procfile_reject(self, mock_requests):
@@ -441,7 +441,7 @@ class BuildTest(DryccTransactionTestCase):
         self.assertEqual(container['type'], 'worker')
         self.assertEqual(container['release'], 'v2')
         # pod name is auto generated so use regex
-        self.assertRegex(container['name'], app_id + '-worker-[0-9]{8,10}-[a-z0-9]{5}')
+        self.assertRegex(container['name'], app_id + '-worker-[0-9]{1,10}-[a-z0-9]{5}')
 
         # do another deploy for this time forget Procfile
         url = "/v2/apps/{app_id}/builds".format(**locals())

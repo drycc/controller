@@ -22,6 +22,11 @@ app_storage_class: ""
 replicas: 1
 # Set celery replicas
 celery_replicas: 1
+# Set cronjob concurrencyPolicy
+# Allow (default): The cron job allows concurrently running jobs
+# Forbid: The cron job does not allow concurrent runs; if it is time for a new job run and the previous job run hasn't finished yet, the cron job skips the new job run
+# Replace: If it is time for a new job run and the previous job run hasn't finished yet, the cron job replaces the currently running job run with a new job run
+concurrency_policy: "Replace"
 # Configuring this will no longer use the built-in database component
 database_url: ""
 
@@ -30,6 +35,16 @@ database_url: ""
 # this is usually a non required setting.
 environment:
   RESERVED_NAMES: "drycc, drycc-builder, drycc-monitor-grafana"
+##　Oauth settings. If passport_location is off-cluster, set the following environment variables
+#  LOGIN_REDIRECT_URL: ""
+#  SOCIAL_AUTH_DRYCC_AUTHORIZATION_URL: ""
+#  SOCIAL_AUTH_DRYCC_ACCESS_TOKEN_URL: ""
+#  SOCIAL_AUTH_DRYCC_ACCESS_API_URL: ""
+#  SOCIAL_AUTH_DRYCC_USERINFO_URL: ""
+#  SOCIAL_AUTH_DRYCC_JWKS_URI: ""
+#  SOCIAL_AUTH_DRYCC_OIDC_ENDPOINT: ""
+#  SOCIAL_AUTH_DRYCC_KEY: ""
+#  SOCIAL_AUTH_DRYCC_SECRET: ""
 
 redis:
   replicas: 1
@@ -79,3 +94,4 @@ global:
   platform_domain: ""
   # Whether cert_manager is enabled to automatically generate controller certificates
   cert_manager_enabled: "true"
+  passport_location: "on-cluster"
