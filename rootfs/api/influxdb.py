@@ -29,6 +29,9 @@ def _query_stream(flux_script: str) -> Iterator[FluxRecord]:
         except ApiException as e:
             logger.exception(e)
             yield from []
+        except Exception as e:
+            logger.exception(e)
+            yield from []
         else:
             yield from records
 

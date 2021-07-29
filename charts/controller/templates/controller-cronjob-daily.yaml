@@ -7,9 +7,10 @@ metadata:
   annotations:
     component.drycc.cc/version: {{ .Values.image_tag }}
 spec:
-  failedJobsHistoryLimit: 1
   schedule: "0 0 * * *"
-  successfulJobsHistoryLimit: 3
+  concurrencyPolicy: {{ .Values.concurrency_policy }}
+  successfulJobsHistoryLimit: 1
+  failedJobsHistoryLimit: 1
   jobTemplate:
     spec:
       template:

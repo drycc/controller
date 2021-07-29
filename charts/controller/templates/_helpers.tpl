@@ -82,8 +82,13 @@ env:
     secretKeyRef:
       name: database-creds
       key: password
+- name: DRYCC_DATABASE_NAME
+  valueFrom:
+    secretKeyRef:
+      name: database-creds
+      key: controller-database-name
 - name: DRYCC_DATABASE_URL
-  value: "postgres://$(DRYCC_DATABASE_USER):$(DRYCC_DATABASE_PASSWORD)@$(DRYCC_DATABASE_SERVICE_HOST):$(DRYCC_DATABASE_SERVICE_PORT)/$(DRYCC_DATABASE_USER)"
+  value: "postgres://$(DRYCC_DATABASE_USER):$(DRYCC_DATABASE_PASSWORD)@$(DRYCC_DATABASE_SERVICE_HOST):$(DRYCC_DATABASE_SERVICE_PORT)/$(DRYCC_DATABASE_NAME)"
 {{- end }}
 - name: WORKFLOW_NAMESPACE
   valueFrom:
@@ -148,6 +153,30 @@ env:
       key: password
 - name: "DRYCC_RABBITMQ_URL"
   value: "amqp://$(DRYCC_RABBITMQ_USERNAME):$(DRYCC_RABBITMQ_PASSWORD)@drycc-rabbitmq-0.drycc-rabbitmq.{{$.Release.Namespace}}.svc.{{$.Values.global.cluster_domain}}:5672/drycc"
+{{- end }}
+{{- if eq .Values.global.passport_location "on-cluster"}}
+- name: "DRYCC_PASSPORT_DOMAIN"
+  value: drycc-passport.{{ .Values.global.platform_domain }}
+- name: "SOCIAL_AUTH_DRYCC_AUTHORIZATION_URL"
+  value: "$(DRYCC_PASSPORT_DOMAIN)/oauth/token/"
+- name: "SOCIAL_AUTH_DRYCC_ACCESS_API_URL"
+  value: "$(DRYCC_PASSPORT_DOMAIN)/users/"
+- name: "SOCIAL_AUTH_DRYCC_USERINFO_URL"
+  value: "$(DRYCC_PASSPORT_DOMAIN)/oauth/userinfo/"
+- name: "SOCIAL_AUTH_DRYCC_JWKS_URI"
+  value: "$(DRYCC_PASSPORT_DOMAIN)/oauth/.well-known/jwks.json"
+- name: "SOCIAL_AUTH_DRYCC_OIDC_ENDPOINT"
+  value: "$(DRYCC_PASSPORT_DOMAIN)/oauth"
+- name: SOCIAL_AUTH_DRYCC_CONTROLLER_KEY
+  valueFrom:
+    secretKeyRef:
+      name: passport-creds
+      key: social-auth-drycc-controller-key
+- name: SOCIAL_AUTH_DRYCC_CONTROLLER_SECRET
+  valueFrom:
+    secretKeyRef:
+      name: passport-creds
+      key: social-auth-drycc-controller-secret
 {{- end }}
 {{- range $key, $value := .Values.environment }}
 - name: {{ $key }}
