@@ -10,8 +10,9 @@ from django.core import signals
 from django.conf import settings
 from django.utils.timezone import now
 from celery import shared_task
+from requests_toolbelt import user_agent
 from api.models.resource import Resource
-
+from api import __version__ as drycc_version
 logger = logging.getLogger(__name__)
 
 
@@ -59,7 +60,8 @@ def measure_config(config: List[Dict[str, str]]):
             url="%s/measurements/config/" % settings.WORKFLOW_MANAGER_URL,
             headers={
                 'Content-Type': 'application/json',
-                'Authorization': 'token %s' % settings.WORKFLOW_MANAGER_TOKEN
+                'Authorization': 'token %s' % settings.WORKFLOW_MANAGER_TOKEN,
+                'User-Agent': user_agent('Drycc Controller ', drycc_version)
             },
             data=json.dumps(config)
         )
@@ -89,7 +91,8 @@ def measure_volumes(volumes: List[Dict[str, str]]):
             url="%s/measurements/volumes/" % settings.WORKFLOW_MANAGER_URL,
             headers={
                 'Content-Type': 'application/json',
-                'Authorization': 'token %s' % settings.WORKFLOW_MANAGER_TOKEN
+                'Authorization': 'token %s' % settings.WORKFLOW_MANAGER_TOKEN,
+                'User-Agent': user_agent('Drycc Controller ', drycc_version)
             },
             data=json.dumps(volumes)
         )
@@ -120,7 +123,8 @@ def measure_networks(networks: List[Dict[str, str]]):
             url="%s/measurements/networks/" % settings.WORKFLOW_MANAGER_URL,
             headers={
                 'Content-Type': 'application/json',
-                'Authorization': 'token %s' % settings.WORKFLOW_MANAGER_TOKEN
+                'Authorization': 'token %s' % settings.WORKFLOW_MANAGER_TOKEN,
+                'User-Agent': user_agent('Drycc Controller ', drycc_version)
             },
             data=json.dumps(networks)
         )
@@ -150,7 +154,8 @@ def measure_instances(instances: List[Dict[str, str]]):
             url="%s/measurements/instances/" % settings.WORKFLOW_MANAGER_URL,
             headers={
                 'Content-Type': 'application/json',
-                'Authorization': 'token %s' % settings.WORKFLOW_MANAGER_TOKEN
+                'Authorization': 'token %s' % settings.WORKFLOW_MANAGER_TOKEN,
+                'User-Agent': user_agent('Drycc Controller ', drycc_version)
             },
             data=json.dumps(instances)
         )
@@ -180,7 +185,8 @@ def measure_resources(resources: List[Dict[str, str]]):
             url="%s/measurements/resources/" % settings.WORKFLOW_MANAGER_URL,
             headers={
                 'Content-Type': 'application/json',
-                'Authorization': 'token %s' % settings.WORKFLOW_MANAGER_TOKEN
+                'Authorization': 'token %s' % settings.WORKFLOW_MANAGER_TOKEN,
+                'User-Agent': user_agent('Drycc Controller ', drycc_version)
             },
             data=json.dumps(resources)
         )

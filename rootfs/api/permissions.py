@@ -1,8 +1,6 @@
-
-from rest_framework import exceptions
 from rest_framework import permissions
 from django.conf import settings
-from django.contrib.auth.models import AnonymousUser, User
+from django.contrib.auth.models import AnonymousUser
 
 from api import models
 
@@ -94,31 +92,6 @@ class IsAdminOrSafeMethod(permissions.BasePermission):
         return request.method in permissions.SAFE_METHODS or request.user.is_superuser
 
 
-class HasRegistrationAuth(permissions.BasePermission):
-    """
-    Checks to see if registration is enabled
-    """
-    def has_permission(self, request, view):
-        """
-        If settings.REGISTRATION_MODE does not exist, such as during a test, return True
-        Return `True` if permission is granted, `False` otherwise.
-        """
-        try:
-            if settings.REGISTRATION_MODE == 'disabled':
-                raise exceptions.PermissionDenied('Registration is disabled')
-            if settings.REGISTRATION_MODE == 'enabled':
-                return True
-            elif settings.REGISTRATION_MODE == 'admin_only':
-                if not User.objects.filter(is_superuser=True).exists():
-                    return True
-                return request.user.is_superuser
-            else:
-                raise Exception("{} is not a valid registation mode"
-                                .format(settings.REGISTRATION_MODE))
-        except AttributeError:
-            return True
-
-
 class HasBuilderAuth(permissions.BasePermission):
     """
     View permission to allow builder to perform actions
@@ -133,18 +106,3 @@ class HasBuilderAuth(permissions.BasePermission):
         if not auth_header:
             return False
         return auth_header == settings.BUILDER_KEY
-
-
-class CanRegenerateToken(permissions.BasePermission):
-    """
-    Checks if a user can regenerate a token
-    """
-
-    def has_permission(self, request, view):
-        """
-        Return `True` if permission is granted, `False` otherwise.
-        """
-        if 'username' in request.data or 'all' in request.data:
-            return request.user.is_superuser
-        else:
-            return True

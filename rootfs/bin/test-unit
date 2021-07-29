@@ -29,5 +29,5 @@ start_redis
 start_rabbitmq
 start_celery
 python3 manage.py check
-coverage run manage.py test --settings=api.settings.testing --noinput api scheduler.tests
+coverage run manage.py test --settings=api.settings.testing --noinput api scheduler.tests --exclude-tag=auth
 coverage report -m

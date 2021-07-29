@@ -1,170 +1,14 @@
+from django.test import tag
 from django.contrib.auth.models import User
 from rest_framework.authtoken.models import Token
-from django.test.utils import override_settings
 from api.tests import DryccTestCase
-
-
-class TestAdminPerms(DryccTestCase):
-
-    def test_first_signup(self):
-        # register a first user
-        username, password = 'firstuser', 'password'
-        email = 'autotest@drycc.cc'
-        submit = {
-            'username': username,
-            'password': password,
-            'email': email,
-        }
-        url = '/v2/auth/register'
-        response = self.client.post(url, submit)
-        self.assertEqual(response.status_code, 201, response.data)
-        self.assertTrue(response.data['is_superuser'])
-
-        # register a second user
-        username, password = 'seconduser', 'password'
-        email = 'autotest@drycc.cc'
-        submit = {
-            'username': username,
-            'password': password,
-            'email': email,
-        }
-        url = '/v2/auth/register'
-        response = self.client.post(url, submit)
-        self.assertEqual(response.status_code, 201, response.data)
-        self.assertFalse(response.data['is_superuser'])
-
-    @override_settings(REGISTRATION_MODE="admin_only")
-    def test_first_signup_admin_only(self):
-        # register a first user
-        username, password = 'firstuser', 'password'
-        email = 'autotest@drycc.cc'
-        submit = {
-            'username': username,
-            'password': password,
-            'email': email,
-        }
-        url = '/v2/auth/register'
-        response = self.client.post(url, submit)
-        self.assertEqual(response.status_code, 201, response.data)
-        self.assertTrue(response.data['is_superuser'])
-
-    def test_list(self):
-        submit = {
-            'username': 'firstuser',
-            'password': 'password',
-            'email': 'autotest@drycc.cc',
-        }
-        url = '/v2/auth/register'
-        response = self.client.post(url, submit)
-        self.assertEqual(response.status_code, 201, response.data)
-        self.assertTrue(response.data['is_superuser'])
-
-        user = User.objects.get(username='firstuser')
-        token = Token.objects.get(user=user).key
-        self.client.credentials(HTTP_AUTHORIZATION='Token ' + token)
-
-        response = self.client.get('/v2/admin/perms')
-        self.assertEqual(response.status_code, 200, response.data)
-        self.assertEqual(len(response.data['results']), 1)
-        self.assertEqual(response.data['results'][0]['username'], 'firstuser')
-        self.assertTrue(response.data['results'][0]['is_superuser'])
-
-        # register a non-superuser
-        submit = {
-            'username': 'seconduser',
-            'password': 'password',
-            'email': 'autotest@drycc.cc',
-        }
-        url = '/v2/auth/register'
-        response = self.client.post(url, submit)
-        self.assertEqual(response.status_code, 201, response.data)
-        self.assertFalse(response.data['is_superuser'])
-
-        user = User.objects.get(username='seconduser')
-        token = Token.objects.get(user=user).key
-        self.client.credentials(HTTP_AUTHORIZATION='Token ' + token)
-
-        response = self.client.get('/v2/admin/perms')
-        self.assertEqual(response.status_code, 403)
-        self.assertIn('You do not have permission', response.data['detail'])
-
-    def test_create(self):
-        submit = {
-            'username': 'first',
-            'password': 'password',
-            'email': 'autotest@drycc.cc',
-        }
-        url = '/v2/auth/register'
-        response = self.client.post(url, submit)
-        self.assertEqual(response.status_code, 201, response.data)
-        self.assertTrue(response.data['is_superuser'])
-
-        submit = {
-            'username': 'second',
-            'password': 'password',
-            'email': 'autotest@drycc.cc',
-        }
-        url = '/v2/auth/register'
-        response = self.client.post(url, submit)
-        self.assertEqual(response.status_code, 201, response.data)
-        self.assertFalse(response.data['is_superuser'])
-
-        user = User.objects.get(username='first')
-        token = Token.objects.get(user=user).key
-        self.client.credentials(HTTP_AUTHORIZATION='Token ' + token)
-        # grant user 2 the superuser perm
-        url = '/v2/admin/perms'
-        body = {'username': 'second'}
-        response = self.client.post(url, body)
-        self.assertEqual(response.status_code, 201, response.data)
-        response = self.client.get(url)
-        self.assertEqual(response.status_code, 200, response.data)
-        self.assertEqual(len(response.data['results']), 2)
-        self.assertIn('second', str(response.data['results']))
-
-    def test_delete(self):
-        submit = {
-            'username': 'first',
-            'password': 'password',
-            'email': 'autotest@drycc.cc',
-        }
-        url = '/v2/auth/register'
-        response = self.client.post(url, submit)
-        self.assertEqual(response.status_code, 201, response.data)
-        self.assertTrue(response.data['is_superuser'])
-
-        submit = {
-            'username': 'second.lastname',
-            'password': 'password',
-            'email': 'autotest@drycc.cc',
-        }
-        url = '/v2/auth/register'
-        response = self.client.post(url, submit)
-        self.assertEqual(response.status_code, 201, response.data)
-        self.assertFalse(response.data['is_superuser'])
-
-        user = User.objects.get(username='first')
-        token = Token.objects.get(user=user).key
-        self.client.credentials(HTTP_AUTHORIZATION='Token ' + token)
-        # grant user 2 the superuser perm
-        url = '/v2/admin/perms'
-        body = {'username': 'second.lastname'}
-        response = self.client.post(url, body)
-        self.assertEqual(response.status_code, 201, response.data)
-
-        # revoke the superuser perm
-        response = self.client.delete(url + '/second.lastname')
-        self.assertEqual(response.status_code, 204, response.data)
-        response = self.client.get(url)
-        self.assertEqual(response.status_code, 200, response.data)
-        self.assertEqual(len(response.data['results']), 1)
-        self.assertNotIn('two', str(response.data['results']))
 
 
 class TestAppPerms(DryccTestCase):
 
     fixtures = ['test_sharing.json']
 
+    @tag('auth')
     def setUp(self):
         self.user = User.objects.get(username='autotest-1')
         self.token = Token.objects.get(user=self.user).key
@@ -176,6 +20,7 @@ class TestAppPerms(DryccTestCase):
         self.user3 = User.objects.get(username='autotest-3')
         self.token3 = Token.objects.get(user=self.user3).key
 
+    @tag('auth')
     def test_create(self):
         # check that user 1 sees her lone app and user 2's app
         self.client.credentials(HTTP_AUTHORIZATION='Token ' + self.token)
@@ -219,6 +64,7 @@ class TestAppPerms(DryccTestCase):
             self.assertEqual(len(response.data['results']), 0)
         # TODO:  check that user 2 can git push the app
 
+    @tag('auth')
     def test_create_errors(self):
         # check that user 1 sees her lone app
         response = self.client.get('/v2/apps')
@@ -231,6 +77,7 @@ class TestAppPerms(DryccTestCase):
         response = self.client.post(url, body)
         self.assertEqual(response.status_code, 403)
 
+    @tag('auth')
     def test_delete(self):
         # give user 2 permission to user 1's app
         response = self.client.get('/v2/apps')
@@ -263,6 +110,7 @@ class TestAppPerms(DryccTestCase):
         response = self.client.delete(url)
         self.assertEqual(response.status_code, 403)
 
+    @tag('auth')
     def test_list(self):
         # check that user 1 sees her lone app and user 2's app
         response = self.client.get('/v2/apps')
@@ -280,12 +128,14 @@ class TestAppPerms(DryccTestCase):
         response = self.client.get("/v2/apps/{}/perms".format(app_id))
         self.assertEqual(response.data, {'users': ['autotest-2']})
 
+    @tag('auth')
     def test_admin_can_list(self):
         """Check that an administrator can list an app's perms"""
         response = self.client.get('/v2/apps')
         self.assertEqual(response.status_code, 200, response.data)
         self.assertEqual(len(response.data['results']), 2)
 
+    @tag('auth')
     def test_list_errors(self):
         response = self.client.get('/v2/apps')
         app_id = response.data['results'][0]['id']
@@ -295,6 +145,7 @@ class TestAppPerms(DryccTestCase):
         response = self.client.get("/v2/apps/{}/perms".format(app_id))
         self.assertEqual(response.status_code, 403)
 
+    @tag('auth')
     def test_unauthorized_user_cannot_modify_perms(self):
         """
         An unauthorized user should not be able to modify other apps' permissions.
@@ -313,6 +164,7 @@ class TestAppPerms(DryccTestCase):
         response = self.client.post(url, body)
         self.assertEqual(response.status_code, 403)
 
+    @tag('auth')
     def test_collaborator_cannot_share(self):
         """
         An collaborator should not be able to modify the app's permissions.
