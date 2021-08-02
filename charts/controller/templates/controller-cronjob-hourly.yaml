@@ -1,7 +1,7 @@
 apiVersion: batch/v1
 kind: CronJob
 metadata:
-  name: drycc-controller-cronjob-daily
+  name: drycc-controller-cronjob-hourly
   labels:
     heritage: drycc
   annotations:
@@ -27,5 +27,3 @@ spec:
             args:
               - python -u /app/manage.py measure_app
             {{- include "controller.envs" . | indent 12 }}
-            {{- include "controller.volumeMounts" . | indent 12 }}
-          {{- include "controller.volumes" . | indent 10 }}

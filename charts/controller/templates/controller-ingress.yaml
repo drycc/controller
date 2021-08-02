@@ -17,14 +17,17 @@ spec:
   - host: drycc.{{ .Values.global.platform_domain }}
     http:
       paths:
-      {{- if eq .Values.global.ingress_class "gce" "alb" }}
-      - path: /*
-      {{- else }}{{/* Has annotations but ingress class is not "gce" nor "alb" */}}
-      - path: /
-      {{- end }}
+      - pathType: Prefix
+        {{- if eq .Values.global.ingress_class "gce" "alb" }}
+        path: /*
+        {{- else }}{{/* Has annotations but ingress class is not "gce" nor "alb" */}}
+        path: /
+        {{- end }}
         backend:
-          serviceName: drycc-controller
-          servicePort: 80
+          service:
+            name: drycc-controller
+            port:
+              number: 80
   {{- if .Values.global.cert_manager_enabled }}
   tls:
     - secretName: drycc-controller-certificate-auto

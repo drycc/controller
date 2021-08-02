@@ -81,7 +81,7 @@ MIDDLEWARE = [
     'corsheaders.middleware.CorsMiddleware',
     'django.middleware.security.SecurityMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
-    'django.middleware.csrf.CsrfViewMiddleware',
+    # 'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
@@ -430,11 +430,11 @@ LOGIN_REDIRECT_URL = os.environ.get('LOGIN_REDIRECT_URL', '/admin/')
 SOCIAL_AUTH_DRYCC_AUTHORIZATION_URL = os.environ.get('SOCIAL_AUTH_DRYCC_AUTHORIZATION_URL')
 SOCIAL_AUTH_DRYCC_ACCESS_TOKEN_URL = os.environ.get('SOCIAL_AUTH_DRYCC_ACCESS_TOKEN_URL')
 SOCIAL_AUTH_DRYCC_ACCESS_API_URL = os.environ.get('SOCIAL_AUTH_DRYCC_ACCESS_API_URL')
-SOCIAL_AUTH_DRYCC_USERINFO_URL = os.environ.get('SOCIAL_AUTH_DRYCC_ACCESS_TOKEN_URL')
-SOCIAL_AUTH_DRYCC_JWKS_URI = os.environ.get('SOCIAL_AUTH_DRYCC_ACCESS_API_URL')
+SOCIAL_AUTH_DRYCC_USERINFO_URL = os.environ.get('SOCIAL_AUTH_DRYCC_USERINFO_URL')
+SOCIAL_AUTH_DRYCC_JWKS_URI = os.environ.get('SOCIAL_AUTH_DRYCC_JWKS_URI')
 SOCIAL_AUTH_DRYCC_OIDC_ENDPOINT = os.environ.get('SOCIAL_AUTH_DRYCC_OIDC_ENDPOINT')
-SOCIAL_AUTH_DRYCC_KEY = os.environ.get('SOCIAL_AUTH_DRYCC_KEY')
-SOCIAL_AUTH_DRYCC_SECRET = os.environ.get('SOCIAL_AUTH_DRYCC_SECRET')
+SOCIAL_AUTH_DRYCC_KEY = os.environ.get('SOCIAL_AUTH_DRYCC_CONTROLLER_KEY')
+SOCIAL_AUTH_DRYCC_SECRET = os.environ.get('SOCIAL_AUTH_DRYCC_CONTROLLER_SECRET')
 SOCIAL_AUTH_POSTGRES_JSONFIELD = True
 SOCIAL_AUTH_PIPELINE = (
     'social_core.pipeline.social_auth.social_details',

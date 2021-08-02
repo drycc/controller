@@ -28,9 +28,14 @@ class BaseManifest(object):
                     "paths": [
                         {
                             "path": path,
+                            "pathType": "Prefix",
                             "backend": {
-                                "serviceName": ingress,
-                                "servicePort": 80
+                                "service": {
+                                    "name": ingress,
+                                    "port": {
+                                        "number": 80
+                                    }
+                                }
                             }
                         }
                     ]
