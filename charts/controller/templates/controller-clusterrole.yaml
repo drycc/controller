@@ -1,7 +1,6 @@
 {{- if (.Values.global.use_rbac) -}}
-{{- if (.Capabilities.APIVersions.Has (include "rbacAPIVersion" .)) -}}
 kind: ClusterRole
-apiVersion: {{ template "rbacAPIVersion" . }}
+apiVersion: rbac.authorization.k8s.io/v1
 metadata:
   name: drycc:drycc-controller
   labels:
@@ -74,5 +73,4 @@ rules:
 - apiGroups: ["servicecatalog.k8s.io"]
   resources: ["servicebindings"]
   verbs: ["get", "list", "watch", "create", "delete", "patch", "update"]
-{{- end -}}
 {{- end -}}

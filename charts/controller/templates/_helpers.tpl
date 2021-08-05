@@ -1,17 +1,3 @@
-{{/*
-Set apiVersion based on .Capabilities.APIVersions
-*/}}
-{{- define "rbacAPIVersion" -}}
-{{- if .Capabilities.APIVersions.Has "rbac.authorization.k8s.io/v1beta1" -}}
-rbac.authorization.k8s.io/v1beta1
-{{- else if .Capabilities.APIVersions.Has "rbac.authorization.k8s.io/v1alpha1" -}}
-rbac.authorization.k8s.io/v1alpha1
-{{- else -}}
-rbac.authorization.k8s.io/v1
-{{- end -}}
-{{- end -}}
-
-
 {{/* Generate controller deployment envs */}}
 {{- define "controller.envs" -}}
 {{ $redisNodeCount := .Values.redis.replicas | int }}
