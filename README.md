@@ -77,4 +77,3 @@ kubectl get pod --namespace=drycc -w | grep drycc-controller
 [prs]: https://github.com/drycc/controller/pulls
 [workflow]: https://github.com/drycc/workflow
 [Docker]: https://www.docker.com/
-[v2.18]: https://github.com/drycc/workflow/releases/tag/v2.18.0
