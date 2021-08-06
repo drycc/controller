@@ -24,7 +24,7 @@ spec:
       serviceAccount: drycc-controller
       containers:
         - name: drycc-controller
-          image: {{.Values.image_registry}}/{{.Values.org}}/controller:{{.Values.image_tag}}
+          image: {{.Values.image_registry}}/{{.Values.image_org}}/controller:{{.Values.image_tag}}
           imagePullPolicy: {{.Values.image_pull_policy}}
           livenessProbe:
             httpGet:

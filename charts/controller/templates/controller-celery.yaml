@@ -24,7 +24,7 @@ spec:
       serviceAccount: drycc-controller
       containers:
         - name: drycc-controller-celery-high
-          image: {{.Values.image_registry}}/{{.Values.org}}/controller:{{.Values.image_tag}}
+          image: {{.Values.image_registry}}/{{.Values.image_org}}/controller:{{.Values.image_tag}}
           imagePullPolicy: {{.Values.image_pull_policy}}
           command:
             - /bin/bash
@@ -34,7 +34,7 @@ spec:
           {{- include "controller.limits" . | indent 10 }}
           {{- include "controller.envs" . | indent 10 }}
         - name: drycc-controller-celery-middle
-          image: {{.Values.image_registry}}/{{.Values.org}}/controller:{{.Values.image_tag}}
+          image: {{.Values.image_registry}}/{{.Values.image_org}}/controller:{{.Values.image_tag}}
           imagePullPolicy: {{.Values.image_pull_policy}}
           command:
             - /bin/bash
@@ -44,7 +44,7 @@ spec:
           {{- include "controller.limits" . | indent 10 }}
           {{- include "controller.envs" . | indent 10 }}
         - name: drycc-controller-celery-low
-          image: {{.Values.image_registry}}/{{.Values.org}}/controller:{{.Values.image_tag}}
+          image: {{.Values.image_registry}}/{{.Values.image_org}}/controller:{{.Values.image_tag}}
           imagePullPolicy: {{.Values.image_pull_policy}}
           command:
             - /bin/bash

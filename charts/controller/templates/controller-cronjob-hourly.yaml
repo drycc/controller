@@ -18,7 +18,7 @@ spec:
           restartPolicy: OnFailure
           serviceAccount: drycc-controller
           containers:
-          - image: {{.Values.image_registry}}/{{.Values.org}}/controller:{{.Values.image_tag}}
+          - image: {{.Values.image_registry}}/{{.Values.image_org}}/controller:{{.Values.image_tag}}
             imagePullPolicy: {{.Values.pull_policy}}
             name: drycc-controller-measure-app
             command:
