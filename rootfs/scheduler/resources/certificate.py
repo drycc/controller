@@ -3,7 +3,7 @@ from scheduler.exceptions import KubeHTTPException
 
 
 class Certificate(Resource):
-    api_version = 'cert-manager.io/v1alpha2'
+    api_version = 'cert-manager.io/v1'
     api_prefix = 'apis'
 
     @staticmethod
