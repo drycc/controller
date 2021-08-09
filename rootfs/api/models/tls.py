@@ -9,8 +9,8 @@ from api.models import UuidAuditedModel
 class TLS(UuidAuditedModel):
     owner = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT)
     app = models.ForeignKey('App', on_delete=models.CASCADE)
-    https_enforced = models.NullBooleanField(default=None)
-    certs_auto_enabled = models.NullBooleanField(default=None)
+    https_enforced = models.BooleanField(null=True)
+    certs_auto_enabled = models.BooleanField(null=True)
 
     class Meta:
         get_latest_by = 'created'

@@ -18,7 +18,7 @@ class AppSettings(UuidAuditedModel):
 
     owner = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT)
     app = models.ForeignKey('App', on_delete=models.CASCADE)
-    routable = models.NullBooleanField(default=None)
+    routable = models.BooleanField(null=True)
     # the default values is None to differentiate from user sending an empty allowlist
     # and user just updating other fields meaning the values needs to be copied from prev release
     allowlist = ArrayField(models.CharField(max_length=50), default=None)

@@ -429,7 +429,7 @@ class CertificateViewSet(BaseDryccViewSet):
 
     def attach(self, request, *args, **kwargs):
         try:
-            if kwargs['domain'] is None and not request.data.get('domain'):
+            if "domain" not in kwargs and not request.data.get('domain'):
                 raise DryccException("domain is a required field")
             elif request.data.get('domain'):
                 kwargs['domain'] = request.data['domain']
