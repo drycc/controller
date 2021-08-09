@@ -2,7 +2,6 @@ import json
 import logging
 from django.conf import settings
 from django.db import models
-from jsonfield import JSONField
 from api.models.release import Release
 from api.models import UuidAuditedModel
 from api.utils import unit_to_bytes, unit_to_millicpu
@@ -20,15 +19,15 @@ class Config(UuidAuditedModel):
 
     owner = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT)
     app = models.ForeignKey('App', on_delete=models.CASCADE)
-    values = JSONField(default={}, blank=True)
-    memory = JSONField(default={}, blank=True)
-    lifecycle_post_start = JSONField(default={}, blank=True)
-    lifecycle_pre_stop = JSONField(default={}, blank=True)
-    cpu = JSONField(default={}, blank=True)
-    tags = JSONField(default={}, blank=True)
-    registry = JSONField(default={}, blank=True)
-    healthcheck = JSONField(default={}, blank=True)
-    termination_grace_period = JSONField(default={}, blank=True)
+    values = models.JSONField(default=dict, blank=True)
+    memory = models.JSONField(default=dict, blank=True)
+    lifecycle_post_start = models.JSONField(default=dict, blank=True)
+    lifecycle_pre_stop = models.JSONField(default=dict, blank=True)
+    cpu = models.JSONField(default=dict, blank=True)
+    tags = models.JSONField(default=dict, blank=True)
+    registry = models.JSONField(default=dict, blank=True)
+    healthcheck = models.JSONField(default=dict, blank=True)
+    termination_grace_period = models.JSONField(default=dict, blank=True)
 
     class Meta:
         get_latest_by = 'created'

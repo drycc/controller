@@ -104,7 +104,6 @@ INSTALLED_APPS = (
     'corsheaders',
     'guardian',
     'gunicorn',
-    'jsonfield',
     'rest_framework',
     'rest_framework.authtoken',
     'social_django',
@@ -420,7 +419,7 @@ MINIO_HOST = os.environ.get('DRYCC_MINIO_SERVICE_HOST', '127.0.0.1')
 MINIO_PORT = os.environ.get('DRYCC_MINIO_SERVICE_PORT', 80)
 APP_STORAGE = os.environ.get('APP_STORAGE')
 
-DRYCC_DATABASE_URL = os.environ.get('DRYCC_DATABASE_URL', 'postgres://:@:5432/drycc')
+DRYCC_DATABASE_URL = os.environ.get('DRYCC_DATABASE_URL', 'postgres://postgres:@:5432/drycc')
 DATABASES = {
     'default': dj_database_url.config(default=DRYCC_DATABASE_URL, conn_max_age=600)
 }

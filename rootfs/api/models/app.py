@@ -18,7 +18,6 @@ from urllib.parse import urljoin
 from django.conf import settings
 from django.db import models
 from rest_framework.exceptions import ValidationError, NotFound
-from jsonfield import JSONField
 
 from api.models import get_session
 from api.models import UuidAuditedModel, AlreadyExists, DryccException, ServiceUnavailable
@@ -73,8 +72,10 @@ class App(UuidAuditedModel):
     id = models.SlugField(max_length=63, unique=True, null=True,
                           validators=[validate_app_id,
                                       validate_reserved_names])
-    structure = JSONField(default={}, blank=True, validators=[validate_app_structure])
-    procfile_structure = JSONField(default={}, blank=True, validators=[validate_app_structure])
+    structure = models.JSONField(
+        default=dict, blank=True, validators=[validate_app_structure])
+    procfile_structure = models.JSONField(
+        default=dict, blank=True, validators=[validate_app_structure])
 
     class Meta:
         verbose_name = 'Application'

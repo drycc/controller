@@ -1,7 +1,6 @@
 import logging
 from django.conf import settings
 from django.db import models, transaction
-from jsonfield import JSONField
 from api.exceptions import DryccException, AlreadyExists, ServiceUnavailable
 from api.models import UuidAuditedModel, validate_label
 from scheduler import KubeException
@@ -15,10 +14,10 @@ class Resource(UuidAuditedModel):
     app = models.ForeignKey('App', on_delete=models.CASCADE)
     name = models.CharField(max_length=63, validators=[validate_label])
     plan = models.CharField(max_length=128)
-    data = JSONField(default={}, blank=True)
+    data = models.JSONField(default=dict, blank=True)
     status = models.TextField(blank=True, null=True)
     binding = models.TextField(blank=True, null=True)
-    options = JSONField(default={}, blank=True)
+    options = models.JSONField(default=dict, blank=True)
 
     class Meta:
         get_latest_by = 'created'

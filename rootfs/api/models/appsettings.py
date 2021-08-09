@@ -3,7 +3,6 @@ from django.conf import settings
 from django.db import models
 from django.db import transaction
 from django.contrib.postgres.fields import ArrayField
-from jsonfield import JSONField
 from rest_framework.exceptions import NotFound
 
 from api.utils import dict_diff
@@ -22,8 +21,8 @@ class AppSettings(UuidAuditedModel):
     # the default values is None to differentiate from user sending an empty allowlist
     # and user just updating other fields meaning the values needs to be copied from prev release
     allowlist = ArrayField(models.CharField(max_length=50), default=None)
-    autoscale = JSONField(default={}, blank=True)
-    label = JSONField(default={}, blank=True)
+    autoscale = models.JSONField(default=dict, blank=True)
+    label = models.JSONField(default=dict, blank=True)
 
     class Meta:
         get_latest_by = 'created'

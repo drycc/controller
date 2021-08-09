@@ -1,6 +1,5 @@
 from django.conf import settings
 from django.db import models
-from jsonfield import JSONField
 
 from api.models import UuidAuditedModel
 from api.exceptions import DryccException, Conflict
@@ -21,7 +20,7 @@ class Build(UuidAuditedModel):
 
     # optional fields populated by builder
     sha = models.CharField(max_length=40, blank=True)
-    procfile = JSONField(default={}, blank=True)
+    procfile = models.JSONField(default=dict, blank=True)
     dockerfile = models.TextField(blank=True)
 
     class Meta:

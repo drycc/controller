@@ -1,7 +1,6 @@
 import logging
 from django.db import models, transaction
 from django.conf import settings
-from jsonfield import JSONField
 from api.utils import unit_to_bytes
 from api.exceptions import DryccException, ServiceUnavailable, AlreadyExists
 from api.models import UuidAuditedModel, validate_label
@@ -16,7 +15,7 @@ class Volume(UuidAuditedModel):
     app = models.ForeignKey('App', on_delete=models.CASCADE)
     name = models.CharField(max_length=63, validators=[validate_label])
     size = models.CharField(max_length=128)
-    path = JSONField(default={}, blank=True)
+    path = models.JSONField(default=dict, blank=True)
 
     class Meta:
         get_latest_by = 'created'
