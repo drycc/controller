@@ -148,7 +148,7 @@ env:
 - name: "SOCIAL_AUTH_DRYCC_ACCESS_TOKEN_URL"
   value: "$(DRYCC_PASSPORT_DOMAIN)/oauth/token/"
 - name: "SOCIAL_AUTH_DRYCC_ACCESS_API_URL"
-  value: "$(DRYCC_PASSPORT_DOMAIN)/users/"
+  value: "$(DRYCC_PASSPORT_DOMAIN)"
 - name: "SOCIAL_AUTH_DRYCC_USERINFO_URL"
   value: "$(DRYCC_PASSPORT_DOMAIN)/oauth/userinfo/"
 - name: "SOCIAL_AUTH_DRYCC_JWKS_URI"
@@ -156,7 +156,7 @@ env:
 - name: "SOCIAL_AUTH_DRYCC_OIDC_ENDPOINT"
   value: "$(DRYCC_PASSPORT_DOMAIN)/oauth"
 - name: "LOGIN_REDIRECT_URL"
-  value: "$(DRYCC_PASSPORT_DOMAIN)/login/done/"
+  value: "$(DRYCC_PASSPORT_DOMAIN)/user/login/done/"
 - name: SOCIAL_AUTH_DRYCC_CONTROLLER_KEY
   valueFrom:
     secretKeyRef:
