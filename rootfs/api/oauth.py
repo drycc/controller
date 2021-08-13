@@ -15,14 +15,14 @@ class OAuthManager(object):
         self.client = OAuth2Session(self.client_id, self.client_secret)
 
     def get_user_by_token(self, token: str) -> Dict:
-        response = requests.get(f'{self.api_url}/users', headers={
+        response = requests.get(f'{self.api_url}/user/info/', headers={
             'Authorization': f'Bearer {token}'
         })
         result = response.json()
         return result
 
     def get_email_by_token(self, token: str) -> Dict:
-        response = requests.get(f'{self.api_url}/users/emails', headers={
+        response = requests.get(f'{self.api_url}/user/email/', headers={
             'Authorization': f'Bearer {token}'
         })
         result = response.json()

@@ -67,7 +67,7 @@ class DryccOAuth(BaseOAuth2):
 
     def user_data(self, access_token, *args, **kwargs):
         """Loads user data from service"""
-        url = settings.SOCIAL_AUTH_DRYCC_ACCESS_API_URL
+        url = settings.SOCIAL_AUTH_DRYCC_USERINFO_URL
         return self.get_json(url, headers={
             'authorization': 'Bearer ' + access_token})
 
