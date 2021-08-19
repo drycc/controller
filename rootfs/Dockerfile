@@ -2,6 +2,8 @@ FROM docker.io/library/python:3.9-alpine
 
 COPY requirements.txt /app/requirements.txt
 
+ENV PATH="/app/.venv/bin:${PATH}"
+
 RUN apk add --update --virtual .build-deps \
     postgresql-dev \
     gcc \
@@ -10,6 +12,7 @@ RUN apk add --update --virtual .build-deps \
     libffi-dev \
     musl-dev \
     openssl-dev \
+  && python3 -m venv /app/.venv \
   && pip3 install --disable-pip-version-check --no-cache-dir -r /app/requirements.txt \
   && runDeps="$( \
     scanelf --needed --nobanner --format '%n#p' --recursive /usr/local \

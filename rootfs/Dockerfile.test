@@ -4,6 +4,9 @@ COPY requirements.txt /app/requirements.txt
 COPY dev_requirements.txt /app/dev_requirements.txt
 
 ENV PGDATA /var/lib/postgresql/12
+
+ENV PATH="/app/.venv/bin:${PATH}"
+
 RUN echo https://dl-cdn.alpinelinux.org/alpine/edge/testing >>/etc/apk/repositories \
   && apk add --update --virtual .build-deps \
     postgresql-dev \
@@ -13,6 +16,7 @@ RUN echo https://dl-cdn.alpinelinux.org/alpine/edge/testing >>/etc/apk/repositor
     libffi-dev \
     musl-dev \
     openldap-dev \
+  && python3 -m venv /app/.venv \
   && pip3 install --disable-pip-version-check --no-cache-dir -r /app/requirements.txt \
   && pip3 install --disable-pip-version-check --no-cache-dir -r /app/dev_requirements.txt \
   && runDeps="$( \
