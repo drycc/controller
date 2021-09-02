@@ -29,8 +29,8 @@ RUN apk add --update --virtual .build-deps \
 
 COPY . /app
 
-ENTRYPOINT ["/app/bin/entrypoint"]
 
+ENV PATH /app/.venv/bin:/app/bin:$PATH
 WORKDIR /app
 CMD ["/app/bin/boot"]
 EXPOSE 8000
