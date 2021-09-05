@@ -469,24 +469,6 @@ CACHES = {
     }
 }
 
-# Celery Configuration Options
-timezone = "Asia/Shanghai"
-enable_utc = True
-task_serializer = 'pickle'
-accept_content = frozenset([
-    'application/data',
-    'application/text',
-    'application/json',
-    'application/x-python-serialize',
-])
-task_track_started = True
-task_time_limit = 30 * 60
-worker_max_tasks_per_child = 200
-result_expires = 24 * 60 * 60
-broker_url = os.environ.get('DRYCC_RABBITMQ_URL', 'amqp://guest:guest@127.0.0.1:5672/')  # noqa
-cache_backend = 'django-cache'
-task_default_queue = 'priority.middle'
-
 # Influxdb Configuration Options
 DRYCC_INFLUXDB_URL = os.environ.get('DRYCC_INFLUXDB_URL', 'http://localhost:8086')
 DRYCC_INFLUXDB_BUCKET = os.environ.get('DRYCC_INFLUXDB_BUCKET', 'drycc')
