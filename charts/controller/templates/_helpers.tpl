@@ -142,7 +142,11 @@ env:
 {{- end }}
 {{- if eq .Values.global.passport_location "on-cluster"}}
 - name: "DRYCC_PASSPORT_DOMAIN"
+{{- if eq .Values.global.cert_manager_enabled "true" }}
+  value: https://drycc-passport.{{ .Values.global.platform_domain }}
+{{- else }}
   value: http://drycc-passport.{{ .Values.global.platform_domain }}
+{{- end }}
 - name: "SOCIAL_AUTH_DRYCC_AUTHORIZATION_URL"
   value: "$(DRYCC_PASSPORT_DOMAIN)/oauth/authorize/"
 - name: "SOCIAL_AUTH_DRYCC_ACCESS_TOKEN_URL"
