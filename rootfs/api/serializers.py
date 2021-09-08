@@ -735,7 +735,7 @@ class ResourceSerializer(serializers.ModelSerializer):
         if instance.plan.split(':')[0] != validated_data.get('plan', '').split(':')[0]:  # noqa
             raise DryccException("the resource cann't changed")
         instance.plan = validated_data.get('plan')
-        instance.options = validated_data.get('options')
+        instance.options.update(validated_data.get('options', {}))
         instance.attach_update()
         instance.save()
         return instance

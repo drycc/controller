@@ -23,37 +23,36 @@ spec:
     spec:
       serviceAccount: drycc-controller
       initContainers:
-        - name: drycc-controller-init
-          image: {{.Values.image_registry}}/{{.Values.image_org}}/python-dev:latest
-          imagePullPolicy: {{.Values.image_pull_policy}}
-          command:
-            - netcat
-            - -v
-            - -s
-            - ,
-            - -u
-            - $(DRYCC_DATABASE_URL),$(DRYCC_RABBITMQ_URL),$(DRYCC_REDIS_ADDRS)
-          {{- include "controller.limits" . | indent 10 }}
-          {{- include "controller.envs" . | indent 10 }}
+      - name: drycc-controller-init
+        image: docker.io/drycc/python-dev:latest
+        imagePullPolicy: {{.Values.image_pull_policy}}
+        command:
+          - netcat
+          - -v
+          - -u
+          - $(DRYCC_DATABASE_URL),$(DRYCC_RABBITMQ_URL)
+          - -a
+          - $(DRYCC_REDIS_ADDRS)
+        {{- include "controller.envs" . | indent 8 }}
       containers:
-        - name: drycc-controller
-          image: {{.Values.image_registry}}/{{.Values.image_org}}/controller:{{.Values.image_tag}}
-          imagePullPolicy: {{.Values.image_pull_policy}}
-          livenessProbe:
-            httpGet:
-              path: /healthz
-              port: 8000
-            initialDelaySeconds: 30
-            timeoutSeconds: 10
-          readinessProbe:
-            httpGet:
-              path: /readiness
-              port: 8000
-            initialDelaySeconds: 30
-            timeoutSeconds: 10
-            periodSeconds: 5
-          ports:
-            - containerPort: 8000
-              name: http
-          {{- include "controller.limits" . | indent 10 }}
-          {{- include "controller.envs" . | indent 10 }}
+      - name: drycc-controller
+        image: {{.Values.image_registry}}/{{.Values.image_org}}/controller:{{.Values.image_tag}}
+        imagePullPolicy: {{.Values.image_pull_policy}}
+        livenessProbe:
+          httpGet:
+            path: /healthz
+            port: 8000
+          initialDelaySeconds: 30
+          timeoutSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /readiness
+            port: 8000
+          initialDelaySeconds: 30
+          timeoutSeconds: 10
+          periodSeconds: 5
+        ports:
+          - containerPort: 8000
+            name: http
+        {{- include "controller.limits" . | indent 8 }}
+        {{- include "controller.envs" . | indent 8 }}

@@ -22,34 +22,47 @@ spec:
         app: drycc-controller-celery
     spec:
       serviceAccount: drycc-controller
+      initContainers:
+      - name: drycc-controller-init
+        image: docker.io/drycc/python-dev:latest
+        imagePullPolicy: {{.Values.image_pull_policy}}
+        command:
+          - netcat
+          - -v
+          - -u
+          - $(DRYCC_DATABASE_URL),$(DRYCC_RABBITMQ_URL)
+          - -a
+          - $(DRYCC_REDIS_ADDRS)
+        {{- include "controller.envs" . | indent 8 }}
       containers:
-        - name: drycc-controller-celery-high
-          image: {{.Values.image_registry}}/{{.Values.image_org}}/controller:{{.Values.image_tag}}
-          imagePullPolicy: {{.Values.image_pull_policy}}
-          command:
-            - /bin/bash
-            - -c
-          args:
-            - celery -A api worker -Q priority.high --autoscale=32,1 --loglevel=WARNING
-          {{- include "controller.limits" . | indent 10 }}
-          {{- include "controller.envs" . | indent 10 }}
-        - name: drycc-controller-celery-middle
-          image: {{.Values.image_registry}}/{{.Values.image_org}}/controller:{{.Values.image_tag}}
-          imagePullPolicy: {{.Values.image_pull_policy}}
-          command:
-            - /bin/bash
-            - -c
-          args:
-            - celery -A api worker -Q priority.middle --autoscale=16,1 --loglevel=WARNING
-          {{- include "controller.limits" . | indent 10 }}
-          {{- include "controller.envs" . | indent 10 }}
-        - name: drycc-controller-celery-low
-          image: {{.Values.image_registry}}/{{.Values.image_org}}/controller:{{.Values.image_tag}}
-          imagePullPolicy: {{.Values.image_pull_policy}}
-          command:
-            - /bin/bash
-            - -c
-          args:
-            - celery -A api worker -Q priority.low --autoscale=8,1 --loglevel=WARNING
-          {{- include "controller.limits" . | indent 10 }}
-          {{- include "controller.envs" . | indent 10 }}
+      - name: drycc-controller-celery-high
+        image: {{.Values.image_registry}}/{{.Values.image_org}}/controller:{{.Values.image_tag}}
+        imagePullPolicy: {{.Values.image_pull_policy}}
+        command:
+          - /bin/bash
+          - -c
+        args:
+          - celery -A api worker -Q priority.high --autoscale=32,1 --loglevel=WARNING
+        {{- include "controller.limits" . | indent 8 }}
+        {{- include "controller.envs" . | indent 8 }}
+      - name: drycc-controller-celery-middle
+        image: {{.Values.image_registry}}/{{.Values.image_org}}/controller:{{.Values.image_tag}}
+        imagePullPolicy: {{.Values.image_pull_policy}}
+        command:
+          - /bin/bash
+          - -c
+        args:
+          - celery -A api worker -Q priority.middle --autoscale=16,1 --loglevel=WARNING
+        {{- include "controller.limits" . | indent 8 }}
+        {{- include "controller.envs" . | indent 8 }}
+      - name: drycc-controller-celery-low
+        image: {{.Values.image_registry}}/{{.Values.image_org}}/controller:{{.Values.image_tag}}
+        imagePullPolicy: {{.Values.image_pull_policy}}
+        command:
+          - /bin/bash
+          - -c
+        args:
+          - celery -A api worker -Q priority.low --autoscale=8,1 --loglevel=WARNING
+        {{- include "controller.limits" . | indent 8 }}
+        {{- include "controller.envs" . | indent 8 }}
+

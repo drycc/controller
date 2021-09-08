@@ -17,6 +17,18 @@ spec:
         spec:
           restartPolicy: OnFailure
           serviceAccount: drycc-controller
+          initContainers:
+          - name: drycc-controller-init
+            image: docker.io/drycc/python-dev:latest
+            imagePullPolicy: {{.Values.image_pull_policy}}
+            command:
+              - netcat
+              - -v
+              - -u
+              - $(DRYCC_DATABASE_URL),$(DRYCC_RABBITMQ_URL)
+              - -a
+              - $(DRYCC_REDIS_ADDRS)
+            {{- include "controller.envs" . | indent 12 }}
           containers:
           - image: {{.Values.image_registry}}/{{.Values.image_org}}/controller:{{.Values.image_tag}}
             imagePullPolicy: {{.Values.pull_policy}}
@@ -27,3 +39,4 @@ spec:
             args:
               - python -u /app/manage.py measure_app
             {{- include "controller.envs" . | indent 12 }}
+
