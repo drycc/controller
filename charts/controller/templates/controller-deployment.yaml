@@ -22,6 +22,19 @@ spec:
         app: drycc-controller
     spec:
       serviceAccount: drycc-controller
+      initContainers:
+        - name: drycc-controller-init
+          image: {{.Values.image_registry}}/{{.Values.image_org}}/python-dev:latest
+          imagePullPolicy: {{.Values.image_pull_policy}}
+          command:
+            - netcat
+            - -v
+            - -s
+            - ,
+            - -u
+            - $(DRYCC_DATABASE_URL),$(DRYCC_RABBITMQ_URL),$(DRYCC_REDIS_ADDRS)
+          {{- include "controller.limits" . | indent 10 }}
+          {{- include "controller.envs" . | indent 10 }}
       containers:
         - name: drycc-controller
           image: {{.Values.image_registry}}/{{.Values.image_org}}/controller:{{.Values.image_tag}}
