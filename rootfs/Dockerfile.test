@@ -7,7 +7,7 @@ ENV PGDATA /var/lib/postgresql/12
 
 ENV PATH="/app/.venv/bin:${PATH}"
 
-RUN echo https://dl-cdn.alpinelinux.org/alpine/edge/main >>/etc/apk/repositories \
+RUN echo https://dl-cdn.alpinelinux.org/alpine/edge/testing >>/etc/apk/repositories \
   && apk add --update --virtual .build-deps \
     gcc \
     rust \
@@ -20,14 +20,12 @@ RUN echo https://dl-cdn.alpinelinux.org/alpine/edge/main >>/etc/apk/repositories
   && source /app/.venv/bin/activate \
   && pip3 install --disable-pip-version-check --no-cache-dir -r /app/requirements.txt \
   && pip3 install --disable-pip-version-check --no-cache-dir -r /app/dev_requirements.txt \
-  && runDeps="$( \
-    scanelf --needed --nobanner --format '%n#p' --recursive /app/.venv \
+  && find /app/.venv/lib/ -type f -executable ! -path '*/cryptography*' -exec scanelf --needed --nobanner --format '%n#p' '{}' ';' \
     | tr ',' '\n' \
     | sort -u \
     | awk 'system("[ -e /app/.venv/lib/" $1 " ]") == 0 { next } { print "so:" $1 }' \
-    )" \
+    | xargs -rt apk add --no-cache --virtual .python-rundeps \
   && apk add --update --virtual .controller-rundeps \
-    $runDeps \
     git \
     mercurial \
     ca-certificates \
