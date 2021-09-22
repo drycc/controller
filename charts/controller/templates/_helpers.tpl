@@ -142,7 +142,7 @@ env:
 {{- end }}
 {{- if eq .Values.global.passport_location "on-cluster"}}
 - name: "DRYCC_PASSPORT_DOMAIN"
-{{- if eq .Values.global.cert_manager_enabled "true" }}
+{{- if .Values.global.cert_manager_enabled }}
   value: https://drycc-passport.{{ .Values.global.platform_domain }}
 {{- else }}
   value: http://drycc-passport.{{ .Values.global.platform_domain }}
