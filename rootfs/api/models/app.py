@@ -130,18 +130,33 @@ class App(UuidAuditedModel):
             if release.build.dockerfile or not release.build.sha:
                 # has profile
                 if release.build.procfile and container_type in release.build.procfile:
-                    return release.build.procfile[container_type].split()
+                    cmd = release.build.procfile[container_type]
+                    # if the entrypoint is `/bin/bash -c`, we want to supply the list
+                    # as a script. Otherwise, we want to send it as a list of arguments.
+                    if self._get_entrypoint(container_type) == ['/bin/sh', '-c']:
+                        return [cmd]
+                    else:
+                        return cmd.split()
         return []
+
+    def _get_stack(self, release):
+        stack = release.config.values.get("DRYCC_STACK", None)
+        if stack is None:
+            if release.build.procfile \
+                    and release.build.sha \
+                    and not release.build.dockerfile:
+                stack = "buildpack"
+            else:
+                stack = "container"
+        return stack
 
     def _get_entrypoint(self, container_type):
         """
         Return the kubernetes "container command" to be sent off to the scheduler.
         """
-        entrypoint = []
+        entrypoint = ['/bin/sh', '-c']
         release = self.release_set.filter(failed=False).latest()
-        if release.build.procfile \
-                and release.build.sha \
-                and not release.build.dockerfile:
+        if self._get_stack(release) == "buildpack":
             if container_type in release.build.procfile:
                 entrypoint = [container_type]
             else:

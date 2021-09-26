@@ -521,22 +521,22 @@ class PodTest(DryccTransactionTestCase):
         # switch to docker image app
         build.sha = ''
         build.save()
-        self.assertEqual(app._get_command('web'), ["node", "server.js"])
+        self.assertEqual(app._get_command('web'), ['node server.js'])
 
         # switch to dockerfile app
         build.sha = 'european-swallow'
         build.dockerfile = 'dockerdockerdocker'
         build.save()
-        self.assertEqual(app._get_command('web'), ["node", "server.js"])
+        self.assertEqual(app._get_command('web'), ['node server.js'])
         self.assertEqual(app._get_command('cmd'), [])
 
         # ensure we can override the cmd process type in a Procfile
         build.procfile['cmd'] = 'node server.js'
         build.save()
-        self.assertEqual(app._get_entrypoint('cmd'), [])
-        self.assertEqual(app._get_command('cmd'), ["node", "server.js"])
-        self.assertEqual(app._get_entrypoint('worker'), [])
-        self.assertEqual(app._get_command('worker'), ["node", "worker.js"])
+        self.assertEqual(app._get_entrypoint('cmd'), ['/bin/sh', '-c'])
+        self.assertEqual(app._get_command('cmd'), ['node server.js'])
+        self.assertEqual(app._get_entrypoint('worker'), ['/bin/sh', '-c'])
+        self.assertEqual(app._get_command('worker'), ['node worker.js'])
 
         # for backwards compatibility if no Procfile is supplied
         build.procfile = {}
@@ -577,7 +577,7 @@ class PodTest(DryccTransactionTestCase):
         response = self.client.post(url, body)
         self.assertEqual(response.status_code, 200, response.data)
         app = App.objects.get(id=app_id)
-        self.assertEqual(app._get_entrypoint('web'), [])
+        self.assertEqual(app._get_entrypoint('web'), ['/bin/sh', '-c'])
 
         # docker image workflow
         build.dockerfile = ''
@@ -588,7 +588,7 @@ class PodTest(DryccTransactionTestCase):
         response = self.client.post(url, body)
         self.assertEqual(response.status_code, 200, response.data)
         app = App.objects.get(id=app_id)
-        self.assertEqual(app._get_entrypoint('cmd'), [])
+        self.assertEqual(app._get_entrypoint('cmd'), ['/bin/sh', '-c'])
 
         # procfile workflow
         build.sha = 'somereallylongsha'
@@ -637,7 +637,7 @@ class PodTest(DryccTransactionTestCase):
         response = self.client.post(url, body)
         self.assertEqual(response.status_code, 200, response.data)
         app = App.objects.get(id=app_id)
-        self.assertEqual(app._get_entrypoint('web'), [])
+        self.assertEqual(app._get_entrypoint('web'), ['/bin/sh', '-c'])
 
     def test_scaling_does_not_add_run_proctypes_to_structure(self, mock_requests):
         """Test that app info doesn't show transient "run" proctypes."""
