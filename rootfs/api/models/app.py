@@ -59,10 +59,6 @@ def validate_reserved_names(value):
         raise ValidationError('{} is a reserved name.'.format(value))
 
 
-class Pod(dict):
-    pass
-
-
 class App(UuidAuditedModel):
     """
     Application used to service requests on behalf of end-users
@@ -945,7 +941,7 @@ class App(UuidAuditedModel):
                 if self._scheduler.pod.deleted(p):
                     continue
 
-                item = Pod()
+                item = {}
                 item['name'] = p['metadata']['name']
                 item['state'] = state
                 item['release'] = labels['version']

@@ -8,6 +8,7 @@ from rest_framework.authentication import TokenAuthentication, \
     get_authorization_header
 from rest_framework import exceptions
 
+from api import manager
 from api.oauth import OAuthManager
 
 logger = logging.getLogger(__name__)
@@ -35,7 +36,7 @@ class AnonymousOrAuthenticatedAuthentication(authentication.BaseAuthentication):
             return AnonymousUser(), None
 
 
-class DryccOIDCAuthentication(TokenAuthentication):
+class DryccAuthentication(TokenAuthentication):
     def authenticate(self, request):
         if 'Drycc' in request.META.get('HTTP_USER_AGENT', ''):
             auth = get_authorization_header(request).split()
@@ -57,7 +58,7 @@ class DryccOIDCAuthentication(TokenAuthentication):
                 raise exceptions.AuthenticationFailed(msg)
             return cache.get_or_set(
                 token, lambda: self._get_user(token), settings.OAUTH_CACHE_USER_TIME), None  # noqa
-        return super(DryccOIDCAuthentication, self).authenticate(request)  # noqa
+        return super(DryccAuthentication, self).authenticate(request)  # noqa
 
     @staticmethod
     def _get_user(key):
@@ -65,6 +66,10 @@ class DryccOIDCAuthentication(TokenAuthentication):
             user_info = OAuthManager().get_user_by_token(key)
             if not user_info.get('email'):
                 user_info['email'] = OAuthManager().get_email_by_token(key)
+            if settings.WORKFLOW_MANAGER_URL and settings.WORKFLOW_MANAGER_TOKEN:
+                status = manager.User().get_status(user_info.username)
+                if not status["is_active"]:
+                    raise exceptions.AuthenticationFailed(_(status["message"]))
         except Exception as e:
             logger.info(e)
             raise exceptions.AuthenticationFailed(_('Verify token fail.'))
