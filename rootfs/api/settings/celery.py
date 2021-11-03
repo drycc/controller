@@ -19,7 +19,7 @@ class Config:
     result_expires = 24 * 60 * 60
     broker_url = os.environ.get('DRYCC_RABBITMQ_URL', 'amqp://guest:guest@127.0.0.1:5672/')  # noqa
     cache_backend = 'django-cache'
-    task_default_queue = 'priority.middle'
+    task_default_queue = 'priority.low'
 
 
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'api.settings.production')

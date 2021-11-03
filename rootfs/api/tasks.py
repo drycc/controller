@@ -2,10 +2,8 @@
 import time
 import uuid
 import logging
-from datetime import timedelta
 from typing import List, Dict
 from django.core import signals
-from django.utils.timezone import now
 from celery import shared_task
 
 from api import manager

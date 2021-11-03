@@ -267,7 +267,10 @@ def config_changed_handle(sender, instance=None, created=False, update_fields=No
             update_fields is not None and (
                 "cpu" in update_fields or "memory" in update_fields))):
         timestamp = time.time()
-        measure_config.delay(instance.to_measurements(timestamp))
+        measure_config.apply_async(
+            args=[instance.to_measurements(timestamp), ],
+            queue="priority.middle",
+        )
 
 
 @receiver(post_save, sender=Volume)
@@ -275,7 +278,10 @@ def volume_changed_handle(sender, instance=None, created=False, update_fields=No
     # measure volumes to workflow manager
     if settings.WORKFLOW_MANAGER_URL is not None and created:
         timestamp = time.time()
-        measure_volumes.delay(instance.to_measurements(timestamp))
+        measure_volumes.apply_async(
+            args=[instance.to_measurements(timestamp), ],
+            queue="priority.middle",
+        )
 
 
 @receiver(post_save, sender=Resource)
@@ -294,4 +300,7 @@ def resource_changed_handle(sender, instance=None, created=False, update_fields=
                 "plan" in update_fields
             ))):
         timestamp = time.time()
-        measure_resources.delay(instance.to_measurements(timestamp))
+        measure_resources.apply_async(
+            args=[instance.to_measurements(timestamp), ],
+            queue="priority.middle",
+        )
