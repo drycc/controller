@@ -150,7 +150,7 @@ from .release import Release  # noqa
 from .tls import TLS  # noqa
 from .volume import Volume  # noqa
 from .resource import Resource  # noqa
-from ..tasks import retrieve_resource, measure_config, measure_volumes, measure_resources # noqa
+from ..tasks import retrieve_resource, send_measurements # noqa
 from ..utils import dict_merge  # noqa
 
 # define update/delete callbacks for synchronizing
@@ -267,7 +267,7 @@ def config_changed_handle(sender, instance=None, created=False, update_fields=No
             update_fields is not None and (
                 "cpu" in update_fields or "memory" in update_fields))):
         timestamp = time.time()
-        measure_config.apply_async(
+        send_measurements.apply_async(
             args=[instance.to_measurements(timestamp), ],
             queue="priority.middle",
         )
@@ -278,7 +278,7 @@ def volume_changed_handle(sender, instance=None, created=False, update_fields=No
     # measure volumes to workflow manager
     if settings.WORKFLOW_MANAGER_URL is not None and created:
         timestamp = time.time()
-        measure_volumes.apply_async(
+        send_measurements.apply_async(
             args=[instance.to_measurements(timestamp), ],
             queue="priority.middle",
         )
@@ -300,7 +300,7 @@ def resource_changed_handle(sender, instance=None, created=False, update_fields=
                 "plan" in update_fields
             ))):
         timestamp = time.time()
-        measure_resources.apply_async(
+        send_measurements.apply_async(
             args=[instance.to_measurements(timestamp), ],
             queue="priority.middle",
         )

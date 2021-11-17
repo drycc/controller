@@ -411,7 +411,7 @@ class ConfigTest(DryccTransactionTestCase):
         from django.core.management import call_command
         out = StringIO()
         call_command(
-            "measure_config",
+            "measure_instance",
             *args,
             stdout=out,
             stderr=StringIO(),

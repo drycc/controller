@@ -38,79 +38,11 @@ def retrieve_resource(self, resource):
     retry_backoff_max=3600,
     retry_kwargs={'max_retries': None}
 )
-def measure_config(config: List[Dict[str, str]]):
+def send_measurements(measurements: List[Dict[str, str]]):
     task_id = uuid.uuid4().hex
     signals.request_started.send(sender=task_id)
     try:
         measurement = manager.Measurement()
-        measurement.post_config(config)
-    finally:
-        signals.request_finished.send(sender=task_id)
-
-
-@shared_task(
-    autoretry_for=(Exception, ),
-    retry_backoff=8,
-    retry_jitter=True,
-    retry_backoff_max=3600,
-    retry_kwargs={'max_retries': None}
-)
-def measure_volumes(volumes: List[Dict[str, str]]):
-    task_id = uuid.uuid4().hex
-    signals.request_started.send(sender=task_id)
-    try:
-        measurement = manager.Measurement()
-        measurement.post_volumes(volumes)
-    finally:
-        signals.request_finished.send(sender=task_id)
-
-
-@shared_task(
-    autoretry_for=(Exception, ),
-    retry_backoff=8,
-    retry_jitter=True,
-    retry_backoff_max=3600,
-    retry_kwargs={'max_retries': None}
-)
-def measure_networks(networks: List[Dict[str, str]]):
-    task_id = uuid.uuid4().hex
-    signals.request_started.send(sender=task_id)
-    try:
-        measurement = manager.Measurement()
-        measurement.post_networks(networks)
-    finally:
-        signals.request_finished.send(sender=task_id)
-
-
-@shared_task(
-    autoretry_for=(Exception, ),
-    retry_backoff=8,
-    retry_jitter=True,
-    retry_backoff_max=3600,
-    retry_kwargs={'max_retries': None}
-)
-def measure_instances(instances: List[Dict[str, str]]):
-    task_id = uuid.uuid4().hex
-    signals.request_started.send(sender=task_id)
-    try:
-        measurement = manager.Measurement()
-        measurement.post_instances(instances)
-    finally:
-        signals.request_finished.send(sender=task_id)
-
-
-@shared_task(
-    autoretry_for=(Exception, ),
-    retry_backoff=8,
-    retry_jitter=True,
-    retry_backoff_max=3600,
-    retry_kwargs={'max_retries': None}
-)
-def measure_resources(resources: List[Dict[str, str]]):
-    task_id = uuid.uuid4().hex
-    signals.request_started.send(sender=task_id)
-    try:
-        measurement = manager.Measurement()
-        measurement.post_resources(resources)
+        measurement.post(measurements)
     finally:
         signals.request_finished.send(sender=task_id)

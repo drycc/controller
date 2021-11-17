@@ -58,79 +58,19 @@ class User(ManagerAPI):
 
 class Measurement(ManagerAPI):
 
-    def post_config(self, config: List[Dict[str, str]]):
+    def post(self, measurements: List[Dict[str, str]]):
         """
         [
             {
                 "app_id":  "test",
                 "owner_id": "test",
-                "container_type": web,
-                "cpu": "1",
-                "memory": "2G",
-                "timestamp": 1609231998.9103732
-            }
-        ]
-        """
-        url = "%s/measurements/config/" % settings.WORKFLOW_MANAGER_URL
-        return self.post(url=url, json=config)
-
-    def post_volumes(self, volumes: List[Dict[str, str]]):
-        """
-        [
-            {
-                "name": "disk",
-                "app_id": "test",
-                "owner_id": "test",
-                "size": "100G",
+                "name": web,
+                "type": "CPU",
+                "unit": "G"
+                "usage": "2",
                 "timestamp": "1609231998.9103732"
             }
         ]
         """
-        url = "%s/measurements/volumes/" % settings.WORKFLOW_MANAGER_URL,
-        return self.post(url=url, json=volumes)
-
-    def post_networks(self, networks: List[Dict[str, str]]):
-        """
-        [
-            {
-                "app_id": "test",
-                "owner_id": "test",
-                "pod_name": "django2test-web-xxxxxx",
-                "rx_bytes": "10000",
-                "tx_bytes": "200000",
-                "timestamp": "1609231998.9103732"
-            }
-        ]
-        """
-        url = "%s/measurements/networks/" % settings.WORKFLOW_MANAGER_URL
-        return self.post(url=url, json=networks)
-
-    def post_instances(self, instances: List[Dict[str, str]]):
-        """
-        [
-            {
-                "app_id": "test",
-                "owner_id":  "test",
-                "container_type": "web",
-                "container_count": 1,
-                "timestamp": "1609231998.9103732"
-            }
-        ]
-        """
-        url = "%s/measurements/instances/" % settings.WORKFLOW_MANAGER_URL
-        return self.post(url=url, json=instances)
-
-    def post_resources(self, resources: List[Dict[str, str]]):
-        """
-        [
-            {
-                "name": "test1",
-                "app_id": "redis",
-                "owener_id": "test",
-                "plan": "redis:small",
-                "timestamp": "1609231998.9103732"
-            }
-        ]
-        """
-        url = "%s/measurements/resources/" % settings.WORKFLOW_MANAGER_URL
-        return self.post(url=url, json=resources)
+        url = "%s/measurements/" % settings.WORKFLOW_MANAGER_URL
+        return self.post(url=url, json=measurements)
