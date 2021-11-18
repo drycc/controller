@@ -1,3 +1,4 @@
+import base64
 import requests
 from typing import List, Dict
 from requests_toolbelt import user_agent
@@ -8,10 +9,14 @@ from api import __version__ as drycc_version
 class ManagerAPI(object):
 
     def __init__(self):
+        token = base64.b85encode(b"%s:%s" % (
+            settings.WORKFLOW_MANAGER_ACCESS_KEY.encode("utf8"),
+            settings.WORKFLOW_MANAGER_SECRET_KEY.encode("utf8"),
+        )).decode("utf8")
         self.headers = {
-                'Content-Type': 'application/json',
-                'Authorization': 'token %s' % settings.WORKFLOW_MANAGER_TOKEN,
-                'User-Agent': user_agent('Drycc Controller ', drycc_version)
+            'Content-Type': 'application/json',
+            'Authorization': 'token %s' % token,
+            'User-Agent': user_agent('Drycc Controller ', drycc_version)
         }
 
     def requests(self, method, url, **kwargs):
