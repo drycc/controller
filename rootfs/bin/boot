@@ -10,7 +10,7 @@ set -eo pipefail
 [[ $DRYCC_DEBUG == "true" ]] && set -x
 
 echo system information:
-echo "Django Version: $(./manage.py --version)"
+echo "Django Version: $(python manage.py --version)"
 python --version
 
 mkdir -p /app/data/logs

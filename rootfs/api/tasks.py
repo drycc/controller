@@ -7,6 +7,7 @@ from django.core import signals
 from celery import shared_task
 
 from api import manager
+from api.models import ServiceUnavailable
 from api.models.resource import Resource
 logger = logging.getLogger(__name__)
 
@@ -44,5 +45,19 @@ def send_measurements(measurements: List[Dict[str, str]]):
     try:
         measurement = manager.Measurement()
         measurement.post(measurements)
+    finally:
+        signals.request_finished.send(sender=task_id)
+
+
+@shared_task(
+    autoretry_for=(ServiceUnavailable, ),
+    retry_jitter=True,
+    retry_kwargs={'max_retries': 3}
+)
+def scale_app(app, user, structure):
+    task_id = uuid.uuid4().hex
+    signals.request_started.send(sender=task_id)
+    try:
+        app.scale(user, structure)
     finally:
         signals.request_finished.send(sender=task_id)

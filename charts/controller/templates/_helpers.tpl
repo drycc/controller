@@ -32,6 +32,8 @@ env:
 {{- end }}
 - name: "TZ"
   value: {{ .Values.time_zone | default "UTC" | quote }}
+- name: "DJANGO_SETTINGS_MODULE"
+  value: "api.settings.production"
 {{- if (.Values.deploy_hook_urls) }}
 - name: DRYCC_DEPLOY_HOOK_URLS
   value: "{{ .Values.deploy_hook_urls }}"

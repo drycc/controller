@@ -5,7 +5,14 @@ from multiprocessing import cpu_count
 import faulthandler
 faulthandler.enable()
 
-bind = '0.0.0.0'
+# If there is a mutating admission webhook configuration, start webhook
+if os.path.exists("/etc/controller/webhook/cert"):
+    bind = '0.0.0.0:8443'
+    keyfile = "/etc/controller/webhook/cert/tls.key"
+    certfile = "/etc/controller/webhook/cert/tls.crt"
+else:
+    bind = '0.0.0.0:8000'
+
 workers = int(os.environ.get('GUNICORN_WORKERS', cpu_count() * 4 + 1))
 
 pythonpath = dirname(dirname(dirname(realpath(__file__))))

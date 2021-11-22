@@ -1,9 +1,15 @@
 import random
 import string
 import os
-
+from django.core import signals
+from api.settings.celery import app
 from api.settings.production import DATABASES
 from api.settings.production import *  # noqa
+
+# Monkey patch celery
+app.conf.update(task_always_eager=True)
+signals.request_started.send = lambda sender, **named: []
+signals.request_finished.send = lambda sender, **named: []
 
 # A boolean that turns on/off debug mode.
 # https://docs.djangoproject.com/en/1.11/ref/settings/#debug

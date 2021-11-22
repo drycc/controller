@@ -54,6 +54,7 @@ class SilentDjangoTestSuiteRunner(DiscoverRunner):
 
 
 class DryccTestCase(APITestCase):
+
     def create_app(self, name=None):
         body = {}
         if name:

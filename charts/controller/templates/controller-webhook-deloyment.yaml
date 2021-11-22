@@ -1,0 +1,64 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: drycc-controller-webhook
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      component: drycc-controller-webhook
+  template:
+    metadata:
+      labels:
+        component: drycc-controller-webhook
+    spec:
+      initContainers:
+      - name: drycc-controller-init
+        image: docker.io/drycc/python-dev:latest
+        imagePullPolicy: {{.Values.image_pull_policy}}
+        command:
+          - netcat
+          - -v
+          - -u
+          - $(DRYCC_DATABASE_URL),$(DRYCC_RABBITMQ_URL)
+          - -a
+          - $(DRYCC_REDIS_ADDRS)
+        {{- include "controller.envs" . | indent 8 }}
+      containers:
+      - name: drycc-controller
+        image: {{.Values.image_registry}}/{{.Values.image_org}}/controller:{{.Values.image_tag}}
+        imagePullPolicy: {{.Values.image_pull_policy}}
+        livenessProbe:
+          httpGet:
+            path: /healthz
+            port: 8443
+            scheme: HTTPS
+          initialDelaySeconds: 30
+          timeoutSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /readiness
+            port: 8443
+            scheme: HTTPS
+          initialDelaySeconds: 30
+          timeoutSeconds: 10
+          periodSeconds: 5
+        ports:
+          - containerPort: 8443
+            name: https
+        volumeMounts:
+        - name: drycc-controller-webhook-cert
+          mountPath: /etc/controller/webhook/cert
+        {{- include "controller.limits" . | indent 8 }}
+        {{- include "controller.envs" . | indent 8 }}
+      volumes:
+      - name: drycc-controller-webhook-cert                                                                                                                                                                                               
+        secret:                                                                                                                                                                                                                           
+          secretName: drycc-controller-webhook-cert                                                                                                                                                                                       
+          items:  
+          - key: token                                                                                                                                                                                                                  
+            path: token                                                                                                                                                                                                                           
+          - key: tls.crt                                                                                                                                                                                                                  
+            path: tls.crt                                                                                                                                                                                                                 
+          - key: tls.key                                                                                                                                                                                                                  
+            path: tls.key

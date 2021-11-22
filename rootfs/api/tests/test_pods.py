@@ -298,12 +298,13 @@ class PodTest(DryccTransactionTestCase):
         url = "/v2/apps/{app_id}/scale".format(**locals())
         body = {'web': 'not_an_int'}
         response = self.client.post(url, body)
-        self.assertEqual(response.status_code, 400, response.data)
-        self.assertEqual(response.data, {'detail': "Invalid scaling format: invalid literal for "
-                                                   "int() with base 10: 'not_an_int'"})
+        self.assertEqual(response.status_code, 204, response.data)
+        self.assertEqual(app.structure, {})
+
         body = {'invalid': 1}
         response = self.client.post(url, body)
-        self.assertContains(response, 'Container type invalid', status_code=404)
+        self.assertEqual(response.status_code, 204, response.data)
+        self.assertEqual(app.structure, {})
 
     def test_container_str(self, mock_requests):
         """Test the text representation of a container."""
@@ -408,40 +409,49 @@ class PodTest(DryccTransactionTestCase):
         url = "/v2/apps/{app_id}/scale".format(**locals())
         body = {'web': -1}
         response = self.client.post(url, body)
-        self.assertEqual(response.status_code, 400, response.data)
-        self.assertEqual(response.data, {"detail": "Invalid scaling format: "
-                                         "[ErrorDetail(string='Must be greater "
-                                         "than or equal to zero', code='invalid')]"})
+        self.assertEqual(response.status_code, 204, response.data)
+        app = App.objects.get(id=app_id)
+        self.assertEqual(app.structure["web"], 1)
 
         # scale to something other than a number
         url = "/v2/apps/{app_id}/scale".format(**locals())
         body = {'web': 'one'}
         response = self.client.post(url, body)
-        self.assertEqual(response.status_code, 400, response.data)
+        app = App.objects.get(id=app_id)
+        self.assertEqual(response.status_code, 204, response.data)
+        self.assertEqual(app.structure["web"], 1)
 
         # scale to something other than a number
         url = "/v2/apps/{app_id}/scale".format(**locals())
         body = {'web': [1]}
         response = self.client.post(url, body)
-        self.assertEqual(response.status_code, 400, response.data)
+        self.assertEqual(response.status_code, 204, response.data)
+        app = App.objects.get(id=app_id)
+        self.assertEqual(app.structure["web"], 1)
 
         # scale with a non-existent proc type
         url = "/v2/apps/{app_id}/scale".format(**locals())
         body = {'foo': 1}
         response = self.client.post(url, body)
-        self.assertEqual(response.status_code, 404, response.data)
+        self.assertEqual(response.status_code, 204, response.data)
+        app = App.objects.get(id=app_id)
+        self.assertEqual("foo" in app.structure, False)
 
         # scale up to an integer as a sanity check
         url = "/v2/apps/{app_id}/scale".format(**locals())
         body = {'web': 1}
         response = self.client.post(url, body)
         self.assertEqual(response.status_code, 204, response.data)
+        app = App.objects.get(id=app_id)
+        self.assertEqual(app.structure["web"], 1)
 
         with mock.patch('scheduler.KubeHTTPClient.scale') as mock_kube:
             mock_kube.side_effect = KubeException('Boom!')
             url = "/v2/apps/{app_id}/scale".format(**locals())
             response = self.client.post(url, {'web': 10})
-            self.assertEqual(response.status_code, 503, response.data)
+            self.assertEqual(response.status_code, 204, response.data)
+            app = App.objects.get(id=app_id)
+            self.assertEqual(app.structure["web"], 1)
 
     def test_admin_can_manage_other_pods(self, mock_requests):
         """If a non-admin user creates a container, an administrator should be able to
@@ -483,8 +493,9 @@ class PodTest(DryccTransactionTestCase):
         url = '/v2/apps/{app_id}/scale'.format(**locals())
         body = {'web': '1'}
         response = self.client.post(url, body)
-        self.assertEqual(response.status_code, 400, response.data)
-        self.assertEqual(response.data, {'detail': 'No build associated with this release'})
+        self.assertEqual(response.status_code, 204, response.data)
+        app = App.objects.get(id=app_id)
+        self.assertEqual("web" in app.structure, False)
 
     def test_command_good(self, mock_requests):
         """Test the default command for each container workflow"""

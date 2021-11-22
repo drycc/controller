@@ -24,7 +24,8 @@ DEBUG_PROPAGATE_EXCEPTIONS = False
 # https://docs.djangoproject.com/en/1.11/ref/checks/#security
 SILENCED_SYSTEM_CHECKS = [
     'security.W004',
-    'security.W008'
+    'security.W008',
+    'security.W012',
 ]
 
 CONN_MAX_AGE = 60 * 3
@@ -81,7 +82,7 @@ MIDDLEWARE = [
     'corsheaders.middleware.CorsMiddleware',
     'django.middleware.security.SecurityMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
-    # 'django.middleware.csrf.CsrfViewMiddleware',
+    'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
@@ -138,9 +139,10 @@ CORS_EXPOSE_HEADERS = (
 )
 
 X_FRAME_OPTIONS = 'DENY'
-# CSRF_COOKIE_SECURE = True
-CSRF_COOKIE_HTTPONLY = True
-# SESSION_COOKIE_SECURE = True
+CSRF_COOKIE_SECURE = True
+CSRF_COOKIE_HTTPONLY = False
+CSRF_COOKIE_SAMESITE = None
+SESSION_COOKIE_SECURE = False
 SECURE_CONTENT_TYPE_NOSNIFF = True
 SECURE_BROWSER_XSS_FILTER = True
 
@@ -479,3 +481,10 @@ DRYCC_INFLUXDB_TOKEN = os.environ.get('DRYCC_INFLUXDB_TOKEN', 'root')
 WORKFLOW_MANAGER_URL = os.environ.get('DRYCC_WORKFLOW_MANAGER_URL', None)
 WORKFLOW_MANAGER_ACCESS_KEY = os.environ.get('WORKFLOW_MANAGER_ACCESS_KEY', None)
 WORKFLOW_MANAGER_SECRET_KEY = os.environ.get('WORKFLOW_MANAGER_SECRET_KEY', None)
+
+# Drycc admission webhook token
+if os.path.exists("/etc/controller/webhook/cert"):
+    with open("/etc/controller/webhook/cert/token") as f:
+        DRYCC_ADMISSION_WEBHOOK_TOKEN = f.read()
+else:
+    DRYCC_ADMISSION_WEBHOOK_TOKEN = None

@@ -1,8 +1,6 @@
 """
 URL routing patterns for the Drycc REST API.
 """
-
-
 from django.conf import settings
 from django.conf.urls import include, url
 from rest_framework.routers import DefaultRouter
@@ -12,16 +10,17 @@ from api import views
 
 router = DefaultRouter(trailing_slash=False)
 extra = getattr(settings, setting_name('TRAILING_SLASH'), True) and '/' or ''
+
 # Add the generated REST URLs and login/logout endpoint
-urlpatterns = [
+app_urlpatterns = [
     url(r'^', include(router.urls)),
     url(r'^login/(?P<backend>[^/]+){0}$'.format(extra), views.auth,
         name='begin'),
     url(r'^complete/(?P<backend>[^/]+){0}$'.format(extra), views.complete,
         name='complete'),
     url('', include('social_django.urls', namespace='social')),
-    url(r'auth/login/?$', views.AuthLoginView.as_view()),
-    url(r'auth/token/(?P<key>[-_\w]+)/?$', views.AuthTokenView.as_view()),
+    url(r'auth/login/?$', views.AuthLoginView.as_view({"post": "login"})),
+    url(r'auth/token/(?P<key>[-_\w]+)/?$', views.AuthTokenView.as_view({"get": "token"})),
     # application release components
     url(r"^apps/(?P<id>{})/config/?$".format(settings.APP_URL_REGEX),
         views.ConfigViewSet.as_view({'get': 'retrieve', 'post': 'create'})),
@@ -152,3 +151,13 @@ urlpatterns = [
     url(r'^apps/(?P<id>{})/metrics/(?P<container_type>[a-z0-9]+(\-[a-z0-9]+)*)/?$'.format(settings.APP_URL_REGEX),  # noqa
         views.MetricView.as_view({'get': 'status'})),
 ]
+
+webhook_urlpatterns = [
+    url(r'^webhooks/scale/(?P<token>.+)/?$', views.AdmissionWebhook.as_view({'post': 'scale'})),
+]
+
+# If there is a mutating admission webhook configuration, use webhook url
+if settings.DRYCC_ADMISSION_WEBHOOK_TOKEN:
+    urlpatterns = webhook_urlpatterns
+else:
+    urlpatterns = app_urlpatterns

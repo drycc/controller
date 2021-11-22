@@ -473,18 +473,16 @@ class App(UuidAuditedModel):
         new_structure.update(structure)
 
         if new_structure != self.structure:
-            # save new structure to the database
-            self.structure = new_structure
-            self.procfile_structure = release.build.procfile
-            self.save()
-
             try:
                 self._scale_pods(structure)
             except ServiceUnavailable:
                 # scaling failed, go back to old scaling numbers
                 self._scale_pods(old_structure)
                 raise
-
+            # save new structure to the database
+            self.structure = new_structure
+            self.procfile_structure = release.build.procfile
+            self.save()
             msg = '{} scaled pods '.format(user.username) + ' '.join(
                 "{}={}".format(k, v) for k, v in list(structure.items()))
             self.log(msg)

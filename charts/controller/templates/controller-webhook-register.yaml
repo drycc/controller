@@ -1,0 +1,40 @@
+{{- $token := randAlphaNum 128 | lower }}
+{{- $ca := genCA "controller-webhook-ca" 3650 }}
+{{- $altName1 := printf "drycc-controller-webhook.%s" .Release.Namespace }}
+{{- $altName2 := printf "drycc-controller-webhook.%s.svc" .Release.Namespace }}
+{{- $cert := genSignedCert "drycc-controller-webhook" nil (list $altName1 $altName2) 3650 $ca }}
+apiVersion: admissionregistration.k8s.io/v1
+kind: MutatingWebhookConfiguration
+metadata:
+  name: drycc-controller-webhook
+webhooks:
+- name: "{{ $altName2 }}"
+  sideEffects: None
+  admissionReviewVersions: ["v1"]
+  clientConfig:
+    caBundle: {{ b64enc $ca.Cert }}
+    service:
+      name: drycc-controller-webhook
+      namespace: "{{ .Release.Namespace }}"
+      path: "{{ printf "/v2/webhooks/scale/%s/" $token }}"
+      port: 8443
+  failurePolicy: Fail
+  rules:
+  - operations: ["UPDATE"]
+    apiGroups: ["apps"]
+    apiVersions: ["*"]
+    resources: ["deployments/scale"]
+  timeoutSeconds: 30
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: drycc-controller-webhook-cert
+  labels:
+    release: "{{ .Release.Name }}"
+    heritage: "{{ .Release.Service }}"
+type: Opaque
+data:
+  token: {{ b64enc $token }}
+  tls.crt: {{ b64enc $cert.Cert }}
+  tls.key: {{ b64enc $cert.Key }}

@@ -22,7 +22,6 @@ class Config:
     task_default_queue = 'priority.low'
 
 
-os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'api.settings.production')
 app = Celery('drycc')
 app.config_from_object(Config)
 app.conf.update(

@@ -15,11 +15,12 @@ from guardian.shortcuts import assign_perm, get_objects_for_user, \
 from django.views.generic import View
 from rest_framework import renderers, status
 from rest_framework.exceptions import PermissionDenied, NotFound
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.response import Response
 from rest_framework.viewsets import GenericViewSet
 
 from api import influxdb, models, permissions, serializers, viewsets
+from api.tasks import scale_app
 from api.models import AlreadyExists, ServiceUnavailable, DryccException, \
     UnprocessableEntity
 
@@ -79,8 +80,11 @@ def complete(request, backend, *args, **kwargs):
                        *args, **kwargs)
 
 
-class AuthLoginView(View):
-    def post(self, request, *args, **kwargs):
+class AuthLoginView(GenericViewSet):
+
+    permission_classes = (AllowAny, )
+
+    def login(self, request, *args, **kwargs):
         def get_local_host(request):
             uri = request.build_absolute_uri()
             return uri[0:uri.find(request.path)]
@@ -88,8 +92,11 @@ class AuthLoginView(View):
         return res
 
 
-class AuthTokenView(View):
-    def get(self, request, *args, **kwargs):
+class AuthTokenView(GenericViewSet):
+
+    permission_classes = (AllowAny, )
+
+    def token(self, request, *args, **kwargs):
         state = cache.get("oidc_key_" + self.kwargs['key'], "")
         token = cache.get("oidc_state_" + state, {})
         if not token.get('token'):
@@ -177,7 +184,7 @@ class AppViewSet(BaseDryccViewSet):
         return Response(serializer.data)
 
     def scale(self, request, **kwargs):
-        self.get_object().scale(request.user, request.data)
+        scale_app.delay(self.get_object(), request.user, request.data)
         return Response(status=status.HTTP_204_NO_CONTENT)
 
     def stop(self, request, **kwargs):
@@ -937,4 +944,32 @@ class MetricView(BaseDryccViewSet):
                 app_id, container_type, start, stop, every),
             "networks": self._get_networks(
                 app_id, container_type, start, stop, every)
+        })
+
+
+class AdmissionWebhook(GenericViewSet):
+
+    permission_classes = (AllowAny, )
+
+    def scale(self, request,  **kwargs):
+        token = kwargs['token']
+        data = json.loads(request.body.decode("utf8"))["request"]
+        if settings.DRYCC_ADMISSION_WEBHOOK_TOKEN == token:
+            allowed = True
+            app_id = data["object"]["metadata"]["namespace"]
+            app = models.App.objects.filter(id=app_id).first()
+            replicas = data["object"]["spec"]["replicas"]
+            container_type = data["object"]["metadata"]["name"].replace(f"{app_id}-", "", 1)
+            if app and app.structure.get(container_type) != replicas:  # sync replicas
+                app.structure[container_type] = replicas
+                super(models.App, app).save(update_fields=["structure", ])
+        else:
+            allowed = False
+        return Response({
+            "apiVersion": "admission.k8s.io/v1",
+            "kind": "AdmissionReview",
+            "response": {
+                "uid": data["uid"],
+                "allowed": allowed,
+            }
         })
