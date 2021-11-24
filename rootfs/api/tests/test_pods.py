@@ -100,20 +100,6 @@ class PodTest(DryccTransactionTestCase):
         response = self.client.post(url, body)
         self.assertEqual(response.status_code, 204, response.data)
 
-        # stop
-        url = "/v2/apps/{app_id}/stop".format(**locals())
-        # test setting one proc type at a time
-        body = {"types": ['web']}
-        response = self.client.post(url, body)
-        self.assertEqual(response.status_code, 204, response.data)
-
-        # start
-        url = "/v2/apps/{app_id}/start".format(**locals())
-        # test setting one proc type at a time
-        body = {"types": ['web']}
-        response = self.client.post(url, body)
-        self.assertEqual(response.status_code, 204, response.data)
-
         url = "/v2/apps/{app_id}/pods".format(**locals())
         response = self.client.get(url)
         self.assertEqual(response.status_code, 200, response.data)
@@ -135,7 +121,7 @@ class PodTest(DryccTransactionTestCase):
         url = "/v2/apps/{app_id}/pods".format(**locals())
         response = self.client.get(url)
         self.assertEqual(response.status_code, 200, response.data)
-        self.assertEqual(len(response.data['results']), 2)
+        self.assertEqual(len(response.data['results']), 0)
 
         url = "/v2/apps/{app_id}".format(**locals())
         response = self.client.get(url)
@@ -205,7 +191,7 @@ class PodTest(DryccTransactionTestCase):
         url = "/v2/apps/{app_id}/pods".format(**locals())
         response = self.client.get(url)
         self.assertEqual(response.status_code, 200, response.data)
-        self.assertEqual(len(response.data['results']), 1)
+        self.assertEqual(len(response.data['results']), 0)
 
         url = "/v2/apps/{app_id}".format(**locals())
         response = self.client.get(url)
@@ -243,7 +229,7 @@ class PodTest(DryccTransactionTestCase):
         url = "/v2/apps/{app_id}/pods".format(**locals())
         response = self.client.get(url)
         self.assertEqual(response.status_code, 200, response.data)
-        self.assertEqual(len(response.data['results']), 2)
+        self.assertEqual(len(response.data['results']), 1)
         self.assertEqual(response.data['results'][0]['release'], 'v2')
 
         # post a new build
@@ -370,7 +356,7 @@ class PodTest(DryccTransactionTestCase):
 
         # verify that the app._get_command property got formatted
         self.assertEqual(response.status_code, 200, response.data)
-        self.assertEqual(len(response.data['results']), 2)
+        self.assertEqual(len(response.data['results']), 1)
 
         pod = response.data['results'][0]
         self.assertEqual(pod['type'], 'web')

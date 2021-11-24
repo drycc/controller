@@ -491,78 +491,6 @@ class App(UuidAuditedModel):
 
         return False
 
-    def stop(self, user, types):  # noqa
-        """scale containers which types contained down """
-        rs_zero = []
-        for _ in types:
-            if not self.structure.get(_, 0):
-                rs_zero.append(_)
-        if rs_zero:
-            raise DryccException("process {} replicas is zero".format(",".join(rs_zero))) # noqa
-
-        if self.release_set.filter(failed=False).latest().build is None:
-            raise DryccException('No build associated with this release')
-
-        release = self.release_set.filter(failed=False).latest()
-        structure = {_: 0 for _ in types}
-
-        # test for available process types
-        available_process_types = release.build.procfile or {}
-        for container_type in types:
-            if container_type == 'cmd':
-                continue  # allow docker cmd types in case we don't have the image source
-
-            if container_type not in available_process_types:
-                raise NotFound(
-                    'Container type {} does not exist in application'.format(container_type))
-
-        # merge current structure and the new items together
-        old_structure = self.structure
-        new_structure = old_structure.copy()
-        new_structure.update(structure)
-
-        if new_structure != self.structure:
-            try:
-                self._scale_pods(structure)
-            except ServiceUnavailable:
-                # scaling failed, go back to old scaling numbers
-                self._scale_pods(old_structure)
-                raise
-
-            msg = '{} stopped pods '.format(user.username) + ' '.join(types)
-            self.log(msg)
-
-            return True
-
-        return False
-
-    def start(self, user, types):  # noqa
-        """scale containers which types contained up."""
-        # use create to make sure minimum resources are created
-        self.create()
-        if self.release_set.filter(failed=False).latest().build is None:
-            raise DryccException('No build associated with this release')
-
-        rs_zero = []
-        for _ in types:
-            if not self.structure.get(_, 0):
-                rs_zero.append(_)
-        if rs_zero:
-            raise DryccException("process {} replicas is zero".format(",".join(rs_zero))) # noqa
-
-        structure = {}
-        for k, v in self.structure.items():
-            if k in types:
-                structure[k] = v
-        try:
-            self._scale_pods(structure)
-        except ServiceUnavailable:
-            # scaling failed, go back to old scaling numbers
-            raise
-        msg = '{} stopped pods '.format(user.username) + ' '.join(types)
-        self.log(msg)
-        return True
-
     def _scale_pods(self, scale_types):
         release = self.release_set.filter(failed=False).latest()
         app_settings = self.appsettings_set.latest()
@@ -910,7 +838,6 @@ class App(UuidAuditedModel):
 
     def list_pods(self, *args, **kwargs):
         """Used to list basic information about pods running for a given application"""
-        autoscale = self.appsettings_set.latest().autoscale
         try:
             labels = self._scheduler_filter(**kwargs)
 
@@ -947,18 +874,16 @@ class App(UuidAuditedModel):
                 if 'startTime' in p['status']:
                     started = p['status']['startTime']
                 else:
-                    started = str(datetime.utcnow().strftime(settings.DRYCC_DATETIME_FORMAT))
+                    started = str(datetime.utcnow().strftime(settings.DEIS_DATETIME_FORMAT))
                 item['started'] = started
-                replicas = str(autoscale[labels['type']]['min']) + '-' + str(autoscale[labels['type']]['max']) \
-                    if autoscale.get(labels['type']) is not None else self.structure.get(labels['type'])  # noqa
-                item['replicas'] = str(replicas)
+
                 data.append(item)
 
             # sorting so latest start date is first
             data.sort(key=lambda x: x['started'], reverse=True)
             return data
-        except KubeHTTPException as e:
-            logger.debug(e)
+        except KubeHTTPException:
+            pass
         except Exception as e:
             err = '(list pods): {}'.format(e)
             self.log(err, logging.ERROR)

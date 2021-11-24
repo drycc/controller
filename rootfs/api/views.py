@@ -187,20 +187,6 @@ class AppViewSet(BaseDryccViewSet):
         scale_app.delay(self.get_object(), request.user, request.data)
         return Response(status=status.HTTP_204_NO_CONTENT)
 
-    def stop(self, request, **kwargs):
-        types = request.data.get("types")
-        if not types:
-            raise DryccException("types is a required field")
-        self.get_object().stop(request.user, types)
-        return Response(status=status.HTTP_204_NO_CONTENT)
-
-    def start(self, request, **kwargs):
-        types = request.data.get("types")
-        if not types:
-            raise DryccException("types is a required field")
-        self.get_object().start(request.user, types)
-        return Response(status=status.HTTP_204_NO_CONTENT)
-
     def logs(self, request, **kwargs):
         app = self.get_object()
         try:
@@ -289,34 +275,7 @@ class PodViewSet(AppResourceViewSet):
     def list(self, *args, **kwargs):
         pods = self.get_app().list_pods(*args, **kwargs)
         data = self.get_serializer(pods, many=True).data
-
-        if not kwargs.get("type"):
-            autoscale = self.get_app().appsettings_set.latest().autoscale
-            exist_pod_type = list(set([_["type"] for _ in data if _["type"]]))
-            structure = self.get_app().structure
-            procfile_structure = self.get_app().procfile_structure
-            # remove prev release container type
-            if procfile_structure:
-                condition_procfile_structure = list(procfile_structure.keys())
-            else:
-                condition_procfile_structure = ['cmd', 'web']
-            structure = {k: v for k, v in structure.items() if (v != 0 or k in condition_procfile_structure)} # noqa
-            for _ in structure.keys():
-                if _ not in exist_pod_type:
-                    replicas = str(autoscale[_]['min']) + '-' + str(autoscale[_]['max']) \
-                        if (autoscale.get(_) is not None and structure[_] !=0) else structure[_]  # noqa
-                    exist_pod_type.append(_)
-                    data.append({"type": _,
-                                 "replicas": str(replicas),
-                                 "state": "stopped"})
-
-            for _ in procfile_structure:
-                if _ not in exist_pod_type:
-                    data.append({"type": _,
-                                 "replicas": str(0),
-                                 "state": "started"})
-
-        # # fake out pagination for now
+        # fake out pagination for now
         pagination = {'results': data, 'count': len(data)}
         return Response(pagination, status=status.HTTP_200_OK)
 
@@ -953,12 +912,13 @@ class AdmissionWebhook(GenericViewSet):
 
     def scale(self, request,  **kwargs):
         token = kwargs['token']
+        print(request.body.decode("utf8"))
         data = json.loads(request.body.decode("utf8"))["request"]
         if settings.DRYCC_ADMISSION_WEBHOOK_TOKEN == token:
             allowed = True
             app_id = data["object"]["metadata"]["namespace"]
             app = models.App.objects.filter(id=app_id).first()
-            replicas = data["object"]["spec"]["replicas"]
+            replicas = data["object"]["spec"].get("replicas", 0)
             container_type = data["object"]["metadata"]["name"].replace(f"{app_id}-", "", 1)
             if app and app.structure.get(container_type) != replicas:  # sync replicas
                 app.structure[container_type] = replicas

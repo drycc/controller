@@ -62,10 +62,6 @@ app_urlpatterns = [
     # application actions
     url(r"^apps/(?P<id>{})/scale/?$".format(settings.APP_URL_REGEX),
         views.AppViewSet.as_view({'post': 'scale'})),
-    url(r"^apps/(?P<id>{})/stop/?$".format(settings.APP_URL_REGEX),
-        views.AppViewSet.as_view({'post': 'stop'})),
-    url(r"^apps/(?P<id>{})/start/?$".format(settings.APP_URL_REGEX),
-        views.AppViewSet.as_view({'post': 'start'})),
     url(r"^apps/(?P<id>{})/logs/?$".format(settings.APP_URL_REGEX),
         views.AppViewSet.as_view({'get': 'logs'})),
     url(r"^apps/(?P<id>{})/run/?$".format(settings.APP_URL_REGEX),

@@ -599,7 +599,6 @@ class PodSerializer(serializers.BaseSerializer):
     type = serializers.CharField()
     release = serializers.CharField(required=False)
     started = serializers.DateTimeField(required=False)
-    replicas = serializers.CharField(required=False)
 
     def to_representation(self, obj):
         return obj
