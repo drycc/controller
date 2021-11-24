@@ -411,7 +411,7 @@ class ConfigTest(DryccTransactionTestCase):
         from django.core.management import call_command
         out = StringIO()
         call_command(
-            "measure_instance",
+            "measure_apps",
             *args,
             stdout=out,
             stderr=StringIO(),
@@ -422,8 +422,8 @@ class ConfigTest(DryccTransactionTestCase):
     def test_measure_config(self, *args, **kwargs):
         # create
         app_id = self.create_app()
-        url = "/v2/apps/{app_id}/config".format(**locals())
+        url = f"/v2/apps/{app_id}/config"
         body = {'values': json.dumps({'PORT': 5000}), 'cpu': json.dumps({'web': '1000m'})}
-        response = self.client.post(url, body)
+        self.client.post(url, body)
         out = self.call_command()
         self.assertIn(out, "done\n")

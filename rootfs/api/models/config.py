@@ -2,10 +2,8 @@ import json
 import logging
 from django.conf import settings
 from django.db import models
-from api import influxdb
 from api.models.release import Release
 from api.models import UuidAuditedModel
-from api.utils import unit_to_bytes, unit_to_millicpu
 from api.exceptions import DryccException, UnprocessableEntity
 
 
@@ -194,36 +192,3 @@ class Config(UuidAuditedModel):
             self.set_tags({'tags': {}})
 
         return super(Config, self).save(**kwargs)
-
-    def to_measurements(self, timestamp: float):
-        assert len(set(self.memory.keys()).difference(self.cpu.keys())) == 0
-        stop = int(timestamp)
-        start = stop - (stop % 3600)
-        records = {}
-        app_id, owner_id = str(self.app_id), str(self.owner_id)
-        for record in influxdb.query_container_count([app_id, ], start, stop):
-            container_type = record["container_name"].replace(f"{app_id}-", "", 1)
-            if container_type not in records:
-                records[container_type] = []
-            records[container_type].append(record)
-        cpu_measurements = [{
-            "app_id": app_id,
-            "user_id": owner_id,
-            "name": container_type,
-            "type": "CPU",
-            "unit": "MILLI",
-            "usage": unit_to_millicpu(
-                self.cpu.get(container_type)) * len(records.get(container_type, [])),
-            "timestamp": "%f" % timestamp
-        } for container_type in self.cpu.keys()]
-        memory_measurements = [{
-            "app_id": app_id,
-            "user_id": owner_id,
-            "name": container_type,
-            "type": "MEMORY",
-            "unit": "BYTES",
-            "usage": unit_to_bytes(
-                self.memory.get(container_type)) * len(records.get(container_type, [])),
-            "timestamp": "%f" % timestamp
-        } for container_type in self.memory.keys()]
-        return cpu_measurements + memory_measurements

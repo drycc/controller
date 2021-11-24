@@ -259,6 +259,19 @@ def create_auth_token_handle(sender, instance=None, created=False, **kwargs):
         Token.objects.create(user=instance)
 
 
+@receiver(post_save, sender=App)
+def app_changed_handle(sender, instance=None, created=False, update_fields=None, **kwargs):
+    # measure limits to workflow manager
+    if settings.WORKFLOW_MANAGER_URL is not None and (
+        created or (
+            update_fields is not None and "structure" in update_fields)):
+        timestamp = time.time()
+        send_measurements.apply_async(
+            args=[instance.to_measurements(timestamp), ],
+            queue="priority.middle",
+        )
+
+
 @receiver(post_save, sender=Config)
 def config_changed_handle(sender, instance=None, created=False, update_fields=None, **kwargs):
     # measure limits to workflow manager
@@ -268,7 +281,7 @@ def config_changed_handle(sender, instance=None, created=False, update_fields=No
                 "cpu" in update_fields or "memory" in update_fields))):
         timestamp = time.time()
         send_measurements.apply_async(
-            args=[instance.to_measurements(timestamp), ],
+            args=[instance.app.to_measurements(timestamp), ],
             queue="priority.middle",
         )
 

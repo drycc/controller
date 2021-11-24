@@ -27,7 +27,7 @@ from api.models.release import Release
 from api.models.tls import TLS
 from api.models.appsettings import AppSettings
 from api.models.volume import Volume
-from api.utils import generate_app_name, apply_tasks
+from api.utils import generate_app_name, apply_tasks, unit_to_bytes, unit_to_millicpu
 from scheduler import KubeHTTPException, KubeException
 
 logger = logging.getLogger(__name__)
@@ -1279,3 +1279,27 @@ class App(UuidAuditedModel):
             self._scheduler.secret.create(self.id, secret_name, secrets_env, labels=labels)
         else:
             self._scheduler.secret.update(self.id, secret_name, secrets_env, labels=labels)
+
+    def to_measurements(self, timestamp: float):
+        measurements = []
+        config = self.config_set.latest()
+        for container_type, scale in self.structure.items():
+            measurements.append({
+                "app_id": self.id,
+                "user_id": self.owner_id,
+                "name": container_type,
+                "type": "CPU",
+                "unit": "MILLI",
+                "usage": unit_to_millicpu(config.cpu.get(container_type)) * scale,
+                "timestamp": "%f" % timestamp
+            })
+            measurements.append({
+                "app_id": self.app_id,
+                "user_id": self.owner_id,
+                "name": container_type,
+                "type": "MEMORY",
+                "unit": "BYTES",
+                "usage": unit_to_bytes(config.memory.get(container_type)) * scale,
+                "timestamp": "%f" % timestamp
+            })
+        return measurements

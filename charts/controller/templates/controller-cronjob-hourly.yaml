@@ -32,28 +32,10 @@ spec:
           containers:
           - image: {{.Values.image_registry}}/{{.Values.image_org}}/controller:{{.Values.image_tag}}
             imagePullPolicy: {{.Values.pull_policy}}
-            name: drycc-controller-measure-instance
+            name: drycc-controller-measure-networks
             command:
               - /bin/bash
               - -c
             args:
-              - python -u /app/manage.py measure_instance
-            {{- include "controller.envs" . | indent 12 }}
-          - image: {{.Values.image_registry}}/{{.Values.image_org}}/controller:{{.Values.image_tag}}
-            imagePullPolicy: {{.Values.pull_policy}}
-            name: drycc-controller-measure-resources
-            command:
-              - /bin/bash
-              - -c
-            args:
-              - python -u /app/manage.py measure_resources
-            {{- include "controller.envs" . | indent 12 }}
-          - image: {{.Values.image_registry}}/{{.Values.image_org}}/controller:{{.Values.image_tag}}
-            imagePullPolicy: {{.Values.pull_policy}}
-            name: drycc-controller-measure-volumes
-            command:
-              - /bin/bash
-              - -c
-            args:
-              - python -u /app/manage.py measure_volumes
+              - python -u /app/manage.py measure_networks
             {{- include "controller.envs" . | indent 12 }}
