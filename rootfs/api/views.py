@@ -20,7 +20,7 @@ from rest_framework.response import Response
 from rest_framework.viewsets import GenericViewSet
 
 from api import influxdb, models, permissions, serializers, viewsets
-from api.tasks import scale_app
+from api.tasks import scale_app, restart_app
 from api.models import AlreadyExists, ServiceUnavailable, DryccException, \
     UnprocessableEntity
 
@@ -280,7 +280,11 @@ class PodViewSet(AppResourceViewSet):
         return Response(pagination, status=status.HTTP_200_OK)
 
     def restart(self, *args, **kwargs):
-        pods = self.get_app().restart(**kwargs)
+        if "name" in kwargs:  # a single pod uses sync
+            pods = self.get_app().restart(**kwargs)
+        else:  # multi pod uses async
+            restart_app.delay(self.get_app(), **kwargs)
+            pods = self.get_app().list_pods(**kwargs)
         data = self.get_serializer(pods, many=True).data
         # fake out pagination for now
         # pagination = {'results': data, 'count': len(data)}

@@ -697,7 +697,6 @@ class App(UuidAuditedModel):
         only run after kubernetes has reported all pods as healthy
         """
         # Bail out early if the application is not routable
-        release = self.release_set.filter(failed=False).latest()
         app_settings = self.appsettings_set.latest()
         if not kwargs.get('routable', False) and app_settings.routable:
             return

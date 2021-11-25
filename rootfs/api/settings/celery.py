@@ -26,6 +26,8 @@ app = Celery('drycc')
 app.config_from_object(Config)
 app.conf.update(
     task_routes={
+        'api.tasks.scale_app': {'queue': 'priority.high'},
+        'api.tasks.restart_app': {'queue': 'priority.high'},
         'api.tasks.retrieve_resource': {'queue': 'priority.high'},
     },
 )
