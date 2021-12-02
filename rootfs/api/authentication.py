@@ -7,8 +7,6 @@ from rest_framework import authentication
 from rest_framework.authentication import TokenAuthentication, \
     get_authorization_header
 from rest_framework import exceptions
-
-from api import manager
 from api.oauth import OAuthManager
 
 logger = logging.getLogger(__name__)
@@ -66,10 +64,6 @@ class DryccAuthentication(TokenAuthentication):
             user_info = OAuthManager().get_user_by_token(key)
             if not user_info.get('email'):
                 user_info['email'] = OAuthManager().get_email_by_token(key)
-            if settings.WORKFLOW_MANAGER_URL and settings.WORKFLOW_MANAGER_TOKEN:
-                status = manager.User().get_status(user_info.username)
-                if not status["is_active"]:
-                    raise exceptions.AuthenticationFailed(_(status["message"]))
         except Exception as e:
             logger.info(e)
             raise exceptions.AuthenticationFailed(_('Verify token fail.'))

@@ -119,6 +119,63 @@ class UserManagementViewSet(GenericViewSet):
         return Response(serializer.data)
 
 
+class WorkflowManagerViewset(GenericViewSet):
+
+    permission_classes = (permissions.IsWorkflowManager, )
+
+    def block(self, request,  **kwargs):
+        try:
+            blocklist = models.Blocklist(
+                id=kwargs['id'],
+                type=models.Blocklist.get_type(kwargs["type"]),
+                remark=request.data.get("remark")
+            )
+            apps = blocklist.related_apps
+            [scale_app(app, app.owner, {key: 0 for key in app.structure.keys()}) for app in apps]
+            blocklist.save()
+        except ValueError as e:
+            logger.info(e)
+            raise DryccException("Unsupported block type: %s" % kwargs["type"])
+
+    def unblock(self, request,  **kwargs):
+        try:
+            models.Blocklist.objects.filter(
+                id=kwargs['id'],
+                type=models.Blocklist.get_type(kwargs["type"])
+            ).delete()
+        except ValueError as e:
+            logger.info(e)
+            raise DryccException("Unsupported block type: %s" % kwargs["type"])
+
+
+class AdmissionWebhookViewSet(GenericViewSet):
+
+    permission_classes = (AllowAny, )
+
+    def scale(self, request,  **kwargs):
+        token = kwargs['token']
+        data = json.loads(request.body.decode("utf8"))["request"]
+        if settings.DRYCC_ADMISSION_WEBHOOK_TOKEN == token:
+            allowed = True
+            app_id = data["object"]["metadata"]["namespace"]
+            app = models.App.objects.filter(id=app_id).first()
+            replicas = data["object"]["spec"].get("replicas", 0)
+            container_type = data["object"]["metadata"]["name"].replace(f"{app_id}-", "", 1)
+            if app and app.structure.get(container_type) != replicas:  # sync replicas
+                app.structure[container_type] = replicas
+                super(models.App, app).save(update_fields=["structure", ])
+        else:
+            allowed = False
+        return Response({
+            "apiVersion": "admission.k8s.io/v1",
+            "kind": "AdmissionReview",
+            "response": {
+                "uid": data["uid"],
+                "allowed": allowed,
+            }
+        })
+
+
 class BaseDryccViewSet(viewsets.OwnerViewSet):
     """
     A generic ViewSet for objects related to Drycc.
@@ -508,8 +565,9 @@ class KeyHookViewSet(BaseHookViewSet):
         app = get_object_or_404(models.App, id=kwargs['id'])
         request.user = get_object_or_404(User, username=kwargs['username'])
         # check the user is authorized for this app
-        if not permissions.is_app_user(request, app):
-            raise PermissionDenied()
+        has_permission, message = permissions.has_app_permission(request, app)
+        if not has_permission:
+            raise PermissionDenied(message)
 
         data = {request.user.username: []}
         keys = models.Key.objects \
@@ -537,8 +595,9 @@ class BuildHookViewSet(BaseHookViewSet):
         app = get_object_or_404(models.App, id=request.data['receive_repo'])
         self.user = request.user = get_object_or_404(User, username=request.data['receive_user'])
         # check the user is authorized for this app
-        if not permissions.is_app_user(request, app):
-            raise PermissionDenied()
+        has_permission, message = permissions.has_app_permission(request, app)
+        if not has_permission:
+            raise PermissionDenied(message)
         request.data['app'] = app
         request.data['owner'] = self.user
         super(BuildHookViewSet, self).create(request, *args, **kwargs)
@@ -559,8 +618,9 @@ class ConfigHookViewSet(BaseHookViewSet):
         app = get_object_or_404(models.App, id=request.data['receive_repo'])
         request.user = get_object_or_404(User, username=request.data['receive_user'])
         # check the user is authorized for this app
-        if not permissions.is_app_user(request, app):
-            raise PermissionDenied()
+        has_permission, message = permissions.has_app_permission(request, app)
+        if not has_permission:
+            raise PermissionDenied(message)
         config = app.release_set.filter(failed=False).latest().config
         serializer = self.get_serializer(config)
         return Response(serializer.data, status=status.HTTP_200_OK)
@@ -907,33 +967,4 @@ class MetricView(BaseDryccViewSet):
                 app_id, container_type, start, stop, every),
             "networks": self._get_networks(
                 app_id, container_type, start, stop, every)
-        })
-
-
-class AdmissionWebhook(GenericViewSet):
-
-    permission_classes = (AllowAny, )
-
-    def scale(self, request,  **kwargs):
-        token = kwargs['token']
-        print(request.body.decode("utf8"))
-        data = json.loads(request.body.decode("utf8"))["request"]
-        if settings.DRYCC_ADMISSION_WEBHOOK_TOKEN == token:
-            allowed = True
-            app_id = data["object"]["metadata"]["namespace"]
-            app = models.App.objects.filter(id=app_id).first()
-            replicas = data["object"]["spec"].get("replicas", 0)
-            container_type = data["object"]["metadata"]["name"].replace(f"{app_id}-", "", 1)
-            if app and app.structure.get(container_type) != replicas:  # sync replicas
-                app.structure[container_type] = replicas
-                super(models.App, app).save(update_fields=["structure", ])
-        else:
-            allowed = False
-        return Response({
-            "apiVersion": "admission.k8s.io/v1",
-            "kind": "AdmissionReview",
-            "response": {
-                "uid": data["uid"],
-                "allowed": allowed,
-            }
         })

@@ -25,13 +25,13 @@ def retrieve_resource(self, resource):
                 raise self.retry(exc=None, countdown=1800)
             else:
                 resource.detach_resource()
-    except Resource.DoesNotExist:
-        logger.exception(
-            "retrieve task not found resource: {}".format(resource.id))
-    except Exception as e:
+    except (Exception, Resource.DoesNotExist) as e:
         signals.got_request_exception.send(sender=task_id)
-        raise e
-    finally:
+        if isinstance(e, Resource.DoesNotExist):
+            logger.exception("retrieve task not found resource: {}".format(resource.id))
+        else:
+            raise e
+    else:
         signals.request_finished.send(sender=task_id)
 
 
@@ -51,7 +51,7 @@ def send_measurements(measurements: List[Dict[str, str]]):
     except Exception as e:
         signals.got_request_exception.send(sender=task_id)
         raise e
-    finally:
+    else:
         signals.request_finished.send(sender=task_id)
 
 
@@ -68,7 +68,7 @@ def scale_app(app, user, structure):
     except Exception as e:
         signals.got_request_exception.send(sender=task_id)
         raise e
-    finally:
+    else:
         signals.request_finished.send(sender=task_id)
 
 
@@ -85,5 +85,5 @@ def restart_app(app, **kwargs):
     except Exception as e:
         signals.got_request_exception.send(sender=task_id)
         raise e
-    finally:
+    else:
         signals.request_finished.send(sender=task_id)

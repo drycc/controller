@@ -10,6 +10,7 @@ from api.settings.production import *  # noqa
 app.conf.update(task_always_eager=True)
 signals.request_started.send = lambda sender, **named: []
 signals.request_finished.send = lambda sender, **named: []
+signals.got_request_exception.send = lambda sender, **named: []
 
 # A boolean that turns on/off debug mode.
 # https://docs.djangoproject.com/en/1.11/ref/settings/#debug

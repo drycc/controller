@@ -144,12 +144,20 @@ app_urlpatterns = [
         views.UserView.as_view({'patch': 'enable'})),
     url(r'^users/(?P<username>[\w.@+-]+)/disable/?$',
         views.UserView.as_view({'patch': 'disable'})),
-    url(r'^apps/(?P<id>{})/metrics/(?P<container_type>[a-z0-9]+(\-[a-z0-9]+)*)/?$'.format(settings.APP_URL_REGEX),  # noqa
+    url(r'^apps/(?P<id>{})/metrics/(?P<container_type>[a-z0-9]+(\-[a-z0-9]+)*)/?$'.format(
+        settings.APP_URL_REGEX),
         views.MetricView.as_view({'get': 'status'})),
+    url(r'^manager/(?P<type>[\w.@+-]+)s/(?P<id>{})/block/?$'.format(settings.APP_URL_REGEX),
+        views.WorkflowManagerViewset.as_view({'post': 'block'})),
+    url(r'^manager/(?P<type>[\w.@+-]+)s/(?P<id>{})/unblock/?$'.format(settings.APP_URL_REGEX),
+        views.WorkflowManagerViewset.as_view({'delete': 'unblock'})),
 ]
 
 webhook_urlpatterns = [
-    url(r'^webhooks/scale/(?P<token>.+)/?$', views.AdmissionWebhook.as_view({'post': 'scale'})),
+    url(
+        r'^webhooks/scale/(?P<token>.+)/?$',
+        views.AdmissionWebhookViewSet.as_view({'post': 'scale'})
+    ),
 ]
 
 # If there is a mutating admission webhook configuration, use webhook url

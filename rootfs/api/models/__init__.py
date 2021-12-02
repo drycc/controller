@@ -140,6 +140,7 @@ class UuidAuditedModel(AuditedModel):
 
 from .app import App, validate_app_id, validate_reserved_names, validate_app_structure  # noqa
 from .appsettings import AppSettings  # noqa
+from .blocklist import Blocklist  # noqa
 from .build import Build  # noqa
 from .certificate import Certificate, validate_certificate  # noqa
 from .config import Config  # noqa
