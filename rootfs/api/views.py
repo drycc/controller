@@ -19,7 +19,7 @@ from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.response import Response
 from rest_framework.viewsets import GenericViewSet
 
-from api import influxdb, models, permissions, serializers, viewsets
+from api import influxdb, models, permissions, serializers, viewsets, authentication
 from api.tasks import scale_app, restart_app
 from api.models import AlreadyExists, ServiceUnavailable, DryccException, \
     UnprocessableEntity
@@ -120,19 +120,19 @@ class UserManagementViewSet(GenericViewSet):
 
 
 class WorkflowManagerViewset(GenericViewSet):
-
     permission_classes = (permissions.IsWorkflowManager, )
+    authentication_classes = (authentication.AnonymousAuthentication, )
 
     def block(self, request,  **kwargs):
         try:
-            blocklist = models.Blocklist(
+            blocklist, _ = models.Blocklist.objects.get_or_create(
                 id=kwargs['id'],
                 type=models.Blocklist.get_type(kwargs["type"]),
-                remark=request.data.get("remark")
+                defaults={"remark": request.data.get("remark")}
             )
-            apps = blocklist.related_apps
-            [scale_app(app, app.owner, {key: 0 for key in app.structure.keys()}) for app in apps]
-            blocklist.save()
+            for app in blocklist.related_apps:
+                scale_app.delay(app, app.owner, {key: 0 for key in app.structure.keys()})
+            return HttpResponse(status=201)
         except ValueError as e:
             logger.info(e)
             raise DryccException("Unsupported block type: %s" % kwargs["type"])
@@ -143,6 +143,7 @@ class WorkflowManagerViewset(GenericViewSet):
                 id=kwargs['id'],
                 type=models.Blocklist.get_type(kwargs["type"])
             ).delete()
+            return HttpResponse(status=204)
         except ValueError as e:
             logger.info(e)
             raise DryccException("Unsupported block type: %s" % kwargs["type"])

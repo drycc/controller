@@ -21,20 +21,8 @@ class AnonymousAuthentication(authentication.BaseAuthentication):
         return AnonymousUser(), None
 
 
-class AnonymousOrAuthenticatedAuthentication(authentication.BaseAuthentication):
-
-    def authenticate(self, request):
-        """
-        Authenticate the request for anyone or if a valid token is provided, a user.
-        """
-        try:
-            return TokenAuthentication.authenticate(TokenAuthentication(), request)
-        except Exception as e:
-            logger.debug(e)
-            return AnonymousUser(), None
-
-
 class DryccAuthentication(TokenAuthentication):
+
     def authenticate(self, request):
         if 'Drycc' in request.META.get('HTTP_USER_AGENT', ''):
             auth = get_authorization_header(request).split()
