@@ -4,6 +4,7 @@ RESTful view classes for presenting Drycc API objects.
 import uuid
 import logging
 import json
+import time
 from copy import deepcopy
 from django.core.cache import cache
 from django.http import Http404, HttpResponse
@@ -892,34 +893,41 @@ class MetricView(BaseDryccViewSet):
         self.check_object_permissions(self.request, app)
         return app
 
+    def _to_timestamp(t):
+        return int(time.mktime(t.timetuple()))
+
     def _get_cpus(self, app_id, container_type, start, stop, every):
-        avg_total, max_total = [], []
-        for record in influxdb.query_memory_usage(app_id, container_type, start, stop, every):
+        avg_list, max_list = [], []
+        for record in influxdb.query_cpu_usage(app_id, container_type, start, stop, every):
             if record["result"] == "mean":
-                avg_total.append((record["_value"], record["timestamp"]))
+                avg_list.append((int(time.mktime(record["_time"].timetuple())), record["_value"]))
             else:
-                max_total.append((record["_value"], record["timestamp"]))
+                max_list.append((int(time.mktime(record["_time"].timetuple())), record["_value"]))
         return {
-            "max_total": max_total,
-            "avg_total": avg_total
+            "max": max_list,
+            "avg": avg_list,
         }
 
     def _get_memory(self, app_id, container_type, start, stop, every):
-        max_total, avg_total = [], []
+        max_list, avg_list = [], []
         for record in influxdb.query_memory_usage(app_id, container_type, start, stop, every):
             if record["result"] == "mean":
-                avg_total.append((record["_value"], record["timestamp"]))
+                avg_list.append((int(time.mktime(record["_time"].timetuple())), record["_value"]))
             else:
-                max_total.append((record["_value"], record["timestamp"]))
+                max_list.append((int(time.mktime(record["_time"].timetuple())), record["_value"]))
         return {
-            "max_total": max_total,
-            "avg_total": avg_total
+            "max": max_list,
+            "avg": avg_list,
         }
 
     def _get_networks(self, app_id, container_type, start, stop, every):
         networks = []
         for record in influxdb.query_network_usage(app_id, container_type, start, stop, every):
-            networks.append((record["rx_bytes"], record["tx_bytes"], record["timestamp"]))
+            networks.append((
+                int(time.mktime(record["_time"].timetuple())),
+                record["rx_bytes"],
+                record["tx_bytes"]
+            ))
         return networks
 
     def _get_container_count(self, app_id, container_type, start, stop):
@@ -931,41 +939,41 @@ class MetricView(BaseDryccViewSet):
     def status(self, request, **kwargs):
         """
         {
-
-            app_id: "django_t1",
-            container_type: "web",
-            container_count: 1
-            cpus: {
-                max_total: [(50000, 1611023853)],
-                avg_total: [(50000, 1611023853)],
-                timestamp: 1611023853
-            },
-            memory: {
-                max_total: [(50000, 1611023853)],
-                avg_total: [(50000, 1611023853)],
-                timestamp: 1611023853
-            },
-            networks: [
-                (10000, 50000, 1611023853)
-            ],
+            "id": "django_t1",
+            "type": "web",
+            "count": 1,
+            "status": {
+                "cpus": {
+                    "max": [(1611023853, 50000)],
+                    "avg": [(1611023853, 50000)]
+                },
+                "memory": {
+                    "max": [(1611023853, 50000)],
+                    "avg": [(1611023853, 50000)],
+                },
+                "networks": [
+                    (1611023853, 10000, 50000)
+                ]
+            }
         }
         """
-        app_id, container_type = self._get_app().id, kwargs['container_type']
-
+        app_id = self._get_app().id
         data = serializers.MetricSerializer(data=self.request.query_params)
         if not data.is_valid():
             return Response(data.errors, status=422)
         start, stop, every = data.validated_data['start'], data.validated_data[
             'stop'], data.validated_data["every"]
         return Response({
-            "app_id": app_id,
-            "container_type": container_type,
-            "container_count": self._get_container_count(
-                app_id, container_type, start, stop),
-            "cpu_usage_list": self._get_cpus(
-                app_id, container_type, start, stop, every),
-            "memory": self._get_memory(
-                app_id, container_type, start, stop, every),
-            "networks": self._get_networks(
-                app_id, container_type, start, stop, every)
+            "id": app_id,
+            "type": kwargs['type'],
+            "count": self._get_container_count(
+                app_id, kwargs['type'], start, stop),
+            "status": {
+                "cpus": self._get_cpus(
+                    app_id, kwargs['type'], start, stop, every),
+                "memory": self._get_memory(
+                    app_id, kwargs['type'], start, stop, every),
+                "networks": self._get_networks(
+                    app_id, kwargs['type'], start, stop, every),
+            }
         })

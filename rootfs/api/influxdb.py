@@ -1,7 +1,6 @@
 import threading
 import logging
 from typing import Iterator
-from contextlib import closing
 from django.conf import settings
 from influxdb_client import InfluxDBClient
 from influxdb_client.client.flux_table import FluxRecord
@@ -22,24 +21,24 @@ def _get_influxdb_client() -> InfluxDBClient:
 
 
 def _query_stream(flux_script: str) -> Iterator[FluxRecord]:
-    with closing(_get_influxdb_client()) as client:
-        try:
-            query_api = client.query_api()
-            records = query_api.query_stream(flux_script)
-        except ApiException as e:
-            logger.exception(e)
-            yield from []
-        except Exception as e:
-            logger.exception(e)
-            yield from []
-        else:
-            yield from records
+    client = _get_influxdb_client()
+    try:
+        query_api = client.query_api()
+        records = query_api.query_stream(flux_script)
+    except ApiException as e:
+        logger.exception(e)
+        yield from []
+    except Exception as e:
+        logger.exception(e)
+        yield from []
+    else:
+        yield from records
 
 
 def query_container_count(
         namespaces: Iterator[str], start: int, stop: int) -> Iterator[FluxRecord]:
     namespace_range = ' or '.join(
-        ['r["namespace"] == \"{namespace}\"' for namespace in namespaces])
+        [f'r["namespace"] == \"{namespace}\"' for namespace in namespaces])
     flux_script = f'''
         from(bucket: "kubernetes")
             |> range(start: {start}, stop: {stop})
@@ -58,7 +57,7 @@ def query_container_count(
 def query_network_flow(
         namespaces: Iterator[str], start: int, stop: int) -> Iterator[FluxRecord]:
     namespace_range = ' or '.join(
-        ['r["namespace"] == \"{namespace}\"' for namespace in namespaces])
+        [f'r["namespace"] == \"{namespace}\"' for namespace in namespaces])
     flux_script = f'''
         from(bucket: "kubernetes")
             |> range(start: {start}, stop: {stop})
