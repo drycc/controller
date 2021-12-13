@@ -33,6 +33,30 @@ class ServiceCatalog(Resource):
             data["spec"]["externalID"] = kwargs.get('external_id')
         return data
 
+    def get_serviceclasses(self, namespace=None):
+        if namespace is None:
+            url = self.api('/clusterserviceclasses')
+            message = 'get clusterserviceclasses'
+        else:
+            url = self.api('/namespaces/{}/serviceclasses', namespace)
+            message = 'get serviceclasses ' + namespace
+        response = self.http_get(url)
+        if self.unhealthy(response.status_code):
+            raise KubeHTTPException(response, message)
+        return response
+
+    def get_serviceplans(self, namespace=None):
+        if namespace is None:
+            url = self.api('/clusterserviceplans')
+            message = 'get clusterserviceplans'
+        else:
+            url = self.api('/namespaces/{}/serviceplans', namespace)
+            message = 'get serviceplans ' + namespace
+        response = self.http_get(url)
+        if self.unhealthy(response.status_code):
+            raise KubeHTTPException(response, message)
+        return response
+
     def get_instance(self, namespace, name=None):
         """
         Fetch a single serviceinstance or a list of serviceinstances

@@ -777,6 +777,23 @@ class AppResourcesViewSet(AppResourceViewSet):
     model = models.Resource
     serializer_class = serializers.ResourceSerializer
 
+    def services(self, request, *args, **kwargs):
+        results = self.model.services
+        # fake out pagination for now
+        pagination = {'results': results, 'count': len(results)}
+        return Response(data=cache.get_or_set(
+            "resources:services", pagination
+        ))
+
+    def plans(self, request, *args, **kwargs):
+        serviceclass_name = kwargs["id"]
+        results = self.model.plans(serviceclass_name)
+        # fake out pagination for now
+        pagination = {'results': results, 'count': len(results)}
+        return Response(data=cache.get_or_set(
+            "resources:services:%s:plan" % serviceclass_name, pagination     
+        ))
+
 
 class AppSingleResourceViewSet(AppResourceViewSet):
     """RESTful views for resource apps with collaborators."""

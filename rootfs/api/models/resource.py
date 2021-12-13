@@ -35,6 +35,37 @@ class Resource(UuidAuditedModel):
         # Save to DB
         return super(Resource, self).save(*args, **kwargs)
 
+    @classmethod
+    @property
+    def services(cls):
+        services = []
+        for serviceclass in cls._scheduler.svcat.get_serviceclasses().json()["items"]:
+            services.append({
+                "id": serviceclass["spec"]["externalID"],
+                "name": serviceclass["spec"]["externalName"],
+                "updateable": serviceclass["spec"]["planUpdatable"],
+            })
+        return services
+
+    @classmethod
+    def plans(cls, serviceclass_name):
+        serviceclass_id = None
+        for service in cls.services:
+            if service["name"] == serviceclass_name:
+                serviceclass_id = service["id"]
+                break
+    
+        plans = []
+        if serviceclass_id is not None:
+            for serviceplan in cls._scheduler.svcat.get_serviceplans().json()["items"]:
+                if serviceplan["spec"]["clusterServiceClassRef"]["name"] == serviceclass_id:
+                    plans.append({
+                        "id": serviceplan["spec"]["externalID"],
+                        "name": serviceplan["spec"]["externalName"],
+                        "description": serviceplan["spec"]["description"],
+                    })
+        return plans
+
     def attach(self, *args, **kwargs):
         try:
             self._scheduler.svcat.get_instance(self.app.id, self.name)

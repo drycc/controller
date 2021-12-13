@@ -68,9 +68,9 @@ rules:
   resources: ["persistentvolumeclaims"]
   verbs: ["get", "list", "watch", "create", "delete", "patch", "update"]
 - apiGroups: ["servicecatalog.k8s.io"]
-  resources: ["serviceinstances"]
-  verbs: ["get", "list", "watch", "create", "delete", "patch", "update"]
+  resources: ["clusterserviceclasses", "serviceclasses", "clusterserviceplans", "serviceplans"]
+  verbs: ["get", "list", "watch"]
 - apiGroups: ["servicecatalog.k8s.io"]
-  resources: ["servicebindings"]
+  resources: ["serviceinstances", "servicebindings"]
   verbs: ["get", "list", "watch", "create", "delete", "patch", "update"]
 {{- end -}}
