@@ -5,7 +5,7 @@ Run the tests with "./manage.py test api"
 """
 from unittest import mock
 
-from django.contrib.auth.models import User
+from django.contrib.auth import get_user_model
 from django.core.cache import cache
 from django.conf import settings
 from rest_framework.authtoken.models import Token
@@ -14,6 +14,8 @@ from api.models import Domain
 from api.tests import DryccTestCase
 
 import idna
+
+User = get_user_model()
 
 
 class DomainTest(DryccTestCase):

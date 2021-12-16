@@ -1,10 +1,12 @@
-from django.contrib.auth.models import User
+from django.contrib.auth import get_user_model
 from django.core.cache import cache
 from rest_framework.authtoken.models import Token
 from django.core.exceptions import SuspiciousOperation
 
 from api.models import Certificate
 from api.tests import TEST_ROOT, DryccTestCase
+
+User = get_user_model()
 
 
 class CertificateTest(DryccTestCase):

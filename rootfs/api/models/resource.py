@@ -54,7 +54,6 @@ class Resource(UuidAuditedModel):
             if service["name"] == serviceclass_name:
                 serviceclass_id = service["id"]
                 break
-    
         plans = []
         if serviceclass_id is not None:
             for serviceplan in cls._scheduler.svcat.get_serviceplans().json()["items"]:

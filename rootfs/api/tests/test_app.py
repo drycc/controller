@@ -11,7 +11,7 @@ import random
 import requests
 
 from django.conf import settings
-from django.contrib.auth.models import User
+from django.contrib.auth import get_user_model
 from django.core.cache import cache
 from django.test.utils import override_settings
 from rest_framework.authtoken.models import Token
@@ -22,6 +22,8 @@ from scheduler import KubeException, KubeHTTPException
 from api.exceptions import DryccException
 from api.tests import adapter, DryccTestCase
 import requests_mock
+
+User = get_user_model()
 
 
 def mock_none(*args, **kwargs):

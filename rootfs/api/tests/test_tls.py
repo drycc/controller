@@ -1,11 +1,13 @@
 import requests_mock
 
 from django.core.cache import cache
-from django.contrib.auth.models import User
+from django.contrib.auth import get_user_model
 from rest_framework.authtoken.models import Token
 
 from api.models import App
 from api.tests import adapter, DryccTransactionTestCase
+
+User = get_user_model()
 
 
 @requests_mock.Mocker(real_http=True, adapter=adapter)

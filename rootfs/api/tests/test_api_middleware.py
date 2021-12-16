@@ -4,11 +4,13 @@ Unit tests for the Drycc api app.
 Run the tests with "./manage.py test api"
 """
 
-from django.contrib.auth.models import User
+from django.contrib.auth import get_user_model
 from rest_framework.authtoken.models import Token
 from api.tests import DryccTestCase
 
 from api import __version__
+
+User = get_user_model()
 
 
 class APIMiddlewareTest(DryccTestCase):

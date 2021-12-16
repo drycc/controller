@@ -6,7 +6,7 @@ Run the tests with "./manage.py test api"
 """
 import json
 
-from django.contrib.auth.models import User
+from django.contrib.auth import get_user_model
 from django.core.cache import cache
 from django.conf import settings
 from unittest import mock
@@ -16,6 +16,8 @@ from api.models import App, Config
 
 from api.tests import adapter, DryccTransactionTestCase
 import requests_mock
+
+User = get_user_model()
 
 
 @requests_mock.Mocker(real_http=True, adapter=adapter)

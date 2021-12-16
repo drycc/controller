@@ -12,7 +12,7 @@ import ipaddress
 from urllib.parse import urlparse
 
 from django.conf import settings
-from django.contrib.auth.models import User
+from django.contrib.auth import get_user_model
 from django.utils import timezone
 from rest_framework import serializers
 
@@ -23,6 +23,7 @@ from api import models
 from api.exceptions import DryccException
 
 
+User = get_user_model()
 logger = logging.getLogger(__name__)
 
 PROCTYPE_MATCH = re.compile(r'^(?P<type>[a-z0-9]+(\-[a-z0-9]+)*)$')

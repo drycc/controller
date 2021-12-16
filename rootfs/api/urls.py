@@ -88,9 +88,8 @@ app_urlpatterns = [
     url(r"^apps/(?P<id>{})/volumes/(?P<name>[-_\w]+)/path/?$".format(settings.APP_URL_REGEX),
         views.AppVolumeMountPathViewSet.as_view({'patch': 'path'})),
     # application resources
-    url(r"^resources/services/?$".format(settings.APP_URL_REGEX),
-        views.AppResourcesViewSet.as_view({'get': 'services'})),
-    url(r"^resources/services/(?P<id>[-_\w]+)/plans/?$".format(settings.APP_URL_REGEX),
+    url(r"^resources/services/?$", views.AppResourcesViewSet.as_view({'get': 'services'})),
+    url(r"^resources/services/(?P<id>[-_\w]+)/plans/?$",
         views.AppResourcesViewSet.as_view({'get': 'plans'})),
     url(r"^apps/(?P<id>{})/resources/?$".format(settings.APP_URL_REGEX),
         views.AppResourcesViewSet.as_view({'get': 'list', 'post': 'create'})),

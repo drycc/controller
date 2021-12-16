@@ -2,12 +2,14 @@ import json
 import requests_mock
 
 from django.core.cache import cache
-from django.contrib.auth.models import User
+from django.contrib.auth import get_user_model
 from rest_framework.authtoken.models import Token
 
 from api.serializers import MEMLIMIT_MATCH
 from api.serializers import CPUSHARE_MATCH
 from api.tests import adapter, DryccTransactionTestCase
+
+User = get_user_model()
 
 
 @requests_mock.Mocker(real_http=True, adapter=adapter)

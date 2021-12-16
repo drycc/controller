@@ -9,7 +9,7 @@ from copy import deepcopy
 from django.core.cache import cache
 from django.http import Http404, HttpResponse
 from django.conf import settings
-from django.contrib.auth.models import User
+from django.contrib.auth import get_user_model
 from django.shortcuts import get_object_or_404, redirect
 from guardian.shortcuts import assign_perm, get_objects_for_user, \
     get_users_with_perms, remove_perm
@@ -33,6 +33,7 @@ from social_django.views import _do_login
 from social_core.utils import setting_name
 from api.apps_extra.social_core.actions import do_auth, do_complete
 
+User = get_user_model()
 logger = logging.getLogger(__name__)
 NAMESPACE = getattr(settings, setting_name('URL_NAMESPACE'), None) or 'social'
 
@@ -791,7 +792,7 @@ class AppResourcesViewSet(AppResourceViewSet):
         # fake out pagination for now
         pagination = {'results': results, 'count': len(results)}
         return Response(data=cache.get_or_set(
-            "resources:services:%s:plan" % serviceclass_name, pagination     
+            "resources:services:%s:plan" % serviceclass_name, pagination
         ))
 
 

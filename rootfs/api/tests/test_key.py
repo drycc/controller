@@ -4,13 +4,15 @@ Unit tests for the Drycc api app.
 
 Run the tests with "./manage.py test api"
 """
-from django.contrib.auth.models import User
+from django.contrib.auth import get_user_model
 from django.core.cache import cache
 from rest_framework.authtoken.models import Token
 
 from api.models import Key
 from api.utils import fingerprint
 from api.tests import DryccTestCase
+
+User = get_user_model()
 
 
 RSA_PUBKEY = (
