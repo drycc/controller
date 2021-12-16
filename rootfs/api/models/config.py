@@ -2,11 +2,12 @@ import json
 import logging
 from django.conf import settings
 from django.db import models
+from django.contrib.auth import get_user_model
 from api.models.release import Release
 from api.models import UuidAuditedModel
 from api.exceptions import DryccException, UnprocessableEntity
 
-
+User = get_user_model()
 logger = logging.getLogger(__name__)
 
 
@@ -16,7 +17,7 @@ class Config(UuidAuditedModel):
     during runtime execution of the Application.
     """
 
-    owner = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT)
+    owner = models.ForeignKey(User, on_delete=models.PROTECT)
     app = models.ForeignKey('App', on_delete=models.CASCADE)
     values = models.JSONField(default=dict, blank=True)
     memory = models.JSONField(default=dict, blank=True)

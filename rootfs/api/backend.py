@@ -8,6 +8,8 @@ from social_core.backends.open_id_connect import OpenIdConnectAuth
 from api import serializers
 from api.oauth import OAuthManager
 
+User = get_user_model()
+
 
 class DryccOauthBackend(object):
 
@@ -29,7 +31,7 @@ class DryccOauthBackend(object):
     def get_user(self, user_id):
         user = None
         try:
-            user = get_user_model().objects.get(pk=user_id)
+            user = User.objects.get(pk=user_id)
         except ObjectDoesNotExist:
             pass
         return user

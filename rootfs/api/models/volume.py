@@ -1,17 +1,18 @@
 import logging
 from django.db import models, transaction
 from django.conf import settings
+from django.contrib.auth import get_user_model
 from api.utils import unit_to_bytes
 from api.exceptions import DryccException, ServiceUnavailable, AlreadyExists
 from api.models import UuidAuditedModel, validate_label
 from scheduler import KubeException
 
+User = get_user_model()
 logger = logging.getLogger(__name__)
 
 
 class Volume(UuidAuditedModel):
-    owner = models.ForeignKey(settings.AUTH_USER_MODEL,
-                              on_delete=models.PROTECT)
+    owner = models.ForeignKey(User, on_delete=models.PROTECT)
     app = models.ForeignKey('App', on_delete=models.CASCADE)
     name = models.CharField(max_length=63, validators=[validate_label])
     size = models.CharField(max_length=128)

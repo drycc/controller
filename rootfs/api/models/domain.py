@@ -1,12 +1,13 @@
 from django.db import models
-from django.conf import settings
 from django.db import transaction
-
+from django.contrib.auth import get_user_model
 from api.models import AuditedModel
+
+User = get_user_model()
 
 
 class Domain(AuditedModel):
-    owner = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT)
+    owner = models.ForeignKey(User, on_delete=models.PROTECT)
     app = models.ForeignKey('App', on_delete=models.CASCADE)
     domain = models.TextField(
         blank=False, null=False, unique=True,

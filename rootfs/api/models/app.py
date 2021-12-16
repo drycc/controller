@@ -17,6 +17,7 @@ from urllib.parse import urljoin
 
 from django.conf import settings
 from django.db import models
+from django.contrib.auth import get_user_model
 from rest_framework.exceptions import ValidationError, NotFound
 
 from api.models import get_session
@@ -30,6 +31,7 @@ from api.models.volume import Volume
 from api.utils import generate_app_name, apply_tasks, unit_to_bytes, unit_to_millicpu
 from scheduler import KubeHTTPException, KubeException
 
+User = get_user_model()
 logger = logging.getLogger(__name__)
 
 
@@ -64,7 +66,7 @@ class App(UuidAuditedModel):
     Application used to service requests on behalf of end-users
     """
 
-    owner = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT)
+    owner = models.ForeignKey(User, on_delete=models.PROTECT)
     id = models.SlugField(max_length=63, unique=True, null=True,
                           validators=[validate_app_id,
                                       validate_reserved_names])

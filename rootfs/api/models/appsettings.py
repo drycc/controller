@@ -1,13 +1,15 @@
 import logging
-from django.conf import settings
 from django.db import models
 from django.db import transaction
+
 from django.contrib.postgres.fields import ArrayField
 from rest_framework.exceptions import NotFound
-
+from django.contrib.auth import get_user_model
 from api.utils import dict_diff
 from api.models import UuidAuditedModel
 from api.exceptions import DryccException, AlreadyExists, UnprocessableEntity
+
+User = get_user_model()
 
 
 class AppSettings(UuidAuditedModel):
@@ -15,7 +17,7 @@ class AppSettings(UuidAuditedModel):
     Instance of Application settings used by scheduler
     """
 
-    owner = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT)
+    owner = models.ForeignKey(User, on_delete=models.PROTECT)
     app = models.ForeignKey('App', on_delete=models.CASCADE)
     routable = models.BooleanField(null=True)
     # the default values is None to differentiate from user sending an empty allowlist

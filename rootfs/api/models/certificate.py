@@ -1,3 +1,4 @@
+import logging
 from OpenSSL import crypto
 from pyasn1.codec.der import decoder as der_decoder
 from pyasn1.type import univ, constraint
@@ -8,17 +9,15 @@ from pytz import utc
 
 from django.shortcuts import get_object_or_404
 from django.db import models
-from django.conf import settings
 from django.core.exceptions import SuspiciousOperation
 from django.contrib.postgres.fields import ArrayField
+from django.contrib.auth import get_user_model
 from rest_framework.exceptions import ValidationError
-
 from api.models import AuditedModel, validate_label, AlreadyExists, ServiceUnavailable
 from api.models.domain import Domain
-
 from scheduler import KubeException
 
-import logging
+User = get_user_model()
 logger = logging.getLogger(__name__)
 
 
@@ -82,7 +81,7 @@ class Certificate(AuditedModel):
     """
     Public and private key pair used to secure application traffic at the router.
     """
-    owner = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT)
+    owner = models.ForeignKey(User, on_delete=models.PROTECT)
     name = models.CharField(max_length=253, unique=True, validators=[validate_label])
     # there is no upper limit on the size of an x.509 certificate
     certificate = models.TextField(validators=[validate_certificate])

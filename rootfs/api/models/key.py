@@ -1,11 +1,11 @@
 import base64
-
-from django.conf import settings
 from django.db import models
 from rest_framework.exceptions import ValidationError
-
+from django.contrib.auth import get_user_model
 from api.models import UuidAuditedModel
 from api.utils import fingerprint
+
+User = get_user_model()
 
 
 def validate_base64(value):
@@ -19,7 +19,7 @@ def validate_base64(value):
 class Key(UuidAuditedModel):
     """An SSH public key."""
 
-    owner = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
+    owner = models.ForeignKey(User, on_delete=models.CASCADE)
     id = models.CharField(max_length=128, unique=True)
     public = models.TextField(
         unique=True, validators=[validate_base64],

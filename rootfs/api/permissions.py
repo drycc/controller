@@ -2,24 +2,37 @@ import base64
 from rest_framework import permissions
 from django.conf import settings
 from django.contrib.auth.models import AnonymousUser
+from api import manager
 from api.models import Blocklist, App
+
+
+def get_app_status(app):
+    blocklist = Blocklist.get_blocklist(app)
+    if blocklist:
+        return False, blocklist.remark
+    if settings.WORKFLOW_MANAGER_URL is not None:
+        status = manager.User().get_status(app.owner)
+        if not status["is_active"]:
+            return False, status["message"]
+    return True, None
 
 
 def has_app_permission(request, obj):
     if isinstance(obj, App) or hasattr(obj, 'app'):
         app = obj if isinstance(obj, App) else obj.app
-        blocklist = Blocklist.get_blocklist(app)
-        if blocklist:
-            return False, blocklist.remark
-        if request.user.is_superuser:
-            return True, None
-        elif app.owner == request.user:
-            return True, None
-        elif request.user.is_staff or request.user.has_perm('use_app', app):
-            if request.method != 'DELETE':
+        is_ok, message = get_app_status(app)
+        if is_ok:
+            if request.user.is_superuser:
                 return True, None
-            else:
-                return False, "User does not have permission to delete"
+            elif app.owner == request.user:
+                return True, None
+            elif request.user.is_staff or request.user.has_perm('use_app', app):
+                if request.method != 'DELETE':
+                    return True, None
+                else:
+                    return False, "User does not have permission to delete"
+        else:
+            return is_ok, message
     return False, "App object does not exist or does not have permission."
 
 

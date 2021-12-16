@@ -19,6 +19,7 @@ from django.db import models
 from django.db.models.signals import post_delete, post_save
 from django.utils.timezone import now
 from django.dispatch import receiver
+from django.contrib.auth import get_user_model
 from rest_framework.exceptions import ValidationError
 from rest_framework.authtoken.models import Token
 from requests_toolbelt import user_agent
@@ -26,6 +27,7 @@ from scheduler.exceptions import KubeException
 from .. import __version__ as drycc_version
 from ..exceptions import DryccException, AlreadyExists, ServiceUnavailable, UnprocessableEntity  # noqa
 
+User = get_user_model()
 logger = logging.getLogger(__name__)
 session = None
 
@@ -255,7 +257,7 @@ post_delete.connect(_log_instance_removed, sender=Resource, dispatch_uid='api.mo
 
 
 # automatically generate a new token on creation
-@receiver(post_save, sender=settings.AUTH_USER_MODEL)
+@receiver(post_save, sender=User)
 def create_auth_token_handle(sender, instance=None, created=False, **kwargs):
     if created:
         Token.objects.create(user=instance)

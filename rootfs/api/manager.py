@@ -53,7 +53,7 @@ class User(ManagerAPI):
     def get_status(self, username):
         """
         {
-            "is_active": false,
+            "is_active": False,
             "message": "The user is in arrears"
         }
         """

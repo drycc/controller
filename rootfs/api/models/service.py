@@ -1,16 +1,16 @@
 import logging
 
 from django.db import models
-from django.conf import settings
-
+from django.contrib.auth import get_user_model
 from api.models import AuditedModel, ServiceUnavailable
 from scheduler import KubeException
 
+User = get_user_model()
 logger = logging.getLogger(__name__)
 
 
 class Service(AuditedModel):
-    owner = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT)
+    owner = models.ForeignKey(User, on_delete=models.PROTECT)
     app = models.ForeignKey('App', on_delete=models.CASCADE)
     procfile_type = models.TextField(blank=False, null=False, unique=False)
     path_pattern = models.TextField(blank=False, null=False, unique=False)

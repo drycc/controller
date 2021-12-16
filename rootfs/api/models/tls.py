@@ -1,13 +1,14 @@
 from django.db import models
-from django.conf import settings
 from django.db import transaction
-
+from django.contrib.auth import get_user_model
 from api.exceptions import AlreadyExists
 from api.models import UuidAuditedModel
 
+User = get_user_model()
+
 
 class TLS(UuidAuditedModel):
-    owner = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT)
+    owner = models.ForeignKey(User, on_delete=models.PROTECT)
     app = models.ForeignKey('App', on_delete=models.CASCADE)
     https_enforced = models.BooleanField(null=True)
     certs_auto_enabled = models.BooleanField(null=True)
