@@ -14,7 +14,7 @@ from django.shortcuts import get_object_or_404, redirect
 from guardian.shortcuts import assign_perm, get_objects_for_user, \
     get_users_with_perms, remove_perm
 from django.views.generic import View
-from rest_framework import renderers, status
+from rest_framework import renderers, status, filters
 from rest_framework.exceptions import PermissionDenied, NotFound
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.response import Response
@@ -221,6 +221,8 @@ class ReleasableViewSet(AppResourceViewSet):
 class AppViewSet(BaseDryccViewSet):
     """A viewset for interacting with App objects."""
     model = models.App
+    filter_backends = [filters.SearchFilter]
+    search_fields = ['^id', ]
     serializer_class = serializers.AppSerializer
 
     def get_queryset(self, *args, **kwargs):
