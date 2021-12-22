@@ -97,7 +97,6 @@ class TestAppSettings(DryccTransactionTestCase):
         self.assertEqual(set(response.data['addresses']),
                          set(app.appsettings_set.latest().allowlist), response.data)
         self.assertEqual(set(response.data['addresses']), set(addresses), response.data)
-
         # add exisitng addresses to allowlist
         response = self.client.post(
             '/v2/apps/{app_id}/allowlist'.format(**locals()),
@@ -109,6 +108,7 @@ class TestAppSettings(DryccTransactionTestCase):
             '/v2/apps/{app_id}/allowlist'.format(**locals()),
             allowlist)
         self.assertEqual(response.status_code, 422)
+
         # pass invalid address
         allowlist = {'addresses': ["2.3.4.6.7"]}
         response = self.client.post(

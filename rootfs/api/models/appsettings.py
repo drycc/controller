@@ -2,7 +2,6 @@ import logging
 from django.db import models
 from django.db import transaction
 
-from django.contrib.postgres.fields import ArrayField
 from rest_framework.exceptions import NotFound
 from django.contrib.auth import get_user_model
 from api.utils import dict_diff
@@ -22,7 +21,7 @@ class AppSettings(UuidAuditedModel):
     routable = models.BooleanField(null=True)
     # the default values is None to differentiate from user sending an empty allowlist
     # and user just updating other fields meaning the values needs to be copied from prev release
-    allowlist = ArrayField(models.CharField(max_length=50), default=None)
+    allowlist = models.JSONField(default=None, null=True)
     autoscale = models.JSONField(default=dict, blank=True)
     label = models.JSONField(default=dict, blank=True)
 

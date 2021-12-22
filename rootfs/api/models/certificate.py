@@ -10,7 +10,6 @@ from pytz import utc
 from django.shortcuts import get_object_or_404
 from django.db import models
 from django.core.exceptions import SuspiciousOperation
-from django.contrib.postgres.fields import ArrayField
 from django.contrib.auth import get_user_model
 from rest_framework.exceptions import ValidationError
 from api.models import AuditedModel, validate_label, AlreadyExists, ServiceUnavailable
@@ -89,7 +88,7 @@ class Certificate(AuditedModel):
     # X.509 certificates allow any string of information as the common name.
     common_name = models.TextField(editable=False, unique=False, null=True)
     # A list of DNS records if certificate has SubjectAltName
-    san = ArrayField(models.CharField(max_length=253), null=True)
+    san = models.JSONField(default=None, null=True)
     # SHA256 fingerprint
     fingerprint = models.CharField(max_length=96, editable=False)
     # Expires and Start time of cert
