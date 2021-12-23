@@ -1,7 +1,7 @@
 """
 Classes to serialize the RESTful representation of Drycc API models.
 """
-
+import time
 import json
 import logging
 import jmespath
@@ -35,6 +35,7 @@ CONFIGKEY_MATCH = re.compile(r'^[a-z_]+[a-z0-9_]*$', re.IGNORECASE)
 TERMINATION_GRACE_PERIOD_MATCH = re.compile(r'^[0-9]*$')
 VOLUME_SIZE_MATCH = re.compile(r'^(?P<volume>([1-9][0-9]*[mgMG]))$', re.IGNORECASE)
 VOLUME_PATH = re.compile(r'^\/(\w+\/?)+$', re.IGNORECASE)
+METRIC_EVERY = re.compile(r'^[1-9][0-9]*m$')
 
 PROBE_SCHEMA = {
     "$schema": "http://json-schema.org/schema#",
@@ -742,10 +743,27 @@ class ResourceSerializer(serializers.ModelSerializer):
 
 
 class MetricSerializer(serializers.Serializer):
-    import time
-    now = int(time.time())
-    default_start = (now - now % 3600) - 3600
-    default_stop = now - now % 3600
-    start = serializers.IntegerField(min_value=946656000, max_value=4102416000, required=False, default=default_start)  # noqa
-    stop = serializers.IntegerField(min_value=946656000, max_value=4102416000, required=False, default=default_stop)  # noqa
-    every = serializers.CharField(max_length=50, required=False, default='5m')  # noqa
+    start = serializers.IntegerField(
+        min_value=946656000, max_value=lambda: time.time(),
+        required=False, default=lambda: int(time.time() - 3600))
+    stop = serializers.IntegerField(
+        min_value=946656000, max_value=4102416000,
+        required=False, default=lambda: int(time.time()))
+    every = serializers.CharField(max_length=50, required=False, default='5m')
+
+    def validate(self, attrs):
+        if not re.match(METRIC_EVERY, attrs["every"]):
+            raise serializers.ValidationError(
+                "The format of every is:%s" % METRIC_EVERY.pattern
+            )
+        interval = attrs.get("stop") - attrs.get("start")
+        if interval < 0 or interval > 3600 * 24:
+            raise serializers.ValidationError(
+                'The start and stop intervals must be within 24 hour.'
+            )
+        quantity = interval / (int(attrs["every"][:-1]) * 60)
+        if quantity > 100:
+            raise serializers.ValidationError(
+                'The amount of data requested is too large.'
+            )
+        return attrs
