@@ -14,11 +14,6 @@ extra = getattr(settings, setting_name('TRAILING_SLASH'), True) and '/' or ''
 # Add the generated REST URLs and login/logout endpoint
 app_urlpatterns = [
     url(r'^', include(router.urls)),
-    url(r'^login/(?P<backend>[^/]+){0}$'.format(extra), views.auth,
-        name='begin'),
-    url(r'^complete/(?P<backend>[^/]+){0}$'.format(extra), views.complete,
-        name='complete'),
-    url('', include('social_django.urls', namespace='social')),
     url(r'auth/login/?$', views.AuthLoginView.as_view({"post": "login"})),
     url(r'auth/token/(?P<key>[-_\w]+)/?$', views.AuthTokenView.as_view({"get": "token"})),
     # application release components
@@ -154,6 +149,12 @@ app_urlpatterns = [
         views.WorkflowManagerViewset.as_view({'post': 'block'})),
     url(r'^manager/(?P<type>[\w.@+-]+)s/(?P<id>{})/unblock/?$'.format(settings.APP_URL_REGEX),
         views.WorkflowManagerViewset.as_view({'delete': 'unblock'})),
+    # social login is placed at the end of the URL match
+    url(r'^login/(?P<backend>[^/]+){0}$'.format(extra), views.auth,
+        name='begin'),
+    url(r'^complete/(?P<backend>[^/]+){0}$'.format(extra), views.complete,
+        name='complete'),
+    url('', include('social_django.urls', namespace='social')),
 ]
 
 webhook_urlpatterns = [
