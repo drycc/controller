@@ -50,14 +50,14 @@ class ManagerAPI(object):
 
 class User(ManagerAPI):
 
-    def get_status(self, username):
+    def get_status(self, id):
         """
         {
             "is_active": False,
             "message": "The user is in arrears"
         }
         """
-        url = f"{settings.WORKFLOW_MANAGER_URL}/users/{username}/status/"
+        url = f"{settings.WORKFLOW_MANAGER_URL}/users/{id}/status/"
         return self.get(url=url).json()
 
 

@@ -11,7 +11,7 @@ def get_app_status(app):
     if blocklist:
         return False, blocklist.remark
     if settings.WORKFLOW_MANAGER_URL is not None:
-        status = manager.User().get_status(app.owner)
+        status = manager.User().get_status(app.owner.pk)
         if not status["is_active"]:
             return False, status["message"]
     return True, None
