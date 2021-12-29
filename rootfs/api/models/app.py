@@ -1214,8 +1214,8 @@ class App(UuidAuditedModel):
                 "app_id": self.id,
                 "user_id": self.owner_id,
                 "name": container_type,
-                "type": "CPU",
-                "unit": "MILLI",
+                "type": "cpu",
+                "unit": "milli",
                 "usage": unit_to_millicpu(config.cpu.get(container_type)) * scale,
                 "timestamp": "%f" % timestamp
             })
@@ -1223,8 +1223,8 @@ class App(UuidAuditedModel):
                 "app_id": self.app_id,
                 "user_id": self.owner_id,
                 "name": container_type,
-                "type": "MEMORY",
-                "unit": "BYTES",
+                "type": "memory",
+                "unit": "bytes",
                 "usage": unit_to_bytes(config.memory.get(container_type)) * scale,
                 "timestamp": "%f" % timestamp
             })

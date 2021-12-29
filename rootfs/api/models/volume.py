@@ -97,8 +97,8 @@ class Volume(UuidAuditedModel):
             "app_id": str(self.app_id),
             "user_id": str(self.owner_id),
             "name": self.name,
-            "type": "VOLUME",
-            "unit": "BYTES",
+            "type": "volume",
+            "unit": "bytes",
             "usage": unit_to_bytes(self.size),
             "timestamp": "%f" % timestamp
         }]

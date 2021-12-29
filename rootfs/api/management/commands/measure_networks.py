@@ -25,8 +25,8 @@ class Command(BaseCommand):
                 "app_id":  app_id,
                 "owner_id": owner_id,
                 "name": record["pod_name"],
-                "type": "NETWORK",
-                "unit": "BYTES",
+                "type": "network",
+                "unit": "bytes",
                 "usage": record["rx_bytes"] + record["tx_bytes"],
                 "timestamp": "%d" % start
             })
