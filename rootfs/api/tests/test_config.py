@@ -195,7 +195,7 @@ class ConfigTest(DryccTransactionTestCase):
             'owner': self.user.username,
             'app': app_id,
             'values': {'PORT': '5000'},
-            'memory': {},
+            'memory': {'web': '1G'},
             'cpu': {'web': "1000m"},
             'tags': {},
             'registry': {}

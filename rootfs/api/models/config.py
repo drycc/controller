@@ -1,8 +1,11 @@
 import json
+import math
 import logging
+from decimal import Decimal
 from django.conf import settings
 from django.db import models
 from django.contrib.auth import get_user_model
+from api.utils import unit_to_bytes, unit_to_millicpu
 from api.models.release import Release
 from api.models import UuidAuditedModel
 from api.exceptions import DryccException, UnprocessableEntity
@@ -83,6 +86,55 @@ class Config(UuidAuditedModel):
            'readinessProbe' in self.healthcheck.keys()):
             return {'web/cmd': self.healthcheck}
         return self.healthcheck
+
+    def _set_cpu_memory(self):
+        """
+        According to settings.KUBERNETES_CPU_MEMORY_RATIO corrects cpu and memory
+        """
+        radio = settings.KUBERNETES_CPU_MEMORY_RATIO
+        limit_min_cpu = settings.KUBERNETES_LIMITS_MIN_CPU
+        limit_max_cpu = settings.KUBERNETES_LIMITS_MAX_CPU
+        limit_min_memory = Decimal(settings.KUBERNETES_LIMITS_MIN_MEMORY * math.pow(1024, 2))
+        limit_max_memory = Decimal(settings.KUBERNETES_LIMITS_MAX_MEMORY * math.pow(1024, 2))
+        memory_cpu_min_radio = Decimal(unit_to_bytes(radio[0])) / Decimal(unit_to_millicpu('1'))
+        memory_cpu_max_radio = Decimal(unit_to_bytes(radio[1])) / Decimal(unit_to_millicpu('1'))
+        cpu_memory_min_radio = Decimal(unit_to_millicpu('1')) / Decimal(unit_to_bytes(radio[1]))
+        cpu_memory_max_radio = Decimal(unit_to_millicpu('1')) / Decimal(unit_to_bytes(radio[0]))
+        for container_type in set(
+                self.app.structure.keys()).union(set(self.cpu)).union(set(self.memory)):
+            if container_type in self.cpu:
+                cpu = unit_to_millicpu(self.cpu[container_type])
+                min_memory = cpu * memory_cpu_min_radio
+                min_memory = limit_min_memory if min_memory < limit_min_memory else min_memory
+                max_memory = cpu * memory_cpu_max_radio
+                max_memory = limit_max_memory if max_memory > limit_max_memory else max_memory
+                if self.memory.get(container_type):
+                    memory = unit_to_bytes(self.memory.get(container_type))
+                    if memory < min_memory:
+                        memory = min_memory
+                    elif memory > max_memory:
+                        memory = max_memory
+                else:
+                    memory = min_memory
+                if memory % Decimal(math.pow(1024, 3)) == 0:
+                    self.memory[container_type] = f'{round(memory / Decimal(math.pow(1024, 3)))}G'
+                else:
+                    self.memory[container_type] = f'{round(memory / Decimal(math.pow(1024, 2)))}M'
+            elif container_type in self.memory:
+                memory = Decimal(unit_to_bytes(self.memory[container_type]))
+                if container_type not in self.cpu:
+                    min_cpu = memory * cpu_memory_min_radio
+                    min_cpu = limit_min_cpu if min_cpu < limit_min_cpu else min_cpu
+                    max_cpu = memory * cpu_memory_max_radio
+                    max_cpu = limit_max_cpu if max_cpu > limit_max_cpu else max_cpu
+                    cpu = max_cpu if min_cpu < 1000 else min_cpu
+                    if cpu % 1000 == 0:
+                        self.cpu[container_type] = f'{round(cpu / 1000)}'
+                    else:
+                        self.cpu[container_type] = f'{round(cpu)}m'
+            else:
+                self.cpu[container_type] = f"{settings.KUBERNETES_LIMITS_MIN_CPU}m"
+                self.memory[container_type] = f"{settings.KUBERNETES_LIMITS_MIN_MEMORY}M"
 
     def set_registry(self):
         # lower case all registry options for consistency
@@ -185,6 +237,7 @@ class Config(UuidAuditedModel):
                     else:
                         data[key] = value
                 setattr(self, attr, data)
+            self._set_cpu_memory()
             self.set_healthcheck(previous_config)
             self._migrate_legacy_healthcheck()
             self.set_registry()

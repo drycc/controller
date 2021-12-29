@@ -104,7 +104,7 @@ class TestLimits(DryccTransactionTestCase):
         self.assertNotEqual(limit1['uuid'], limit2['uuid'])
         memory = response.data['memory']
         self.assertIn('worker', memory)
-        self.assertEqual(memory['worker'], '512M')
+        self.assertEqual(memory['worker'], '2G')
         self.assertIn('web', memory)
         self.assertEqual(memory['web'], '1G')
         cpu = response.data['cpu']
@@ -120,7 +120,7 @@ class TestLimits(DryccTransactionTestCase):
         self.assertEqual(limit2, limit3)
         memory = response.data['memory']
         self.assertIn('worker', memory)
-        self.assertEqual(memory['worker'], '512M')
+        self.assertEqual(memory['worker'], '2G')
         self.assertIn('web', memory)
         self.assertEqual(memory['web'], '1G')
         cpu = response.data['cpu']
@@ -141,7 +141,7 @@ class TestLimits(DryccTransactionTestCase):
         self.assertEqual(response.status_code, 200, response.data)
         memory = response.data['memory']
         self.assertIn('worker', memory)
-        self.assertEqual(memory['worker'], '512M')
+        self.assertEqual(memory['worker'], '2G')
         self.assertIn('web', memory)
         self.assertEqual(memory['web'], '1G')
         cpu = response.data['cpu']
@@ -160,7 +160,7 @@ class TestLimits(DryccTransactionTestCase):
         self.assertEqual(response.status_code, 200, response.data)
         memory = response.data['memory']
         self.assertIn('worker', memory)
-        self.assertEqual(memory['worker'], '512M')
+        self.assertEqual(memory['worker'], '2G')
         self.assertIn('web', memory)
         self.assertEqual(memory['web'], '1G')
         self.assertIn('db', memory)
@@ -183,7 +183,7 @@ class TestLimits(DryccTransactionTestCase):
         self.assertEqual(response.status_code, 200, response.data)
         memory = response.data['memory']
         self.assertIn('worker', memory)
-        self.assertEqual(memory['worker'], '512M')
+        self.assertEqual(memory['worker'], '2G')
         self.assertIn('web', memory)
         self.assertEqual(memory['web'], '3G')
         self.assertIn('db', memory)
@@ -206,7 +206,10 @@ class TestLimits(DryccTransactionTestCase):
         self.assertEqual(cpu['db'], '1000m')
 
         # unset a value
-        body = {'memory': json.dumps({'worker': None})}
+        body = {
+            'cpu': json.dumps({'worker': None}),
+            'memory': json.dumps({'worker': None})
+        }
         response = self.client.post(url, body)
         self.assertEqual(response.status_code, 201, response.data)
         limit4 = response.data
@@ -240,7 +243,7 @@ class TestLimits(DryccTransactionTestCase):
         body = {'cpu': json.dumps({'web': '1000'})}
         response = self.client.post(url, body)
         self.assertEqual(response.status_code, 400, response.data)
-        body = {'cpu': json.dumps({'web': '100m'})}
+        body = {'cpu': json.dumps({'web': '125m'})}
         response = self.client.post(url, body)
         self.assertEqual(response.status_code, 201, response.data)
 

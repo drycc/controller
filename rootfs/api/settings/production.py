@@ -13,7 +13,7 @@ BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, os.path.join(BASE_DIR, 'apps_extra'))
 # A boolean that turns on/off debug mode.
 # https://docs.djangoproject.com/en/1.11/ref/settings/#debug
-DEBUG = bool(os.environ.get('DRYCC_DEBUG', False))
+DEBUG = bool(strtobool(os.environ.get('DRYCC_DEBUG', 'false')))
 
 # If set to True, Django's normal exception handling of view functions
 # will be suppressed, and exceptions will propagate upwards
@@ -277,7 +277,7 @@ INGRESS_CLASS = os.environ.get('DRYCC_INGRESS_CLASS', '')
 
 PLATFORM_DOMAIN = os.environ.get('DRYCC_PLATFORM_DOMAIN', 'local.drycc.cc')
 
-IMAGE_PULL_POLICY = os.environ.get('IMAGE_PULL_POLICY', "IfNotPresent")  # noqa
+IMAGE_PULL_POLICY = os.environ.get('IMAGE_PULL_POLICY', "IfNotPresent")
 
 # True, true, yes, y and more evaluate to True
 # False, false, no, n and more evaluate to False
@@ -290,7 +290,8 @@ IMAGE_PULL_POLICY = os.environ.get('IMAGE_PULL_POLICY', "IfNotPresent")  # noqa
 # If the user has a Procfile in both deploys then processes are scaled up / down as per usual
 #
 # By default the process types are scaled down unless this setting is turned on
-DRYCC_DEPLOY_PROCFILE_MISSING_REMOVE = bool(strtobool(os.environ.get('DRYCC_DEPLOY_PROCFILE_MISSING_REMOVE', 'true')))  # noqa
+DRYCC_DEPLOY_PROCFILE_MISSING_REMOVE = bool(strtobool(os.environ.get(
+    'DRYCC_DEPLOY_PROCFILE_MISSING_REMOVE', 'true')))
 
 # True, true, yes, y and more evaluate to True
 # False, false, no, n and more evaluate to False
@@ -300,7 +301,8 @@ DRYCC_DEPLOY_PROCFILE_MISSING_REMOVE = bool(strtobool(os.environ.get('DRYCC_DEPL
 # If a previous deploy had a Procfile but then the following deploy has no Procfile then it will
 # result in a 406 - Not Acceptable
 # Has priority over DRYCC_DEPLOY_PROCFILE_MISSING_REMOVE
-DRYCC_DEPLOY_REJECT_IF_PROCFILE_MISSING = bool(strtobool(os.environ.get('DRYCC_DEPLOY_REJECT_IF_PROCFILE_MISSING', 'false')))  # noqa
+DRYCC_DEPLOY_REJECT_IF_PROCFILE_MISSING = bool(strtobool(os.environ.get(
+    'DRYCC_DEPLOY_REJECT_IF_PROCFILE_MISSING', 'false')))
 
 # Define a global default on how many pods to bring up and then
 # take down sequentially during a deploy
@@ -324,29 +326,31 @@ DRYCC_DEPLOY_HOOK_SECRET_KEY = os.environ.get('DRYCC_DEPLOY_HOOK_SECRET_KEY', No
 
 DRYCC_APP_STORAGE_CLASS = os.environ.get('DRYCC_APP_STORAGE_CLASS', "")
 
-KUBERNETES_DEPLOYMENTS_REVISION_HISTORY_LIMIT = os.environ.get('KUBERNETES_DEPLOYMENTS_REVISION_HISTORY_LIMIT', None)  # noqa
-
 DRYCC_DEFAULT_CONFIG_TAGS = os.environ.get('DRYCC_DEFAULT_CONFIG_TAGS', '')
 
-# How long k8s waits for a pod to finish work after a SIGTERM before sending SIGKILL
-KUBERNETES_POD_TERMINATION_GRACE_PERIOD_SECONDS = int(os.environ.get('KUBERNETES_POD_TERMINATION_GRACE_PERIOD_SECONDS', 30))  # noqa
+KUBERNETES_DEPLOYMENTS_REVISION_HISTORY_LIMIT = os.environ.get(
+    'KUBERNETES_DEPLOYMENTS_REVISION_HISTORY_LIMIT', None)
 
+# How long k8s waits for a pod to finish work after a SIGTERM before sending SIGKILL
+KUBERNETES_POD_TERMINATION_GRACE_PERIOD_SECONDS = int(os.environ.get(
+    'KUBERNETES_POD_TERMINATION_GRACE_PERIOD_SECONDS', 30))
+
+# min and max memory for a CPU
+KUBERNETES_CPU_MEMORY_RATIO = tuple(map(lambda x: x.strip(), os.environ.get(
+    'DRYCC_CPU_MEMORY_DISTRIBUTION_RATIO', '1G,4G').split(",")))
 # CPU request ratio
 KUBERNETES_REQUEST_CPU_RATIO = int(os.environ.get('KUBERNETES_REQUEST_CPU_RATIO', '10'))
 # Memory request ratio
 KUBERNETES_REQUEST_MEMORY_RATIO = int(os.environ.get('KUBERNETES_REQUEST_MEMORY_RATIO', '2'))
-# Minimum limits cpu, units are represented in the millicpu of CPUs
-KUBERNETES_LIMITS_MIN_CPU = int(os.environ.get('KUBERNETES_LIMITS_MIN_CPU', '9'))
-# Minimum limits memory, units are represented in Megabytes(M)
-KUBERNETES_LIMITS_MIN_MEMORY = int(os.environ.get('KUBERNETES_LIMITS_MIN_MEMORY', '63'))
-# Maximum limits cpu, units are represented in the millicpu of CPUs
-KUBERNETES_LIMITS_MAX_CPU = int(os.environ.get('KUBERNETES_LIMITS_MAX_CPU', '32000'))
-# Maximum limits memory, units are represented in Megabytes(M)
-KUBERNETES_LIMITS_MAX_MEMORY = int(os.environ.get('KUBERNETES_LIMITS_MAX_MEMORY', '131072'))
-# Default CPU limit, units are represented in the millicpu of CPUs
-KUBERNETES_LIMITS_DEFAULT_CPU = (KUBERNETES_LIMITS_MIN_CPU + 1) * KUBERNETES_REQUEST_CPU_RATIO
-# Default Memory limit, units are represented in Megabytes(M)
-KUBERNETES_LIMITS_DEFAULT_MEMORY = (KUBERNETES_LIMITS_MIN_MEMORY + 1) * KUBERNETES_REQUEST_MEMORY_RATIO  # noqa
+
+# Minimum CPU limit, units are represented in the millicpu of CPUs
+KUBERNETES_LIMITS_MIN_CPU = 125
+# Minimum CPU limit, units are represented in the millicpu of CPUs
+KUBERNETES_LIMITS_MAX_CPU = 32 * 1000
+# Minimum Memory limit, units are represented in Megabytes(M)
+KUBERNETES_LIMITS_MIN_MEMORY = 128
+# Minimum Memory limit
+KUBERNETES_LIMITS_MAX_MEMORY = 128 * 1024
 
 # Default pod spec for application.
 KUBERNETES_POD_DEFAULT_RESOURCES = os.environ.get(
@@ -366,39 +370,7 @@ KUBERNETES_NAMESPACE_DEFAULT_QUOTA_SPEC = os.environ.get(
 )
 # Default limit range spec for application namespace
 KUBERNETES_NAMESPACE_DEFAULT_LIMIT_RANGES_SPEC = os.environ.get(
-    'KUBERNETES_NAMESPACE_DEFAULT_LIMIT_RANGES_SPEC',
-    json.dumps({
-        "limits": [
-            {
-                "default": {
-                    "cpu": "%sm" % KUBERNETES_LIMITS_DEFAULT_CPU,
-                    "memory": "%sMi" % KUBERNETES_LIMITS_DEFAULT_MEMORY
-                },
-                "defaultRequest": {
-                    "cpu": "%sm" % (KUBERNETES_LIMITS_MIN_CPU + 1),
-                    "memory": "%sMi" % (KUBERNETES_LIMITS_MIN_MEMORY + 1)
-                },
-                "max": {
-                    "cpu": "%sm" % KUBERNETES_LIMITS_MAX_CPU,
-                    "memory": "%sMi" % KUBERNETES_LIMITS_MAX_MEMORY
-                },
-                "min": {
-                    "cpu": "%sm" % KUBERNETES_LIMITS_MIN_CPU,
-                    "memory": "%sMi" % KUBERNETES_LIMITS_MIN_MEMORY
-                },
-                "type": "Container"
-            },
-            {
-                "max": {
-                    "storage": "100Gi"
-                },
-                "min": {
-                    "storage": "100Mi"
-                },
-                "type": "PersistentVolumeClaim"
-            }
-        ]
-    })
+    'KUBERNETES_NAMESPACE_DEFAULT_LIMIT_RANGES_SPEC', ''
 )
 
 # registry settings
@@ -463,8 +435,10 @@ DRYCC_REDIS_PASSWORD = os.environ.get('DRYCC_REDIS_PASSWORD', '')
 CACHES = {
     "default": {
         "BACKEND": "django_redis.cache.RedisCache",
-        "LOCATION": ['redis://:{}@{}'.format(DRYCC_REDIS_PASSWORD, DRYCC_REDIS_ADDR) \
-                     for DRYCC_REDIS_ADDR in DRYCC_REDIS_ADDRS],  # noqa
+        "LOCATION": [
+            'redis://:{}@{}'.format(
+                DRYCC_REDIS_PASSWORD, DRYCC_REDIS_ADDR) for DRYCC_REDIS_ADDR in DRYCC_REDIS_ADDRS
+        ],
         "OPTIONS": {
             "CLIENT_CLASS": "django_redis.client.ShardClient",
         }

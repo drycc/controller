@@ -640,8 +640,8 @@ class App(UuidAuditedModel):
         release.cleanup_old()
 
     def _set_default_config(self):
-        default_cpu = "{}m".format(settings.KUBERNETES_LIMITS_DEFAULT_CPU)
-        default_memory = "{}M".format(settings.KUBERNETES_LIMITS_DEFAULT_MEMORY)
+        default_cpu = "{}m".format(settings.KUBERNETES_LIMITS_MIN_CPU)
+        default_memory = "{}M".format(settings.KUBERNETES_LIMITS_MIN_MEMORY)
         config = self.config_set.latest()
         new_cpu, new_memory = {}, {}
         for _type in self.types:

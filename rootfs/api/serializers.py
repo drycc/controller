@@ -310,7 +310,7 @@ class ConfigSerializer(serializers.ModelSerializer):
     def validate_memory(data):
         max_memory = settings.KUBERNETES_LIMITS_MAX_MEMORY
         # The minimum limit memory is equal to the memory allocated by default
-        min_memory = settings.KUBERNETES_LIMITS_DEFAULT_MEMORY
+        min_memory = settings.KUBERNETES_LIMITS_MIN_MEMORY
         for key, value in data.items():
             if value is None:  # use NoneType to unset an item
                 continue
@@ -336,7 +336,7 @@ class ConfigSerializer(serializers.ModelSerializer):
     def validate_cpu(data):
         max_cpu = settings.KUBERNETES_LIMITS_MAX_CPU
         # The minimum CPU limit is equal to the CPU allocated by default
-        min_cpu = settings.KUBERNETES_LIMITS_DEFAULT_CPU
+        min_cpu = settings.KUBERNETES_LIMITS_MIN_CPU
         for key, value in data.items():
             if value is None:  # use NoneType to unset an item
                 continue
