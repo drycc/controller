@@ -233,7 +233,7 @@ class Resource(UuidAuditedModel):
             "user_id": str(self.owner_id),
             "name": self.name,
             "type": self.plan,
-            "unit": "UNIT",
+            "unit": "number",
             "usage": 1,
             "timestamp": "%f" % timestamp
         }]
