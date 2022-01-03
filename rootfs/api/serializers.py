@@ -324,12 +324,9 @@ class ConfigSerializer(serializers.ModelSerializer):
                     "where unit = M or G")
             range_error = "Memory setting is not in allowed range: %sM~%sM" % (
                 min_memory, max_memory)
-            if str(value).endswith("G"):
-                if int(value[:-1]) * 1024 < min_memory or int(value[:-1]) * 1024 > max_memory:
-                    raise serializers.ValidationError(range_error)
-            else:
-                if int(value[:-1]) < min_memory or int(value[:-1]) > max_memory:
-                    raise serializers.ValidationError(range_error)
+            memory_size = int(value[:-1]) * 1024 if value.endswith("G") else int(value[:-1])
+            if memory_size < min_memory or memory_size > max_memory:
+                raise serializers.ValidationError(range_error)
         return data
 
     @staticmethod
@@ -350,12 +347,9 @@ class ConfigSerializer(serializers.ModelSerializer):
                     "CPU limit format: <value>, where value must be a numeric")
             range_error = "CPU setting is not in allowed range: %sm~%sm" % (
                 min_cpu, max_cpu)
-            if str(value).isdigit():
-                if int(value) * 1000 < min_cpu or int(value) * 1000 > max_cpu:
-                    raise serializers.ValidationError(range_error)
-            else:
-                if int(value[:-1]) < min_cpu or int(value[:-1]) > max_cpu:
-                    raise serializers.ValidationError(range_error)
+            cpu_size = int(value) * 1000 if value.isdigit() else int(value[:-1])
+            if cpu_size < min_cpu or cpu_size > max_cpu:
+                raise serializers.ValidationError(range_error)
         return data
 
     @staticmethod
@@ -697,10 +691,18 @@ class VolumeSerializer(serializers.ModelSerializer):
 
     @staticmethod
     def validate_size(data):
-        if not re.match(VOLUME_SIZE_MATCH, str(data)):
+        if not re.match(VOLUME_SIZE_MATCH, data):
             raise serializers.ValidationError(
                 "Volume size limit format: <number><unit> or <number><unit>/<number><unit>, "
-                "where unit = B, K, M or G")
+                "where unit = M or G")
+        max_volume = settings.KUBERNETES_LIMITS_MAX_VOLUME
+        # The minimum limit memory is equal to the memory allocated by default
+        min_volume = settings.KUBERNETES_LIMITS_MIN_VOLUME
+        range_error = "Volume setting is not in allowed range: %sM~%sM" % (
+            min_volume, max_volume)
+        volume_size = int(data[:-1]) * 1024 if data.endswith("G") else int(data[:-1])
+        if volume_size < min_volume or volume_size > max_volume:
+            raise serializers.ValidationError(range_error)
         return data.upper()
 
     @staticmethod
