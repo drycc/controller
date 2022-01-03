@@ -1162,6 +1162,7 @@ class App(UuidAuditedModel):
             'app_type': process_type,
             'resources': json.loads(settings.KUBERNETES_POD_DEFAULT_RESOURCES),
             'build_type': release.build.type,
+            'annotations': json.loads(settings.KUBERNETES_POD_DEFAULT_ANNOTATIONS),
             'healthcheck': healthcheck,
             'lifecycle_post_start': config.lifecycle_post_start,
             'lifecycle_pre_stop': config.lifecycle_pre_stop,

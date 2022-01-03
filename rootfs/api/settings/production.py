@@ -368,6 +368,15 @@ KUBERNETES_POD_DEFAULT_RESOURCES = os.environ.get(
         }
     })
 )
+
+# Default pod annotations for application.
+KUBERNETES_POD_DEFAULT_ANNOTATIONS = os.environ.get(
+    'KUBERNETES_POD_DEFAULT_ANNOTATIONS',
+    json.dumps({
+        "kubernetes.io/egress-bandwidth": "100M",
+        "kubernetes.io/igress-bandwidth": "100M",
+    })
+)
 # Default quota spec for application namespace
 KUBERNETES_NAMESPACE_DEFAULT_QUOTA_SPEC = os.environ.get(
     'KUBERNETES_NAMESPACE_DEFAULT_QUOTA_SPEC', ''

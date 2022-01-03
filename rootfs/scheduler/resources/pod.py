@@ -115,7 +115,8 @@ class Pod(Resource):
             'metadata': {
               'name': name,
               'namespace': namespace,
-              'labels': labels
+              'labels': labels,
+              'annotations': kwargs.get('annotations', {}),
             },
             'spec': {}
         }
