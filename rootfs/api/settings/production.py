@@ -26,6 +26,7 @@ SILENCED_SYSTEM_CHECKS = [
     'security.W004',
     'security.W008',
     'security.W012',
+    'security.W016',
 ]
 
 CONN_MAX_AGE = 60 * 3
@@ -139,12 +140,13 @@ CORS_EXPOSE_HEADERS = (
 )
 
 X_FRAME_OPTIONS = 'DENY'
-CSRF_COOKIE_SECURE = True
 CSRF_COOKIE_HTTPONLY = False
 CSRF_COOKIE_SAMESITE = None
-SESSION_COOKIE_SECURE = False
 SECURE_CONTENT_TYPE_NOSNIFF = True
 SECURE_BROWSER_XSS_FILTER = True
+SESSION_COOKIE_SECURE = bool(strtobool(os.environ.get('SESSION_COOKIE_SECURE', 'false')))
+CSRF_COOKIE_SECURE = bool(strtobool(os.environ.get('CSRF_COOKIE_SECURE', 'false')))
+
 
 # Honor HTTPS from a trusted proxy
 # see https://docs.djangoproject.com/en/1.11/ref/settings/#secure-proxy-ssl-header
