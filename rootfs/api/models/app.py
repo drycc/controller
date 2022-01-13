@@ -196,14 +196,15 @@ class App(UuidAuditedModel):
             if ingress == "":
                 raise ServiceUnavailable('Empty hostname')
             try:
-                data = self._scheduler.ingress.get(namespace, ingress).json()
+                data = self._scheduler.ingress(
+                    settings.INGRESS_CLASS).get(namespace, ingress).json()
                 version = data["metadata"]["resourceVersion"]
-                self._scheduler.ingress.put(
-                    ingress, settings.INGRESS_CLASS, namespace, version, **kwargs)
+                self._scheduler.ingress(settings.INGRESS_CLASS).put(
+                    namespace, ingress, version, **kwargs)
             except KubeException:
                 self.log("creating Ingress {}".format(namespace), level=logging.INFO)
-                self._scheduler.ingress.create(
-                    ingress, settings.INGRESS_CLASS, namespace, **kwargs)
+                self._scheduler.ingress(settings.INGRESS_CLASS).create(
+                    namespace, ingress, **kwargs)
         except KubeException as e:
             raise ServiceUnavailable('Could not create Ingress in Kubernetes') from e
 
@@ -944,7 +945,7 @@ class App(UuidAuditedModel):
         else:
             try:
                 namespace = ingress = self.id
-                self._scheduler.ingress.delete(namespace, ingress)
+                self._scheduler.ingress(settings.INGRESS_CLASS).delete(namespace, ingress)
             except KubeException as e:
                 raise ServiceUnavailable(str(e)) from e
 

@@ -38,13 +38,17 @@ def get_session(k8s_api_verify_tls):
 
 
 class KubeHTTPClient(object):
+    abstract = False
+    api_version = 'v1'
+    api_prefix = 'api'
     # ISO-8601 which is used by kubernetes
     DATETIME_FORMAT = '%Y-%m-%dT%H:%M:%SZ'
 
     def __init__(self, url, k8s_api_verify_tls=True):
         global resource_mapping
         self.url = url
-        self.session = get_session(k8s_api_verify_tls)
+        self.k8s_api_verify_tls = k8s_api_verify_tls
+        self.session = get_session(self.k8s_api_verify_tls)
 
         # map the various k8s Resources to an internal property
         from scheduler.resources import Resource  # lazy load
@@ -52,18 +56,22 @@ class KubeHTTPClient(object):
             name = str(res.__name__).lower()  # singular
             component = name + 's'  # make plural
             # check if component has already been processed
-            if component in resource_mapping:
+            if component in resource_mapping or res.abstract:
                 continue
 
             # get past recursion problems in case of self reference
             resource_mapping[component] = ''
-            resource_mapping[component] = res(self.url)
+            resource_mapping[component] = res(self.url, self.k8s_api_verify_tls)
             # map singular Resource name to the plural one
             resource_mapping[name] = component
             if res.short_name is not None:
                 # map short name to long name so a resource can be named rs
                 # but have the main object live at replicasets
                 resource_mapping[str(res.short_name).lower()] = component
+
+    def api(self, tmpl, *args):
+        """Return a fully-qualified Kubernetes API URL from a string template with args."""
+        return "/{}/{}".format(self.api_prefix, self.api_version) + tmpl.format(*args)
 
     def __getattr__(self, name):
         global resource_mapping
