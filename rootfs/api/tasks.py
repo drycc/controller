@@ -12,7 +12,10 @@ from api.models.resource import Resource
 logger = logging.getLogger(__name__)
 
 
-@shared_task(bind=True)
+@shared_task(
+    bind=True,
+    retry_kwargs={'max_retries': None}
+)
 def retrieve_resource(self, resource):
     task_id = uuid.uuid4().hex
     signals.request_started.send(sender=task_id)
