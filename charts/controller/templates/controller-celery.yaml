@@ -5,9 +5,9 @@ metadata:
   labels:
     heritage: drycc
   annotations:
-    component.drycc.cc/version: {{ .Values.image_tag }}
+    component.drycc.cc/version: {{ .Values.imageTag }}
 spec:
-  replicas: {{ .Values.celery_replicas }}
+  replicas: {{ .Values.celeryReplicas }}
   strategy:
     rollingUpdate:
       maxSurge: 1
@@ -25,7 +25,7 @@ spec:
       initContainers:
       - name: drycc-controller-init
         image: docker.io/drycc/python-dev:latest
-        imagePullPolicy: {{.Values.image_pull_policy}}
+        imagePullPolicy: {{.Values.imagePullPolicy}}
         command:
           - netcat
           - -v
@@ -36,8 +36,8 @@ spec:
         {{- include "controller.envs" . | indent 8 }}
       containers:
       - name: drycc-controller-celery-high
-        image: {{.Values.image_registry}}/{{.Values.image_org}}/controller:{{.Values.image_tag}}
-        imagePullPolicy: {{.Values.image_pull_policy}}
+        image: {{.Values.imageRegistry}}/{{.Values.imageOrg}}/controller:{{.Values.imageTag}}
+        imagePullPolicy: {{.Values.imagePullPolicy}}
         command:
           - /bin/bash
           - -c
@@ -46,8 +46,8 @@ spec:
         {{- include "controller.limits" . | indent 8 }}
         {{- include "controller.envs" . | indent 8 }}
       - name: drycc-controller-celery-middle
-        image: {{.Values.image_registry}}/{{.Values.image_org}}/controller:{{.Values.image_tag}}
-        imagePullPolicy: {{.Values.image_pull_policy}}
+        image: {{.Values.imageRegistry}}/{{.Values.imageOrg}}/controller:{{.Values.imageTag}}
+        imagePullPolicy: {{.Values.imagePullPolicy}}
         command:
           - /bin/bash
           - -c
@@ -56,8 +56,8 @@ spec:
         {{- include "controller.limits" . | indent 8 }}
         {{- include "controller.envs" . | indent 8 }}
       - name: drycc-controller-celery-low
-        image: {{.Values.image_registry}}/{{.Values.image_org}}/controller:{{.Values.image_tag}}
-        imagePullPolicy: {{.Values.image_pull_policy}}
+        image: {{.Values.imageRegistry}}/{{.Values.imageOrg}}/controller:{{.Values.imageTag}}
+        imagePullPolicy: {{.Values.imagePullPolicy}}
         command:
           - /bin/bash
           - -c

@@ -9,16 +9,16 @@ metadata:
     heritage: "{{ .Release.Service }}"
   annotations:
     kubernetes.io/tls-acme: "true"
-    {{- if not (eq .Values.global.ingress_class "") }}
-    kubernetes.io/ingress.class: "{{ .Values.global.ingress_class }}"
+    {{- if not (eq .Values.global.ingressClass "") }}
+    kubernetes.io/ingress.class: "{{ .Values.global.ingressClass }}"
     {{- end }}
 spec:
   rules:
-  - host: drycc.{{ .Values.global.platform_domain }}
+  - host: drycc.{{ .Values.global.platformDomain }}
     http:
       paths:
       - pathType: Prefix
-        {{- if eq .Values.global.ingress_class "gce" "alb" }}
+        {{- if eq .Values.global.ingressClass "gce" "alb" }}
         path: /*
         {{- else }}{{/* Has annotations but ingress class is not "gce" nor "alb" */}}
         path: /
@@ -28,9 +28,9 @@ spec:
             name: drycc-controller
             port:
               number: 80
-  {{- if .Values.global.cert_manager_enabled }}
+  {{- if .Values.global.certManagerEnabled }}
   tls:
     - secretName: drycc-controller-certificate-auto
       hosts:
-        - drycc.{{ .Values.global.platform_domain }}
+        - drycc.{{ .Values.global.platformDomain }}
   {{- end }}

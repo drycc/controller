@@ -5,10 +5,10 @@ metadata:
   labels:
     heritage: drycc
   annotations:
-    component.drycc.cc/version: {{ .Values.image_tag }}
+    component.drycc.cc/version: {{ .Values.imageTag }}
 spec:
   schedule: "0 */1 * * *"
-  concurrencyPolicy: {{ .Values.concurrency_policy }}
+  concurrencyPolicy: {{ .Values.concurrencyPolicy }}
   successfulJobsHistoryLimit: 1
   failedJobsHistoryLimit: 1
   jobTemplate:
@@ -20,7 +20,7 @@ spec:
           initContainers:
           - name: drycc-controller-init
             image: docker.io/drycc/python-dev:latest
-            imagePullPolicy: {{.Values.image_pull_policy}}
+            imagePullPolicy: {{.Values.imagePullPolicy}}
             command:
               - netcat
               - -v
@@ -30,7 +30,7 @@ spec:
               - $(DRYCC_REDIS_ADDRS)
             {{- include "controller.envs" . | indent 12 }}
           containers:
-          - image: {{.Values.image_registry}}/{{.Values.image_org}}/controller:{{.Values.image_tag}}
+          - image: {{.Values.imageRegistry}}/{{.Values.imageOrg}}/controller:{{.Values.imageTag}}
             imagePullPolicy: {{.Values.pull_policy}}
             name: drycc-controller-measure-networks
             command:

@@ -1,41 +1,41 @@
-image_org: "drycc"
-image_pull_policy: "Always"
-image_tag: "canary"
-image_registry: "docker.io"
-app_image_pull_policy: "Always"
+imageOrg: "drycc"
+imagePullPolicy: "Always"
+imageTag: "canary"
+imageRegistry: "docker.io"
+appImagePullPolicy: "Always"
 # A comma-separated list of URLs to send app release information to
 # See https://www.drycc.cc/managing-workflow/deploy-hooks/
-deploy_hook_urls: ""
-# limits_cpu: "100m"
-# limits_memory: "50Mi"
+deployHookUrls: ""
+# limitsCpu: "100m"
+# limitsMemory: "50Mi"
 # Possible values are:
 # enabled - allows for open registration
 # disabled - turns off open registration
 # admin_only - allows for registration by an admin only.
-registration_mode: "admin_only"
+registrationMode: "admin_only"
 # Option to disable ssl verification to connect to k8s api server
-k8s_api_verify_tls: "true"
+k8sApiVerifyTls: "true"
 
 # Set storageClassName, It is used for application mount.
-app_storage_class: ""
+appStorageClass: ""
 # Set controller deployment  replicas
 replicas: 1
 # Set celery replicas
-celery_replicas: 1
+celeryReplicas: 1
 # Set cronjob concurrencyPolicy
 # Allow (default): The cron job allows concurrently running jobs
 # Forbid: The cron job does not allow concurrent runs; if it is time for a new job run and the previous job run hasn't finished yet, the cron job skips the new job run
 # Replace: If it is time for a new job run and the previous job run hasn't finished yet, the cron job replaces the currently running job run with a new job run
-concurrency_policy: "Replace"
+concurrencyPolicy: "Replace"
 # Configuring this will no longer use the built-in database component
-database_url: ""
+databaseUrl: ""
 
 # Any custom controller environment variables
 # can be specified as key-value pairs under environment
 # this is usually a non required setting.
 environment:
   RESERVED_NAMES: "drycc, drycc-builder, drycc-monitor-grafana"
-##　Oauth settings. If passport_location is off-cluster, set the following environment variables
+##　Oauth settings. If passportLocation is off-cluster, set the following environment variables
 #  LOGIN_REDIRECT_URL: ""
 #  SOCIAL_AUTH_DRYCC_AUTHORIZATION_URL: ""
 #  SOCIAL_AUTH_DRYCC_ACCESS_TOKEN_URL: ""
@@ -67,31 +67,31 @@ global:
   #   automatically; backups are sent to object storage
   #   configured above)
   # - off-cluster: Run PostgreSQL outside the Kubernetes cluster (configure in database section)
-  database_location: "on-cluster"
+  databaseLocation: "on-cluster"
 
   # Set the location of Workflow's Registry
   #
   # Valid values are:
   # - on-cluster: Run registry within the Kubernetes cluster
   # - off-cluster: Use registry outside the Kubernetes cluster (example: dockerhub,self-hosted)
-  registry_location: "on-cluster"
+  registryLocation: "on-cluster"
   # The host port to which registry proxy binds to
-  registry_proxy_port: 5555
+  registryProxyPort: 5555
   # Prefix for the imagepull secret created when using private registry
-  registry_secret_prefix: "private-registry"
+  registrySecretPrefix: "private-registry"
   # Role-Based Access Control for Kubernetes >= 1.5
-  use_rbac: false
+  rbac: false
   # Please check `kubernetes.io/ingress.class`
-  ingress_class: ""
+  ingressClass: ""
   # A domain name consists of one or more parts.
   # Periods (.) are used to separate these parts.
   # Each part must be 1 to 63 characters in length and can contain lowercase letters, digits, and hyphens (-).
   # It must start and end with a lowercase letter or digit.
-  cluster_domain: "cluster.local"
+  clusterDomain: "cluster.local"
   # The public resolvable hostname to build your cluster with.
   #
   # This will be the hostname that is used to build endpoints such as "drycc.$HOSTNAME"
-  platform_domain: ""
+  platformDomain: ""
   # Whether cert_manager is enabled to automatically generate controller certificates
-  cert_manager_enabled: true
-  passport_location: "on-cluster"
+  certManagerEnabled: true
+  passportLocation: "on-cluster"

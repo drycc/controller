@@ -1,4 +1,4 @@
-{{- if .Values.global.cert_manager_enabled }}
+{{- if .Values.global.certManagerEnabled }}
 apiVersion: cert-manager.io/v1
 kind: Certificate
 metadata:
@@ -9,7 +9,7 @@ spec:
     name: drycc-cluster-issuer
     kind: ClusterIssuer
   dnsNames:
-  - drycc.{{ .Values.global.platform_domain }}
+  - drycc.{{ .Values.global.platformDomain }}
   privateKey:
     rotationPolicy: Always
 {{- end }}
