@@ -215,7 +215,7 @@ class App(UuidAuditedModel):
         if not app_settings.routable:
             return
         tls = self.tls_set.latest()
-        ssl_redirect = "true" if bool(tls.https_enforced) else "false"
+        ssl_redirect = bool(tls.https_enforced)
         certs_auto_enabled = bool(tls.certs_auto_enabled)
         hosts, tls_map = [], defaultdict(list)
         for domain in Domain.objects.filter(app=self):

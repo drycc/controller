@@ -274,7 +274,7 @@ random_secret = 'CHANGEME_sapm$s%upvsw5l_zuy_&29rkywd^78ff(qi*#@&*^'
 SECRET_KEY = os.environ.get('DRYCC_SECRET_KEY', random_secret)
 BUILDER_KEY = os.environ.get('DRYCC_BUILDER_KEY', random_secret)
 
-# experimental native ingress
+# ingress class name
 INGRESS_CLASS = os.environ.get('DRYCC_INGRESS_CLASS', '')
 
 PLATFORM_DOMAIN = os.environ.get('DRYCC_PLATFORM_DOMAIN', 'local.drycc.cc')

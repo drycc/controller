@@ -73,4 +73,7 @@ rules:
 - apiGroups: ["servicecatalog.k8s.io"]
   resources: ["serviceinstances", "servicebindings"]
   verbs: ["get", "list", "watch", "create", "delete", "patch", "update"]
+- apiGroups: ["traefik.containo.us"]
+  resources: ["middlewares"]
+  verbs: ["get", "list", "watch", "create", "delete", "patch", "update"]
 {{- end -}}
