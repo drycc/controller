@@ -5,5 +5,6 @@
 
 # fail hard and fast even on pipelines
 set -eou pipefail
-
+# shellcheck disable=SC1091
+source /app/.venv/bin/activate
 flake8 --show-source
