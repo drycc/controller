@@ -66,6 +66,6 @@ test-integration:
 
 upload-coverage:
 	$(eval CI_ENV := $(shell curl -s https://codecov.io/env | bash))
-	docker run ${CI_ENV} -v ${CURDIR}:/test -w /test/rootfs ${IMAGE}.test codecov --required
+	docker run --rm ${CI_ENV} -v ${CURDIR}:/test -w /test/rootfs ${IMAGE}.test /test/rootfs/bin/upload-coverage
 
 .PHONY: check-kubectl check-docker build docker-build docker-build-test deploy clean commit-hook full-clean test test-style test-unit test-functional test-integration upload-coverage

@@ -5,6 +5,8 @@
 
 # fail hard and fast even on pipelines
 set -eou pipefail
+# shellcheck disable=SC1091
+source /app/.venv/bin/activate
 
 function start_redis() {
     cd /tmp
@@ -18,7 +20,7 @@ function start_rabbitmq() {
     cd -
 }
 
-su-exec postgres pg_ctl -D "$PGDATA" start
+gosu postgres pg_ctl -D "$PGDATA" start && ln -s /tmp/.s.PGSQL.5432 /var/run/postgresql/.s.PGSQL.5432
 start_redis
 start_rabbitmq
 python3 manage.py check
