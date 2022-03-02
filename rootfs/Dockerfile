@@ -1,34 +1,45 @@
-FROM docker.io/library/python:3.9-alpine
+FROM docker.io/drycc/base:bullseye
 
+RUN adduser --system \
+	--shell /bin/bash \
+	--disabled-password \
+	--home /app \
+	--group \
+	drycc
+
+ENV PYTHON_VERSION="3.10.2"
 COPY requirements.txt /app/requirements.txt
 
-RUN apk add --update --virtual .build-deps \
-    gcc \
-    rust \
-    cargo \
-    postgresql-dev \
-    libffi-dev \
-    musl-dev \
-    openssl-dev \
+RUN buildDeps='gcc libffi-dev libpq-dev rustc cargo'; \
+    install-packages $buildDeps \
+  && install-stack python $PYTHON_VERSION && . init-stack \
   && python3 -m venv /app/.venv \
   && source /app/.venv/bin/activate \
   && pip3 install --disable-pip-version-check --no-cache-dir -r /app/requirements.txt \
-  && find /app/.venv /usr/local -type f -executable ! -path '*/cryptography*' -exec scanelf --needed --nobanner --format '%n#p' '{}' ';' \
-    | tr ',' '\n' \
-    | sort -u \
-    | awk 'system("[[ -e /app/.venv/lib/" $1 " || -e /usr/local/lib/" $1 " ]]") == 0 { next } { print "so:" $1 }' \
-    | xargs -rt apk add --no-cache --virtual .python-rundeps \
-  && apk add --update --virtual .controller-rundeps \
-    ca-certificates \
-    su-exec \
-    bash \
-    shadow \
-  && apk del .build-deps
+  # cleanup
+  && scanelp /app/.venv/lib > runtime.txt \
+  && apt-get purge -y --auto-remove $buildDeps \
+  && install-packages $(< runtime.txt) \
+  && apt-get autoremove -y \
+  && apt-get clean -y \
+  && rm -rf \
+        /usr/share/doc \
+        /usr/share/man \
+        /usr/share/info \
+        /usr/share/locale \
+        /var/lib/apt/lists/* \
+        /var/log/* \
+        /var/cache/debconf/* \
+        /etc/systemd \
+        /lib/lsb \
+        /lib/udev \
+        /usr/lib/`echo $(uname -m)`-linux-gnu/gconv/IBM* \
+        /usr/lib/`echo $(uname -m)`-linux-gnu/gconv/EBC* \
+  && mkdir -p /usr/share/man/man{1..8}
 
 COPY . /app
 
-
-ENV PATH /app/.venv/bin:/app/bin:$PATH
+USER drycc
 WORKDIR /app
-CMD ["/app/bin/boot"]
+CMD ["PATH=/app/.venv/bin:\$PATH", "/app/bin/boot"]
 EXPOSE 8000
