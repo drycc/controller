@@ -13,24 +13,24 @@ echo system information:
 echo "Django Version: $(python manage.py --version)"
 python --version
 
-mkdir -p /app/data/logs
-chmod -R 777 /app/data/logs
+mkdir -p /workspace/data/logs
+chmod -R 777 /workspace/data/logs
 
 echo "Django checks:"
-python /app/manage.py check --deploy api
+python /workspace/manage.py check --deploy api
 
 echo ""
 echo "Health Checks:"
-python /app/manage.py healthchecks
+python /workspace/manage.py healthchecks
 
 echo ""
 echo "Database Migrations:"
-python /app/manage.py migrate --noinput
+python /workspace/manage.py migrate --noinput
 
 # spawn a gunicorn server in the background
 echo ""
 echo "Starting up Gunicorn"
-gunicorn -c /app/drycc/gunicorn/config.py api.wsgi &
+gunicorn -c /workspace/drycc/gunicorn/config.py api.wsgi &
 
 # smart shutdown on SIGTERM (SIGINT is handled by gunicorn)
 function on_exit() {

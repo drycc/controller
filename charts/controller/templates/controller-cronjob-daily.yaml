@@ -37,7 +37,7 @@ spec:
               - /bin/bash
               - -c
             args:
-              - python /app/manage.py load_db_state_to_k8s
+              - python /workspace/manage.py load_db_state_to_k8s
             {{- include "controller.envs" . | indent 12 }}
           - image: {{.Values.imageRegistry}}/{{.Values.imageOrg}}/controller:{{.Values.imageTag}}
             imagePullPolicy: {{.Values.pull_policy}}
@@ -46,7 +46,7 @@ spec:
               - /bin/bash
               - -c
             args:
-              - python -u /app/manage.py measure_apps
+              - python -u /workspace/manage.py measure_apps
             {{- include "controller.envs" . | indent 12 }}
           - image: {{.Values.imageRegistry}}/{{.Values.imageOrg}}/controller:{{.Values.imageTag}}
             imagePullPolicy: {{.Values.pull_policy}}
@@ -55,7 +55,7 @@ spec:
               - /bin/bash
               - -c
             args:
-              - python -u /app/manage.py measure_resources
+              - python -u /workspace/manage.py measure_resources
             {{- include "controller.envs" . | indent 12 }}
           - image: {{.Values.imageRegistry}}/{{.Values.imageOrg}}/controller:{{.Values.imageTag}}
             imagePullPolicy: {{.Values.pull_policy}}
@@ -64,6 +64,6 @@ spec:
               - /bin/bash
               - -c
             args:
-              - python -u /app/manage.py measure_volumes
+              - python -u /workspace/manage.py measure_volumes
             {{- include "controller.envs" . | indent 12 }}
 

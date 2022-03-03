@@ -37,5 +37,5 @@ spec:
               - /bin/bash
               - -c
             args:
-              - python -u /app/manage.py measure_networks
+              - python -u /workspace/manage.py measure_networks
             {{- include "controller.envs" . | indent 12 }}

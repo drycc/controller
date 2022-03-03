@@ -1,7 +1,14 @@
 FROM docker.io/drycc/base:bullseye
 
-COPY requirements.txt /app/requirements.txt
-COPY dev_requirements.txt /app/dev_requirements.txt
+RUN adduser --system \
+	--shell /bin/bash \
+	--disabled-password \
+	--home /workspace \
+	--group \
+	drycc
+
+COPY requirements.txt /workspace/requirements.txt
+COPY dev_requirements.txt /workspace/dev_requirements.txt
 
 ENV PGDATA="/opt/drycc/postgresql/data" \
   PYTHON_VERSION="3.10.2" \
@@ -17,12 +24,15 @@ RUN buildDeps='gcc rustc cargo  libffi-dev musl-dev openssl'; \
   && install-stack rabbitmq $RABBITMQ_VERSION \
   && install-stack postgresql $POSTGRES_VERSION \
   && install-stack gosu $GOSU_VERSION && . init-stack \
-  && python3 -m venv /app/.venv \
-  && source /app/.venv/bin/activate \
-  && pip3 install --disable-pip-version-check --no-cache-dir -r /app/requirements.txt \
-  && pip3 install --disable-pip-version-check --no-cache-dir -r /app/dev_requirements.txt \
+  && python3 -m venv /workspace/.venv \
+  && source /workspace/.venv/bin/activate \
+  && pip3 install --disable-pip-version-check --no-cache-dir -r /workspace/requirements.txt \
+  && pip3 install --disable-pip-version-check --no-cache-dir -r /workspace/dev_requirements.txt \
+  && chown -R drycc:drycc /workspace \
+  # set env
+  && echo "source /workspace/.venv/bin/activate" >> /opt/drycc/python/profile.d/python.sh \
   # cleanup
-  && scanelp /app/.venv/lib > runtime.txt \
+  && scanelp /workspace/.venv/lib > runtime.txt \
   && apt-get purge -y --auto-remove $buildDeps \
   && install-packages $(< runtime.txt) \
   && apt-get autoremove -y \
@@ -46,7 +56,7 @@ RUN buildDeps='gcc rustc cargo  libffi-dev musl-dev openssl'; \
   && chown -R postgres:postgres /run/postgresql $PGDATA \
   && gosu postgres initdb -D $PGDATA
 
-COPY . /app
-WORKDIR /app
-CMD ["/app/bin/boot"]
+COPY . /workspace
+WORKDIR /workspace
+CMD ["/workspace/bin/boot"]
 EXPOSE 8000
