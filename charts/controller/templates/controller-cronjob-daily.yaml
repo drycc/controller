@@ -21,7 +21,7 @@ spec:
           - name: drycc-controller-cronjob-daily-init
             image: docker.io/drycc/python-dev:latest
             imagePullPolicy: {{.Values.imagePullPolicy}}
-            command:
+            args:
               - netcat
               - -v
               - -u
@@ -33,37 +33,33 @@ spec:
           - image: {{.Values.imageRegistry}}/{{.Values.imageOrg}}/controller:{{.Values.imageTag}}
             imagePullPolicy: {{.Values.imagePullPolicy}}
             name: drycc-controller-load-db-state-to-k8s
-            command:
+            args:
               - /bin/bash
               - -c
-            args:
               - python /workspace/manage.py load_db_state_to_k8s
             {{- include "controller.envs" . | indent 12 }}
           - image: {{.Values.imageRegistry}}/{{.Values.imageOrg}}/controller:{{.Values.imageTag}}
             imagePullPolicy: {{.Values.pull_policy}}
             name: drycc-controller-measure-apps
-            command:
+            args:
               - /bin/bash
               - -c
-            args:
               - python -u /workspace/manage.py measure_apps
             {{- include "controller.envs" . | indent 12 }}
           - image: {{.Values.imageRegistry}}/{{.Values.imageOrg}}/controller:{{.Values.imageTag}}
             imagePullPolicy: {{.Values.pull_policy}}
             name: drycc-controller-measure-resources
-            command:
-              - /bin/bash
-              - -c
             args:
-              - python -u /workspace/manage.py measure_resources
+            - /bin/bash
+            - -c
+            - python -u /workspace/manage.py measure_resources
             {{- include "controller.envs" . | indent 12 }}
           - image: {{.Values.imageRegistry}}/{{.Values.imageOrg}}/controller:{{.Values.imageTag}}
             imagePullPolicy: {{.Values.pull_policy}}
             name: drycc-controller-measure-volumes
-            command:
-              - /bin/bash
-              - -c
             args:
-              - python -u /workspace/manage.py measure_volumes
+            - /bin/bash
+            - -c
+            - python -u /workspace/manage.py measure_volumes
             {{- include "controller.envs" . | indent 12 }}
 

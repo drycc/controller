@@ -16,13 +16,13 @@ spec:
       - name: drycc-controller-init
         image: docker.io/drycc/python-dev:latest
         imagePullPolicy: {{.Values.imagePullPolicy}}
-        command:
-          - netcat
-          - -v
-          - -u
-          - $(DRYCC_DATABASE_URL),$(DRYCC_RABBITMQ_URL)
-          - -a
-          - $(DRYCC_REDIS_ADDRS)
+        args:
+        - netcat
+        - -v
+        - -u
+        - $(DRYCC_DATABASE_URL),$(DRYCC_RABBITMQ_URL)
+        - -a
+        - $(DRYCC_REDIS_ADDRS)
         {{- include "controller.envs" . | indent 8 }}
       containers:
       - name: drycc-controller
