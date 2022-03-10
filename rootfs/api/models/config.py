@@ -6,9 +6,9 @@ from django.conf import settings
 from django.db import models
 from django.contrib.auth import get_user_model
 from api.utils import unit_to_bytes, unit_to_millicpu
-from api.models.release import Release
-from api.models import UuidAuditedModel
 from api.exceptions import DryccException, UnprocessableEntity
+from .release import Release
+from .base import UuidAuditedModel
 
 User = get_user_model()
 logger = logging.getLogger(__name__)

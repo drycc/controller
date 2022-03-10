@@ -2,7 +2,7 @@ from django.db import models
 from django.db import transaction
 from django.contrib.auth import get_user_model
 from api.exceptions import AlreadyExists
-from api.models import UuidAuditedModel
+from .base import UuidAuditedModel
 
 User = get_user_model()
 

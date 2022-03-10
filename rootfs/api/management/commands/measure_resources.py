@@ -4,7 +4,7 @@ import logging
 from django.utils import timezone
 from django.core.management.base import BaseCommand
 from django.conf import settings
-from api.models import Resource
+from api.models.resource import Resource
 from api.tasks import send_measurements
 
 logger = logging.getLogger(__name__)

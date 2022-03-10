@@ -10,7 +10,7 @@ from django.core.cache import cache
 from django.conf import settings
 from rest_framework.authtoken.models import Token
 
-from api.models import Domain
+from api.models.domain import Domain
 from api.tests import DryccTestCase
 
 import idna

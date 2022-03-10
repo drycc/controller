@@ -11,7 +11,8 @@ from django.test.utils import override_settings
 from unittest import mock
 from rest_framework.authtoken.models import Token
 
-from api.models import App, Release
+from api.models.app import App
+from api.models.release import Release
 from scheduler import KubeHTTPException
 from api.exceptions import DryccException
 from api.tests import adapter, DryccTransactionTestCase

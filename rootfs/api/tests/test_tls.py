@@ -4,7 +4,7 @@ from django.core.cache import cache
 from django.contrib.auth import get_user_model
 from rest_framework.authtoken.models import Token
 
-from api.models import App
+from api.models.app import App
 from api.tests import adapter, DryccTransactionTestCase
 
 User = get_user_model()

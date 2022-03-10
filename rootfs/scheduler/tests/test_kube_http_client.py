@@ -21,7 +21,7 @@ def connection_refused_matcher(request):
     raise requests.ConnectionError("connection refused")
 
 
-@mock.patch('scheduler.get_session', mock_session_for_version)
+@mock.patch('scheduler.get_k8s_session', mock_session_for_version)
 class KubeHTTPClientTest(TestCase):
     """Tests kubernetes HTTP client version calls"""
 

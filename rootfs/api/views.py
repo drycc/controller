@@ -22,7 +22,7 @@ from rest_framework.viewsets import GenericViewSet
 
 from api import influxdb, models, permissions, serializers, viewsets, authentication
 from api.tasks import scale_app, restart_app
-from api.models import AlreadyExists, ServiceUnavailable, DryccException, \
+from api.exceptions import AlreadyExists, ServiceUnavailable, DryccException, \
     UnprocessableEntity
 
 from django.views.decorators.cache import never_cache

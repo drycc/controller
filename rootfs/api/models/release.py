@@ -4,9 +4,9 @@ from django.conf import settings
 from django.db import models
 from django.contrib.auth import get_user_model
 from api.utils import dict_diff
-from api.models import UuidAuditedModel
 from api.exceptions import DryccException, AlreadyExists
 from scheduler import KubeHTTPException
+from .base import UuidAuditedModel
 
 User = get_user_model()
 logger = logging.getLogger(__name__)

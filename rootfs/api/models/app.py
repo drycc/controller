@@ -20,16 +20,17 @@ from django.db import models
 from django.contrib.auth import get_user_model
 from rest_framework.exceptions import ValidationError, NotFound
 
-from api.models import get_session
-from api.models import UuidAuditedModel, AlreadyExists, DryccException, ServiceUnavailable
-from api.models.config import Config
-from api.models.domain import Domain
-from api.models.release import Release
-from api.models.tls import TLS
-from api.models.appsettings import AppSettings
-from api.models.volume import Volume
+from api.utils import get_session
+from api.exceptions import AlreadyExists, DryccException, ServiceUnavailable
 from api.utils import generate_app_name, apply_tasks, unit_to_bytes, unit_to_millicpu
 from scheduler import KubeHTTPException, KubeException
+from .config import Config
+from .domain import Domain
+from .release import Release
+from .tls import TLS
+from .appsettings import AppSettings
+from .volume import Volume
+from .base import UuidAuditedModel
 
 User = get_user_model()
 logger = logging.getLogger(__name__)

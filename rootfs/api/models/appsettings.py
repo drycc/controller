@@ -5,8 +5,8 @@ from django.db import transaction
 from rest_framework.exceptions import NotFound
 from django.contrib.auth import get_user_model
 from api.utils import dict_diff
-from api.models import UuidAuditedModel
 from api.exceptions import DryccException, AlreadyExists, UnprocessableEntity
+from .base import UuidAuditedModel
 
 User = get_user_model()
 

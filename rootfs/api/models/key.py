@@ -2,8 +2,8 @@ import base64
 from django.db import models
 from rest_framework.exceptions import ValidationError
 from django.contrib.auth import get_user_model
-from api.models import UuidAuditedModel
 from api.utils import fingerprint
+from .base import UuidAuditedModel
 
 User = get_user_model()
 

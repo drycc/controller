@@ -2,8 +2,8 @@ import logging
 from django.conf import settings
 from django.db import models
 from django.contrib.auth import get_user_model
-from api.models import UuidAuditedModel
 from api.exceptions import DryccException, Conflict
+from .base import UuidAuditedModel
 
 User = get_user_model()
 logger = logging.getLogger(__name__)

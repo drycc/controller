@@ -2,8 +2,9 @@ import logging
 
 from django.db import models
 from django.contrib.auth import get_user_model
-from api.models import AuditedModel, ServiceUnavailable
+from api.exceptions import ServiceUnavailable
 from scheduler import KubeException
+from .base import AuditedModel
 
 User = get_user_model()
 logger = logging.getLogger(__name__)

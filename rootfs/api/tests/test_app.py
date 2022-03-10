@@ -16,7 +16,8 @@ from django.core.cache import cache
 from django.test.utils import override_settings
 from rest_framework.authtoken.models import Token
 
-from api.models import App, Config
+from api.models.app import App
+from api.models.config import Config
 from scheduler import KubeException, KubeHTTPException
 
 from api.exceptions import DryccException

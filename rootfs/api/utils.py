@@ -1,15 +1,48 @@
 """
 Helper functions used by the Drycc server.
 """
+import re
 import base64
 import concurrent
 import hashlib
 import logging
 import random
 import math
+import requests
 from copy import deepcopy
+from requests_toolbelt import user_agent
+from api import __version__ as drycc_version
+from rest_framework.exceptions import ValidationError
 
 logger = logging.getLogger(__name__)
+
+
+session = None
+
+
+def get_session():
+    global session
+    if session is None:
+        session = requests.Session()
+        session.headers = {
+            # https://toolbelt.readthedocs.org/en/latest/user-agent.html#user-agent-constructor
+            'User-Agent': user_agent('Drycc Controller', drycc_version),
+        }
+        # `mount` a custom adapter that retries failed connections for HTTP and HTTPS requests.
+        # http://docs.python-requests.org/en/latest/api/#requests.adapters.HTTPAdapter
+        session.mount('http://', requests.adapters.HTTPAdapter(max_retries=10))
+        session.mount('https://', requests.adapters.HTTPAdapter(max_retries=10))
+    return session
+
+
+def validate_label(value):
+    """
+    Check that the value follows the kubernetes name constraints
+    http://kubernetes.io/v1.1/docs/design/identifiers.html
+    """
+    match = re.match(r'^[a-z0-9-]+$', value)
+    if not match:
+        raise ValidationError("Can only contain a-z (lowercase), 0-9 and hyphens")
 
 
 def generate_app_name():

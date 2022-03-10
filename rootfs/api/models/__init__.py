@@ -3,15 +3,14 @@
 """
 Data models for the Drycc API.
 """
+import os
 import time
 import hashlib
 import hmac
-import importlib
 import logging
-import morph
-import re
 import urllib.parse
-import uuid
+import pkgutil
+import inspect
 import requests
 from datetime import timedelta
 from django.conf import settings
@@ -20,142 +19,37 @@ from django.db.models.signals import post_delete, post_save
 from django.utils.timezone import now
 from django.dispatch import receiver
 from django.contrib.auth import get_user_model
-from rest_framework.exceptions import ValidationError
 from rest_framework.authtoken.models import Token
-from requests_toolbelt import user_agent
-from scheduler.exceptions import KubeException
-from .. import __version__ as drycc_version
-from ..exceptions import DryccException, AlreadyExists, ServiceUnavailable, UnprocessableEntity  # noqa
+from api.utils import get_session
+from api.tasks import retrieve_resource, send_measurements
+from .app import App
+from .appsettings import AppSettings
+from .build import Build
+from .certificate import Certificate
+from .config import Config
+from .domain import Domain
+from .release import Release
+from .tls import TLS
+from .volume import Volume
+from .resource import Resource
+
 
 User = get_user_model()
 logger = logging.getLogger(__name__)
-session = None
 
 
-def get_session():
-    global session
-    if session is None:
-        session = requests.Session()
-        session.headers = {
-            # https://toolbelt.readthedocs.org/en/latest/user-agent.html#user-agent-constructor
-            'User-Agent': user_agent('Drycc Controller', drycc_version),
-        }
-        # `mount` a custom adapter that retries failed connections for HTTP and HTTPS requests.
-        # http://docs.python-requests.org/en/latest/api/#requests.adapters.HTTPAdapter
-        session.mount('http://', requests.adapters.HTTPAdapter(max_retries=10))
-        session.mount('https://', requests.adapters.HTTPAdapter(max_retries=10))
-    return session
+# In order to comply with the Django specification, all models need to be imported
+def import_all_models():
+    for _, modname, ispkg in pkgutil.iter_modules([os.path.dirname(__file__)]):
+        if not ispkg:
+            exec(f"from api.models.{modname} import *")
+    for key, value in locals().items():
+        if inspect.isclass(value) and issubclass(value, models.Model):
+            globals()[key] = value
 
 
-def validate_label(value):
-    """
-    Check that the value follows the kubernetes name constraints
-    http://kubernetes.io/v1.1/docs/design/identifiers.html
-    """
-    match = re.match(r'^[a-z0-9-]+$', value)
-    if not match:
-        raise ValidationError("Can only contain a-z (lowercase), 0-9 and hyphens")
+import_all_models()
 
-
-class AuditedModel(models.Model):
-    """Add created and updated fields to a model."""
-
-    created = models.DateTimeField(auto_now_add=True)
-    updated = models.DateTimeField(auto_now=True)
-
-    class Meta:
-        """Mark :class:`AuditedModel` as abstract."""
-        abstract = True
-
-    @classmethod
-    @property
-    def _scheduler(cls):
-        mod = importlib.import_module(settings.SCHEDULER_MODULE)
-        return mod.SchedulerClient(settings.SCHEDULER_URL, settings.K8S_API_VERIFY_TLS)
-
-    def _fetch_service_config(self, app, svc_name=None):
-        try:
-            # Get the service from k8s to attach the domain correctly
-            if svc_name is None:
-                svc_name = app
-            svc = self._scheduler.svc.get(app, svc_name).json()
-        except KubeException as e:
-            raise ServiceUnavailable('Could not fetch Kubernetes Service {}'.format(app)) from e
-
-        # Get minimum structure going if it is missing on the service
-        if 'metadata' not in svc or 'annotations' not in svc['metadata']:
-            default = {'metadata': {'annotations': {}}}
-            svc = dict_merge(svc, default)
-
-        if 'labels' not in svc['metadata']:
-            default = {'metadata': {'labels': {}}}
-            svc = dict_merge(svc, default)
-
-        return svc
-
-    def _load_service_config(self, app, component, svc_name=None):
-        # fetch setvice definition with minimum structure
-        svc = self._fetch_service_config(app, svc_name)
-
-        # always assume a .drycc.cc/ ending
-        component = "%s.drycc.cc/" % component
-
-        # Filter to only include values for the component and strip component out of it
-        # Processes dots into a nested structure
-        config = morph.unflatten(morph.pick(svc['metadata']['annotations'], prefix=component))
-
-        return config
-
-    def _save_service_config(self, app, component, data, svc_name=None):
-        if svc_name is None:
-            svc_name = app
-        # fetch setvice definition with minimum structure
-        svc = self._fetch_service_config(app, svc_name)
-
-        # always assume a .drycc.cc ending
-        component = "%s.drycc.cc/" % component
-
-        # add component to data and flatten
-        data = {"%s%s" % (component, key): value for key, value in list(data.items()) if value}
-        svc['metadata']['annotations'].update(morph.flatten(data))
-
-        # Update the k8s service for the application with new service information
-        try:
-            self._scheduler.svc.update(app, svc_name, svc)
-        except KubeException as e:
-            raise ServiceUnavailable('Could not update Kubernetes Service {}'.format(app)) from e
-
-
-class UuidAuditedModel(AuditedModel):
-    """Add a UUID primary key to an :class:`AuditedModel`."""
-
-    uuid = models.UUIDField('UUID',
-                            default=uuid.uuid4,
-                            primary_key=True,
-                            editable=False,
-                            auto_created=True,
-                            unique=True)
-
-    class Meta:
-        """Mark :class:`UuidAuditedModel` as abstract."""
-        abstract = True
-
-
-from .app import App, validate_app_id, validate_reserved_names, validate_app_structure  # noqa
-from .appsettings import AppSettings  # noqa
-from .blocklist import Blocklist  # noqa
-from .build import Build  # noqa
-from .certificate import Certificate, validate_certificate  # noqa
-from .config import Config  # noqa
-from .domain import Domain  # noqa
-from .service import Service  # noqa
-from .key import Key, validate_base64  # noqa
-from .release import Release  # noqa
-from .tls import TLS  # noqa
-from .volume import Volume  # noqa
-from .resource import Resource  # noqa
-from ..tasks import retrieve_resource, send_measurements # noqa
-from ..utils import dict_merge  # noqa
 
 # define update/delete callbacks for synchronizing
 # models with the configuration management backend

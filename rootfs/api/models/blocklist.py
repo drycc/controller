@@ -1,6 +1,7 @@
 from django.db import models
 from django.contrib.auth import get_user_model
-from api.models import UuidAuditedModel, App
+from .app import App
+from .base import UuidAuditedModel
 
 User = get_user_model()
 

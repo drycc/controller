@@ -19,7 +19,7 @@ session = None
 resource_mapping = OrderedDict()
 
 
-def get_session(k8s_api_verify_tls):
+def get_k8s_session(k8s_api_verify_tls):
     global session
     if session is None:
         with open('/var/run/secrets/kubernetes.io/serviceaccount/token') as token_file:
@@ -48,7 +48,7 @@ class KubeHTTPClient(object):
         global resource_mapping
         self.url = url
         self.k8s_api_verify_tls = k8s_api_verify_tls
-        self.session = get_session(self.k8s_api_verify_tls)
+        self.session = get_k8s_session(self.k8s_api_verify_tls)
 
         # map the various k8s Resources to an internal property
         from scheduler.resources import Resource  # lazy load

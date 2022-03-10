@@ -7,7 +7,7 @@ from django.core import signals
 from celery import shared_task
 
 from api import manager
-from api.models import ServiceUnavailable
+from api.exceptions import ServiceUnavailable
 from api.models.resource import Resource
 logger = logging.getLogger(__name__)
 

@@ -2,7 +2,9 @@ from django.contrib.auth import get_user_model
 from django.core.cache import cache
 from rest_framework.authtoken.models import Token
 
-from api.models import App, Certificate, Domain
+from api.models.app import App
+from api.models.certificate import Certificate
+from api.models.domain import Domain
 from api.tests import TEST_ROOT, DryccTestCase
 
 User = get_user_model()

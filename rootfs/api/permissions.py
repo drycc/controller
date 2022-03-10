@@ -3,7 +3,7 @@ from rest_framework import permissions
 from django.conf import settings
 from django.contrib.auth.models import AnonymousUser
 from api import manager
-from api.models import Blocklist, App
+from api.models.blocklist import Blocklist, App
 
 
 def get_app_status(app):

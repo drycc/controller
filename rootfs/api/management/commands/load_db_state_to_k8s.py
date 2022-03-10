@@ -2,7 +2,11 @@ import logging
 from django.core.management.base import BaseCommand
 from django.shortcuts import get_object_or_404
 
-from api.models import Key, App, Domain, Certificate, Service
+from api.models.key import Key
+from api.models.app import App
+from api.models.domain import Domain
+from api.models.certificate import Certificate
+from api.models.service import Service
 from api.exceptions import DryccException, AlreadyExists
 
 

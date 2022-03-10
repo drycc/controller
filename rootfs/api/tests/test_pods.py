@@ -11,7 +11,9 @@ from django.core.cache import cache
 from unittest import mock
 from rest_framework.authtoken.models import Token
 
-from api.models import App, Build, Release
+from api.models.app import App
+from api.models.build import Build
+from api.models.release import Release
 from scheduler import KubeException
 
 from api.tests import adapter, DryccTransactionTestCase

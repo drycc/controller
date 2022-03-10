@@ -1,7 +1,7 @@
 from django.db import models
 from django.db import transaction
 from django.contrib.auth import get_user_model
-from api.models import AuditedModel
+from .base import AuditedModel
 
 User = get_user_model()
 

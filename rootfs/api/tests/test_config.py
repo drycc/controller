@@ -12,7 +12,8 @@ from django.conf import settings
 from unittest import mock
 from rest_framework.authtoken.models import Token
 
-from api.models import App, Config
+from api.models.app import App
+from api.models.config import Config
 
 from api.tests import adapter, DryccTransactionTestCase
 import requests_mock

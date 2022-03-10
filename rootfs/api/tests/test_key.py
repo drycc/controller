@@ -8,7 +8,7 @@ from django.contrib.auth import get_user_model
 from django.core.cache import cache
 from rest_framework.authtoken.models import Token
 
-from api.models import Key
+from api.models.key import Key
 from api.utils import fingerprint
 from api.tests import DryccTestCase
 

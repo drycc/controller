@@ -12,9 +12,11 @@ from django.db import models
 from django.core.exceptions import SuspiciousOperation
 from django.contrib.auth import get_user_model
 from rest_framework.exceptions import ValidationError
-from api.models import AuditedModel, validate_label, AlreadyExists, ServiceUnavailable
-from api.models.domain import Domain
+from api.utils import validate_label
+from api.exceptions import AlreadyExists, ServiceUnavailable
 from scheduler import KubeException
+from .base import AuditedModel
+from .domain import Domain
 
 User = get_user_model()
 logger = logging.getLogger(__name__)

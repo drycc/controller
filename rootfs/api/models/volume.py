@@ -2,10 +2,10 @@ import logging
 from django.db import models, transaction
 from django.conf import settings
 from django.contrib.auth import get_user_model
-from api.utils import unit_to_bytes
+from api.utils import unit_to_bytes, validate_label
 from api.exceptions import DryccException, ServiceUnavailable, AlreadyExists
-from api.models import UuidAuditedModel, validate_label
 from scheduler import KubeException
+from .base import UuidAuditedModel
 
 User = get_user_model()
 logger = logging.getLogger(__name__)

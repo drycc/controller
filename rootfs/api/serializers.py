@@ -140,54 +140,29 @@ class UserSerializer(serializers.ModelSerializer):
         fields = ['email', 'username', 'password', 'first_name', 'last_name', 'is_superuser',
                   'is_staff', 'groups', 'user_permissions', 'last_login', 'date_joined',
                   'is_active']
-        read_only_fields = ['is_superuser', 'is_staff', 'groups',
+        read_only_fields = ['id', 'is_superuser', 'is_staff', 'groups',
                             'user_permissions', 'last_login', 'date_joined', 'is_active']
         extra_kwargs = {'password': {'write_only': True}}
-
-    def create(self, validated_data):
-        now = timezone.now()
-        user = User(
-            email=validated_data.get('email'),
-            username=validated_data.get('username'),
-            last_login=now,
-            date_joined=now,
-            is_active=True
-        )
-
-        if validated_data.get('first_name'):
-            user.first_name = validated_data['first_name']
-
-        if validated_data.get('last_name'):
-            user.last_name = validated_data['last_name']
-
-        user.set_password(validated_data['password'])
-        # Make the first signup an admin / superuser
-        if not User.objects.filter(is_superuser=True).exists():
-            user.is_superuser = user.is_staff = True
-
-        user.save()
-        return user
 
     @staticmethod
     def update_or_create(data):
         now = timezone.now()
         user, created = User.objects.update_or_create(
-            username=data['username'],
+            id=data['id'],
             defaults={
-                'email': data['email'],
-                'first_name': data.get('first_name', ''),
-                'last_name': data.get('first_name', ''),
-                'last_login': now})
+                "email": data('email'),
+                "username": data('username'),
+                "first_name": data('first_name'),
+                "last_name": data('last_name'),
+                "is_staff": data('is_staff'),
+                "is_active": data('is_active'),
+                "is_superuser": data('is_superuser'),
+                'last_login': now
+            }
+        )
         if created:
             user.date_joined = now
-            user.is_active = True
-        if data.get('password'):
-            user.set_password(data['password'])
-        elif created and not data.get('password'):
             user.set_unusable_password()
-        # Make the first signup an admin / superuser
-        if not User.objects.filter(is_superuser=True).exists():
-            user.is_superuser = user.is_staff = True
         user.save()
         return user
 
