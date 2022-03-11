@@ -2,7 +2,15 @@ from api.serializers import UserSerializer
 
 
 def update_or_create(backend, user, response, *args, **kwargs):
-    UserSerializer.update_or_create(response)
+    user, created = UserSerializer.update_or_create(response)
+
+    if not created:
+        return {'is_new': False}
+
+    return {
+        'is_new': True,
+        'user': user
+    }
 
 
 def load_extra_data(backend, details, response, uid, user, *args, **kwargs):

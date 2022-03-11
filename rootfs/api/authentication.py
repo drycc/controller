@@ -53,7 +53,8 @@ class DryccAuthentication(TokenAuthentication):
             user_info = OAuthManager().get_user_by_token(key)
             if not user_info.get('email'):
                 user_info['email'] = OAuthManager().get_email_by_token(key)
-            return serializers.UserSerializer.update_or_create(user_info)
+            user, _ = serializers.UserSerializer.update_or_create(user_info)
+            return user
         except Exception as e:
             logger.info(e)
             raise exceptions.AuthenticationFailed(_('Verify token fail.'))

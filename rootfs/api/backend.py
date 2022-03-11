@@ -25,7 +25,7 @@ class DryccOauthBackend(object):
             user_info['password'] = password
             if not user_info.get('email'):
                 user_info['email'] = client.get_email()
-            user = serializers.UserSerializer.update_or_create(user_info)
+            user, _ = serializers.UserSerializer.update_or_create(user_info)
         return user
 
     def get_user(self, user_id):
