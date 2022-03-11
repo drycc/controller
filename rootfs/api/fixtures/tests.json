@@ -1,7 +1,25 @@
 [
 {
+    "pk": -1,
+    "model": "api.user",
+    "fields": {
+        "username": "AnonymousUser",
+        "first_name": "",
+        "last_name": "",
+        "is_active": true,
+        "is_superuser": false,
+        "is_staff": false,
+        "last_login": "2014-02-16T13:13:47.539Z",
+        "groups": [],
+        "user_permissions": [],
+        "password": "",
+        "email": "",
+        "date_joined": "2014-02-16T13:13:47.539Z"
+    }
+},
+{
     "pk": 7,
-    "model": "auth.user",
+    "model": "api.user",
     "fields": {
         "username": "autotest",
         "first_name": "Otto",
@@ -19,7 +37,7 @@
 },
 {
     "pk": 8,
-    "model": "auth.user",
+    "model": "api.user",
     "fields": {
         "username": "autotest2",
         "first_name": "Otto",
@@ -37,7 +55,7 @@
 },
 {
     "pk": 9,
-    "model": "auth.user",
+    "model": "api.user",
     "fields": {
         "username": "autotest3",
         "first_name": "Otto",
@@ -55,7 +73,7 @@
 },
 {
     "pk": 10,
-    "model": "auth.user",
+    "model": "api.user",
     "fields": {
         "username": "autotest4",
         "first_name": "Otto",

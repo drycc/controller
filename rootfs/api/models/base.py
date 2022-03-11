@@ -3,9 +3,14 @@ import morph
 import importlib
 from django.db import models
 from django.conf import settings
+from django.contrib.auth.models import AbstractUser
+from django.utils.translation import gettext_lazy as _
 from scheduler.exceptions import KubeException
 from api.exceptions import ServiceUnavailable
 from api.utils import dict_merge
+
+
+def get_anonymous_user_instance(user): return user(id=-1)
 
 
 class AuditedModel(models.Model):
@@ -90,3 +95,8 @@ class UuidAuditedModel(AuditedModel):
     class Meta:
         """Mark :class:`UuidAuditedModel` as abstract."""
         abstract = True
+
+
+class User(AbstractUser):
+    id = models.BigIntegerField(_('id'), primary_key=True)
+    email = models.EmailField(_('email address'), unique=True)

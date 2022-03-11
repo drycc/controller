@@ -1,7 +1,7 @@
 [
 {
   "pk": 2,
-  "model": "auth.user",
+  "model": "api.user",
   "fields": {
     "username": "autotest-1",
     "first_name": "",
@@ -19,7 +19,7 @@
 },
 {
   "pk": 3,
-  "model": "auth.user",
+  "model": "api.user",
   "fields": {
     "username": "autotest-2",
     "first_name": "",
@@ -37,7 +37,7 @@
 },
 {
   "pk": 4,
-  "model": "auth.user",
+  "model": "api.user",
   "fields": {
     "username": "autotest-3",
     "first_name": "",

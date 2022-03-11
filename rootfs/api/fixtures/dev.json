@@ -1,7 +1,7 @@
 [
 {
     "pk": -1,
-    "model": "auth.user",
+    "model": "api.user",
     "fields": {
         "username": "AnonymousUser",
         "first_name": "",
@@ -19,7 +19,7 @@
 },
 {
     "pk": 1,
-    "model": "auth.user",
+    "model": "api.user",
     "fields": {
         "username": "devuser",
         "first_name": "",

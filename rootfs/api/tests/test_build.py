@@ -631,7 +631,7 @@ class BuildTest(DryccTransactionTestCase):
         self.assertEqual(response.status_code, 201, response.data)
         self.assertEqual(response.data['image'], body['image'])
 
-        with mock.patch('api.models.App.deploy') as mock_deploy:
+        with mock.patch('api.models.app.App.deploy') as mock_deploy:
             mock_deploy.side_effect = Exception('Boom!')
 
             url = "/v2/apps/{app_id}/builds".format(**locals())
@@ -668,7 +668,7 @@ class BuildTest(DryccTransactionTestCase):
         success_build = app.release_set.latest().build
 
         # create a failed build to check that failed release is created
-        with mock.patch('api.models.App.deploy') as mock_deploy:
+        with mock.patch('api.models.app.App.deploy') as mock_deploy:
             mock_deploy.side_effect = Exception('Boom!')
 
             url = "/v2/apps/{app_id}/builds".format(**locals())

@@ -277,7 +277,7 @@ class ReleaseTest(DryccTransactionTestCase):
         self.assertEqual(response.status_code, 201, response.data)
 
         # app.deploy exception
-        with mock.patch('api.models.App.deploy') as mock_deploy:
+        with mock.patch('api.models.app.App.deploy') as mock_deploy:
             mock_deploy.side_effect = Exception('Boom!')
             url = "/v2/apps/{}/releases/rollback/".format(app_id)
             body = {'version': 2}
@@ -299,9 +299,10 @@ class ReleaseTest(DryccTransactionTestCase):
         self.assertContains(response, 'Cannot roll back to failed release.', status_code=400)
 
         # app.deploy exception followed by a KubeHTTPException of 404
-        with mock.patch('api.models.App.deploy') as mock_deploy:
+        with mock.patch('api.models.app.App.deploy') as mock_deploy:
             mock_deploy.side_effect = Exception('Boom!')
-            with mock.patch('api.models.Release._delete_release_in_scheduler') as mock_kube:
+            with mock.patch(
+                    'api.models.release.Release._delete_release_in_scheduler') as mock_kube:
                 # instead of full request mocking, fake it out in a simple way
                 class Response(object):
                     def json(self):
@@ -389,7 +390,7 @@ class ReleaseTest(DryccTransactionTestCase):
         # TODO(bacongobbler): test dockerfile ports
 
     @override_settings(DRYCC_DEPLOY_HOOK_URLS=['http://drycc.rocks'])
-    @mock.patch('api.models.logger')
+    @mock.patch('api.models.release.logger')
     def test_deploy_hooks_logged(self, mock_requests, mock_logger):
         """
         Verifies that a configured deploy hook is dumped into the logs when a release is created.

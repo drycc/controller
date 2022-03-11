@@ -1,12 +1,8 @@
-def update_user(backend, user, response, *args, **kwargs):
-    user.username = response.get('username')
-    user.email = response.get('email')
-    user.first_name = response.get('first_name')
-    user.last_name = response.get('last_name')
-    user.is_superuser = response.get('is_superuser')
-    user.is_staff = response.get('is_staff')
-    user.is_active = response.get('is_active')
-    user.save()
+from api.serializers import UserSerializer
+
+
+def update_or_create(backend, user, response, *args, **kwargs):
+    UserSerializer.update_or_create(response)
 
 
 def load_extra_data(backend, details, response, uid, user, *args, **kwargs):

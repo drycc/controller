@@ -1,6 +1,7 @@
 """
 Helper functions used by the Drycc server.
 """
+import os
 import re
 import base64
 import concurrent
@@ -8,8 +9,11 @@ import hashlib
 import logging
 import random
 import math
+import pkgutil
+import inspect
 import requests
 from copy import deepcopy
+from django.db import models
 from requests_toolbelt import user_agent
 from api import __version__ as drycc_version
 from rest_framework.exceptions import ValidationError
@@ -33,6 +37,18 @@ def get_session():
         session.mount('http://', requests.adapters.HTTPAdapter(max_retries=10))
         session.mount('https://', requests.adapters.HTTPAdapter(max_retries=10))
     return session
+
+
+def import_all_models():
+    for _, modname, ispkg in pkgutil.iter_modules([
+        os.path.join(os.path.dirname(__file__), "models")
+    ]):
+        if not ispkg:
+            mod = __import__(f"api.models.{modname}")
+            for subname in dir(mod):
+                attr = getattr(mod, subname)
+                if inspect.isclass(attr) and issubclass(attr, models.Model):
+                    globals()[subname] = attr
 
 
 def validate_label(value):

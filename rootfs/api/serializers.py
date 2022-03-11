@@ -150,13 +150,13 @@ class UserSerializer(serializers.ModelSerializer):
         user, created = User.objects.update_or_create(
             id=data['id'],
             defaults={
-                "email": data('email'),
-                "username": data('username'),
-                "first_name": data('first_name'),
-                "last_name": data('last_name'),
-                "is_staff": data('is_staff'),
-                "is_active": data('is_active'),
-                "is_superuser": data('is_superuser'),
+                "email": data['email'],
+                "username": data['username'],
+                "first_name": data['first_name'],
+                "last_name": data['last_name'],
+                "is_staff": data['is_staff'],
+                "is_active": data['is_active'],
+                "is_superuser": data['is_superuser'],
                 'last_login': now
             }
         )
@@ -177,7 +177,7 @@ class AdminUserSerializer(serializers.ModelSerializer):
 
 
 class AppSerializer(serializers.ModelSerializer):
-    """Serialize a :class:`~api.models.App` model."""
+    """Serialize a :class:`~api.models.app.App` model."""
 
     owner = serializers.ReadOnlyField(source='owner.username')
     structure = serializers.JSONField(required=False)
@@ -185,20 +185,20 @@ class AppSerializer(serializers.ModelSerializer):
 
     class Meta:
         """Metadata options for a :class:`AppSerializer`."""
-        model = models.App
+        model = models.app.App
         fields = ['uuid', 'id', 'owner', 'structure', 'procfile_structure', 'created', 'updated']
 
 
 class BuildSerializer(serializers.ModelSerializer):
-    """Serialize a :class:`~api.models.Build` model."""
+    """Serialize a :class:`~api.models.build.Build` model."""
 
-    app = serializers.SlugRelatedField(slug_field='id', queryset=models.App.objects.all())
+    app = serializers.SlugRelatedField(slug_field='id', queryset=models.app.App.objects.all())
     owner = serializers.ReadOnlyField(source='owner.username')
     procfile = serializers.JSONField(required=False)
 
     class Meta:
         """Metadata options for a :class:`BuildSerializer`."""
-        model = models.Build
+        model = models.build.Build
         fields = ['owner', 'app', 'image', 'stack', 'sha', 'procfile',
                   'dockerfile', 'created', 'updated', 'uuid']
 
@@ -215,9 +215,9 @@ class BuildSerializer(serializers.ModelSerializer):
 
 
 class ConfigSerializer(serializers.ModelSerializer):
-    """Serialize a :class:`~api.models.Config` model."""
+    """Serialize a :class:`~api.models.config.Config` model."""
 
-    app = serializers.SlugRelatedField(slug_field='id', queryset=models.App.objects.all())
+    app = serializers.SlugRelatedField(slug_field='id', queryset=models.app.App.objects.all())
     owner = serializers.ReadOnlyField(source='owner.username')
     values = JSONFieldSerializer(required=False, binary=True)
     memory = JSONFieldSerializer(required=False, binary=True)
@@ -232,7 +232,7 @@ class ConfigSerializer(serializers.ModelSerializer):
 
     class Meta:
         """Metadata options for a :class:`ConfigSerializer`."""
-        model = models.Config
+        model = models.config.Config
         fields = '__all__'
 
     @staticmethod
@@ -421,37 +421,37 @@ class ConfigSerializer(serializers.ModelSerializer):
 
 
 class ReleaseSerializer(serializers.ModelSerializer):
-    """Serialize a :class:`~api.models.Release` model."""
+    """Serialize a :class:`~api.models.release.Release` model."""
 
-    app = serializers.SlugRelatedField(slug_field='id', queryset=models.App.objects.all())
+    app = serializers.SlugRelatedField(slug_field='id', queryset=models.app.App.objects.all())
     owner = serializers.ReadOnlyField(source='owner.username')
 
     class Meta:
         """Metadata options for a :class:`ReleaseSerializer`."""
-        model = models.Release
+        model = models.release.Release
         fields = '__all__'
 
 
 class KeySerializer(serializers.ModelSerializer):
-    """Serialize a :class:`~api.models.Key` model."""
+    """Serialize a :class:`~api.models.key.Key` model."""
 
     owner = serializers.ReadOnlyField(source='owner.username')
 
     class Meta:
         """Metadata options for a KeySerializer."""
-        model = models.Key
+        model = models.key.Key
         fields = '__all__'
 
 
 class DomainSerializer(serializers.ModelSerializer):
-    """Serialize a :class:`~api.models.Domain` model."""
+    """Serialize a :class:`~api.models.domain.Domain` model."""
 
-    app = serializers.SlugRelatedField(slug_field='id', queryset=models.App.objects.all())
+    app = serializers.SlugRelatedField(slug_field='id', queryset=models.app.App.objects.all())
     owner = serializers.ReadOnlyField(source='owner.username')
 
     class Meta:
         """Metadata options for a :class:`DomainSerializer`."""
-        model = models.Domain
+        model = models.domain.Domain
         fields = ['owner', 'created', 'updated', 'app', 'domain']
         read_only_fields = ['uuid']
 
@@ -499,7 +499,7 @@ class DomainSerializer(serializers.ModelSerializer):
         if len(aceValue) > 253:
             raise serializers.ValidationError('Hostname must be 253 characters or less.')
 
-        if models.Domain.objects.filter(domain=aceValue).exists():
+        if models.domain.Domain.objects.filter(domain=aceValue).exists():
             raise serializers.ValidationError(
                "The domain {} is already in use by another app".format(value))
 
@@ -507,16 +507,16 @@ class DomainSerializer(serializers.ModelSerializer):
 
 
 class ServiceSerializer(serializers.ModelSerializer):
-    """Serialize a :class:`~api.models.Service` model."""
+    """Serialize a :class:`~api.models.service.Service` model."""
 
-    app = serializers.SlugRelatedField(slug_field='id', queryset=models.App.objects.all())
+    app = serializers.SlugRelatedField(slug_field='id', queryset=models.app.App.objects.all())
     owner = serializers.ReadOnlyField(source='owner.username')
     procfile_type = serializers.CharField(allow_blank=False, allow_null=False, required=True)
     path_pattern = serializers.CharField(allow_blank=False, allow_null=False, required=True)
 
     class Meta:
         """Metadata options for a :class:`ServiceSerializer`."""
-        model = models.Service
+        model = models.service.Service
         fields = ['owner', 'created', 'updated', 'app', 'procfile_type', 'path_pattern']
         read_only_fields = ['uuid']
 
@@ -544,7 +544,7 @@ class ServiceSerializer(serializers.ModelSerializer):
 
 
 class CertificateSerializer(serializers.ModelSerializer):
-    """Serialize a :class:`~api.models.Cert` model."""
+    """Serialize a :class:`~api.models.certificate.Certificate` model."""
 
     owner = serializers.ReadOnlyField(source='owner.username')
     domains = serializers.ReadOnlyField()
@@ -555,7 +555,7 @@ class CertificateSerializer(serializers.ModelSerializer):
 
     class Meta:
         """Metadata options for CertificateSerializer."""
-        model = models.Certificate
+        model = models.certificate.Certificate
         extra_kwargs = {
             'certificate': {'write_only': True},
             'key': {'write_only': True}
@@ -576,16 +576,16 @@ class PodSerializer(serializers.BaseSerializer):
 
 
 class AppSettingsSerializer(serializers.ModelSerializer):
-    """Serialize a :class:`~api.models.AppSettings` model."""
+    """Serialize a :class:`~api.models.appsettings.AppSettings` model."""
 
-    app = serializers.SlugRelatedField(slug_field='id', queryset=models.App.objects.all())
+    app = serializers.SlugRelatedField(slug_field='id', queryset=models.app.App.objects.all())
     owner = serializers.ReadOnlyField(source='owner.username')
     autoscale = JSONFieldSerializer(convert_to_str=False, required=False, binary=True)
     label = JSONFieldSerializer(convert_to_str=False, required=False, binary=True)
 
     class Meta:
         """Metadata options for a :class:`AppSettingsSerializer`."""
-        model = models.AppSettings
+        model = models.appsettings.AppSettings
         fields = '__all__'
 
     @staticmethod
@@ -639,21 +639,21 @@ class AppSettingsSerializer(serializers.ModelSerializer):
 
 
 class TLSSerializer(serializers.ModelSerializer):
-    """Serialize a :class:`~api.models.TLS` model."""
+    """Serialize a :class:`~api.models.tls.TLS` model."""
 
-    app = serializers.SlugRelatedField(slug_field='id', queryset=models.App.objects.all())
+    app = serializers.SlugRelatedField(slug_field='id', queryset=models.app.App.objects.all())
     owner = serializers.ReadOnlyField(source='owner.username')
 
     class Meta:
         """Metadata options for a :class:`AppTLSSerializer`."""
-        model = models.TLS
+        model = models.tls.TLS
         fields = '__all__'
 
 
 class VolumeSerializer(serializers.ModelSerializer):
-    """Serialize a :class:`~api.models.Volume` model."""
+    """Serialize a :class:`~api.models.volume.Volume` model."""
 
-    app = serializers.SlugRelatedField(slug_field='id', queryset=models.App.objects.all())
+    app = serializers.SlugRelatedField(slug_field='id', queryset=models.app.App.objects.all())
     owner = serializers.ReadOnlyField(source='owner.username')
     name = serializers.CharField()
     size = serializers.CharField()
@@ -661,7 +661,7 @@ class VolumeSerializer(serializers.ModelSerializer):
 
     class Meta:
         """Metadata options for a :class:`AppVolumeSerializer`."""
-        model = models.Volume
+        model = models.volume.Volume
         fields = '__all__'
 
     @staticmethod
@@ -696,8 +696,8 @@ class VolumeSerializer(serializers.ModelSerializer):
 
 
 class ResourceSerializer(serializers.ModelSerializer):
-    """Serialize a :class:`~api.models.Resource` model."""
-    app = serializers.SlugRelatedField(slug_field='id', queryset=models.App.objects.all())
+    """Serialize a :class:`~api.models.resource.Resource` model."""
+    app = serializers.SlugRelatedField(slug_field='id', queryset=models.app.App.objects.all())
     owner = serializers.ReadOnlyField(source='owner.username')
     name = serializers.CharField(max_length=63, required=True)
     plan = serializers.CharField(max_length=128, required=True)
@@ -706,7 +706,7 @@ class ResourceSerializer(serializers.ModelSerializer):
 
     class Meta:
         """Metadata options for a :class:`ResourceSerializer`."""
-        model = models.Resource
+        model = models.resource.Resource
         fields = '__all__'
 
     def update(self, instance, validated_data):

@@ -287,7 +287,7 @@ class ConfigTest(DryccTransactionTestCase):
         self.assertEqual(response.status_code, 201, response.data)
         self.assertEqual(response.data['image'], body['image'])
 
-        with mock.patch('api.models.App.deploy') as mock_deploy:
+        with mock.patch('api.models.app.App.deploy') as mock_deploy:
             mock_deploy.side_effect = Exception('Boom!')
             url = '/v2/apps/{app_id}/config'.format(**locals())
             body = {'values': json.dumps({'test': "testvalue"})}
@@ -391,7 +391,7 @@ class ConfigTest(DryccTransactionTestCase):
         success_config = app.release_set.latest().config
 
         # create a failed config to check that failed release is created
-        with mock.patch('api.models.App.deploy') as mock_deploy:
+        with mock.patch('api.models.app.App.deploy') as mock_deploy:
             mock_deploy.side_effect = Exception('Boom!')
             url = '/v2/apps/{app_id}/config'.format(**locals())
             body = {'values': json.dumps({'test': "testvalue"})}

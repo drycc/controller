@@ -146,7 +146,7 @@ class AppTest(DryccTestCase):
             status_code=500
         )
 
-    @mock.patch('api.models.logger')
+    @mock.patch('api.models.app.logger')
     def test_app_release_notes_in_logs(self, mock_requests, mock_logger):
         """Verifies that an app's release summary is dumped into the logs."""
         app_id = self.create_app()
@@ -224,7 +224,7 @@ class AppTest(DryccTestCase):
         self.assertIn('structure', response.data)
         self.assertEqual(response.data['structure'], {"web": 1})
 
-    @mock.patch('api.models.logger')
+    @mock.patch('api.models.app.logger')
     def test_admin_can_manage_other_apps(self, mock_requests, mock_logger):
         """Administrators of Drycc should be able to manage all applications.
         """
@@ -279,8 +279,8 @@ class AppTest(DryccTestCase):
         self.assertEqual(response.data, {'detail': 'No build associated with this '
                                                    'release to run this command'})
 
-    @mock.patch('api.models.App.run', _mock_run)
-    @mock.patch('api.models.App.deploy', mock_none)
+    @mock.patch('api.models.app.App.run', _mock_run)
+    @mock.patch('api.models.app.App.deploy', mock_none)
     def test_run(self, mock_requests):
         """
         A user should be able to run a one off command

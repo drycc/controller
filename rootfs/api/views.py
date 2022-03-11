@@ -127,9 +127,9 @@ class WorkflowManagerViewset(GenericViewSet):
 
     def block(self, request,  **kwargs):
         try:
-            blocklist, _ = models.Blocklist.objects.get_or_create(
+            blocklist, _ = models.blocklist.Blocklist.objects.get_or_create(
                 id=kwargs['id'],
-                type=models.Blocklist.get_type(kwargs["type"]),
+                type=models.blocklist.Blocklist.get_type(kwargs["type"]),
                 defaults={"remark": request.data.get("remark")}
             )
             for app in blocklist.related_apps:
@@ -141,9 +141,9 @@ class WorkflowManagerViewset(GenericViewSet):
 
     def unblock(self, request,  **kwargs):
         try:
-            models.Blocklist.objects.filter(
+            models.blocklist.Blocklist.objects.filter(
                 id=kwargs['id'],
-                type=models.Blocklist.get_type(kwargs["type"])
+                type=models.blocklist.Blocklist.get_type(kwargs["type"])
             ).delete()
             return HttpResponse(status=204)
         except ValueError as e:
@@ -161,12 +161,12 @@ class AdmissionWebhookViewSet(GenericViewSet):
         if settings.DRYCC_ADMISSION_WEBHOOK_TOKEN == token:
             allowed = True
             app_id = data["object"]["metadata"]["namespace"]
-            app = models.App.objects.filter(id=app_id).first()
+            app = models.app.App.objects.filter(id=app_id).first()
             replicas = data["object"]["spec"].get("replicas", 0)
             container_type = data["object"]["metadata"]["name"].replace(f"{app_id}-", "", 1)
             if app and app.structure.get(container_type) != replicas:  # sync replicas
                 app.structure[container_type] = replicas
-                super(models.App, app).save(update_fields=["structure", ])
+                super(models.app.App, app).save(update_fields=["structure", ])
         else:
             allowed = False
         return Response({
@@ -195,7 +195,7 @@ class AppResourceViewSet(BaseDryccViewSet):
     """A viewset for objects which are attached to an application."""
 
     def get_app(self):
-        app = get_object_or_404(models.App, id=self.kwargs['id'])
+        app = get_object_or_404(models.app.App, id=self.kwargs['id'])
         self.check_object_permissions(self.request, app)
         return app
 
@@ -220,7 +220,7 @@ class ReleasableViewSet(AppResourceViewSet):
 
 class AppViewSet(BaseDryccViewSet):
     """A viewset for interacting with App objects."""
-    model = models.App
+    model = models.app.App
     filter_backends = [filters.SearchFilter]
     search_fields = ['^id', ]
     serializer_class = serializers.AppSerializer
@@ -283,8 +283,9 @@ class AppViewSet(BaseDryccViewSet):
             app.owner = new_owner
             # ensure all downstream objects that are owned by this user and are part of this app
             # is also updated
-            for downstream_model in [models.AppSettings, models.Build, models.Config,
-                                     models.Domain, models.Release, models.TLS]:
+            for downstream_model in [
+                    models.appsettings.AppSettings, models.build.Build, models.config.Config,
+                    models.domain.Domain, models.release.Release, models.tls.TLS]:
                 downstream_model.objects.filter(owner=old_owner, app=app).update(owner=new_owner)
         app.save()
         return Response(status=status.HTTP_200_OK)
@@ -292,7 +293,7 @@ class AppViewSet(BaseDryccViewSet):
 
 class BuildViewSet(ReleasableViewSet):
     """A viewset for interacting with Build objects."""
-    model = models.Build
+    model = models.build.Build
     serializer_class = serializers.BuildSerializer
 
     def post_save(self, build):
@@ -302,7 +303,7 @@ class BuildViewSet(ReleasableViewSet):
 
 class ConfigViewSet(ReleasableViewSet):
     """A viewset for interacting with Config objects."""
-    model = models.Config
+    model = models.config.Config
     serializer_class = serializers.ConfigSerializer
 
     def post_save(self, config):
@@ -331,7 +332,7 @@ class ConfigViewSet(ReleasableViewSet):
 
 
 class PodViewSet(AppResourceViewSet):
-    model = models.App
+    model = models.app.App
     serializer_class = serializers.PodSerializer
 
     def list(self, *args, **kwargs):
@@ -355,12 +356,12 @@ class PodViewSet(AppResourceViewSet):
 
 
 class AppSettingsViewSet(AppResourceViewSet):
-    model = models.AppSettings
+    model = models.appsettings.AppSettings
     serializer_class = serializers.AppSettingsSerializer
 
 
 class AllowlistViewSet(AppResourceViewSet):
-    model = models.AppSettings
+    model = models.appsettings.AppSettings
     serializer_class = serializers.AppSettingsSerializer
 
     def list(self, *args, **kwargs):
@@ -389,7 +390,7 @@ class AllowlistViewSet(AppResourceViewSet):
 
 class DomainViewSet(AppResourceViewSet):
     """A viewset for interacting with Domain objects."""
-    model = models.Domain
+    model = models.domain.Domain
     serializer_class = serializers.DomainSerializer
 
     def get_object(self, **kwargs):
@@ -416,7 +417,7 @@ class DomainViewSet(AppResourceViewSet):
 
 class ServiceViewSet(AppResourceViewSet):
     """A viewset for interacting with Service objects."""
-    model = models.Service
+    model = models.service.Service
     serializer_class = serializers.ServiceSerializer
 
     def list(self, *args, **kwargs):
@@ -436,9 +437,8 @@ class ServiceViewSet(AppResourceViewSet):
                 svc.path_pattern = pp
                 svc.save()
         else:
-            svc = models.Service.objects.create(owner=app.owner, app=app,
-                                                procfile_type=pft,
-                                                path_pattern=pp)
+            svc = models.service.Service.objects.create(
+                owner=app.owner, app=app, procfile_type=pft, path_pattern=pp)
         return Response(status=status.HTTP_201_CREATED)
 
     def delete(self, request, **kwargs):
@@ -451,7 +451,7 @@ class ServiceViewSet(AppResourceViewSet):
 
 class CertificateViewSet(BaseDryccViewSet):
     """A viewset for interacting with Certificate objects."""
-    model = models.Certificate
+    model = models.certificate.Certificate
     serializer_class = serializers.CertificateSerializer
 
     def get_object(self, **kwargs):
@@ -483,14 +483,14 @@ class CertificateViewSet(BaseDryccViewSet):
 
 class KeyViewSet(BaseDryccViewSet):
     """A viewset for interacting with Key objects."""
-    model = models.Key
+    model = models.key.Key
     permission_classes = [IsAuthenticated, permissions.IsOwner]
     serializer_class = serializers.KeySerializer
 
 
 class ReleaseViewSet(AppResourceViewSet):
     """A viewset for interacting with Release objects."""
-    model = models.Release
+    model = models.release.Release
     serializer_class = serializers.ReleaseSerializer
 
     def get_object(self, **kwargs):
@@ -510,7 +510,7 @@ class ReleaseViewSet(AppResourceViewSet):
 
 
 class TLSViewSet(AppResourceViewSet):
-    model = models.TLS
+    model = models.tls.TLS
     serializer_class = serializers.TLSSerializer
 
 
@@ -520,14 +520,14 @@ class BaseHookViewSet(BaseDryccViewSet):
 
 class KeyHookViewSet(BaseHookViewSet):
     """API hook to create new :class:`~api.models.Push`"""
-    model = models.Key
+    model = models.key.Key
     serializer_class = serializers.KeySerializer
 
     def public_key(self, request, *args, **kwargs):
         fingerprint = kwargs['fingerprint'].strip()
-        key = get_object_or_404(models.Key, fingerprint=fingerprint)
+        key = get_object_or_404(models.key.Key, fingerprint=fingerprint)
 
-        queryset = models.App.objects.all() | \
+        queryset = models.app.App.objects.all() | \
             get_objects_for_user(self.request.user, 'api.use_app')
         items = self.filter_queryset(queryset)
 
@@ -543,14 +543,14 @@ class KeyHookViewSet(BaseHookViewSet):
         return Response(data, status=status.HTTP_200_OK)
 
     def app(self, request, *args, **kwargs):
-        app = get_object_or_404(models.App, id=kwargs['id'])
+        app = get_object_or_404(models.app.App, id=kwargs['id'])
 
         perm_name = "api.use_app"
         usernames = [u.id for u in get_users_with_perms(app)
                      if u.has_perm(perm_name, app)]
 
         data = {}
-        result = models.Key.objects \
+        result = models.key.Key.objects \
                        .filter(owner__in=usernames) \
                        .values('owner__username', 'public', 'fingerprint') \
                        .order_by('created')
@@ -567,7 +567,7 @@ class KeyHookViewSet(BaseHookViewSet):
         return Response(data, status=status.HTTP_200_OK)
 
     def users(self, request, *args, **kwargs):
-        app = get_object_or_404(models.App, id=kwargs['id'])
+        app = get_object_or_404(models.app.App, id=kwargs['id'])
         request.user = get_object_or_404(User, username=kwargs['username'])
         # check the user is authorized for this app
         has_permission, message = permissions.has_app_permission(request, app)
@@ -575,7 +575,7 @@ class KeyHookViewSet(BaseHookViewSet):
             raise PermissionDenied(message)
 
         data = {request.user.username: []}
-        keys = models.Key.objects \
+        keys = models.key.Key.objects \
                      .filter(owner__username=kwargs['username']) \
                      .values('public', 'fingerprint') \
                      .order_by('created')
@@ -592,12 +592,12 @@ class KeyHookViewSet(BaseHookViewSet):
 
 
 class BuildHookViewSet(BaseHookViewSet):
-    """API hook to create new :class:`~api.models.Build`"""
-    model = models.Build
+    """API hook to create new :class:`~api.models.build.Build`"""
+    model = models.build.Build
     serializer_class = serializers.BuildSerializer
 
     def create(self, request, *args, **kwargs):
-        app = get_object_or_404(models.App, id=request.data['receive_repo'])
+        app = get_object_or_404(models.app.App, id=request.data['receive_repo'])
         self.user = request.user = get_object_or_404(User, username=request.data['receive_user'])
         # check the user is authorized for this app
         has_permission, message = permissions.has_app_permission(request, app)
@@ -615,12 +615,12 @@ class BuildHookViewSet(BaseHookViewSet):
 
 
 class ConfigHookViewSet(BaseHookViewSet):
-    """API hook to grab latest :class:`~api.models.Config`"""
-    model = models.Config
+    """API hook to grab latest :class:`~api.models.config.Config`"""
+    model = models.config.Config
     serializer_class = serializers.ConfigSerializer
 
     def create(self, request, *args, **kwargs):
-        app = get_object_or_404(models.App, id=request.data['receive_repo'])
+        app = get_object_or_404(models.app.App, id=request.data['receive_repo'])
         request.user = get_object_or_404(User, username=request.data['receive_user'])
         # check the user is authorized for this app
         has_permission, message = permissions.has_app_permission(request, app)
@@ -634,7 +634,7 @@ class ConfigHookViewSet(BaseHookViewSet):
 class AppPermsViewSet(BaseDryccViewSet):
     """RESTful views for sharing apps with collaborators."""
 
-    model = models.App  # models class
+    model = models.app.App  # models class
     perm = 'use_app'    # short name for permission
 
     def get_queryset(self):
@@ -659,7 +659,7 @@ class AppPermsViewSet(BaseDryccViewSet):
         return Response(status=status.HTTP_201_CREATED)
 
     def destroy(self, request, **kwargs):
-        app = get_object_or_404(models.App, id=self.kwargs['id'])
+        app = get_object_or_404(models.app.App, id=self.kwargs['id'])
         user = get_object_or_404(User, username=kwargs['username'])
 
         perm_name = "api.{}".format(self.perm)
@@ -677,11 +677,11 @@ class AppPermsViewSet(BaseDryccViewSet):
 
 class AppVolumesViewSet(ReleasableViewSet):
     """RESTful views for volumes apps with collaborators."""
-    model = models.Volume
+    model = models.volume.Volume
     serializer_class = serializers.VolumeSerializer
 
     def destroy(self, request, **kwargs):
-        volume = get_object_or_404(models.Volume,
+        volume = get_object_or_404(models.volume.Volume,
                                    app__id=self.kwargs['id'],
                                    name=self.kwargs['name'])
         volume.delete()
@@ -692,7 +692,7 @@ class AppVolumeMountPathViewSet(ReleasableViewSet):
     serializer_class = serializers.VolumeSerializer
 
     def get_object(self):
-        return get_object_or_404(models.Volume,
+        return get_object_or_404(models.volume.Volume,
                                  app__id=self.kwargs['id'],
                                  name=self.kwargs['name'])
 
@@ -777,7 +777,7 @@ class AppVolumeMountPathViewSet(ReleasableViewSet):
 
 class AppResourcesViewSet(AppResourceViewSet):
     """RESTful views for resources apps with collaborators."""
-    model = models.Resource
+    model = models.resource.Resource
     serializer_class = serializers.ResourceSerializer
 
     def services(self, request, *args, **kwargs):
@@ -800,11 +800,11 @@ class AppResourcesViewSet(AppResourceViewSet):
 
 class AppSingleResourceViewSet(AppResourceViewSet):
     """RESTful views for resource apps with collaborators."""
-    model = models.Resource
+    model = models.resource.Resource
     serializer_class = serializers.ResourceSerializer
 
     def get_object(self):
-        return get_object_or_404(models.Resource,
+        return get_object_or_404(models.resource.Resource,
                                  app__id=self.kwargs['id'],
                                  name=self.kwargs['name'])
 
@@ -829,11 +829,11 @@ class AppSingleResourceViewSet(AppResourceViewSet):
 
 
 class AppResourceBindingViewSet(AppResourceViewSet):
-    model = models.Resource
+    model = models.resource.Resource
     serializer_class = serializers.ResourceSerializer
 
     def get_object(self):
-        return get_object_or_404(models.Resource,
+        return get_object_or_404(models.resource.Resource,
                                  app__id=self.kwargs['id'],
                                  name=self.kwargs['name'])
 
@@ -909,7 +909,7 @@ class MetricView(BaseDryccViewSet):
     """Getting monitoring indicators from influxdb"""
 
     def _get_app(self):
-        app = get_object_or_404(models.App, id=self.kwargs['id'])
+        app = get_object_or_404(models.app.App, id=self.kwargs['id'])
         self.check_object_permissions(self.request, app)
         return app
 
