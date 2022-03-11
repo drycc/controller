@@ -77,7 +77,7 @@ def auth(request, backend):
 @psa('{0}:complete'.format(NAMESPACE))
 def complete(request, backend, *args, **kwargs):
     """Authentication complete view"""
-    return do_complete(request.backend, _do_login, user=request.user,
+    return do_complete(request.backend, _do_login, user=None,
                        redirect_name=REDIRECT_FIELD_NAME, request=request,
                        *args, **kwargs)
 
