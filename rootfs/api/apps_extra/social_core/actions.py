@@ -112,10 +112,6 @@ def do_complete(backend, login, user=None, redirect_name='next',
     response = backend.strategy.redirect(url)
     social_auth = user.social_auth.filter(provider='drycc').\
         order_by('-modified').last()
-    response.set_cookie("name", user.username,
-                        max_age=social_auth.extra_data.get('expires_in'))
-    response.set_cookie("id_token", social_auth.extra_data.get('id_token'),
-                        max_age=social_auth.extra_data.get('expires_in'))
     from django.core.cache import cache
     cache.set("oidc_state_" + data.get('state'),
               {'token': social_auth.extra_data.get('id_token', 'fail'),
