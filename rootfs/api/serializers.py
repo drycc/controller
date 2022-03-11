@@ -164,7 +164,7 @@ class UserSerializer(serializers.ModelSerializer):
             user.date_joined = now
             user.set_unusable_password()
         user.save()
-        return user
+        return user, created
 
 
 class AdminUserSerializer(serializers.ModelSerializer):
