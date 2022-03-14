@@ -20,6 +20,7 @@ class Config:
     broker_url = os.environ.get('DRYCC_RABBITMQ_URL', 'amqp://guest:guest@127.0.0.1:5672/')  # noqa
     cache_backend = 'django-cache'
     task_default_queue = 'priority.low'
+    worker_cancel_long_running_tasks_on_connection_loss = True
 
 
 app = Celery('drycc')

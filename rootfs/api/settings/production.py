@@ -122,7 +122,6 @@ AUTHENTICATION_BACKENDS = (
 )
 GUARDIAN_GET_INIT_ANONYMOUS_USER = 'api.models.base.get_anonymous_user_instance'
 ANONYMOUS_USER_NAME = os.environ.get('ANONYMOUS_USER_NAME', 'AnonymousUser')
-ANONYMOUS_USER_ID = -1
 LOGIN_URL = '/v2/auth/login/'
 LOGIN_REDIRECT_URL = '/'
 
