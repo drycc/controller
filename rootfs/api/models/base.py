@@ -10,7 +10,7 @@ from api.exceptions import ServiceUnavailable
 from api.utils import dict_merge
 
 
-def get_anonymous_user_instance(user): return user(id=-1)
+def get_anonymous_user_instance(user): return user(id=-1, username=settings.ANONYMOUS_USER_NAME)
 
 
 class AuditedModel(models.Model):
