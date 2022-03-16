@@ -21,6 +21,7 @@ spec:
       labels:
         app: drycc-controller
     spec:
+      {{- include "common.affinities.nodes.soft" (dict "key" "app" "values" (list "drycc-controller")) | indent 6 }}
       serviceAccount: drycc-controller
       initContainers:
       - name: drycc-controller-init

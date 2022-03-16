@@ -12,6 +12,7 @@ spec:
       labels:
         component: drycc-controller-webhook
     spec:
+      {{- include "common.affinities.nodes.soft" (dict "key" "app" "values" (list "drycc-controller-webhook")) | indent 6 }}
       initContainers:
       - name: drycc-controller-init
         image: docker.io/drycc/python-dev:latest

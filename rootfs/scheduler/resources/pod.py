@@ -96,6 +96,37 @@ class Pod(Resource):
 
         return states.get(pod_state, pod_state)
 
+    @classmethod
+    def affinity(cls, name):
+        return {
+            "podAntiAffinity": {
+                "preferredDuringSchedulingIgnoredDuringExecution": [
+                    {
+                        "weight": 100,
+                        "podAffinityTerm": {
+                            "labelSelector": {
+                                "matchExpressions": [
+                                    {"key": "app", "operator": "In", "values": [name, ]}
+                                ]
+                            },
+                            "topologyKey": "topology.kubernetes.io/zone",
+                        }
+                    },
+                    {
+                        "weight": 90,
+                        "podAffinityTerm": {
+                            "labelSelector": {
+                                "matchExpressions": [
+                                    {"key": "app", "operator": "In", "values": [name, ]}
+                                ]
+                            },
+                            "topologyKey": "kubernetes.io/hostname",
+                        }
+                    }
+                ]
+            }
+        }
+
     def manifest(self, namespace, name, image, **kwargs):
         app_type = kwargs.get('app_type')
         volumes = kwargs.get('volumes')
@@ -118,7 +149,9 @@ class Pod(Resource):
               'labels': labels,
               'annotations': kwargs.get('annotations', {}),
             },
-            'spec': {}
+            'spec': {
+                "affinity": self.affinity(name)
+            }
         }
         # pod manifest spec
         spec = manifest['spec']
