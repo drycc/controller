@@ -6,9 +6,9 @@ COPY requirements.txt ${DRYCC_HOME_DIR}/requirements.txt
 COPY dev_requirements.txt ${DRYCC_HOME_DIR}/dev_requirements.txt
 
 ENV PGDATA="/opt/drycc/postgresql/data" \
-  PYTHON_VERSION="3.10.2" \
+  PYTHON_VERSION="3.10.4" \
   REDIS_VERSION="6.2.6" \
-  RABBITMQ_VERSION="3.9.13" \
+  RABBITMQ_VERSION="3.9.14" \
   POSTGRES_VERSION="14.2" \
   GOSU_VERSION="1.14"
 
