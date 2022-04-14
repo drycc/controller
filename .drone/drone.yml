@@ -9,13 +9,18 @@ platform:
 steps:
 - name: test
   commands:
+  - mkdir -p $HOMEPATH/.docker; echo $IMAGE_PULL_SECRETS > $HOMEPATH/.docker/config.json
   - make test docker-build-test upload-coverage
   environment:
     VERSION: ${DRONE_TAG:-latest}-linux-amd64
-    DEV_REGISTRY: ${DEV_REGISTRY:-docker.io}
-    DRYCC_REGISTRY: ${DRYCC_REGISTRY:-docker.io}
+    DEV_REGISTRY:
+      from_secret: dev_registry
+    DRYCC_REGISTRY:
+      from_secret: drycc_registry
     CODECOV_TOKEN:
       from_secret: codecov_token
+    IMAGE_PULL_SECRETS:
+      from_secret: container_pull_secrets
   when:
     event:
     - push
@@ -24,7 +29,7 @@ steps:
 
 - name: publish
   commands:
-  - echo $DOCKER_PASSWORD | docker login $DRYCC_REGISTRY --username $DOCKER_USERNAME --password-stdin
+  - echo $CONTAINER_PASSWORD | docker login $DRYCC_REGISTRY --username $CONTAINER_USERNAME --password-stdin > /dev/null 2>&1
   - make docker-build docker-immutable-push
   environment:
     VERSION: ${DRONE_TAG:-latest}-linux-amd64
@@ -32,10 +37,10 @@ steps:
       from_secret: dev_registry
     DRYCC_REGISTRY:
       from_secret: drycc_registry
-    DOCKER_USERNAME:
-      from_secret: docker_username
-    DOCKER_PASSWORD:
-      from_secret: docker_password
+    CONTAINER_USERNAME:
+      from_secret: container_username
+    CONTAINER_PASSWORD:
+      from_secret: container_password
   when:
     event:
     - push
@@ -53,7 +58,7 @@ platform:
 steps:
 - name: publish
   commands:
-  - echo $DOCKER_PASSWORD | docker login $DRYCC_REGISTRY --username $DOCKER_USERNAME --password-stdin
+  - echo $CONTAINER_PASSWORD | docker login $DRYCC_REGISTRY --username $CONTAINER_USERNAME --password-stdin > /dev/null 2>&1
   - make docker-build docker-immutable-push
   environment:
     VERSION: ${DRONE_TAG:-latest}-linux-arm64
@@ -61,10 +66,10 @@ steps:
       from_secret: dev_registry
     DRYCC_REGISTRY:
       from_secret: drycc_registry
-    DOCKER_USERNAME:
-      from_secret: docker_username
-    DOCKER_PASSWORD:
-      from_secret: docker_password
+    CONTAINER_USERNAME:
+      from_secret: container_username
+    CONTAINER_PASSWORD:
+      from_secret: container_password
   when:
     event:
     - push
@@ -74,14 +79,19 @@ steps:
 kind: pipeline
 type: docker
 name: manifest
+image_pull_secrets:
+- container_pull_secrets
 
 steps:
+
 - name: generate manifest
-  image: docker.io/library/alpine
+  image: registry.drycc.cc/drycc/python-dev
   pull: always
   commands:
-  - sed -i "s/docker.io/$${DRYCC_REGISTRY}/g" .drone/manifest.tmpl
+  - sed -i "s/registry.drycc.cc/$${DRYCC_REGISTRY}/g" .drone/manifest.tmpl
   environment:
+    DEV_REGISTRY:
+      from_secret: dev_registry
     DRYCC_REGISTRY:
       from_secret: drycc_registry
 
@@ -90,9 +100,9 @@ steps:
   settings:
     spec: .drone/manifest.tmpl
     username:
-      from_secret: docker_username
+      from_secret: container_username
     password:
-      from_secret: docker_password
+      from_secret: container_password
   environment:
     DEV_REGISTRY:
       from_secret: dev_registry

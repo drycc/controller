@@ -25,7 +25,7 @@ spec:
       serviceAccount: drycc-controller
       initContainers:
       - name: drycc-controller-init
-        image: docker.io/drycc/python-dev:latest
+        image: registry.drycc.cc/drycc/python-dev:latest
         imagePullPolicy: {{.Values.imagePullPolicy}}
         args:
         - netcat
