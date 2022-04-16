@@ -15,7 +15,7 @@ spec:
       {{- include "common.affinities.pods.soft" (dict "key" "app" "values" (list "drycc-controller-webhook")) | indent 6 }}
       initContainers:
       - name: drycc-controller-init
-        image: registry.drycc.cc/drycc/python-dev:latest
+        image: {{.Values.imageRegistry}}/{{.Values.imageOrg}}/python-dev:latest
         imagePullPolicy: {{.Values.imagePullPolicy}}
         args:
         - netcat

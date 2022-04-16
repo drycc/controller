@@ -19,7 +19,7 @@ spec:
           serviceAccount: drycc-controller
           initContainers:
           - name: drycc-controller-cronjob-daily-init
-            image: registry.drycc.cc/drycc/python-dev:latest
+            image: {{.Values.imageRegistry}}/{{.Values.imageOrg}}/python-dev:latest
             imagePullPolicy: {{.Values.imagePullPolicy}}
             args:
               - netcat
