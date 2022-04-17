@@ -70,13 +70,8 @@ env:
     secretKeyRef:
       name: database-creds
       key: password
-- name: DRYCC_DATABASE_NAME
-  valueFrom:
-    secretKeyRef:
-      name: database-creds
-      key: controller-database-name
 - name: DRYCC_DATABASE_URL
-  value: "postgres://$(DRYCC_DATABASE_USER):$(DRYCC_DATABASE_PASSWORD)@$(DRYCC_DATABASE_SERVICE_HOST):$(DRYCC_DATABASE_SERVICE_PORT)/$(DRYCC_DATABASE_NAME)"
+  value: "postgres://$(DRYCC_DATABASE_USER):$(DRYCC_DATABASE_PASSWORD)@$(DRYCC_DATABASE_SERVICE_HOST):$(DRYCC_DATABASE_SERVICE_PORT)/controller"
 {{- end }}
 - name: WORKFLOW_NAMESPACE
   valueFrom:
