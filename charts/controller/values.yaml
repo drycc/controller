@@ -29,6 +29,8 @@ celeryReplicas: 1
 concurrencyPolicy: "Replace"
 # Configuring this will no longer use the built-in database component
 databaseUrl: ""
+# Configuring this will no longer use the built-in rabbitmq component
+rabbitmqUrl: ""
 # Service
 service:
   # Provide any additional service annotations

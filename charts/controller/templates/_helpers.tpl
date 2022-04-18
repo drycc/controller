@@ -117,12 +117,12 @@ env:
     secretKeyRef:
       name: influxdb-creds
       key: token
-{{- if eq .Values.global.rabbitmqLocation "off-cluster"}}
-- name: "DRYCC_RABBITMQ_URL"
+{{- if (.Values.rabbitmqUrl) }}
+- name: DRYCC_RABBITMQ_URL
   valueFrom:
     secretKeyRef:
-      name: rabbitmq-creds
-      key: url
+      name: controller-creds
+      key: rabbitmqUrl
 {{- else if eq .Values.global.rabbitmqLocation "on-cluster" }}
 - name: "DRYCC_RABBITMQ_USERNAME"
   valueFrom:
