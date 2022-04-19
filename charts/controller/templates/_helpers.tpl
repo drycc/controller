@@ -16,8 +16,6 @@ env:
   value: "{{ .Values.k8sApiVerifyTls }}"
 - name: "DRYCC_REGISTRY_PROXY_PORT"
   value: "{{ .Values.global.registryProxyPort }}"
-- name: "APP_STORAGE"
-  value: "{{ .Values.global.storage}}"
 - name: "DRYCC_REGISTRY_LOCATION"
   value: "{{ .Values.global.registryLocation }}"
 - name: "DRYCC_REGISTRY_SECRET_PREFIX"
