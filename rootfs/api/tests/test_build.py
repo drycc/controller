@@ -7,7 +7,6 @@ import json
 
 from django.contrib.auth import get_user_model
 from django.core.cache import cache
-from django.conf import settings
 from django.test.utils import override_settings
 from unittest import mock
 from rest_framework.authtoken.models import Token
@@ -560,7 +559,7 @@ class BuildTest(DryccTransactionTestCase):
 
         # post an image as a build using registry hostname
         url = "/v2/apps/{app_id}/builds".format(**locals())
-        image = '{}/autotest/example'.format(settings.REGISTRY_HOST)
+        image = '127.0.0.1:5000/autotest/example'
         body = {'image': image, 'stack': 'container'}
         response = self.client.post(url, body)
         self.assertEqual(response.status_code, 201, response.data)
@@ -571,7 +570,7 @@ class BuildTest(DryccTransactionTestCase):
 
         # post an image as a build using registry hostname + port
         url = "/v2/apps/{app_id}/builds".format(**locals())
-        image = '{}/autotest/example'.format(settings.REGISTRY_URL)
+        image = '127.0.0.1:5000/autotest/example'
         body = {'image': image, 'stack': 'container'}
         response = self.client.post(url, body)
         self.assertEqual(response.status_code, 201, response.data)

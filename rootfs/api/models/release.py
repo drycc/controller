@@ -39,34 +39,7 @@ class Release(UuidAuditedModel):
 
     @property
     def image(self):
-        if (settings.REGISTRY_LOCATION != 'on-cluster'):
-            return self.build.image
-        # Builder pushes to internal registry, exclude SHA based images from being returned
-        registry = self.config.registry
-        if (
-            registry.get('username', None) and
-            registry.get('password', None) and
-            # SHA means it came from a git push (builder)
-            not self.build.sha and
-            # hostname tells Builder where to push images
-            not registry.get('hostname', None)
-        ):
-            return self.build.image
-
-        # return image if it is already in a registry, test host and then host + port
-        if (
-            self.build.image.startswith(settings.REGISTRY_HOST) or
-            self.build.image.startswith(settings.REGISTRY_URL)
-        ):
-            return self.build.image
-
-        # Sort out image information based on build type
-        if self.build.type == 'dockerfile' or self.build.type == 'buildpack':
-            # DockerFile or buildpack
-            return '{}/{}:git-{}'.format(settings.REGISTRY_URL, self.app.id, str(self.build.sha))
-        elif self.build.type == 'image':
-            # Drycc Pull, docker image in local registry
-            return self.build.image
+        return self.build.image
 
     def new(self, user, config, build, summary=None, source_version='latest'):
         """

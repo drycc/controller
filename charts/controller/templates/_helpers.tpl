@@ -1,12 +1,8 @@
 {{/* Generate controller deployment envs */}}
-{{- define "controller.envs" -}}
-{{ $redisNodeCount := .Values.redis.replicas | int }}
+{{- define "controller.envs" }}
 env:
 - name: REGISTRATION_MODE
   value: {{ .Values.registrationMode }}
-# NOTE(bacongobbler): use drycc/registry_proxy to work around Docker --insecure-registry requirements
-- name: "DRYCC_REGISTRY_PROXY_HOST"
-  value: "127.0.0.1"
 # Environmental variable value for $INGRESS_CLASS
 - name: "DRYCC_INGRESS_CLASS"
   value: "{{ .Values.global.ingressClass }}"
@@ -14,8 +10,6 @@ env:
   value: "{{ .Values.global.platformDomain }}"
 - name: "K8S_API_VERIFY_TLS"
   value: "{{ .Values.k8sApiVerifyTls }}"
-- name: "DRYCC_REGISTRY_PROXY_PORT"
-  value: "{{ .Values.global.registryProxyPort }}"
 - name: "DRYCC_REGISTRY_LOCATION"
   value: "{{ .Values.global.registryLocation }}"
 - name: "DRYCC_REGISTRY_SECRET_PREFIX"
@@ -75,16 +69,11 @@ env:
   valueFrom:
     fieldRef:
       fieldPath: metadata.namespace
-{{- if eq .Values.global.redisLocation "on-cluster"}}
-- name: DRYCC_REDIS_ADDRS
-  value: "{{range $i := until $redisNodeCount}}drycc-redis-{{$i}}.drycc-redis.{{$.Release.Namespace}}.svc.{{$.Values.global.clusterDomain}}:6379{{if lt (add 1 $i) $redisNodeCount}},{{end}}{{end}}"
-{{- else if eq .Values.global.redisLocation "off-cluster" }}
 - name: DRYCC_REDIS_ADDRS
   valueFrom:
     secretKeyRef:
       name: redis-creds
       key: addrs
-{{- end }}
 - name: DRYCC_REDIS_PASSWORD
   valueFrom:
     secretKeyRef:
