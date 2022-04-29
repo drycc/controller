@@ -125,32 +125,18 @@ env:
   value: "amqp://$(DRYCC_RABBITMQ_USERNAME):$(DRYCC_RABBITMQ_PASSWORD)@drycc-rabbitmq.{{$.Release.Namespace}}.svc.{{$.Values.global.clusterDomain}}:5672/drycc"
 {{- end }}
 {{- if eq .Values.global.passportLocation "on-cluster"}}
-- name: "DRYCC_PASSPORT_DOMAIN"
+- name: "DRYCC_PASSPORT_URL"
 {{- if .Values.global.certManagerEnabled }}
   value: https://drycc-passport.{{ .Values.global.platformDomain }}
 {{- else }}
   value: http://drycc-passport.{{ .Values.global.platformDomain }}
 {{- end }}
-- name: "SOCIAL_AUTH_DRYCC_AUTHORIZATION_URL"
-  value: "$(DRYCC_PASSPORT_DOMAIN)/oauth/authorize/"
-- name: "SOCIAL_AUTH_DRYCC_ACCESS_TOKEN_URL"
-  value: "$(DRYCC_PASSPORT_DOMAIN)/oauth/token/"
-- name: "SOCIAL_AUTH_DRYCC_ACCESS_API_URL"
-  value: "$(DRYCC_PASSPORT_DOMAIN)"
-- name: "SOCIAL_AUTH_DRYCC_USERINFO_URL"
-  value: "$(DRYCC_PASSPORT_DOMAIN)/oauth/userinfo/"
-- name: "SOCIAL_AUTH_DRYCC_JWKS_URI"
-  value: "$(DRYCC_PASSPORT_DOMAIN)/oauth/.well-known/jwks.json"
-- name: "SOCIAL_AUTH_DRYCC_OIDC_ENDPOINT"
-  value: "$(DRYCC_PASSPORT_DOMAIN)/oauth"
-- name: "LOGIN_REDIRECT_URL"
-  value: "$(DRYCC_PASSPORT_DOMAIN)/user/login/done/"
-- name: SOCIAL_AUTH_DRYCC_CONTROLLER_KEY
+- name: SOCIAL_AUTH_DRYCC_KEY
   valueFrom:
     secretKeyRef:
       name: passport-creds
       key: social-auth-drycc-controller-key
-- name: SOCIAL_AUTH_DRYCC_CONTROLLER_SECRET
+- name: SOCIAL_AUTH_DRYCC_SECRET
   valueFrom:
     secretKeyRef:
       name: passport-creds

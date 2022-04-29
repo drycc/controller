@@ -123,7 +123,6 @@ AUTHENTICATION_BACKENDS = (
 GUARDIAN_GET_INIT_ANONYMOUS_USER = 'api.models.base.get_anonymous_user_instance'
 ANONYMOUS_USER_NAME = os.environ.get('ANONYMOUS_USER_NAME', 'AnonymousUser')
 LOGIN_URL = '/v2/auth/login/'
-LOGIN_REDIRECT_URL = '/'
 
 # Security settings
 CORS_ORIGIN_ALLOW_ALL = True
@@ -409,15 +408,47 @@ DATABASES = {
 APP_URL_REGEX = '[a-z0-9-]+'
 
 # Oauth settings
-LOGIN_REDIRECT_URL = os.environ.get('LOGIN_REDIRECT_URL', '/admin/')
-SOCIAL_AUTH_DRYCC_AUTHORIZATION_URL = os.environ.get('SOCIAL_AUTH_DRYCC_AUTHORIZATION_URL')
-SOCIAL_AUTH_DRYCC_ACCESS_TOKEN_URL = os.environ.get('SOCIAL_AUTH_DRYCC_ACCESS_TOKEN_URL')
-SOCIAL_AUTH_DRYCC_ACCESS_API_URL = os.environ.get('SOCIAL_AUTH_DRYCC_ACCESS_API_URL')
-SOCIAL_AUTH_DRYCC_USERINFO_URL = os.environ.get('SOCIAL_AUTH_DRYCC_USERINFO_URL')
-SOCIAL_AUTH_DRYCC_JWKS_URI = os.environ.get('SOCIAL_AUTH_DRYCC_JWKS_URI')
-SOCIAL_AUTH_DRYCC_OIDC_ENDPOINT = os.environ.get('SOCIAL_AUTH_DRYCC_OIDC_ENDPOINT')
-SOCIAL_AUTH_DRYCC_KEY = os.environ.get('SOCIAL_AUTH_DRYCC_CONTROLLER_KEY')
-SOCIAL_AUTH_DRYCC_SECRET = os.environ.get('SOCIAL_AUTH_DRYCC_CONTROLLER_SECRET')
+
+DRYCC_PASSPORT_URL = os.environ.get('DRYCC_PASSPORT_URL', 'https://127.0.0.1:8000')
+
+LOGIN_REDIRECT_URL = os.environ.get(
+    'LOGIN_REDIRECT_URL',
+    f'{DRYCC_PASSPORT_URL}/user/login/done/',
+)
+
+SOCIAL_AUTH_DRYCC_AUTHORIZATION_URL = os.environ.get(
+    'SOCIAL_AUTH_DRYCC_AUTHORIZATION_URL',
+    f'{DRYCC_PASSPORT_URL}/oauth/authorize/',
+)
+SOCIAL_AUTH_DRYCC_ACCESS_TOKEN_URL = os.environ.get(
+    'SOCIAL_AUTH_DRYCC_ACCESS_TOKEN_URL',
+    f'{DRYCC_PASSPORT_URL}/oauth/token/'
+)
+SOCIAL_AUTH_DRYCC_ACCESS_API_URL = os.environ.get(
+    'SOCIAL_AUTH_DRYCC_ACCESS_API_URL',
+    f'{DRYCC_PASSPORT_URL}'
+)
+SOCIAL_AUTH_DRYCC_USERINFO_URL = os.environ.get(
+    'SOCIAL_AUTH_DRYCC_USERINFO_URL',
+    f'{DRYCC_PASSPORT_URL}/oauth/userinfo/'
+)
+SOCIAL_AUTH_DRYCC_JWKS_URI = os.environ.get(
+    'SOCIAL_AUTH_DRYCC_JWKS_URI',
+    f'{DRYCC_PASSPORT_URL}/oauth/.well-known/jwks.json'
+)
+SOCIAL_AUTH_DRYCC_OIDC_ENDPOINT = os.environ.get(
+    'SOCIAL_AUTH_DRYCC_OIDC_ENDPOINT',
+    f'{DRYCC_PASSPORT_URL}/oauth'
+)
+SOCIAL_AUTH_DRYCC_KEY = os.environ.get(
+    'SOCIAL_AUTH_DRYCC_KEY',
+    'BZUsBnW8hoSOrWfGs7EEVKSPjvE6PJdc9869v82o'
+)
+SOCIAL_AUTH_DRYCC_SECRET = os.environ.get(
+    'SOCIAL_AUTH_DRYCC_SECRET',
+    'bQpNjR3YkNqE1W7ohNXVAWuTmYbeKyQKRDelkd8JcsbksoJSHs0igox52frNuz6L'
+)
+
 SOCIAL_AUTH_JSONFIELD_ENABLED = True
 SOCIAL_AUTH_PIPELINE = (
     'social_core.pipeline.social_auth.social_details',
@@ -430,8 +461,7 @@ SOCIAL_AUTH_PIPELINE = (
     'social_core.pipeline.social_auth.load_extra_data',
     'social_core.pipeline.user.user_details',
 )
-AUTHENTICATION_BACKENDS = ("api.backend.DryccOIDC",) + \
-    AUTHENTICATION_BACKENDS
+AUTHENTICATION_BACKENDS = ("api.backend.DryccOIDC", ) + AUTHENTICATION_BACKENDS
 OAUTH_CACHE_USER_TIME = int(os.environ.get('OAUTH_CACHE_USER_TIME', 30 * 60))
 
 # Redis Configuration
