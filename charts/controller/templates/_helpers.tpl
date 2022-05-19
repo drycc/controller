@@ -131,12 +131,12 @@ env:
 {{- else }}
   value: http://drycc-passport.{{ .Values.global.platformDomain }}
 {{- end }}
-- name: SOCIAL_AUTH_DRYCC_KEY
+- name: DRYCC_PASSPORT_KEY
   valueFrom:
     secretKeyRef:
       name: passport-creds
       key: social-auth-drycc-controller-key
-- name: SOCIAL_AUTH_DRYCC_SECRET
+- name: DRYCC_PASSPORT_SECRET
   valueFrom:
     secretKeyRef:
       name: passport-creds

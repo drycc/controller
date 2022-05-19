@@ -416,6 +416,16 @@ LOGIN_REDIRECT_URL = os.environ.get(
     f'{DRYCC_PASSPORT_URL}/user/login/done/',
 )
 
+SOCIAL_AUTH_DRYCC_KEY = os.environ.get(
+    "DRYCC_PASSPORT_KEY",
+    os.environ.get("SOCIAL_AUTH_DRYCC_KEY"),
+)
+
+SOCIAL_AUTH_DRYCC_SECRET = os.environ.get(
+    'DRYCC_PASSPORT_SECRET',
+    os.environ.get("SOCIAL_AUTH_DRYCC_SECRET"),
+)
+
 SOCIAL_AUTH_DRYCC_AUTHORIZATION_URL = os.environ.get(
     'SOCIAL_AUTH_DRYCC_AUTHORIZATION_URL',
     f'{DRYCC_PASSPORT_URL}/oauth/authorize/',
@@ -439,14 +449,6 @@ SOCIAL_AUTH_DRYCC_JWKS_URI = os.environ.get(
 SOCIAL_AUTH_DRYCC_OIDC_ENDPOINT = os.environ.get(
     'SOCIAL_AUTH_DRYCC_OIDC_ENDPOINT',
     f'{DRYCC_PASSPORT_URL}/oauth'
-)
-SOCIAL_AUTH_DRYCC_KEY = os.environ.get(
-    'SOCIAL_AUTH_DRYCC_KEY',
-    'BZUsBnW8hoSOrWfGs7EEVKSPjvE6PJdc9869v82o'
-)
-SOCIAL_AUTH_DRYCC_SECRET = os.environ.get(
-    'SOCIAL_AUTH_DRYCC_SECRET',
-    'bQpNjR3YkNqE1W7ohNXVAWuTmYbeKyQKRDelkd8JcsbksoJSHs0igox52frNuz6L'
 )
 
 SOCIAL_AUTH_JSONFIELD_ENABLED = True
