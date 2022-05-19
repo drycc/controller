@@ -135,12 +135,12 @@ env:
   valueFrom:
     secretKeyRef:
       name: passport-creds
-      key: social-auth-drycc-controller-key
+      key: drycc-passport-controller-key
 - name: DRYCC_PASSPORT_SECRET
   valueFrom:
     secretKeyRef:
       name: passport-creds
-      key: social-auth-drycc-controller-secret
+      key: drycc-passport-controller-secret
 {{- end }}
 {{- range $key, $value := .Values.environment }}
 - name: {{ $key }}
