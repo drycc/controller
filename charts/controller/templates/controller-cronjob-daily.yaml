@@ -7,7 +7,8 @@ metadata:
   annotations:
     component.drycc.cc/version: {{ .Values.imageTag }}
 spec:
-  schedule: "0 0 * * *"
+  timeZone: "Etc/UTC"
+  schedule: "0 1 * * *"
   concurrencyPolicy: {{ .Values.concurrencyPolicy }}
   successfulJobsHistoryLimit: 1
   failedJobsHistoryLimit: 1
