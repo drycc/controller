@@ -341,7 +341,7 @@ KUBERNETES_POD_TERMINATION_GRACE_PERIOD_SECONDS = int(os.environ.get(
 KUBERNETES_CPU_MEMORY_RATIO = tuple(map(lambda x: x.strip(), os.environ.get(
     'DRYCC_CPU_MEMORY_DISTRIBUTION_RATIO', '1G,4G').split(",")))
 # CPU request ratio
-KUBERNETES_REQUEST_CPU_RATIO = int(os.environ.get('KUBERNETES_REQUEST_CPU_RATIO', '10'))
+KUBERNETES_REQUEST_CPU_RATIO = int(os.environ.get('KUBERNETES_REQUEST_CPU_RATIO', '2'))
 # Memory request ratio
 KUBERNETES_REQUEST_MEMORY_RATIO = int(os.environ.get('KUBERNETES_REQUEST_MEMORY_RATIO', '2'))
 
