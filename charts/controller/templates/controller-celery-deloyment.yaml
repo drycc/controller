@@ -21,7 +21,10 @@ spec:
       labels:
         app: drycc-controller-celery
     spec:
-      {{- include "common.affinities.pods.soft" (dict "key" "app" "values" (list "drycc-controller-celery")) | indent 6 }}
+      affinity:
+        podAffinity: {{- include "common.affinities.pods" (dict "type" .Values.celery.podAffinityPreset.type "key" .Values.celery.podAffinityPreset.key "values" .Values.celery.podAffinityPreset.values ) | nindent 10 }}
+        podAntiAffinity: {{- include "common.affinities.pods" (dict "type" .Values.celery.podAntiAffinityPreset.type "key" .Values.celery.podAntiAffinityPreset.key "values" .Values.celery.podAntiAffinityPreset.values ) | nindent 10 }}
+        nodeAffinity: {{- include "common.affinities.nodes" (dict "type" .Values.celery.nodeAffinityPreset.type "key" .Values.celery.nodeAffinityPreset.key "values" .Values.celery.nodeAffinityPreset.values ) | nindent 10 }}
       serviceAccount: drycc-controller
       initContainers:
       - name: drycc-controller-init

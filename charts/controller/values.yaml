@@ -41,6 +41,74 @@ service:
 environment:
   RESERVED_NAMES: "drycc, drycc-builder, drycc-monitor-grafana"
 
+api:
+  nodeAffinityPreset:
+    key: "drycc.cc/node"
+    type: "soft"
+    values:
+    - "true"
+  podAffinityPreset:
+    key: "security"
+    type: ""
+    values:
+    - "drycc-security"
+  podAntiAffinityPreset:
+    key: "app"
+    type: "soft"
+    values:
+    - "drycc-controller-api"
+
+celery:
+  nodeAffinityPreset:
+    key: "drycc.cc/node"
+    type: "soft"
+    values:
+    - "true"
+  podAffinityPreset:
+    key: "security"
+    type: ""
+    values:
+    - "drycc-security"
+  podAntiAffinityPreset:
+    key: "app"
+    type: "soft"
+    values:
+    - "drycc-controller-celery"
+
+webhook:
+  nodeAffinityPreset:
+    key: "drycc.cc/node"
+    type: "soft"
+    values:
+    - "true"
+  podAffinityPreset:
+    key: "security"
+    type: ""
+    values:
+    - "drycc-security"
+  podAntiAffinityPreset:
+    key: "app"
+    type: "soft"
+    values:
+    - "drycc-controller-webhook"
+
+cronjob:
+  nodeAffinityPreset:
+    key: "drycc.cc/node"
+    type: "soft"
+    values:
+    - "true"
+  podAffinityPreset:
+    key: "security"
+    type: ""
+    values:
+    - "drycc-security"
+  podAntiAffinityPreset:
+    key: "app"
+    type: "soft"
+    values:
+    - "drycc-controller-webhook"
+
 redis:
   replicas: 1
 

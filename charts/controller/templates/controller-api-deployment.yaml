@@ -15,13 +15,16 @@ spec:
     type: RollingUpdate
   selector:
     matchLabels:
-      app: drycc-controller
+      app: drycc-controller-api
   template:
     metadata:
       labels:
-        app: drycc-controller
+        app: drycc-controller-api
     spec:
-      {{- include "common.affinities.pods.soft" (dict "key" "app" "values" (list "drycc-controller")) | indent 6 }}
+      affinity:
+        podAffinity: {{- include "common.affinities.pods" (dict "type" .Values.api.podAffinityPreset.type "key" .Values.api.podAffinityPreset.key "values" .Values.api.podAffinityPreset.values ) | nindent 10 }}
+        podAntiAffinity: {{- include "common.affinities.pods" (dict "type" .Values.api.podAntiAffinityPreset.type "key" .Values.api.podAntiAffinityPreset.key "values" .Values.api.podAntiAffinityPreset.values ) | nindent 10 }}
+        nodeAffinity: {{- include "common.affinities.nodes" (dict "type" .Values.api.nodeAffinityPreset.type "key" .Values.api.nodeAffinityPreset.key "values" .Values.api.nodeAffinityPreset.values ) | nindent 10 }}
       serviceAccount: drycc-controller
       initContainers:
       - name: drycc-controller-init

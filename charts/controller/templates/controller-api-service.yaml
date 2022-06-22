@@ -1,7 +1,7 @@
 apiVersion: v1
 kind: Service
 metadata:
-  name: drycc-controller
+  name: drycc-controller-api
   annotations:
     {{- with .Values.service.annotations }}
     {{- toYaml . | nindent 4 }}
@@ -14,4 +14,4 @@ spec:
       port: 80
       targetPort: 8000
   selector:
-    app: drycc-controller
+    app: drycc-controller-api

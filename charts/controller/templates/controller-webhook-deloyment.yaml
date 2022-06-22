@@ -12,7 +12,10 @@ spec:
       labels:
         component: drycc-controller-webhook
     spec:
-      {{- include "common.affinities.pods.soft" (dict "key" "app" "values" (list "drycc-controller-webhook")) | indent 6 }}
+      affinity:
+        podAffinity: {{- include "common.affinities.pods" (dict "type" .Values.webhook.podAffinityPreset.type "key" .Values.webhook.podAffinityPreset.key "values" .Values.webhook.podAffinityPreset.values ) | nindent 10 }}
+        podAntiAffinity: {{- include "common.affinities.pods" (dict "type" .Values.webhook.podAntiAffinityPreset.type "key" .Values.webhook.podAntiAffinityPreset.key "values" .Values.webhook.podAntiAffinityPreset.values ) | nindent 10 }}
+        nodeAffinity: {{- include "common.affinities.nodes" (dict "type" .Values.webhook.nodeAffinityPreset.type "key" .Values.webhook.nodeAffinityPreset.key "values" .Values.webhook.nodeAffinityPreset.values ) | nindent 10 }}
       initContainers:
       - name: drycc-controller-init
         image: {{.Values.imageRegistry}}/{{.Values.imageOrg}}/python-dev:latest

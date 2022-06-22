@@ -15,6 +15,9 @@ spec:
   jobTemplate:
     spec:
       template:
+        metadata:
+          labels:
+            app: drycc-controller-conjob
         spec:
           restartPolicy: OnFailure
           serviceAccount: drycc-controller
