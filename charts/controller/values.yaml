@@ -17,7 +17,7 @@ registrationMode: "admin_only"
 k8sApiVerifyTls: "true"
 
 # Set storageClassName, It is used for application mount.
-appStorageClass: ""
+appStorageClass: "drycc-storage"
 # Set controller deployment  replicas
 replicas: 1
 # Set celery replicas
