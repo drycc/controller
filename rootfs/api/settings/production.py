@@ -353,10 +353,10 @@ KUBERNETES_LIMITS_MAX_CPU = 32 * 1000
 KUBERNETES_LIMITS_MIN_MEMORY = 128
 # Max Memory limit, units are represented in Megabytes(M)
 KUBERNETES_LIMITS_MAX_MEMORY = 128 * 1024
-# Minimum Memory limit, units are represented in Megabytes(M)
-KUBERNETES_LIMITS_MIN_VOLUME = 128
-# Max Memory limit, units are represented in Megabytes(M)
-KUBERNETES_LIMITS_MAX_VOLUME = 128 * 1024
+# Minimum Stroage Volume limit, units are represented in Gigabytes(G)
+KUBERNETES_LIMITS_MIN_VOLUME = 1
+# Max Stroage Volume limit, units are represented in Gigabytes(G)
+KUBERNETES_LIMITS_MAX_VOLUME = 1024 * 16
 
 # Default pod spec for application.
 KUBERNETES_POD_DEFAULT_RESOURCES = os.environ.get(

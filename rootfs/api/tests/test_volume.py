@@ -39,7 +39,7 @@ class VolumeTest(DryccTransactionTestCase):
         response = self.client.post(
             '/v2/apps/{}/volumes'.format(app_id),
             data={
-                'name': 'myvolume', 'size': '500M'
+                'name': 'myvolume', 'size': '500G'
             }
         )
         self.assertEqual(response.status_code, 201, response.data)
@@ -53,7 +53,7 @@ class VolumeTest(DryccTransactionTestCase):
             'owner': self.user.username,
             'app': app_id,
             'name': 'myvolume',
-            'size': '500M'
+            'size': '500G'
         }
         self.assertDictContainsSubset(expected, response.data)
 
@@ -65,8 +65,8 @@ class VolumeTest(DryccTransactionTestCase):
         # create
         app_id = self.create_app()
         data = [
-            {'name': 'myvolume1', 'size': '500M'},
-            {'name': 'myvolume2', 'size': '500M'}
+            {'name': 'myvolume1', 'size': '500G'},
+            {'name': 'myvolume2', 'size': '500G'}
         ]
         for _ in data:
             self.client.post('/v2/apps/{}/volumes'.format(app_id), data=_)
@@ -76,6 +76,36 @@ class VolumeTest(DryccTransactionTestCase):
         expected = [res['name'] for res in response.data['results']]
         self.assertEqual(sorted([_['name'] for _ in data]), sorted(expected))
 
+    def test_volume_expand(self, mock_requests):
+        """
+        Test that volume is delete for a new app and that
+        volume can be updated using a PATCH
+        """
+        # create
+        app_id = self.create_app()
+        data = {'name': 'myvolume1', 'size': '500G'}
+        self.client.post('/v2/apps/{}/volumes'.format(app_id), data=data)
+
+        # Put
+        url = '/v2/apps/{app_id}/volumes/{volume}'.format(app_id=app_id,
+                                                          volume='myvolume1')
+        response = self.client.put(url, {'name': 'myvolume1', 'size': '100G'})
+        self.assertEqual(response.status_code, 400)
+
+        response = self.client.put(url, {'name': 'myvolume1', 'size': '1024G'})
+        self.assertEqual(response.status_code, 200)
+        # Fetch
+        url = '/v2/apps/{app_id}/volumes'.format(app_id=app_id)
+        response = self.client.get(url)
+        expected = {
+            'owner': self.user.username,
+            'app': app_id,
+            'name': 'myvolume1',
+            'size': '1024G'
+        }
+        assert len(response.data["results"]) == 1
+        self.assertDictContainsSubset(expected, response.data["results"][0])
+
     def test_volume_delete(self, mock_requests):
         """
         Test that volume is delete for a new app and that
@@ -84,8 +114,8 @@ class VolumeTest(DryccTransactionTestCase):
         # create
         app_id = self.create_app()
         data = [
-            {'name': 'myvolume1', 'size': '500M'},
-            {'name': 'myvolume2', 'size': '500M'}
+            {'name': 'myvolume1', 'size': '500G'},
+            {'name': 'myvolume2', 'size': '500G'}
         ]
         for _ in data:
             self.client.post('/v2/apps/{}/volumes'.format(app_id), data=_)
@@ -108,7 +138,7 @@ class VolumeTest(DryccTransactionTestCase):
         # create
         app_id = self.create_app()
         data = [
-            {'name': 'myvolume1', 'size': '500M'}
+            {'name': 'myvolume1', 'size': '500G'}
         ]
         for _ in data:
             self.client.post('/v2/apps/{}/volumes'.format(app_id), data=_)
@@ -125,7 +155,7 @@ class VolumeTest(DryccTransactionTestCase):
         # create
         app_id = self.create_app()
         data = [
-            {'name': 'myvolume1', 'size': '500M'}
+            {'name': 'myvolume1', 'size': '500G'}
         ]
         for _ in data:
             self.client.post('/v2/apps/{}/volumes'.format(app_id), data=_)
@@ -183,8 +213,8 @@ class VolumeTest(DryccTransactionTestCase):
         # create
         app_id = self.create_app()
         data = [
-            {'name': 'myvolume1', 'size': '500M'},
-            {'name': 'myvolume2', 'size': '500M'}
+            {'name': 'myvolume1', 'size': '500G'},
+            {'name': 'myvolume2', 'size': '500G'}
         ]
         for _ in data:
             self.client.post('/v2/apps/{}/volumes'.format(app_id), data=_)

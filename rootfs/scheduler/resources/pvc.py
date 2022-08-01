@@ -1,3 +1,4 @@
+import json
 from scheduler.resources import Resource
 from scheduler.exceptions import KubeHTTPException
 
@@ -62,6 +63,16 @@ class PersistentVolumeClaim(Resource):
             raise KubeHTTPException(
                 response,
                 "create persistentvolumeclaim {}".format(namespace))
+        return response
+
+    def put(self, namespace, name, **kwargs):
+        url = self.api('/namespaces/{}/persistentvolumeclaims/{}', namespace,
+                       name)
+        data = self.manifest(namespace, name, **kwargs)
+        response = self.http_put(url, json=data)
+        if self.unhealthy(response.status_code):
+            self.log(namespace, 'template used: {}'.format(json.dumps(data, indent=4)), 'DEBUG')  # noqa
+            raise KubeHTTPException(response, 'update HorizontalPodAutoscaler "{}"', name)
         return response
 
     def delete(self, namespace, name):

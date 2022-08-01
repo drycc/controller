@@ -680,6 +680,14 @@ class AppVolumesViewSet(ReleasableViewSet):
     model = models.volume.Volume
     serializer_class = serializers.VolumeSerializer
 
+    def expand(self, request, **kwargs):
+        volume = get_object_or_404(models.volume.Volume,
+                                   app__id=self.kwargs['id'],
+                                   name=self.kwargs['name'])
+        volume.expand(request.data['size'])
+        serializer = self.get_serializer(volume, many=False)
+        return Response(serializer.data)
+
     def destroy(self, request, **kwargs):
         volume = get_object_or_404(models.volume.Volume,
                                    app__id=self.kwargs['id'],

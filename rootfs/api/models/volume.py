@@ -18,19 +18,11 @@ class Volume(UuidAuditedModel):
     size = models.CharField(max_length=128)
     path = models.JSONField(default=dict, blank=True)
 
-    class Meta:
-        get_latest_by = 'created'
-        unique_together = (('app', 'name'),)
-        ordering = ['-created']
-
-    def __str__(self):
-        return self.name
-
     @transaction.atomic
     def save(self, *args, **kwargs):
         # Attach volume, updates k8s
         if self.created == self.updated:
-            self.attach()
+            self._create_pvc()
         # Save to DB
         return super(Volume, self).save(*args, **kwargs)
 
@@ -39,47 +31,26 @@ class Volume(UuidAuditedModel):
         if self.path:
             raise DryccException("the volume is not unmounted")
         # Deatch volume, updates k8s
-        self.detach()
+        self._delete_pvc()
         # Delete from DB
         return super(Volume, self).delete(*args, **kwargs)
 
-    @staticmethod
-    def _get_size(size):
-        """ Format volume limit value """
-        if size[-2:-1].isalpha() and size[-1].isalpha():
-            size = size[:-1]
-
-        if size[-1].isalpha():
-            size = size.upper() + "i"
-        return size
-
-    def attach(self):
+    @transaction.atomic
+    def expand(self, size):
+        if unit_to_bytes(size) < unit_to_bytes(self.size):
+            raise DryccException('Shrink volume is not supported.')
+        self.size = size
+        self.save()
         try:
-            self._scheduler.pvc.get(self.app.id, self.name)
-            err = "Volume {} already exists in this namespace".format(self.name)  # noqa
-            self.log(err, logging.INFO)
-            raise AlreadyExists(err)
+            kwargs = {
+                "size": self._get_size(self.size),
+                "storage_class": settings.DRYCC_APP_STORAGE_CLASS,
+            }
+            self._scheduler.pvc.put(self.app.id, self.name, **kwargs)
         except KubeException as e:
-            logger.info(e)
-            try:
-                kwargs = {
-                    "size": self._get_size(self.size),
-                    "storage_class": settings.DRYCC_APP_STORAGE_CLASS,
-                }
-                self._scheduler.pvc.create(self.app.id, self.name, **kwargs)
-            except KubeException as e:
-                msg = 'There was a problem creating the volume ' \
-                      '{} for {}'.format(self.name, self.app_id)
-                raise ServiceUnavailable(msg) from e
-
-    def detach(self):
-        try:
-            # We raise an exception when a volume doesn't exist
-            self._scheduler.pvc.get(self.app.id, self.name)
-            self._scheduler.pvc.delete(self.app.id, self.name)
-        except KubeException as e:
-            raise ServiceUnavailable("Could not delete volume {} for application \
-                {}".format(self.name, self.app_id)) from e  # noqa
+            msg = 'There was a problem expand the volume ' \
+                    '{} for {}'.format(self.name, self.app_id)
+            raise ServiceUnavailable(msg) from e
 
     def log(self, message, level=logging.INFO):
         """Logs a message in the context of this service.
@@ -102,3 +73,49 @@ class Volume(UuidAuditedModel):
             "usage": unit_to_bytes(self.size),
             "timestamp": "%f" % timestamp
         }]
+
+    def __str__(self):
+        return self.name
+
+    @staticmethod
+    def _get_size(size):
+        """ Format volume limit value """
+        if size[-2:-1].isalpha() and size[-1].isalpha():
+            size = size[:-1]
+
+        if size[-1].isalpha():
+            size = size.upper() + "i"
+        return size
+
+    def _create_pvc(self):
+        try:
+            self._scheduler.pvc.get(self.app.id, self.name)
+            err = "Volume {} already exists in this namespace".format(self.name)  # noqa
+            self.log(err, logging.INFO)
+            raise AlreadyExists(err)
+        except KubeException as e:
+            logger.info(e)
+            try:
+                kwargs = {
+                    "size": self._get_size(self.size),
+                    "storage_class": settings.DRYCC_APP_STORAGE_CLASS,
+                }
+                self._scheduler.pvc.create(self.app.id, self.name, **kwargs)
+            except KubeException as e:
+                msg = 'There was a problem creating the volume ' \
+                      '{} for {}'.format(self.name, self.app_id)
+                raise ServiceUnavailable(msg) from e
+
+    def _delete_pvc(self):
+        try:
+            # We raise an exception when a volume doesn't exist
+            self._scheduler.pvc.get(self.app.id, self.name)
+            self._scheduler.pvc.delete(self.app.id, self.name)
+        except KubeException as e:
+            raise ServiceUnavailable("Could not delete volume {} for application \
+                {}".format(self.name, self.app_id)) from e  # noqa
+
+    class Meta:
+        get_latest_by = 'created'
+        unique_together = (('app', 'name'),)
+        ordering = ['-created']

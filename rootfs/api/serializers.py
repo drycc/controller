@@ -33,7 +33,7 @@ CPUSHARE_MATCH = re.compile(r'^(?P<cpu>([-+]?[1-9][0-9]*[m]?))$')
 TAGVAL_MATCH = re.compile(r'^(?:[a-zA-Z\d][-\.\w]{0,61})?[a-zA-Z\d]$')
 CONFIGKEY_MATCH = re.compile(r'^[a-z_]+[a-z0-9_]*$', re.IGNORECASE)
 TERMINATION_GRACE_PERIOD_MATCH = re.compile(r'^[0-9]*$')
-VOLUME_SIZE_MATCH = re.compile(r'^(?P<volume>([1-9][0-9]*[mgMG]))$', re.IGNORECASE)
+VOLUME_SIZE_MATCH = re.compile(r'^(?P<volume>([1-9][0-9]*[gG]))$', re.IGNORECASE)
 VOLUME_PATH = re.compile(r'^\/(\w+\/?)+$', re.IGNORECASE)
 METRIC_EVERY = re.compile(r'^[1-9][0-9]*m$')
 
@@ -669,13 +669,13 @@ class VolumeSerializer(serializers.ModelSerializer):
         if not re.match(VOLUME_SIZE_MATCH, data):
             raise serializers.ValidationError(
                 "Volume size limit format: <number><unit> or <number><unit>/<number><unit>, "
-                "where unit = M or G")
+                "where unit = G")
         max_volume = settings.KUBERNETES_LIMITS_MAX_VOLUME
         # The minimum limit memory is equal to the memory allocated by default
         min_volume = settings.KUBERNETES_LIMITS_MIN_VOLUME
-        range_error = "Volume setting is not in allowed range: %sM~%sM" % (
+        range_error = "Volume setting is not in allowed range: %sG~%sG" % (
             min_volume, max_volume)
-        volume_size = int(data[:-1]) * 1024 if data.endswith("G") else int(data[:-1])
+        volume_size = int(data[:-1])
         if volume_size < min_volume or volume_size > max_volume:
             raise serializers.ValidationError(range_error)
         return data.upper()

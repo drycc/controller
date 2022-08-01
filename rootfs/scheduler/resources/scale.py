@@ -1,3 +1,4 @@
+import json
 from scheduler.resources import Resource
 from scheduler.exceptions import KubeHTTPException
 
@@ -31,10 +32,9 @@ class Scale(Resource):
         url = self.api("/namespaces/{}/{}/{}/scale", namespace, resource_type, name)
         response = self.http_put(url, json=manifest)
         if self.unhealthy(response.status_code):
+            self.log(namespace, 'template used: {}'.format(json.dumps(manifest, indent=4)), 'DEBUG')  # noqa
             raise KubeHTTPException(
                 response,
                 'scale {} "{}" in Namespace "{}"', target['kind'], name, namespace
             )
-            self.log(namespace, 'template used: {}'.format(json.dumps(manifest, indent=4)), 'DEBUG')  # noqa
-
         return response
