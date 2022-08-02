@@ -19,10 +19,6 @@ spec:
           labels:
             app: drycc-controller-conjob
         spec:
-          affinity:
-            podAffinity: {{- include "common.affinities.pods" (dict "type" .Values.cronjob.podAffinityPreset.type "key" .Values.cronjob.podAffinityPreset.key "values" .Values.cronjob.podAffinityPreset.values ) | nindent 10 }}
-            podAntiAffinity: {{- include "common.affinities.pods" (dict "type" .Values.cronjob.podAntiAffinityPreset.type "key" .Values.cronjob.podAntiAffinityPreset.key "values" .Values.cronjob.podAntiAffinityPreset.values ) | nindent 10 }}
-            nodeAffinity: {{- include "common.affinities.nodes" (dict "type" .Values.cronjob.nodeAffinityPreset.type "key" .Values.cronjob.nodeAffinityPreset.key "values" .Values.cronjob.nodeAffinityPreset.values ) | nindent 10 }}
           restartPolicy: OnFailure
           serviceAccount: drycc-controller
           initContainers:
