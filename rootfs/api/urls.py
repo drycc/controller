@@ -79,7 +79,7 @@ app_urlpatterns = [
     url(r"^apps/(?P<id>{})/volumes/?$".format(settings.APP_URL_REGEX),
         views.AppVolumesViewSet.as_view({'get': 'list', 'post': 'create'})),
     url(r"^apps/(?P<id>{})/volumes/(?P<name>[-_\w]+)/?$".format(settings.APP_URL_REGEX),
-        views.AppVolumesViewSet.as_view({'put': 'expand', 'delete': 'destroy'})),
+        views.AppVolumesViewSet.as_view({'patch': 'expand', 'delete': 'destroy'})),
     url(r"^apps/(?P<id>{})/volumes/(?P<name>[-_\w]+)/path/?$".format(settings.APP_URL_REGEX),
         views.AppVolumeMountPathViewSet.as_view({'patch': 'path'})),
     # application resources

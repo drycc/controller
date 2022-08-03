@@ -4,7 +4,7 @@
 #
 
 # fail hard and fast even on pipelines
-set -eo pipefail
+set -e
 
 # set debug based on envvar
 [[ $DRYCC_DEBUG == "true" ]] && set -x
