@@ -25,7 +25,7 @@ spec:
         {{- end }}
         backend:
           service:
-            name: drycc-controller
+            name: drycc-controller-api
             port:
               number: 80
   {{- if .Values.global.certManagerEnabled }}

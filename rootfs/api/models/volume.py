@@ -46,7 +46,7 @@ class Volume(UuidAuditedModel):
                 "size": self._get_size(self.size),
                 "storage_class": settings.DRYCC_APP_STORAGE_CLASS,
             }
-            self._scheduler.pvc.put(self.app.id, self.name, **kwargs)
+            self._scheduler.pvc.patch(self.app.id, self.name, **kwargs)
         except KubeException as e:
             msg = 'There was a problem expand the volume ' \
                     '{} for {}'.format(self.name, self.app_id)

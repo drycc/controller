@@ -86,13 +86,13 @@ class VolumeTest(DryccTransactionTestCase):
         data = {'name': 'myvolume1', 'size': '500G'}
         self.client.post('/v2/apps/{}/volumes'.format(app_id), data=data)
 
-        # Put
+        # Patch
         url = '/v2/apps/{app_id}/volumes/{volume}'.format(app_id=app_id,
                                                           volume='myvolume1')
-        response = self.client.put(url, {'name': 'myvolume1', 'size': '100G'})
+        response = self.client.patch(url, {'name': 'myvolume1', 'size': '100G'})
         self.assertEqual(response.status_code, 400)
 
-        response = self.client.put(url, {'name': 'myvolume1', 'size': '1024G'})
+        response = self.client.patch(url, {'name': 'myvolume1', 'size': '1024G'})
         self.assertEqual(response.status_code, 200)
         # Fetch
         url = '/v2/apps/{app_id}/volumes'.format(app_id=app_id)

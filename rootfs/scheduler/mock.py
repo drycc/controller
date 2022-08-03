@@ -799,6 +799,79 @@ def put(request, context):
     return request.json()
 
 
+def patch(request, context):
+    """Process a PATCH request to the kubernetes API"""
+    url = cache_key(request.url)
+    # type is the second last element
+    resource_type = get_type(request.url)
+    # check if the namespace being posted to exists
+    if resource_type != 'namespaces':
+        namespace = get_namespace(url, resource_type)
+        if cache.get(namespace) is None:
+            context.status_code = 404
+            context.reason = 'Not Found'
+            return {}
+
+    # figure out main resource if in subresource
+    original_url = url
+    subresource, resource_type, url = is_subresource(resource_type, url)
+    if subresource != resource_type:
+        cache.set(original_url, request.json(), None)
+
+    item = cache.get(url)
+    if item is None:
+        context.status_code = 404
+        context.reason = 'Not Found'
+        return {}
+    # raise a 503 when we want to intentionally test for it
+    elif item['metadata']['name'] == 'image-pull-failed-test':
+        context.status_code = 503
+        context.reason = 'Network Unreachable'
+        return {}
+
+    data = request.json()
+
+    # merge new data into old but keep labels separate in case they changed
+    if 'labels' in data['metadata']:
+        labels = data['metadata'].pop('labels')
+        item['metadata'].update(data['metadata'])
+        data['metadata'] = item['metadata']
+        # make sure only new labels are used
+        data['metadata']['labels'] = labels
+
+    # split out deployments and replicasets? due to upsert_pods
+    if resource_type in ['replicationcontrollers', 'replicasets', 'deployments']:
+        if subresource == 'scale':
+            # has minimal info so need to copy data
+            replicas = data['spec']['replicas']
+            data = copy.deepcopy(item)  # full copy
+            data['spec']['replicas'] = replicas
+
+        if 'status' not in data:
+            # just use what was set last time
+            data['status'] = {'observedGeneration': item['status']['observedGeneration']}
+
+        data['metadata']['resourceVersion'] += 1
+        data['metadata']['generation'] += 1
+        data['status']['observedGeneration'] += 1
+
+        # Update the individual resource
+        cache.set(url, data, None)
+
+        if resource_type in ['replicationcontrollers', 'replicasets']:
+            upsert_pods(data, url)
+        elif resource_type == 'deployments':
+            manage_replicasets(data, url)
+    else:
+        # Update the individual resource
+        cache.set(url, data, None)
+
+    context.status_code = 200
+    context.reason = 'OK'
+
+    return request.json()
+
+
 def delete(request, context):
     """Process a DELETE request to the kubernetes API"""
     url = cache_key(request.url)
@@ -892,6 +965,8 @@ def mock_kubernetes(request, context):
         response = get(request, context)
     elif request.method == 'PUT':
         response = put(request, context)
+    elif request.method == 'PATCH':
+        response = patch(request, context)
     elif request.method == 'DELETE':
         response = delete(request, context)
 
