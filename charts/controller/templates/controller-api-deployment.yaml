@@ -36,7 +36,7 @@ spec:
         - -u
         - $(DRYCC_DATABASE_URL),$(DRYCC_RABBITMQ_URL)
         - -a
-        - $(DRYCC_REDIS_ADDRS)
+        - $(DRYCC_REDIS_ADDRS),$(DRYCC_PASSPORT_SERVICE_HOST):$(DRYCC_PASSPORT_SERVICE_PORT)
         {{- include "controller.envs" . | indent 8 }}
       containers:
       - name: drycc-controller

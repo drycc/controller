@@ -31,7 +31,7 @@ spec:
               - -u
               - $(DRYCC_DATABASE_URL),$(DRYCC_RABBITMQ_URL)
               - -a
-              - $(DRYCC_REDIS_ADDRS)
+              - $(DRYCC_REDIS_ADDRS),$(DRYCC_CONTROLLER_API_SERVICE_HOST):$(DRYCC_CONTROLLER_API_SERVICE_PORT)
             {{- include "controller.envs" . | indent 12 }}
           containers:
           - image: {{.Values.imageRegistry}}/{{.Values.imageOrg}}/controller:{{.Values.imageTag}}
