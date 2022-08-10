@@ -35,6 +35,14 @@ spec:
             {{- include "controller.envs" . | indent 12 }}
           containers:
           - image: {{.Values.imageRegistry}}/{{.Values.imageOrg}}/controller:{{.Values.imageTag}}
+            imagePullPolicy: {{.Values.pull_policy}}
+            name: drycc-controller-clearsocial
+            args:
+            - /bin/bash
+            - -c
+            - python -u /workspace/manage.py clearsocial
+            {{- include "controller.envs" . | indent 12 }}
+          - image: {{.Values.imageRegistry}}/{{.Values.imageOrg}}/controller:{{.Values.imageTag}}
             imagePullPolicy: {{.Values.imagePullPolicy}}
             name: drycc-controller-load-db-state-to-k8s
             args:
@@ -66,4 +74,3 @@ spec:
             - -c
             - python -u /workspace/manage.py measure_volumes
             {{- include "controller.envs" . | indent 12 }}
-
