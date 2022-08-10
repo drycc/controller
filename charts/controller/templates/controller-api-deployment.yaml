@@ -42,6 +42,14 @@ spec:
       - name: drycc-controller
         image: {{.Values.imageRegistry}}/{{.Values.imageOrg}}/controller:{{.Values.imageTag}}
         imagePullPolicy: {{.Values.imagePullPolicy}}
+        startupProbe:
+          tcpSocket:
+            port: 8000
+          initialDelaySeconds: 30
+          periodSeconds: 60
+          timeoutSeconds: 1
+          successThreshold: 1
+          failureThreshold: 10
         livenessProbe:
           httpGet:
             path: /healthz
