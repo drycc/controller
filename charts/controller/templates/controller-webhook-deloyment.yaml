@@ -3,7 +3,7 @@ kind: Deployment
 metadata:
   name: drycc-controller-webhook
 spec:
-  replicas: 1
+  replicas: {{ .Values.webhookReplicas }}
   selector:
     matchLabels:
       component: drycc-controller-webhook

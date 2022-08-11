@@ -18,10 +18,12 @@ k8sApiVerifyTls: "true"
 
 # Set storageClassName, It is used for application mount.
 appStorageClass: "drycc-storage"
-# Set controller deployment  replicas
-replicas: 1
+# Set api replicas
+apiReplicas: 1
 # Set celery replicas
 celeryReplicas: 1
+# Set webhook replicas
+webhookReplicas: 1
 # Set cronjob concurrencyPolicy
 # Allow (default): The cron job allows concurrently running jobs
 # Forbid: The cron job does not allow concurrent runs; if it is time for a new job run and the previous job run hasn't finished yet, the cron job skips the new job run
