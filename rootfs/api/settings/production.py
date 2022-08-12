@@ -405,6 +405,15 @@ DATABASES = {
     'default': dj_database_url.config(default=DRYCC_DATABASE_URL, conn_max_age=600)
 }
 
+# database replica setting
+DRYCC_DATABASE_REPLICA_URL = os.environ.get('DRYCC_DATABASE_REPLICA_URL', None)
+if DRYCC_DATABASE_REPLICA_URL is not None:
+    DATABASES["replica"] = dj_database_url.config(
+        default=DRYCC_DATABASE_REPLICA_URL, conn_max_age=600)
+
+# database routers
+DATABASE_ROUTERS = ['api.routers.DefaultReplicaRouter', ]
+
 APP_URL_REGEX = '[a-z0-9-]+'
 
 # Oauth settings

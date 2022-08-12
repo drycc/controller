@@ -29,8 +29,9 @@ webhookReplicas: 1
 # Forbid: The cron job does not allow concurrent runs; if it is time for a new job run and the previous job run hasn't finished yet, the cron job skips the new job run
 # Replace: If it is time for a new job run and the previous job run hasn't finished yet, the cron job replaces the currently running job run with a new job run
 concurrencyPolicy: "Replace"
-# Configuring this will no longer use the built-in database component
+# databaseUrl and databaseReplicaUrl are will no longer use the built-in database component
 databaseUrl: ""
+databaseReplicaUrl: ""
 # Configuring this will no longer use the built-in rabbitmq component
 rabbitmqUrl: ""
 # Service
