@@ -96,7 +96,7 @@ env:
       key: url
 {{- else }}
 - name: "DRYCC_INFLUXDB_URL"
-  value: http://$(DRYCC_INFLUXDB_SERVICE_HOST):$(DRYCC_INFLUXDB_SERVICE_PORT_TRANSPORT)
+  value: http://$(DRYCC_INFLUXDB_SERVICE_HOST):$(DRYCC_INFLUXDB_SERVICE_PORT)
 {{- end }}
 - name: "DRYCC_INFLUXDB_BUCKET"
   valueFrom:
