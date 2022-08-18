@@ -14,7 +14,7 @@ else:
     bind = '0.0.0.0:8000'
 
 workers = int(os.environ.get('GUNICORN_WORKERS', cpu_count() * 4 + 1))
-
+worker_class = "uvicorn.workers.UvicornWorker"
 pythonpath = dirname(dirname(dirname(realpath(__file__))))
 timeout = 1200
 pidfile = '/tmp/gunicorn.pid'

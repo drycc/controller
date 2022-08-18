@@ -30,7 +30,7 @@ python /workspace/manage.py migrate --noinput
 # spawn a gunicorn server in the background
 echo ""
 echo "Starting up Gunicorn"
-gunicorn -c /workspace/drycc/gunicorn/config.py api.wsgi &
+gunicorn -c /workspace/drycc/gunicorn/config.py api.asgi &
 
 # smart shutdown on SIGTERM (SIGINT is handled by gunicorn)
 function on_exit() {

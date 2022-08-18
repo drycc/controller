@@ -6,12 +6,12 @@ installed apps.
 """
 
 
-from django.conf.urls import include, url
+from django.urls import include, re_path
 from api.views import LivenessCheckView
 from api.views import ReadinessCheckView
 
 urlpatterns = [
-    url(r'^healthz$', LivenessCheckView.as_view()),
-    url(r'^readiness$', ReadinessCheckView.as_view()),
-    url(r'^v2/', include('api.urls')),
+    re_path(r'^healthz$', LivenessCheckView.as_view()),
+    re_path(r'^readiness$', ReadinessCheckView.as_view()),
+    re_path(r'^v2/', include('api.urls')),
 ]
