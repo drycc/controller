@@ -56,7 +56,6 @@ class DryccOAuth(BaseOAuth2):
 
     def get_user_details(self, response):
         """Return user details from GitHub account"""
-        print(response)
         return {
             'username': response.get('username'),
             'email': response.get('email') or '',

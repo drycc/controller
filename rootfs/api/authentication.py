@@ -2,7 +2,7 @@ import logging
 from django.conf import settings
 from django.contrib.auth.models import AnonymousUser
 from django.core.cache import cache
-from django.utils.translation import gettext_lazy as _
+from django.utils.translation import gettext_lazy
 from rest_framework import authentication
 from rest_framework.authentication import TokenAuthentication, \
     get_authorization_header
@@ -31,20 +31,22 @@ class DryccAuthentication(TokenAuthentication):
                 return None
 
             if len(auth) == 1:
-                msg = _('Invalid token header. No credentials provided.')
+                msg = gettext_lazy('Invalid token header. No credentials provided.')
                 raise exceptions.AuthenticationFailed(msg)
             elif len(auth) > 2:
-                msg = _('Invalid token header. Token string should not contain spaces.')  # noqa
+                msg = gettext_lazy(
+                    'Invalid token header. Token string should not contain spaces.')
                 raise exceptions.AuthenticationFailed(msg)
 
             try:
                 token = auth[1].decode()
             except UnicodeError:
-                msg = _('Invalid token header. Token string should not contain invalid characters.')  # noqa
+                msg = gettext_lazy(
+                    'Invalid token header. Token string should not contain invalid characters.')
                 raise exceptions.AuthenticationFailed(msg)
             return cache.get_or_set(
-                token, lambda: self._get_user(token), settings.OAUTH_CACHE_USER_TIME), None  # noqa
-        return super(DryccAuthentication, self).authenticate(request)  # noqa
+                token, lambda: self._get_user(token), settings.OAUTH_CACHE_USER_TIME), None
+        return super(DryccAuthentication, self).authenticate(request)
 
     @staticmethod
     def _get_user(key):
@@ -57,4 +59,4 @@ class DryccAuthentication(TokenAuthentication):
             return user
         except Exception as e:
             logger.info(e)
-            raise exceptions.AuthenticationFailed(_('Verify token fail.'))
+            raise exceptions.AuthenticationFailed(gettext_lazy('Verify token fail.'))

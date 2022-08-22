@@ -1,6 +1,5 @@
 import os
 from os.path import dirname, realpath
-from multiprocessing import cpu_count
 
 import faulthandler
 faulthandler.enable()
@@ -13,7 +12,7 @@ if os.path.exists("/etc/controller/webhook/cert"):
 else:
     bind = '0.0.0.0:8000'
 
-workers = int(os.environ.get('GUNICORN_WORKERS', cpu_count() * 4 + 1))
+workers = int(os.environ.get('GUNICORN_WORKERS', 2))
 worker_class = "uvicorn.workers.UvicornWorker"
 pythonpath = dirname(dirname(dirname(realpath(__file__))))
 timeout = 1200

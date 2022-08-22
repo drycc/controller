@@ -12,6 +12,5 @@ class Command(BaseCommand):
             django.db.connection.cursor()
             print("Database is alive!")
         except Exception as e:
-            print("There was a problem connecting to the database")
-            print(str(e))
+            print("There was a problem connecting to the database", e)
             sys.exit(1)
