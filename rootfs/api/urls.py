@@ -74,9 +74,6 @@ app_urlpatterns = [
         r"^apps/(?P<id>{})/scale/?$".format(settings.APP_URL_REGEX),
         views.AppViewSet.as_view({'post': 'scale'})),
     re_path(
-        r"^apps/(?P<id>{})/logs/?$".format(settings.APP_URL_REGEX),
-        views.AppViewSet.as_view({'get': 'logs'})),
-    re_path(
         r"^apps/(?P<id>{})/run/?$".format(settings.APP_URL_REGEX),
         views.AppViewSet.as_view({'post': 'run'})),
     # application settings

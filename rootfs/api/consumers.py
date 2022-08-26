@@ -1,4 +1,6 @@
 import json
+import time
+import aiohttp
 import asyncio
 import collections
 from django.conf import settings
@@ -20,7 +22,50 @@ from .permissions import has_app_permission
 Request = collections.namedtuple("Request", ["user", "method"])
 
 
-class AppPodExecConsumer(AsyncWebsocketConsumer):
+class BaseAppConsumer(AsyncWebsocketConsumer):
+
+    async def has_perm(self):
+        if self.scope["user"] is None:
+            return False, "user not login"
+        request = Request(self.scope["user"], "POST")
+        app = await database_sync_to_async(App.objects.get)(id=self.id)
+        return await database_sync_to_async(has_app_permission)(request, app)
+
+    async def connect(self):
+        self.id = self.scope["url_route"]["kwargs"]["id"]
+        is_ok, message = await self.has_perm()
+        if is_ok:
+            await self.accept()
+        else:
+            raise DenyConnection(message)
+
+
+class AppLogsConsumer(BaseAppConsumer):
+
+    async def receive(self, text_data=None, bytes_data=None):
+        if text_data is not None:
+            kwargs = json.loads(text_data)
+            lines = kwargs.get("lines", 100)
+            follow = kwargs.get("follow", False)
+            timeout = kwargs.get("timeout", 300)
+            url = "http://{}:{}/logs/{}?log_lines={}&follow={}&timeout={}".format(
+                settings.LOGGER_HOST,
+                settings.LOGGER_PORT,
+                self.id,
+                lines,
+                follow,
+                timeout,
+            )
+            async with aiohttp.ClientSession() as session:
+                async with session.get(url) as response:
+                    async for data in response.content.iter_any():
+                        await self.send(text_data=data)
+            await self.close(code=1000)
+        else:
+            raise ValueError("text_data cannot be empty!")
+
+
+class AppPodExecConsumer(BaseAppConsumer):
 
     @property
     def kubernetes(self):
@@ -34,23 +79,11 @@ class AppPodExecConsumer(AsyncWebsocketConsumer):
         Configuration.set_default(config)
         return core_v1_api.CoreV1Api()
 
-    async def check(self):
-        self.id = self.scope["url_route"]["kwargs"]["id"]
-        self.pod_id = self.scope["url_route"]["kwargs"]["pod_id"]
-        if self.scope["user"] is None:
-            return False, "user not login"
-        request = Request(self.scope["user"], "POST")
-        app = await database_sync_to_async(App.objects.get)(id=self.id)
-        return await database_sync_to_async(has_app_permission)(request, app)
-
     async def connect(self):
         self.stream = None
         self.conneted = True
-        is_ok, message = await self.check()
-        if is_ok:
-            await self.accept()
-        else:
-            raise DenyConnection(message)
+        await super().connect()
+        self.pod_id = self.scope["url_route"]["kwargs"]["pod_id"]
 
     async def send(self, data):
         if data is None:
@@ -61,7 +94,8 @@ class AppPodExecConsumer(AsyncWebsocketConsumer):
             await super().send(text_data=data)
 
     async def task(self):
-        while self.stream.is_open() and self.conneted:
+        deadline = time.time() + settings.DRYCC_APP_POD_EXEC_TIMEOUT
+        while self.stream.is_open() and self.conneted and time.time() < deadline:
             self.stream.update(timeout=9)
             if await sync_to_async(self.stream.peek_stdout)():
                 data = self.stream.read_stdout()
@@ -70,6 +104,7 @@ class AppPodExecConsumer(AsyncWebsocketConsumer):
             else:
                 data = None
             await self.send(data)
+        await self.close(code=1000)
 
     async def disconnect(self, close_code):
         if self.stream:

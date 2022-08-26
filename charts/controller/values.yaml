@@ -16,8 +16,10 @@ registrationMode: "admin_only"
 # Option to disable ssl verification to connect to k8s api server
 k8sApiVerifyTls: "true"
 
-# Set storageClassName, It is used for application mount.
+# Set storageClassName. It is used for application mount.
 appStorageClass: "drycc-storage"
+# set timeout seconds. It is used for pod exec
+appPodExecTimeout: 3600
 # Set api replicas
 apiReplicas: 1
 # Set celery replicas

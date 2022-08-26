@@ -22,6 +22,11 @@ env:
 - name: "DRYCC_APP_STORAGE_CLASS"
   value: "{{ .Values.appStorageClass }}"
 {{- end }}
+{{- if (.Values.appPodExecTimeout) }}
+- name: "DRYCC_APP_POD_EXEC_TIMEOUT"
+  value: "{{ .Values.appPodExecTimeout }}"
+{{- end }}
+
 - name: "TZ"
   value: {{ .Values.time_zone | default "UTC" | quote }}
 - name: "DJANGO_SETTINGS_MODULE"

@@ -105,47 +105,6 @@ class AppTest(DryccTestCase):
         response = self.client.post('/v2/apps', {'id': app_id})
         self.assertContains(response, 'Application with this id already exists.', status_code=400)
 
-    @mock.patch('requests.get')
-    def test_app_logs(self, mock_requests, mock_get):
-        app_id = self.create_app()
-
-        # test logs - 204 from drycc-logger
-        mock_response = mock.Mock()
-        mock_response.status_code = 204
-        mock_get.return_value = mock_response
-        url = "/v2/apps/{app_id}/logs".format(**locals())
-        response = self.client.get(url)
-        self.assertEqual(response.status_code, 204, response.content)
-
-        # test logs -  from drycc-logger
-        mock_response.status_code = 404
-        response = self.client.get(url)
-        self.assertEqual(response.status_code, 204, response.content)
-
-        # test logs - unanticipated status code from drycc-logger
-        mock_response.status_code = 400
-        response = self.client.get(url)
-        self.assertContains(
-            response,
-            "Error accessing logs for {}".format(app_id),
-            status_code=500
-        )
-
-        # test logs - success accessing drycc-logger
-        mock_response.status_code = 200
-        mock_response.content = FAKE_LOG_DATA
-        response = self.client.get(url)
-        self.assertContains(response, FAKE_LOG_DATA, status_code=200)
-
-        # test logs - HTTP request error while accessing drycc-logger
-        mock_get.side_effect = requests.exceptions.RequestException('Boom!')
-        response = self.client.get(url)
-        self.assertContains(
-            response,
-            "Error accessing logs for {}".format(app_id),
-            status_code=500
-        )
-
     @mock.patch('api.models.app.logger')
     def test_app_release_notes_in_logs(self, mock_requests, mock_logger):
         """Verifies that an app's release summary is dumped into the logs."""
@@ -339,10 +298,6 @@ class AppTest(DryccTestCase):
         url = '/v2/apps/{}/run'.format(app_id)
         body = {'command': 'foo'}
         response = self.client.post(url, body)
-        self.assertEqual(response.status_code, 403)
-
-        url = '/v2/apps/{}/logs'.format(app_id)
-        response = self.client.get(url)
         self.assertEqual(response.status_code, 403)
 
         url = '/v2/apps/{}'.format(app_id)
