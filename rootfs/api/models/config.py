@@ -82,8 +82,10 @@ class Config(UuidAuditedModel):
         self.values = {k: v for k, v in self.values.items() if not k.startswith('HEALTHCHECK_')}
 
     def get_healthcheck(self):
-        if('livenessProbe' in self.healthcheck.keys() or
-           'readinessProbe' in self.healthcheck.keys()):
+        if (
+            'livenessProbe' in self.healthcheck.keys() or
+            'readinessProbe' in self.healthcheck.keys()
+        ):
             return {'web/cmd': self.healthcheck}
         return self.healthcheck
 
