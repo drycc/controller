@@ -128,15 +128,16 @@ steps:
   commands:
   - IMAGE_TAG=$([ ! -z $DRONE_TAG ] && echo \"${DRONE_TAG:1}\" || echo \"canary\")
   - sed -i "s/imageTag:\ \"canary\"/imageTag:\ $IMAGE_TAG/g" charts/controller/values.yaml
-  - helm package -u charts/controller --version ${DRONE_TAG:-v1.0.0}
-  - curl -u $CHARTMUSEUM_USERNAME:$CHARTMUSEUM_PASSWORD -F chart=@controller-${DRONE_TAG:-v1.0.0}.tgz "$CHARTMUSEUM_API/api/$([ -z $DRONE_TAG ] && echo testing || echo stable)/charts"
+  - helm package -u charts/controller --version $([ -z $DRONE_TAG ] && echo 1.0.0 || echo ${DRONE_TAG#v})
+  - echo $CONTAINER_PASSWORD | helm registry login $DRYCC_REGISTRY -u $CONTAINER_USERNAME --password-stdin
+  - helm push controller-$([ -z $DRONE_TAG ] && echo 1.0.0 || echo ${DRONE_TAG#v}).tgz oci://$DRYCC_REGISTRY/$([ -z $DRONE_TAG ] && echo charts-testing || echo charts)
   environment:
-    CHARTMUSEUM_USERNAME:
-      from_secret: chartmuseum_username
-    CHARTMUSEUM_PASSWORD:
-      from_secret: chartmuseum_password
-    CHARTMUSEUM_API:
-      from_secret: chartmuseum_api
+    DRYCC_REGISTRY:
+      from_secret: drycc_registry
+    CONTAINER_USERNAME:
+      from_secret: container_username
+    CONTAINER_PASSWORD:
+      from_secret: container_password
   when:
     event:
     - push
