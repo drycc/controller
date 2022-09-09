@@ -52,7 +52,7 @@ class AppSettings(UuidAuditedModel):
         old = getattr(previous_settings, 'routable', None)
         new = getattr(self, 'routable', None)
         # If no previous settings then assume it is the first record and default to true
-        if not previous_settings:
+        if previous_settings is None:
             setattr(self, 'routable', True)
             self.app.routable(True)
         # if nothing changed copy the settings from previous
@@ -182,5 +182,5 @@ class AppSettings(UuidAuditedModel):
         try:
             return super(AppSettings, self).save(**kwargs)
         finally:
-            self.app.refresh()
+            self.app.refresh(app_settings=self)
         self.app.log('summary of app setting changes: {}'.format(summary), logging.DEBUG)
