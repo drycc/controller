@@ -209,10 +209,10 @@ class App(UuidAuditedModel):
         except KubeException as e:
             raise ServiceUnavailable('Could not create Ingress in Kubernetes') from e
 
-    def refresh(self):
+    def refresh(self, app_settings=None):
         if not getattr(self, 'refresh_enabled', True):
             return
-        app_settings = self.appsettings_set.latest()
+        app_settings = app_settings if not app_settings else self.appsettings_set.latest()
         if not app_settings.routable:
             return
         tls = self.tls_set.latest()
