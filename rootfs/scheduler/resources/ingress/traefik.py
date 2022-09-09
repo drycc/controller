@@ -152,7 +152,7 @@ class TraefikIngress(BaseIngress):
 
     def put(self, namespace, ingress, version, **kwargs):
         response = super().put(ingress, namespace, version, **kwargs)
-        if "allowlist" in kwargs and kwargs["allowlist"]:
+        if "allowlist" in kwargs:
             self.ip_white_list.put(
                 namespace, self.ip_white_list.fullname(ingress), allowlist=kwargs["allowlist"])
         return response
