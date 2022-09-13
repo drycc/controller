@@ -181,17 +181,15 @@ class App(UuidAuditedModel):
         elif data:
             self._scheduler.certificate.delete(namespace, name)
 
-    def _refresh_ingress(self, hosts, tls_map, ssl_redirect):
+    def _refresh_ingress(self, hosts, tls_map, ssl_redirect, appsettings):
         ingress = namespace = self.id
         # Put Ingress
         kwargs = {
             "hosts": hosts,
             "tls": [{"secretName": k, "hosts": v} for k, v in tls_map.items()],
-            "ssl_redirect": ssl_redirect
+            "ssl_redirect": ssl_redirect,
+            "allowlist": appsettings.allowlist
         }
-        allowlist = self.appsettings_set.latest().allowlist
-        if allowlist:
-            kwargs.update({"allowlist": allowlist})
         try:
             # In order to create an ingress, we must first have a namespace.
             if ingress == "":
@@ -209,13 +207,13 @@ class App(UuidAuditedModel):
         except KubeException as e:
             raise ServiceUnavailable('Could not create Ingress in Kubernetes') from e
 
-    def refresh(self, app_settings=None):
+    def refresh(self, app_settings=None, tls=None):
         if not getattr(self, 'refresh_enabled', True):
             return
-        app_settings = app_settings if not app_settings else self.appsettings_set.latest()
+        app_settings = app_settings if app_settings else self.appsettings_set.latest()
         if not app_settings.routable:
             return
-        tls = self.tls_set.latest()
+        tls = tls if tls else self.tls_set.latest()
         ssl_redirect = bool(tls.https_enforced)
         certs_auto_enabled = bool(tls.certs_auto_enabled)
         hosts, tls_map = [], defaultdict(list)
@@ -228,7 +226,7 @@ class App(UuidAuditedModel):
             if certs_auto_enabled and not domain.domain.startswith("*."):
                 secret_name = '%s-certificate-auto' % self.id
                 tls_map[secret_name].append(host)
-        self._refresh_ingress(hosts, dict(tls_map), ssl_redirect)
+        self._refresh_ingress(hosts, dict(tls_map), ssl_redirect, app_settings)
         self._refresh_certificate(certs_auto_enabled, hosts)
 
     def log(self, message, level=logging.INFO):
