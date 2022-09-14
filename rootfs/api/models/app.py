@@ -208,6 +208,10 @@ class App(UuidAuditedModel):
             raise ServiceUnavailable('Could not create Ingress in Kubernetes') from e
 
     def refresh(self, app_settings=None, tls=None, domains=None):
+        """
+        Read and write are separated, in transaction the read database is not updated.
+        When calling, the corresponding resource object needs
+        """
         if not getattr(self, 'refresh_enabled', True):
             return
         app_settings = app_settings if app_settings else self.appsettings_set.latest()

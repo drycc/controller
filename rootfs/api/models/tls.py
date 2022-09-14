@@ -49,7 +49,9 @@ class TLS(UuidAuditedModel):
             # Save to DB
             return super(TLS, self).save(*args, **kwargs)
         finally:
+            # Read and write are separated, in transaction the read database is not updated
             self.app.refresh(tls=self)
 
     def sync(self):
+        # Read and write are separated, in transaction the read database is not updated
         self.app.refresh(tls=self)

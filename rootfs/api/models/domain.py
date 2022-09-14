@@ -36,6 +36,7 @@ class Domain(AuditedModel):
             # Save to DB
             return super(Domain, self).save(*args, **kwargs)
         finally:
+            # Read and write are separated, in transaction the read database is not updated
             self.app.refresh(domains=domains)
 
     @transaction.atomic
@@ -50,6 +51,7 @@ class Domain(AuditedModel):
             # Delete from DB
             return super(Domain, self).delete(*args, **kwargs)
         finally:
+            # Read and write are separated, in transaction the read database is not updated
             self.app.refresh(domains=domains)
 
     def __str__(self):

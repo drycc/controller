@@ -182,5 +182,6 @@ class AppSettings(UuidAuditedModel):
         try:
             return super(AppSettings, self).save(**kwargs)
         finally:
+            # Read and write are separated, in transaction the read database is not updated
             self.app.refresh(app_settings=self)
         self.app.log('summary of app setting changes: {}'.format(summary), logging.DEBUG)
