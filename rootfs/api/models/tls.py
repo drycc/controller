@@ -45,12 +45,8 @@ class TLS(UuidAuditedModel):
     @transaction.atomic
     def save(self, *args, **kwargs):
         self._check_previous_tls_settings()
-        try:
-            # Save to DB
-            return super(TLS, self).save(*args, **kwargs)
-        finally:
-            # Read and write are separated, in transaction the read database is not updated
-            self.app.refresh(tls=self)
+        super(TLS, self).save(*args, **kwargs)
+        self.sync()
 
     def sync(self):
         # Read and write are separated, in transaction the read database is not updated

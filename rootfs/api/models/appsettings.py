@@ -177,11 +177,8 @@ class AppSettings(UuidAuditedModel):
         if not self.summary and previous_settings:
             self.delete()
             raise AlreadyExists("{} changed nothing".format(self.owner))
-
         summary = ' '.join(self.summary)
-        try:
-            return super(AppSettings, self).save(**kwargs)
-        finally:
-            # Read and write are separated, in transaction the read database is not updated
-            self.app.refresh(app_settings=self)
         self.app.log('summary of app setting changes: {}'.format(summary), logging.DEBUG)
+        super(AppSettings, self).save(**kwargs)
+        # Read and write are separated, in transaction the read database is not updated
+        self.app.refresh(app_settings=self)

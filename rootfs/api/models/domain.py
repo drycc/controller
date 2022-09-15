@@ -27,32 +27,25 @@ class Domain(AuditedModel):
 
     @transaction.atomic
     def save(self, *args, **kwargs):
+        super(Domain, self).save(*args, **kwargs)
+        # Read and write are separated, in transaction the read database is not updated
         domains = list(self.app.domain_set.all())
-        # certificate attach update domains
         if self in domains:
             domains.remove(self)
         domains.append(self)
-        try:
-            # Save to DB
-            return super(Domain, self).save(*args, **kwargs)
-        finally:
-            # Read and write are separated, in transaction the read database is not updated
-            self.app.refresh(domains=domains)
+        self.app.refresh(domains=domains)
 
     @transaction.atomic
     def delete(self, *args, **kwargs):
         # Deatch cert, updates k8s
         if self.certificate:
             self.certificate.detach(domain=str(self.domain))
+        super(Domain, self).delete(*args, **kwargs)
+        # Read and write are separated, in transaction the read database is not updated
         domains = list(self.app.domain_set.all())
         if self in domains:
             domains.remove(self)
-        try:
-            # Delete from DB
-            return super(Domain, self).delete(*args, **kwargs)
-        finally:
-            # Read and write are separated, in transaction the read database is not updated
-            self.app.refresh(domains=domains)
+        self.app.refresh(domains=domains)
 
     def __str__(self):
         return self.domain
