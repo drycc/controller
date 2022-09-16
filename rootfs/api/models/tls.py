@@ -49,5 +49,4 @@ class TLS(UuidAuditedModel):
         self.sync()
 
     def sync(self):
-        # Read and write are separated, in transaction the read database is not updated
-        self.app.refresh(tls=self)
+        self.app.refresh()

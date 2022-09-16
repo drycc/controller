@@ -207,21 +207,21 @@ class App(UuidAuditedModel):
         except KubeException as e:
             raise ServiceUnavailable('Could not create Ingress in Kubernetes') from e
 
-    def refresh(self, app_settings=None, tls=None, domains=None):
+    def refresh(self):
         """
         Read and write are separated, in transaction the read database is not updated.
-        When calling, the corresponding resource object needs
+        When calling, the corresponding resource object needs.
         """
         if not getattr(self, 'refresh_enabled', True):
             return
-        app_settings = app_settings if app_settings else self.appsettings_set.latest()
+        app_settings = self.appsettings_set.latest()
         if not app_settings.routable:
             return
-        tls = tls if tls else self.tls_set.latest()
+        tls = self.tls_set.latest()
         ssl_redirect = bool(tls.https_enforced)
         certs_auto_enabled = bool(tls.certs_auto_enabled)
         hosts, tls_map = [], defaultdict(list)
-        domains = domains if domains else Domain.objects.filter(app=self)
+        domains = Domain.objects.filter(app=self)
         for domain in domains:
             host = str(domain.domain)
             hosts.append(host)

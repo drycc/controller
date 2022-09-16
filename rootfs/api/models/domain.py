@@ -28,12 +28,7 @@ class Domain(AuditedModel):
     @transaction.atomic
     def save(self, *args, **kwargs):
         super(Domain, self).save(*args, **kwargs)
-        # Read and write are separated, in transaction the read database is not updated
-        domains = list(self.app.domain_set.all())
-        if self in domains:
-            domains.remove(self)
-        domains.append(self)
-        self.app.refresh(domains=domains)
+        self.app.refresh()
 
     @transaction.atomic
     def delete(self, *args, **kwargs):
@@ -41,11 +36,7 @@ class Domain(AuditedModel):
         if self.certificate:
             self.certificate.detach(domain=str(self.domain))
         super(Domain, self).delete(*args, **kwargs)
-        # Read and write are separated, in transaction the read database is not updated
-        domains = list(self.app.domain_set.all())
-        if self in domains:
-            domains.remove(self)
-        self.app.refresh(domains=domains)
+        self.app.refresh()
 
     def __str__(self):
         return self.domain
