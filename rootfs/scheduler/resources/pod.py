@@ -155,9 +155,12 @@ class Pod(Resource):
         }
         # pod manifest spec
         spec = manifest['spec']
+        # pod runtimeClassName
+        if kwargs.get('runtime_class_name', ''):
+            spec['runtimeClassName'] = kwargs.get('runtime_class_name')
 
         # what should the pod do if it exits
-        spec['restartPolicy'] = kwargs.get('restartPolicy', 'Always')
+        spec['restartPolicy'] = kwargs.get('restart_policy', 'Always')
 
         # apply tags as needed to restrict pod to particular node(s)
         spec['nodeSelector'] = kwargs.get('tags', {})

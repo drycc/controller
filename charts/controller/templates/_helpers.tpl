@@ -22,6 +22,10 @@ env:
 - name: "DRYCC_APP_STORAGE_CLASS"
   value: "{{ .Values.appStorageClass }}"
 {{- end }}
+{{- if (.Values.appRuntimeClass) }}
+- name: "DRYCC_APP_RUNTIME_CLASS"
+  value: "{{ .Values.appRuntimeClass }}"
+{{- end }}
 {{- if (.Values.appPodExecTimeout) }}
 - name: "DRYCC_APP_POD_EXEC_TIMEOUT"
   value: "{{ .Values.appPodExecTimeout }}"
