@@ -1,8 +1,8 @@
-
 # Drycc Controller
 
 [![Build Status](https://drone.drycc.cc/api/badges/drycc/controller/status.svg)](https://drone.drycc.cc/drycc/controller)
 [![codecov.io](https://codecov.io/github/drycc/controller/coverage.svg?branch=main)](https://codecov.io/github/drycc/controller?branch=main)
+[![FOSSA Status](https://app.fossa.com/api/projects/git%2Bgithub.com%2Fdrycc%2Fcontroller.svg?type=shield)](https://app.fossa.com/projects/git%2Bgithub.com%2Fdrycc%2Fcontroller?ref=badge_shield)
 
 Drycc (pronounced DAY-iss) Workflow is an open source Platform as a Service (PaaS) that adds a developer-friendly layer to any [Kubernetes](http://kubernetes.io) cluster, making it easy to deploy and manage applications on your own servers.
 
@@ -77,3 +77,7 @@ kubectl get pod --namespace=drycc -w | grep drycc-controller
 [prs]: https://github.com/drycc/controller/pulls
 [workflow]: https://github.com/drycc/workflow
 [Docker]: https://www.docker.com/
+
+
+## License
+[![FOSSA Status](https://app.fossa.com/api/projects/git%2Bgithub.com%2Fdrycc%2Fcontroller.svg?type=large)](https://app.fossa.com/projects/git%2Bgithub.com%2Fdrycc%2Fcontroller?ref=badge_large)
