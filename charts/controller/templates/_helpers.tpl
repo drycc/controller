@@ -83,6 +83,14 @@ env:
 - name: DRYCC_DATABASE_REPLICA_URL
   value: "postgres://$(DRYCC_DATABASE_USER):$(DRYCC_DATABASE_PASSWORD)@drycc-database-replica.{{.Release.Namespace}}.svc.{{.Values.global.clusterDomain}}:5432/controller"
 {{- end }}
+{{- if (.Values.workflowManagerUrl) }}
+- name: WORKFLOW_MANAGER_URL
+  value: "{{ .Values.workflowManagerUrl }}"
+- name: WORKFLOW_MANAGER_ACCESS_KEY
+  value: "{{ .Values.workflowManagerAccessKey }}"
+- name: WORKFLOW_MANAGER_SECRET_KEY
+  value: "{{ .Values.workflowManagerSecretKey }}"
+{{- end }}
 - name: WORKFLOW_NAMESPACE
   valueFrom:
     fieldRef:

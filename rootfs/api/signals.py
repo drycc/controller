@@ -139,7 +139,7 @@ def create_auth_token_handle(sender, instance=None, created=False, **kwargs):
 @receiver(post_save, sender=App)
 def app_changed_handle(sender, instance=None, created=False, update_fields=None, **kwargs):
     # measure limits to workflow manager
-    if settings.WORKFLOW_MANAGER_URL is not None and (
+    if settings.WORKFLOW_MANAGER_URL and (
         created or (
             update_fields is not None and "structure" in update_fields)):
         timestamp = time.time()
@@ -152,7 +152,7 @@ def app_changed_handle(sender, instance=None, created=False, update_fields=None,
 @receiver(post_save, sender=Config)
 def config_changed_handle(sender, instance=None, created=False, update_fields=None, **kwargs):
     # measure limits to workflow manager
-    if settings.WORKFLOW_MANAGER_URL is not None and (
+    if settings.WORKFLOW_MANAGER_URL and (
         created or (
             update_fields is not None and (
                 "cpu" in update_fields or "memory" in update_fields))):
@@ -166,7 +166,7 @@ def config_changed_handle(sender, instance=None, created=False, update_fields=No
 @receiver(post_save, sender=Volume)
 def volume_changed_handle(sender, instance=None, created=False, update_fields=None, **kwargs):
     # measure volumes to workflow manager
-    if settings.WORKFLOW_MANAGER_URL is not None and created:
+    if settings.WORKFLOW_MANAGER_URL and created:
         timestamp = time.time()
         send_measurements.apply_async(
             args=[instance.to_measurements(timestamp), ],
@@ -184,7 +184,7 @@ def resource_changed_handle(sender, instance=None, created=False, update_fields=
             eta=now() + timedelta(seconds=30)
         )
     # measure resources to workflow manager
-    if settings.WORKFLOW_MANAGER_URL is not None and (
+    if settings.WORKFLOW_MANAGER_URL and (
         created or (
             update_fields is not None and (
                 "plan" in update_fields

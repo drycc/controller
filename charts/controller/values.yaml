@@ -36,6 +36,12 @@ concurrencyPolicy: "Replace"
 # databaseUrl and databaseReplicaUrl are will no longer use the built-in database component
 databaseUrl: ""
 databaseReplicaUrl: ""
+
+# Workflow-manager Configuration Options
+workflowManagerUrl: ""
+workflowManagerAccessKey: ""
+workflowManagerSecretKey: ""
+
 # Configuring this will no longer use the built-in rabbitmq component
 rabbitmqUrl: ""
 # Service

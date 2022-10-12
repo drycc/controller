@@ -33,7 +33,7 @@ class Command(BaseCommand):
         send_measurements.delay(networks)
 
     def handle(self, *args, **options):
-        if settings.WORKFLOW_MANAGER_URL is not None:
+        if settings.WORKFLOW_MANAGER_URL:
             timestamp = int(time.time())
             task_id = uuid.uuid4().hex
             logger.info(f"pushing {task_id} limits to workflow_manager when {timezone.now()}")
