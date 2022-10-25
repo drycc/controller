@@ -58,13 +58,13 @@ env:
 - name: DRYCC_DATABASE_URL
   valueFrom:
     secretKeyRef:
-      name: passport-creds
+      name: controller-creds
       key: database-url
 {{- if (.Values.databaseReplicaUrl) }}
 - name: DRYCC_DATABASE_REPLICA_URL
   valueFrom:
     secretKeyRef:
-      name: passport-creds
+      name: controller-creds
       key: database-replica-url
 {{- end }}
 {{- else if eq .Values.global.databaseLocation "on-cluster"  }}
@@ -167,6 +167,13 @@ env:
     secretKeyRef:
       name: passport-creds
       key: drycc-passport-controller-secret
+{{- else }}
+- name: DRYCC_PASSPORT_URL
+  value: "{{ .Values.passportUrl }}"
+- name: DRYCC_PASSPORT_KEY
+  value: "{{ .Values.passportKey }}"
+- name: DRYCC_PASSPORT_SECRET
+  value: "{{ .Values.passportSecret }}"
 {{- end }}
 {{- range $key, $value := .Values.environment }}
 - name: {{ $key }}
