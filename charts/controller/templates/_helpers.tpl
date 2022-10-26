@@ -169,11 +169,20 @@ env:
       key: drycc-passport-controller-secret
 {{- else }}
 - name: DRYCC_PASSPORT_URL
-  value: "{{ .Values.passportUrl }}"
+  valueFrom:
+    secretKeyRef:
+      name: controller-creds
+      key: passport-url
 - name: DRYCC_PASSPORT_KEY
-  value: "{{ .Values.passportKey }}"
+  valueFrom:
+    secretKeyRef:
+      name: controller-creds
+      key: passport-key
 - name: DRYCC_PASSPORT_SECRET
-  value: "{{ .Values.passportSecret }}"
+  valueFrom:
+    secretKeyRef:
+      name: controller-creds
+      key: passport-secret
 {{- end }}
 {{- range $key, $value := .Values.environment }}
 - name: {{ $key }}
