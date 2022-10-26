@@ -135,7 +135,7 @@ env:
   valueFrom:
     secretKeyRef:
       name: controller-creds
-      key: rabbitmqUrl
+      key: rabbitmq-url
 {{- else if eq .Values.global.rabbitmqLocation "on-cluster" }}
 - name: "DRYCC_RABBITMQ_USERNAME"
   valueFrom:
