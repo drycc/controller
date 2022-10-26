@@ -2,7 +2,7 @@
 kind: ClusterRole
 apiVersion: rbac.authorization.k8s.io/v1
 metadata:
-  name: drycc:drycc-controller
+  name: {{ printf "%s:drycc-controller" .Release.Namespace | quote }}
   labels:
     app: drycc-controller
     heritage: drycc
