@@ -55,7 +55,7 @@ service:
 # can be specified as key-value pairs under environment
 # this is usually a non required setting.
 environment:
-  RESERVED_NAMES: "drycc, drycc-builder, drycc-monitor-grafana"
+  RESERVED_NAMES: "drycc, drycc-builder, drycc-monitor-grafana, drycc-passport, drycc-helmbroker, drycc-manager"
 
 api:
   nodeAffinityPreset:
