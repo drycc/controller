@@ -343,16 +343,8 @@ class PodViewSet(AppResourceViewSet):
         return Response(pagination, status=status.HTTP_200_OK)
 
     def restart(self, *args, **kwargs):
-        if "name" in kwargs:  # a single pod uses sync
-            pods = self.get_app().restart(**kwargs)
-        else:  # multi pod uses async
-            restart_app.delay(self.get_app(), **kwargs)
-            pods = self.get_app().list_pods(**kwargs)
-        data = self.get_serializer(pods, many=True).data
-        # fake out pagination for now
-        # pagination = {'results': data, 'count': len(data)}
-        pagination = data
-        return Response(pagination, status=status.HTTP_200_OK)
+        restart_app.delay(self.get_app(), **kwargs)
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
 
 class AppSettingsViewSet(AppResourceViewSet):

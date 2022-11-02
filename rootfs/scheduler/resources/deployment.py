@@ -174,6 +174,34 @@ class Deployment(Resource):
             kwargs['previous_replicas'] = current
             self.wait_until_ready(namespace, name, **kwargs)
 
+    def restart(self, namespace, name):
+        url = self.api(
+            "/namespaces/{}/deployments/{}?fieldManager=kubectl-rollout&pretty=true",
+            namespace, name
+        )
+        restartedAt = "%sZ" % (timedelta(seconds=3) + datetime.utcnow()).isoformat("T")
+        response = self.http_patch(
+            url,
+            data=json.dumps({
+                "spec": {
+                    "template": {
+                        "metadata": {
+                            "annotations": {
+                                "kubectl.kubernetes.io/restartedAt": restartedAt,
+                            }
+                        }
+                    }
+                }
+            }),
+            headers={"Content-Type": "application/merge-patch+json"},
+        )
+        if self.unhealthy(response.status_code):
+            raise KubeHTTPException(
+                response,
+                'restart Deployment "{}" in Namespace "{}"', name, namespace
+            )
+        return response
+
     def in_progress(self, namespace, name, timeout, batches, replicas, tags):
         """
         Determine if a Deployment has a deploy in progress

@@ -356,83 +356,26 @@ class App(UuidAuditedModel):
 
     def restart(self, **kwargs):  # noqa
         """
-        Restart found pods by deleting them (RC / Deployment will recreate).
-        Wait until they are all drained away and RC / Deployment has gotten to a good state
+         Restart deployments with the kubectl rollout api
         """
-        try:
-            # Resolve single pod name if short form (cmd-1269180282-1nyfz) is passed
-            if 'name' in kwargs and kwargs['name'].count('-') == 2:
-                kwargs['name'] = '{}-{}'.format(kwargs['id'], kwargs['name'])
-
-            # Iterate over RCs / RSs to get total desired count if not a single item
-            desired = 1
-            if 'name' not in kwargs:
-                desired = 0
-                labels = self._scheduler_filter(**kwargs)
-                # fetch RS (which represent Deployments)
-                controllers = self._scheduler.rs.get(kwargs['id'], labels=labels).json()['items']
-                if not controllers:
-                    controllers = []
-                for controller in controllers:
-                    desired += controller['spec']['replicas']
-        except KubeException:
-            # Nothing was found
-            return []
-
+        deployments = []
+        if 'type' in kwargs and kwargs['type'] in self.structure:
+            deployments.append(self._get_job_id(kwargs['type']))
+        else:
+            for scale_type, _ in self.structure.items():
+                deployments.append(self._get_job_id(scale_type))
         try:
             tasks = [
                 functools.partial(
-                    self._scheduler.pod.delete,
+                    self._scheduler.deployment.restart,
                     self.id,
-                    pod['name']
-                ) for pod in self.list_pods(**kwargs)
+                    deployment
+                ) for deployment in deployments
             ]
-
             apply_tasks(tasks)
         except Exception as e:
-            err = "warning, some pods failed to stop:\n{}".format(str(e))
+            err = "warning, some pods failed to restart:\n{}".format(str(e))
             self.log(err, logging.WARNING)
-
-        # Wait for pods to start
-        try:
-            timeout = 300  # 5 minutes
-            elapsed = 0
-            while True:
-                # timed out
-                if elapsed >= timeout:
-                    raise DryccException('timeout - 5 minutes have passed and pods are not up')
-
-                # restarting a single pod behaves differently, fetch the *newest* pod
-                # and hope it is the right one. Comes back sorted
-                if 'name' in kwargs:
-                    del kwargs['name']
-                    pods = self.list_pods(**kwargs)
-                    # Add in the latest name
-                    if len(pods) == 0:
-                        # if pod is not even scheduled wait for it and pass dummy kwargs
-                        # to indicate restart of a single pod
-                        kwargs['name'] = "dummy"
-                        continue
-                    kwargs['name'] = pods[0]['name']
-                    pods = pods[0]
-
-                actual = 0
-                for pod in self.list_pods(**kwargs):
-                    if pod['state'] == 'up':
-                        actual += 1
-
-                if desired == actual:
-                    break
-
-                elapsed += 5
-                time.sleep(5)
-        except Exception as e:
-            err = "warning, some pods failed to start:\n{}".format(str(e))
-            self.log(err, logging.WARNING)
-
-        # Return the new pods
-        pods = self.list_pods(**kwargs)
-        return pods
 
     def _clean_app_logs(self):
         """Delete application logs stored by the logger component"""

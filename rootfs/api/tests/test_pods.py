@@ -779,38 +779,19 @@ class PodTest(DryccTransactionTestCase):
 
         # restart all pods
         response = self.client.post('/v2/apps/{}/pods/restart'.format(app_id))
-        self.assertEqual(response.status_code, 200, response.data)
-        # Compare restarted pods to all pods
-        self.assertEqual(len(response.data), 12)
+        self.assertEqual(response.status_code, 204, response.data)
 
         # restart only the workers
         response = self.client.post('/v2/apps/{}/pods/worker/restart'.format(app_id))
-        self.assertEqual(response.status_code, 200, response.data)
-        # Compare restarted pods to only worker pods
-        self.assertEqual(len(response.data), 8)
+        self.assertEqual(response.status_code, 204, response.data)
 
         # restart only the web
         response = self.client.post('/v2/apps/{}/pods/web/restart'.format(app_id))
-        self.assertEqual(response.status_code, 200, response.data)
-        # Compare restarted pods to only worker pods
-        self.assertEqual(len(response.data), 4)
+        self.assertEqual(response.status_code, 204, response.data)
 
         # restart only one of the web pods
         pods = application.list_pods(type='web')
         self.assertEqual(len(pods), 4)
-
-        pod = pods.pop()
-        response = self.client.post('/v2/apps/{}/pods/web/{}/restart'.format(app_id, pod['name']))
-        self.assertEqual(response.status_code, 200, response.data)
-        self.assertEqual(len(response.data), 1)
-        self.assertEqual(response.data[0]['type'], 'web')
-
-        # restart only one web port but using the short name of web-asdfg
-        name = 'web-' + pod['name'].split('-').pop()
-        response = self.client.post('/v2/apps/{}/pods/web/{}/restart'.format(app_id, name))
-        self.assertEqual(response.status_code, 200, response.data)
-        self.assertEqual(len(response.data), 1)
-        self.assertEqual(response.data[0]['type'], 'web')
 
     def test_list_pods_failure(self, mock_requests):
         """
