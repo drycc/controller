@@ -39,7 +39,7 @@ class Command(BaseCommand):
             logger.info(f"pushing {task_id} limits to workflow_manager when {timezone.now()}")
             config_map = {}
             for config in Config.objects.all():
-                config_map[config.app_d] = config
+                config_map[config.app_id] = config
                 if len(config_map) % 1000 == 0:
                     send_measurements.delay(self._measure_networks(config_map, timestamp))
                     config_map = {}
