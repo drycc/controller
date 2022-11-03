@@ -402,7 +402,10 @@ class DomainViewSet(AppResourceViewSet):
     def destroy(self, request, **kwargs):
         domain = self.get_object()
         if "%s.%s" % (domain.app.id, settings.PLATFORM_DOMAIN) == domain.domain:
-            return Response(status=status.HTTP_403_FORBIDDEN)
+            return Response(
+                data="the default domain cannot be deleted",
+                status=status.HTTP_403_FORBIDDEN
+            )
         domain.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
 
