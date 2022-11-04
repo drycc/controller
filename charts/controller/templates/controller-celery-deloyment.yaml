@@ -48,22 +48,13 @@ spec:
           - celery -A api worker -Q priority.high --autoscale=32,1 --loglevel=WARNING
         {{- include "controller.limits" . | indent 8 }}
         {{- include "controller.envs" . | indent 8 }}
-      - name: drycc-controller-celery-middle
-        image: {{.Values.imageRegistry}}/{{.Values.imageOrg}}/controller:{{.Values.imageTag}}
-        imagePullPolicy: {{.Values.imagePullPolicy}}
-        args:
-          - /bin/bash
-          - -c
-          - celery -A api worker -Q priority.middle --autoscale=16,1 --loglevel=WARNING
-        {{- include "controller.limits" . | indent 8 }}
-        {{- include "controller.envs" . | indent 8 }}
       - name: drycc-controller-celery-low
         image: {{.Values.imageRegistry}}/{{.Values.imageOrg}}/controller:{{.Values.imageTag}}
         imagePullPolicy: {{.Values.imagePullPolicy}}
         args:
           - /bin/bash
           - -c
-          - celery -A api worker -Q priority.low --autoscale=8,1 --loglevel=WARNING
+          - celery -A api worker -Q priority.low --autoscale=32,1 --loglevel=WARNING
         {{- include "controller.limits" . | indent 8 }}
         {{- include "controller.envs" . | indent 8 }}
 

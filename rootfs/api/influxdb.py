@@ -1,5 +1,6 @@
 import threading
 import logging
+from contextlib import closing
 from typing import Iterator
 from django.conf import settings
 from influxdb_client import InfluxDBClient
@@ -11,13 +12,11 @@ logger = logging.getLogger(__name__)
 
 
 def _get_influxdb_client() -> InfluxDBClient:
-    if not hasattr(local, "influxdb_client"):
-        local.influxdb_client = InfluxDBClient(
-            url=settings.DRYCC_INFLUXDB_URL,
-            token=settings.DRYCC_INFLUXDB_TOKEN,
-            org=settings.DRYCC_INFLUXDB_ORG
-        )
-    return local.influxdb_client
+    return InfluxDBClient(
+        url=settings.DRYCC_INFLUXDB_URL,
+        token=settings.DRYCC_INFLUXDB_TOKEN,
+        org=settings.DRYCC_INFLUXDB_ORG
+    )
 
 
 def _query_stream(flux_script: str) -> Iterator[FluxRecord]:
@@ -25,14 +24,14 @@ def _query_stream(flux_script: str) -> Iterator[FluxRecord]:
     try:
         query_api = client.query_api()
         records = query_api.query_stream(flux_script)
+        with closing(records):
+            yield from records
     except ApiException as e:
         logger.exception(e)
         yield from []
     except Exception as e:
         logger.exception(e)
         yield from []
-    else:
-        yield from records
 
 
 def query_container_count(

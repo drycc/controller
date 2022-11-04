@@ -1163,7 +1163,7 @@ class App(UuidAuditedModel):
         for container_type, scale in self.structure.items():
             measurements.append({
                 "app_id": self.id,
-                "user_id": self.owner_id,
+                "owner": self.owner_id,
                 "name": container_type,
                 "type": "cpu",
                 "unit": "milli",
@@ -1172,7 +1172,7 @@ class App(UuidAuditedModel):
             })
             measurements.append({
                 "app_id": self.app_id,
-                "user_id": self.owner_id,
+                "owner": self.owner_id,
                 "name": container_type,
                 "type": "memory",
                 "unit": "bytes",

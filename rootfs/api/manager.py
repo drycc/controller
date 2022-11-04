@@ -68,7 +68,7 @@ class Measurement(ManagerAPI):
         [
             {
                 "app_id":  "test",
-                "owner_id": "test",
+                "owner": "test",
                 "name": web,
                 "type": "CPU",
                 "unit": "G"
@@ -78,4 +78,4 @@ class Measurement(ManagerAPI):
         ]
         """
         url = "%s/measurements/" % settings.WORKFLOW_MANAGER_URL
-        return self.post(url=url, json=measurements)
+        return super().post(url=url, json=measurements)
