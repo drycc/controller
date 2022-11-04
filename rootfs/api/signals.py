@@ -139,9 +139,8 @@ def create_auth_token_handle(sender, instance=None, created=False, **kwargs):
 @receiver(post_save, sender=App)
 def app_changed_handle(sender, instance=None, created=False, update_fields=None, **kwargs):
     # measure limits to workflow manager
-    if settings.WORKFLOW_MANAGER_URL and (
-        created or (
-            update_fields is not None and "structure" in update_fields)):
+    if settings.WORKFLOW_MANAGER_URL and not created and (
+            update_fields is not None and "structure" in update_fields):
         timestamp = time.time()
         send_measurements.apply_async(
             args=[instance.to_measurements(timestamp), ],
