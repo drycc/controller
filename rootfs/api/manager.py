@@ -19,11 +19,11 @@ class ManagerAPI(object):
             'User-Agent': user_agent('Drycc Controller ', drycc_version)
         }
 
-    def requests(self, method, url, **kwargs):
+    def request(self, method, url, **kwargs):
         headers = kwargs.get("headers", {})
         headers.update(self.headers)
         kwargs["headers"] = headers
-        requests.request(method, url, **kwargs)
+        return requests.request(method, url, **kwargs)
 
     def get(self, url, params=None, **kwargs):
         return self.request('get', url, params=params, **kwargs)
