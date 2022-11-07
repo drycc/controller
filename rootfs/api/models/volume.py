@@ -65,13 +65,13 @@ class Volume(UuidAuditedModel):
 
     def to_measurements(self, timestamp: float):
         return [{
-            "app_id": str(self.app_id),
-            "owner": str(self.owner_id),
+            "app_id": self.app.id,
+            "owner": self.owner_id,
             "name": self.name,
             "type": "volume",
             "unit": "bytes",
             "usage": unit_to_bytes(self.size),
-            "timestamp": "%f" % timestamp
+            "timestamp": int(timestamp)
         }]
 
     def __str__(self):

@@ -1168,15 +1168,15 @@ class App(UuidAuditedModel):
                 "type": "cpu",
                 "unit": "milli",
                 "usage": unit_to_millicpu(config.cpu.get(container_type)) * scale,
-                "timestamp": "%f" % timestamp
+                "timestamp": int(timestamp)
             })
             measurements.append({
-                "app_id": self.app_id,
+                "app_id": self.id,
                 "owner": self.owner_id,
                 "name": container_type,
                 "type": "memory",
                 "unit": "bytes",
                 "usage": unit_to_bytes(config.memory.get(container_type)) * scale,
-                "timestamp": "%f" % timestamp
+                "timestamp": int(timestamp)
             })
         return measurements

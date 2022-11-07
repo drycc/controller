@@ -28,7 +28,7 @@ class Command(BaseCommand):
                 "type": "network",
                 "unit": "bytes",
                 "usage": record["rx_bytes"] + record["tx_bytes"],
-                "timestamp": "%d" % start
+                "timestamp": start
             })
         send_measurements.delay(networks)
 
