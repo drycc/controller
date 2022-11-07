@@ -22,7 +22,7 @@ class Command(BaseCommand):
             app_id = record["namespace"]
             owner_id = app_map[app_id].owner_id
             networks.append({
-                "app_id":  app_id,
+                "app_id":  str(app_map[app_id].uuid),
                 "owner": owner_id,
                 "name": record["pod_name"],
                 "type": "network",

@@ -1162,7 +1162,7 @@ class App(UuidAuditedModel):
         config = self.config_set.latest()
         for container_type, scale in self.structure.items():
             measurements.append({
-                "app_id": self.id,
+                "app_id": str(self.uuid),
                 "owner": self.owner_id,
                 "name": container_type,
                 "type": "cpu",
@@ -1171,7 +1171,7 @@ class App(UuidAuditedModel):
                 "timestamp": int(timestamp)
             })
             measurements.append({
-                "app_id": self.id,
+                "app_id": str(self.uuid),
                 "owner": self.owner_id,
                 "name": container_type,
                 "type": "memory",

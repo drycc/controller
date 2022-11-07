@@ -230,7 +230,7 @@ class Resource(UuidAuditedModel):
 
     def to_measurements(self, timestamp: float):
         return [{
-            "app_id": self.app.id,
+            "app_id": str(self.app_id),
             "owner": self.owner_id,
             "name": self.name,
             "type": self.plan,
