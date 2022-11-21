@@ -13,19 +13,18 @@ logger = logging.getLogger(__name__)
 
 
 @shared_task(
-    bind=True,
     retry_kwargs={'max_retries': None}
 )
-def retrieve_resource(self, resource):
+def retrieve_resource(resource):
     task_id = uuid.uuid4().hex
     signals.request_started.send(sender=task_id)
     try:
         if not resource.retrieve():
             t = time.time() - resource.created.timestamp()
             if t < 3600:
-                raise self.retry(exc=None, countdown=30)
+                retrieve_resource.apply_async(args=(resource, ), countdown=30)
             elif t < 3600 * 12:
-                raise self.retry(exc=None, countdown=1800)
+                retrieve_resource.apply_async(args=(resource, ), countdown=1800)
             else:
                 resource.detach_resource()
     except (Exception, Resource.DoesNotExist) as e:
