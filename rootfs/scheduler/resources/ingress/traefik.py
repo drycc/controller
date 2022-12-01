@@ -92,12 +92,12 @@ class BufferingMiddleware(BaseMiddleware):
 class IPWhiteListMiddleware(BaseMiddleware):
     name_suffix = "-ip-white-list"
 
-    def manifest(self, name, allowlist, resource_version=None):
+    def manifest(self, name, allowlist=None, resource_version=None):
         data = super().manifest(name, resource_version)
         data.update({
             "spec": {
                 "ipWhiteList": {
-                    "sourceRange": allowlist
+                    "sourceRange": allowlist if allowlist is not None else []
                 }
             }
         })
@@ -124,19 +124,19 @@ class TraefikIngress(BaseIngress):
 
     def __init__(self, url, k8s_api_verify_tls=True):
         super().__init__(url, k8s_api_verify_tls)
-        self.buffering = BufferingMiddleware(url, k8s_api_verify_tls)
-        self.ip_white_list = IPWhiteListMiddleware(url, k8s_api_verify_tls)
-        self.redirect_scheme = RedirectSchemeMiddleware(url, k8s_api_verify_tls)
+        self.middlewares = {
+            "buffering": BufferingMiddleware(url, k8s_api_verify_tls),
+            "allowlist": IPWhiteListMiddleware(url, k8s_api_verify_tls),
+            "ssl_redirect": RedirectSchemeMiddleware(url, k8s_api_verify_tls),
+        }
 
     def manifest(self, namespace, ingress, **kwargs):
         data = BaseIngress.manifest(self, namespace, ingress, **kwargs)
-        middlewares = [f"{namespace}-{self.buffering.fullname(ingress)}@kubernetescrd", ]
-        if "allowlist" in kwargs and kwargs["allowlist"]:
-            middlewares.append(
-                f"{namespace}-{self.ip_white_list.fullname(ingress)}@kubernetescrd")
-        if "ssl_redirect" in kwargs and kwargs["ssl_redirect"]:
-            middlewares.append(
-                f"{namespace}-{self.redirect_scheme.fullname(ingress)}@kubernetescrd")
+        middlewares = []
+        for middleware in self.middlewares.keys():
+            if middleware == "buffering" or (middleware in kwargs and kwargs[middleware]):
+                name = self.middlewares[middleware].fullname(ingress)
+                middlewares.append(f"{namespace}-{name}@kubernetescrd")
         data["metadata"]["annotations"].update({
             "traefik.ingress.kubernetes.io/router.middlewares": ",".join(middlewares)
         })
@@ -144,22 +144,25 @@ class TraefikIngress(BaseIngress):
 
     def create(self, namespace, ingress, **kwargs):
         response = super().create(ingress, namespace, **kwargs)
-        self.buffering.create(namespace,  name=self.buffering.fullname(ingress))
-        self.ip_white_list.create(
-            namespace, name=self.ip_white_list.fullname(ingress), allowlist=[])
-        self.redirect_scheme.create(namespace, name=self.redirect_scheme.fullname(ingress))
+        for middleware in self.middlewares.keys():
+            name = self.middlewares[middleware].fullname(ingress)
+            self.middlewares[middleware].create(namespace, name=name)
         return response
 
     def put(self, namespace, ingress, version, **kwargs):
         response = super().put(ingress, namespace, version, **kwargs)
         if "allowlist" in kwargs:
-            self.ip_white_list.put(
-                namespace, self.ip_white_list.fullname(ingress), allowlist=kwargs["allowlist"])
+            name = self.middlewares["allowlist"].fullname(ingress)
+            self.middlewares["allowlist"].put(
+                namespace,
+                name,
+                allowlist=kwargs["allowlist"],
+            )
         return response
 
     def delete(self, namespace, ingress):
         response = super().delete(namespace, ingress)
-        self.buffering.delete(namespace,  self.buffering.fullname(ingress))
-        self.ip_white_list.delete(namespace, self.ip_white_list.fullname(ingress))
-        self.redirect_scheme.delete(namespace, self.redirect_scheme.fullname(ingress))
+        for middleware in self.middlewares.keys():
+            name = self.middlewares[middleware].fullname(ingress)
+            self.middlewares[middleware].delete(namespace, name)
         return response

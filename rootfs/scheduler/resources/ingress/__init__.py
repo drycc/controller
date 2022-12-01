@@ -1,9 +1,10 @@
-from .base import IngressFactory, WildcardPathIngress
+from .base import IngressClass, WildcardPathIngress
 from .nginx import NginxIngress
 from .traefik import TraefikIngress
 
 
-IngressFactory.register("gce", WildcardPathIngress)
-IngressFactory.register("alb", WildcardPathIngress)
-IngressFactory.register("traefik", TraefikIngress)
-IngressFactory.register("nginx", NginxIngress)
+# registry ingress class by controller
+IngressClass.register("k8s.io/ingress-gce", WildcardPathIngress)
+IngressClass.register("ingress.k8s.aws/alb", WildcardPathIngress)
+IngressClass.register("traefik.io/ingress-controller", TraefikIngress)
+IngressClass.register("k8s.io/ingress-nginx", NginxIngress)

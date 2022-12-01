@@ -106,16 +106,27 @@ class BaseIngress(Resource):
         return response
 
 
-class IngressFactory(Resource):
+class IngressClass(Resource):
 
     short_name = 'ingress'
     ingress_class_map = {
         "default": BaseIngress
     }
 
-    def __call__(self, ingress_name):
-        ingress_cls = self.ingress_class_map.get(ingress_name, self.ingress_class_map["default"])
-        ingress_cls.ingress_class = ingress_name
+    def get(self, ingress_class, ignore_exception=True):
+        response = self.http_get(f"/apis/networking.k8s.io/v1/ingressclasses/{ingress_class}")
+        if not ignore_exception and self.unhealthy(response.status_code):
+            raise KubeHTTPException(response, 'get IngressClasses "{}"', ingress_class)
+
+        return response
+
+    def __call__(self, ingress_class):
+        response = self.get(ingress_class)
+        controller = "default"
+        if response.status_code == 200:
+            controller = response.json()["spec"]["controller"]
+        ingress_cls = self.ingress_class_map.get(controller, self.ingress_class_map["default"])
+        ingress_cls.ingress_class = ingress_class
         return ingress_cls(self.url, self.k8s_api_verify_tls)
 
     @classmethod
