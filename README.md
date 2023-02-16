@@ -1,6 +1,6 @@
 # Drycc Controller
 
-[![Build Status](https://drone.drycc.cc/api/badges/drycc/controller/status.svg)](https://drone.drycc.cc/drycc/controller)
+[![Build Status](https://woodpecker.drycc.cc/api/badges/drycc/controller/status.svg)](https://woodpecker.drycc.cc/drycc/controller)
 [![codecov.io](https://codecov.io/github/drycc/controller/coverage.svg?branch=main)](https://codecov.io/github/drycc/controller?branch=main)
 [![FOSSA Status](https://app.fossa.com/api/projects/git%2Bgithub.com%2Fdrycc%2Fcontroller.svg?type=shield)](https://app.fossa.com/projects/git%2Bgithub.com%2Fdrycc%2Fcontroller?ref=badge_shield)
 
