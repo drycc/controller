@@ -350,17 +350,17 @@ KUBERNETES_REQUEST_CPU_RATIO = int(os.environ.get('KUBERNETES_REQUEST_CPU_RATIO'
 KUBERNETES_REQUEST_MEMORY_RATIO = int(os.environ.get('KUBERNETES_REQUEST_MEMORY_RATIO', '2'))
 
 # Minimum CPU limit, units are represented in the millicpu of CPUs
-KUBERNETES_LIMITS_MIN_CPU = 125
+KUBERNETES_LIMITS_MIN_CPU = int(os.environ.get('KUBERNETES_LIMITS_MIN_CPU', '125'))
 # Max CPU limit, units are represented in the millicpu of CPUs
-KUBERNETES_LIMITS_MAX_CPU = 32 * 1000
+KUBERNETES_LIMITS_MAX_CPU = int(os.environ.get('KUBERNETES_LIMITS_MAX_CPU', 32 * 1000))
 # Minimum Memory limit, units are represented in Megabytes(M)
-KUBERNETES_LIMITS_MIN_MEMORY = 128
+KUBERNETES_LIMITS_MIN_MEMORY = int(os.environ.get('KUBERNETES_LIMITS_MIN_MEMORY', '128'))
 # Max Memory limit, units are represented in Megabytes(M)
-KUBERNETES_LIMITS_MAX_MEMORY = 128 * 1024
+KUBERNETES_LIMITS_MAX_MEMORY = int(os.environ.get('KUBERNETES_LIMITS_MAX_MEMORY', 128 * 1024))
 # Minimum Stroage Volume limit, units are represented in Gigabytes(G)
-KUBERNETES_LIMITS_MIN_VOLUME = 1
+KUBERNETES_LIMITS_MIN_VOLUME = int(os.environ.get('KUBERNETES_LIMITS_MIN_VOLUME', 1))
 # Max Stroage Volume limit, units are represented in Gigabytes(G)
-KUBERNETES_LIMITS_MAX_VOLUME = 1024 * 16
+KUBERNETES_LIMITS_MAX_VOLUME = int(os.environ.get('KUBERNETES_LIMITS_MAX_VOLUME', 1024 * 16))
 
 # Default pod spec for application.
 KUBERNETES_POD_DEFAULT_RESOURCES = os.environ.get(
