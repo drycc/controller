@@ -20,6 +20,9 @@ k8sApiVerifyTls: "true"
 appStorageClass: "drycc-storage"
 # Set runtimeClassName. It is used for application.
 appRuntimeClass: ""
+# Set appDNSPolicy. It is used for application.
+# See: https://kubernetes.io/docs/concepts/services-networking/dns-pod-service/#pod-s-dns-policy
+appDNSPolicy: ""
 # set timeout seconds. It is used for pod exec
 appPodExecTimeout: 3600
 # Set api replicas

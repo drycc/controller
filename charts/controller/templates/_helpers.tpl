@@ -26,6 +26,10 @@ env:
 - name: "DRYCC_APP_RUNTIME_CLASS"
   value: "{{ .Values.appRuntimeClass }}"
 {{- end }}
+{{- if (.Values.appDNSPolicy) }}
+- name: "DRYCC_APP_DNS_POLICY"
+  value: "{{ .Values.appDNSPolicy }}"
+{{- end }}
 {{- if (.Values.appPodExecTimeout) }}
 - name: "DRYCC_APP_POD_EXEC_TIMEOUT"
   value: "{{ .Values.appPodExecTimeout }}"
