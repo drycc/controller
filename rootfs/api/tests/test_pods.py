@@ -589,7 +589,7 @@ class PodTest(DryccTransactionTestCase):
         response = self.client.post(url, body)
         self.assertEqual(response.status_code, 200, response.data)
         app = App.objects.get(id=app_id)
-        self.assertEqual(app._get_entrypoint('cmd'), ['/bin/sh', '-c'])
+        self.assertEqual(app._get_entrypoint('cmd'), [])
 
         # procfile workflow
         build.sha = 'somereallylongsha'

@@ -153,8 +153,11 @@ class App(UuidAuditedModel):
         """
         Return the kubernetes "container command" to be sent off to the scheduler.
         """
-        entrypoint = ['/bin/sh', '-c']
+        entrypoint = []
         release = self.release_set.filter(failed=False).latest()
+        if release is not None and release.build is not None:
+            if release.build.procfile and container_type in release.build.procfile:
+                entrypoint = ['/bin/sh', '-c']
         if self._get_stack(release) == "buildpack":
             if container_type in release.build.procfile:
                 entrypoint = [container_type]
@@ -1113,6 +1116,7 @@ class App(UuidAuditedModel):
             'annotations': json.loads(settings.KUBERNETES_POD_DEFAULT_ANNOTATIONS),
             'healthcheck': healthcheck,
             'runtime_class_name': settings.DRYCC_APP_RUNTIME_CLASS,
+            'dns_policy': settings.DRYCC_APP_DNS_POLICY,
             'lifecycle_post_start': config.lifecycle_post_start,
             'lifecycle_pre_stop': config.lifecycle_pre_stop,
             'routable': routable,

@@ -158,6 +158,8 @@ class Pod(Resource):
         # pod runtimeClassName
         if kwargs.get('runtime_class_name', ''):
             spec['runtimeClassName'] = kwargs.get('runtime_class_name')
+        if kwargs.get('dns_policy', ''):
+            spec['dnsPolicy'] = kwargs.get('dns_policy')
 
         # what should the pod do if it exits
         spec['restartPolicy'] = kwargs.get('restart_policy', 'Always')
