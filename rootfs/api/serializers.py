@@ -26,6 +26,8 @@ from api.exceptions import DryccException
 User = get_user_model()
 logger = logging.getLogger(__name__)
 
+SVCTYPE_MATCH = re.compile(r'^(ClusterIP|LoadBalancer)$')
+SVCTYPE_MISMATCH_MSG = "The service type currently only supports ClusterIP and LoadBalancer"
 PROCTYPE_MATCH = re.compile(r'^(?P<type>[a-z0-9]+(\-[a-z0-9]+)*)$')
 PROCTYPE_MISMATCH_MSG = "Process types can only contain lowercase alphanumeric characters"
 MEMLIMIT_MATCH = re.compile(r'^(?P<mem>([1-9][0-9]*[mgMG]))$', re.IGNORECASE)
@@ -511,34 +513,26 @@ class ServiceSerializer(serializers.ModelSerializer):
 
     app = serializers.SlugRelatedField(slug_field='id', queryset=models.app.App.objects.all())
     owner = serializers.ReadOnlyField(source='owner.username')
+    service_type = serializers.CharField(allow_blank=False, allow_null=False, required=True)
     procfile_type = serializers.CharField(allow_blank=False, allow_null=False, required=True)
-    path_pattern = serializers.CharField(allow_blank=False, allow_null=False, required=True)
 
     class Meta:
         """Metadata options for a :class:`ServiceSerializer`."""
         model = models.service.Service
-        fields = ['owner', 'created', 'updated', 'app', 'procfile_type', 'path_pattern']
+        fields = ['owner', 'created', 'updated', 'app', 'service_type', 'procfile_type']
         read_only_fields = ['uuid']
+
+    @staticmethod
+    def validate_service_type(value):
+        if not re.match(SVCTYPE_MATCH, value):
+            raise serializers.ValidationError(SVCTYPE_MISMATCH_MSG)
+
+        return value
 
     @staticmethod
     def validate_procfile_type(value):
         if not re.match(PROCTYPE_MATCH, value):
             raise serializers.ValidationError(PROCTYPE_MISMATCH_MSG)
-
-        return value
-
-    @staticmethod
-    def validate_path_pattern(value):
-        for pattern in str(value).split(","):
-            if not pattern.strip():
-                raise serializers.ValidationError(
-                    "Service value should be valid regex (or set of regex split by comma)")
-            try:
-                re.compile(pattern)
-            except re.error as e:
-                logger.exception(e)
-                raise serializers.ValidationError(
-                    "Service value should be valid regex (or set of regex split by comma)")
 
         return value
 

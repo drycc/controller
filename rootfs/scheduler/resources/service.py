@@ -27,7 +27,7 @@ class Service(Resource):
 
         return response
 
-    def create(self, namespace, name, **kwargs):
+    def create(self, namespace, name, type="ClusterIP", **kwargs):
         # Ports and app type will be overwritten as required
         manifest = {
             'kind': 'Service',
@@ -41,6 +41,7 @@ class Service(Resource):
                 'annotations': {}
             },
             'spec': {
+                'type': type,
                 'ports': [{
                     'name': 'http',
                     'port': 80,
@@ -48,7 +49,7 @@ class Service(Resource):
                     'protocol': 'TCP'
                 }],
                 'selector': {
-                    'app': namespace,
+                    'app': name,
                     'heritage': 'drycc'
                 }
             }

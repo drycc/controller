@@ -13,8 +13,9 @@ logger = logging.getLogger(__name__)
 class Service(AuditedModel):
     owner = models.ForeignKey(User, on_delete=models.PROTECT)
     app = models.ForeignKey('App', on_delete=models.CASCADE)
+    service_type = models.TextField(blank=False, null=False, unique=False)
     procfile_type = models.TextField(blank=False, null=False, unique=False)
-    path_pattern = models.TextField(blank=False, null=False, unique=False)
+
 
     class Meta:
         get_latest_by = 'created'
@@ -26,8 +27,8 @@ class Service(AuditedModel):
 
     def as_dict(self):
         return {
-            "procfile_type": self.procfile_type,
-            "path_pattern": self.path_pattern
+            "service_type": self.service_type,
+            "procfile_type": self.procfile_type
         }
 
     def create(self, *args, **kwargs):  # noqa
@@ -39,7 +40,7 @@ class Service(AuditedModel):
             try:
                 self._scheduler.svc.get(namespace, svc_name)
             except KubeException:
-                self._scheduler.svc.create(namespace, svc_name)
+                self._scheduler.svc.create(namespace, svc_name, self.service_type)
         except KubeException as e:
             raise ServiceUnavailable('Kubernetes service could not be created') from e
 

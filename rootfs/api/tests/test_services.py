@@ -34,7 +34,7 @@ class TestServices(DryccTransactionTestCase):
         # create 1st service
         response = self.client.post(
             '/v2/apps/{}/services'.format(app_id),
-            {'procfile_type': 'test', 'path_pattern': '/testep/notify'}
+            {'service_type': 'ClusterIP', 'procfile_type': 'test'}
         )
         self.assertEqual(response.status_code, 201, response.data)
         # list 1st service
@@ -42,14 +42,14 @@ class TestServices(DryccTransactionTestCase):
         self.assertEqual(response.status_code, 200, response.data)
         self.assertEqual(len(response.data['services']), 1)
         expected1 = {
-            'procfile_type': 'test',
-            'path_pattern': '/testep/notify'
+            'service_type': 'ClusterIP',
+            'procfile_type': 'test'
         }
         self.assertDictContainsSubset(expected1, response.data['services'][0])
         # update 1st service
         response = self.client.post(
             '/v2/apps/{}/services'.format(app_id),
-            {'procfile_type': 'test', 'path_pattern': '/testep/notify_new'}
+            {'service_type': 'LoadBalancer', 'procfile_type': 'test'}
         )
         self.assertEqual(response.status_code, 201, response.data)
         # list 1st service and get new value
@@ -57,14 +57,14 @@ class TestServices(DryccTransactionTestCase):
         self.assertEqual(response.status_code, 200, response.data)
         self.assertEqual(len(response.data['services']), 1)
         expected1 = {
-            'procfile_type': 'test',
-            'path_pattern': '/testep/notify_new'
+            'service_type': 'LoadBalancer',
+            'procfile_type': 'test'
         }
         self.assertDictContainsSubset(expected1, response.data['services'][0])
         # create 2nd service
         response = self.client.post(
             '/v2/apps/{}/services'.format(app_id),
-            {'procfile_type': 'test2', 'path_pattern': '/testep2/notify'}
+            {'service_type': 'ClusterIP', 'procfile_type': 'test2'}
         )
         self.assertEqual(response.status_code, 201, response.data)
         # list two services
@@ -72,8 +72,8 @@ class TestServices(DryccTransactionTestCase):
         self.assertEqual(response.status_code, 200, response.data)
         self.assertEqual(len(response.data['services']), 2)
         expected2 = {
-            'procfile_type': 'test2',
-            'path_pattern': '/testep2/notify'
+            'service_type': 'ClusterIP',
+            'procfile_type': 'test2'
         }
         self.assertDictContainsSubset(expected2, response.data['services'][0])
         self.assertDictContainsSubset(expected1, response.data['services'][1])

@@ -421,19 +421,19 @@ class ServiceViewSet(AppResourceViewSet):
         return Response({"services": data}, status=status.HTTP_200_OK)
 
     def create_or_update(self, request, **kwargs):
+        svt = self.get_serializer().validate_service_type(request.data.get('service_type'))
         pft = self.get_serializer().validate_procfile_type(request.data.get('procfile_type'))
-        pp = self.get_serializer().validate_path_pattern(request.data.get('path_pattern'))
         app = self.get_app()
         svc = app.service_set.filter(procfile_type=pft).first()
         if svc:
-            if svc.path_pattern == pp:
+            if svc.service_type == svt:
                 return Response(status=status.HTTP_204_NO_CONTENT)
             else:
-                svc.path_pattern = pp
+                svc.service_type = svt
                 svc.save()
         else:
             svc = models.service.Service.objects.create(
-                owner=app.owner, app=app, procfile_type=pft, path_pattern=pp)
+                owner=app.owner, app=app, service_type=svt, procfile_type=pft)
         return Response(status=status.HTTP_201_CREATED)
 
     def delete(self, request, **kwargs):
