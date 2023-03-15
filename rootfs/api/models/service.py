@@ -16,7 +16,6 @@ class Service(AuditedModel):
     service_type = models.TextField(blank=False, null=False, unique=False)
     procfile_type = models.TextField(blank=False, null=False, unique=False)
 
-
     class Meta:
         get_latest_by = 'created'
         unique_together = (('app', 'procfile_type'), )
