@@ -253,6 +253,8 @@ DRYCC_RESERVED_NAMES = os.environ.get('RESERVED_NAMES', '').replace(' ', '').spl
 # the k8s namespace in which the controller and workflow were installed.
 WORKFLOW_NAMESPACE = os.environ.get('WORKFLOW_NAMESPACE', 'drycc')
 
+# kubernetes cluster domain
+KUBERNETES_CLUSTER_DOMAIN = os.environ.get("KUBERNETES_CLUSTER_DOMAIN", "cluster.local")
 # default scheduler settings
 SCHEDULER_MODULE = 'scheduler'
 SCHEDULER_URL = "https://{}:{}".format(
@@ -260,9 +262,7 @@ SCHEDULER_URL = "https://{}:{}".format(
     # intermittent DNS errors
     os.environ.get(
         'KUBERNETES_SERVICE_HOST',
-        'kubernetes.default.svc.{}'.format(os.environ.get(
-            "KUBERNETES_CLUSTER_DOMAIN", "cluster.local"
-        ))
+        'kubernetes.default.svc.{}'.format(KUBERNETES_CLUSTER_DOMAIN)
     ),
     os.environ.get('KUBERNETES_SERVICE_PORT', '443')
 )

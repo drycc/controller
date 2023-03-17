@@ -1,6 +1,7 @@
 import logging
 
 from django.db import models
+from django.conf import settings
 from django.contrib.auth import get_user_model
 from api.exceptions import ServiceUnavailable
 from scheduler import KubeException
@@ -13,8 +14,11 @@ logger = logging.getLogger(__name__)
 class Service(AuditedModel):
     owner = models.ForeignKey(User, on_delete=models.PROTECT)
     app = models.ForeignKey('App', on_delete=models.CASCADE)
-    service_type = models.TextField(blank=False, null=False, unique=False)
-    procfile_type = models.TextField(blank=False, null=False, unique=False)
+    port = models.PositiveIntegerField(default=5000)
+    protocol = models.TextField(default="TCP")
+    target_port = models.PositiveIntegerField(default=5000)
+    service_type = models.TextField()
+    procfile_type = models.TextField()
 
     class Meta:
         get_latest_by = 'created'
@@ -24,22 +28,50 @@ class Service(AuditedModel):
     def __str__(self):
         return self._svc_name()
 
-    def as_dict(self):
-        return {
-            "service_type": self.service_type,
-            "procfile_type": self.procfile_type
-        }
-
-    def create(self, *args, **kwargs):  # noqa
-        # create required minimum service in k8s for the application
+    def _get_ips(self):
         namespace = self._namespace()
         svc_name = self._svc_name()
-        self.log('creating Service: {}'.format(svc_name), level=logging.DEBUG)
+        response = self._scheduler.svc.get(namespace, svc_name)
+        data = response.json()
+        cluster_ip = data['spec']['clusterIP']
+        if 'ingress' in data['status']['loadBalancer']:
+            external_ip = data['status']['loadBalancer']['ingress'][0]['ip']
+        else:
+            external_ip = None
+        return cluster_ip, external_ip
+
+    def as_dict(self):
+        namespace = self._namespace()
+        svc_name = self._svc_name()
+        cluster_domain = settings.KUBERNETES_CLUSTER_DOMAIN
+        cluster_ip, external_ip = self._get_ips()
+        return {
+            "port": self.port,
+            "domain": f"{svc_name}.{namespace}.svc.{cluster_domain}",
+            "protocol": self.protocol,
+            "cluster_ip": cluster_ip,
+            "external_ip": external_ip,
+            "target_port": self.target_port,
+            "service_type": self.service_type,
+            "procfile_type": self.procfile_type,
+        }
+
+    def create(self):
+        namespace = self._namespace()
+        svc_name = self._svc_name()
+        self.log('creating service: {}'.format(svc_name), level=logging.DEBUG)
         try:
             try:
                 self._scheduler.svc.get(namespace, svc_name)
             except KubeException:
-                self._scheduler.svc.create(namespace, svc_name, self.service_type)
+                self._scheduler.svc.create(
+                    namespace,
+                    svc_name,
+                    service_type=self.service_type,
+                    port=self.port,
+                    protocol=self.protocol,
+                    target_port=self.target_port,
+                )
         except KubeException as e:
             raise ServiceUnavailable('Kubernetes service could not be created') from e
 

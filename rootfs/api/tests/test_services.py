@@ -34,7 +34,13 @@ class TestServices(DryccTransactionTestCase):
         # create 1st service
         response = self.client.post(
             '/v2/apps/{}/services'.format(app_id),
-            {'service_type': 'ClusterIP', 'procfile_type': 'test'}
+            {
+                'port': 5000,
+                'protocol': 'UDP',
+                'target_port': 5000,
+                'service_type': 'ClusterIP',
+                'procfile_type': 'test'
+            }
         )
         self.assertEqual(response.status_code, 201, response.data)
         # list 1st service
@@ -42,6 +48,9 @@ class TestServices(DryccTransactionTestCase):
         self.assertEqual(response.status_code, 200, response.data)
         self.assertEqual(len(response.data['services']), 1)
         expected1 = {
+            'port': 5000,
+            'protocol': 'UDP',
+            'target_port': 5000,
             'service_type': 'ClusterIP',
             'procfile_type': 'test'
         }
@@ -49,7 +58,13 @@ class TestServices(DryccTransactionTestCase):
         # update 1st service
         response = self.client.post(
             '/v2/apps/{}/services'.format(app_id),
-            {'service_type': 'LoadBalancer', 'procfile_type': 'test'}
+            {
+                'port': 5000,
+                'protocol': 'UDP',
+                'target_port': 5000,
+                'service_type': 'LoadBalancer',
+                'procfile_type': 'test'
+            }
         )
         self.assertEqual(response.status_code, 201, response.data)
         # list 1st service and get new value
@@ -57,6 +72,9 @@ class TestServices(DryccTransactionTestCase):
         self.assertEqual(response.status_code, 200, response.data)
         self.assertEqual(len(response.data['services']), 1)
         expected1 = {
+            'port': 5000,
+            'protocol': 'UDP',
+            'target_port': 5000,
             'service_type': 'LoadBalancer',
             'procfile_type': 'test'
         }
@@ -64,7 +82,13 @@ class TestServices(DryccTransactionTestCase):
         # create 2nd service
         response = self.client.post(
             '/v2/apps/{}/services'.format(app_id),
-            {'service_type': 'ClusterIP', 'procfile_type': 'test2'}
+            {
+                'port': 5000,
+                'protocol': 'UDP',
+                'target_port': 5000,
+                'service_type': 'ClusterIP',
+                'procfile_type': 'test2'
+            }
         )
         self.assertEqual(response.status_code, 201, response.data)
         # list two services
@@ -72,6 +96,9 @@ class TestServices(DryccTransactionTestCase):
         self.assertEqual(response.status_code, 200, response.data)
         self.assertEqual(len(response.data['services']), 2)
         expected2 = {
+            'port': 5000,
+            'protocol': 'UDP',
+            'target_port': 5000,
             'service_type': 'ClusterIP',
             'procfile_type': 'test2'
         }

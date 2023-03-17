@@ -423,6 +423,9 @@ class ServiceViewSet(AppResourceViewSet):
     def create_or_update(self, request, **kwargs):
         svt = self.get_serializer().validate_service_type(request.data.get('service_type'))
         pft = self.get_serializer().validate_procfile_type(request.data.get('procfile_type'))
+        port = self.get_serializer().validate_port(request.data.get('port'))
+        protocol = self.get_serializer().validate_protocol(request.data.get('protocol'))
+        target_port = self.get_serializer().validate_target_port(request.data.get('target_port'))
         app = self.get_app()
         svc = app.service_set.filter(procfile_type=pft).first()
         if svc:
@@ -433,7 +436,14 @@ class ServiceViewSet(AppResourceViewSet):
                 svc.save()
         else:
             svc = models.service.Service.objects.create(
-                owner=app.owner, app=app, service_type=svt, procfile_type=pft)
+                owner=app.owner,
+                app=app,
+                service_type=svt,
+                procfile_type=pft,
+                port=port,
+                protocol=protocol,
+                target_port=target_port,
+            )
         return Response(status=status.HTTP_201_CREATED)
 
     def delete(self, request, **kwargs):

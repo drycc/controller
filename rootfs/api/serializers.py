@@ -25,9 +25,10 @@ from api.exceptions import DryccException
 
 User = get_user_model()
 logger = logging.getLogger(__name__)
-
 SVCTYPE_MATCH = re.compile(r'^(ClusterIP|LoadBalancer)$')
 SVCTYPE_MISMATCH_MSG = "The service type currently only supports ClusterIP and LoadBalancer"
+PROTOCOL_MATCH = re.compile(r'^(TCP|UDP|SCTP)$')
+PROTOCOL_MISMATCH_MSG = "Currently, the protocol only supports TCP, UDP, and SCTP"
 PROCTYPE_MATCH = re.compile(r'^(?P<type>[a-z0-9]+(\-[a-z0-9]+)*)$')
 PROCTYPE_MISMATCH_MSG = "Process types can only contain lowercase alphanumeric characters"
 MEMLIMIT_MATCH = re.compile(r'^(?P<mem>([1-9][0-9]*[mgMG]))$', re.IGNORECASE)
@@ -513,14 +514,39 @@ class ServiceSerializer(serializers.ModelSerializer):
 
     app = serializers.SlugRelatedField(slug_field='id', queryset=models.app.App.objects.all())
     owner = serializers.ReadOnlyField(source='owner.username')
-    service_type = serializers.CharField(allow_blank=False, allow_null=False, required=True)
-    procfile_type = serializers.CharField(allow_blank=False, allow_null=False, required=True)
+    port = serializers.IntegerField(default=5000)
+    protocol = serializers.CharField(default="TCP")
+    target_port = serializers.IntegerField(default=5000)
+    service_type = serializers.CharField(required=True)
+    procfile_type = serializers.CharField(required=True)
 
     class Meta:
         """Metadata options for a :class:`ServiceSerializer`."""
         model = models.service.Service
         fields = ['owner', 'created', 'updated', 'app', 'service_type', 'procfile_type']
         read_only_fields = ['uuid']
+
+    @staticmethod
+    def validate_port(value):
+        if not str(value).isnumeric():
+            raise serializers.ValidationError('port can only be a numeric value')
+        elif int(value) not in range(1, 65536):
+            raise serializers.ValidationError('port needs to be between 1 and 65535')
+        return value
+
+    @staticmethod
+    def validate_protocol(value):
+        if not re.match(PROTOCOL_MATCH, value):
+            raise serializers.ValidationError(PROTOCOL_MISMATCH_MSG)
+        return value
+
+    @staticmethod
+    def validate_target_port(value):
+        if not str(value).isnumeric():
+            raise serializers.ValidationError('target port can only be a numeric value')
+        elif int(value) not in range(1, 65536):
+            raise serializers.ValidationError('target port needs to be between 1 and 65535')
+        return value
 
     @staticmethod
     def validate_service_type(value):

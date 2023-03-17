@@ -702,7 +702,15 @@ def post(request, context):
         namespace = re.sub(r'/apis/.+/.+/namespaces/', '', namespace)
         namespace = namespace.split('/')[0]
         data['metadata']['namespace'] = namespace
-
+    if resource_type in ["services"]:
+        data['spec']["clusterIP"] = "10.1.9.101"
+        data['status'] = {
+            'loadBalancer': {
+                'ingress': [
+                    {'ip': "47.98.100.101"}
+                ]
+            }
+        }
     # Handle RC / RS / Deployments
     if resource_type in ['replicationcontrollers', 'replicasets', 'deployments']:
         data['status'] = {
