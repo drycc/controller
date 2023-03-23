@@ -156,7 +156,8 @@ class App(UuidAuditedModel):
         entrypoint = []
         release = self.release_set.filter(failed=False).latest()
         if release is not None and release.build is not None:
-            if release.build.procfile and container_type in release.build.procfile:
+            if (release.build.procfile and container_type in release.build.procfile) \
+                    or container_type == "run":
                 entrypoint = ['/bin/sh', '-c']
         if self._get_stack(release) == "buildpack":
             if container_type in release.build.procfile:
