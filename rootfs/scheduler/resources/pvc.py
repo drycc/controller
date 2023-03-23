@@ -6,13 +6,12 @@ from scheduler.exceptions import KubeHTTPException
 class PersistentVolumeClaim(Resource):
     short_name = 'pvc'
 
-    @staticmethod
-    def manifest(namespace, name, version=None, **kwargs):
+    def manifest(self, namespace, name, version=None, **kwargs):
         labels = {
             'heritage': 'drycc',
         }
         data = {
-            "apiVersion": "v1",
+            "apiVersion": self.api_version,
             "kind": "PersistentVolumeClaim",
             "metadata": {
                 "name": name,

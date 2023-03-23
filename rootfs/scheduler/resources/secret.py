@@ -51,7 +51,7 @@ class Secret(Resource):
 
         manifest = {
             'kind': 'Secret',
-            'apiVersion': 'v1',
+            'apiVersion': self.api_version,
             'metadata': {
                 'name': name,
                 'namespace': namespace,

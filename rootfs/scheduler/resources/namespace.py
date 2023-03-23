@@ -30,7 +30,7 @@ class Namespace(Resource):
         url = self.api("/namespaces")
         data = {
             "kind": "Namespace",
-            "apiVersion": "v1",
+            "apiVersion": self.api_version,
             "metadata": {
                 "name": namespace,
                 "labels": {

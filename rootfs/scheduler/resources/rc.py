@@ -31,7 +31,7 @@ class ReplicationController(Resource):
     def create(self, namespace, name, image, entrypoint, command, **kwargs):
         manifest = {
             'kind': 'ReplicationController',
-            'apiVersion': 'v1',
+            'apiVersion': self.api_version,
             'metadata': {
                 'name': name,
                 'labels': {

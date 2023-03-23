@@ -17,7 +17,7 @@ class Events(Resource):
         url = self.api('/namespaces/{}/events'.format(namespace))
         data = {
             'kind': 'Event',
-            'apiVersion': 'v1',
+            'apiVersion': self.api_version,
             'count': kwargs.get('count', 1),
             'metadata': {
                 'creationTimestamp': datetime.now().strftime(DATETIME_FORMAT),

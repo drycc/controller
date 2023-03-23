@@ -142,7 +142,7 @@ class Pod(Resource):
         # create base pod structure
         manifest = {
             'kind': 'Pod',
-            'apiVersion': 'v1',
+            'apiVersion': self.api_version,
             'metadata': {
               'name': name,
               'namespace': namespace,

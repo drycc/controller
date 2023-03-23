@@ -25,7 +25,7 @@ class Quota(Resource):
         url = self.api("/namespaces/{}/resourcequotas".format(namespace_name))
         manifest = {
             "kind": "ResourceQuota",
-            "apiVersion": "v1",
+            "apiVersion": self.api_version,
             "metadata": {
                 "namespace": namespace_name,
                 "name": name,

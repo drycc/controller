@@ -7,13 +7,12 @@ class ServiceCatalog(Resource):
     api_prefix = 'apis'
     short_name = 'svcat'
 
-    @staticmethod
-    def service_instance_manifest(namespace, name, version=None, **kwargs):
+    def service_instance_manifest(self, namespace, name, version=None, **kwargs):
         labels = {
             'heritage': 'drycc',
         }
         data = {
-            "apiVersion": 'servicecatalog.k8s.io/v1beta1',
+            "apiVersion": self.api_version,
             "kind": "ServiceInstance",
             "metadata": {
                 "name": name,
@@ -110,13 +109,12 @@ class ServiceCatalog(Resource):
             raise KubeHTTPException(response, 'delete serviceinstance ' + name)
         return response
 
-    @staticmethod
-    def service_binding_manifest(namespace, name, version=None, **kwargs):
+    def service_binding_manifest(self, namespace, name, version=None, **kwargs):
         labels = {
             'heritage': 'drycc',
         }
         data = {
-            "apiVersion": 'servicecatalog.k8s.io/v1beta1',
+            "apiVersion": self.api_version,
             "kind": "ServiceBinding",
             "metadata": {
                 "name": name,

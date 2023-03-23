@@ -31,7 +31,7 @@ class Service(Resource):
         # Ports and app type will be overwritten as required
         manifest = {
             'kind': 'Service',
-            'apiVersion': 'v1',
+            'apiVersion': self.api_version,
             'metadata': {
                 'name': name,
                 'labels': {

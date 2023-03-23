@@ -24,7 +24,7 @@ class LimitRanges(Resource):
         """
         url = self.api("/namespaces/{}/limitranges".format(namespace_name))
         manifest = {
-            "apiVersion": "v1",
+            "apiVersion": self.api_version,
             "kind": "LimitRange",
             "metadata": {
                 "namespace": namespace_name,
