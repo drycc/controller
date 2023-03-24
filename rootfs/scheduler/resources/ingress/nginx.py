@@ -20,11 +20,6 @@ class NginxIngress(BaseIngress):
                 MAX_RESPONSE_BODY_BYTES - MEM_RESPONSE_BODY_BYTES
             ),
         })
-        if "allowlist" in kwargs:
-            allowlist = ", ".join(kwargs.pop("allowlist"))
-            data["metadata"]["annotations"].update({
-                "nginx.ingress.kubernetes.io/whitelist-source-range": allowlist
-            })
         if "ssl_redirect" in kwargs:
             ssl_redirect = kwargs.pop("ssl_redirect")
             data["metadata"]["annotations"].update({

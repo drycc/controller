@@ -76,10 +76,6 @@ app_urlpatterns = [
     re_path(
         r"^apps/(?P<id>{})/settings/?$".format(settings.APP_URL_REGEX),
         views.AppSettingsViewSet.as_view({'get': 'retrieve', 'post': 'create'})),
-    # application ip allowlist
-    re_path(
-        r"^apps/(?P<id>{})/allowlist/?$".format(settings.APP_URL_REGEX),
-        views.AllowlistViewSet.as_view({'post': 'create', 'get': 'list', 'delete': 'delete'})),
     # application TLS settings
     re_path(
         r"^apps/(?P<id>{})/tls/?$".format(settings.APP_URL_REGEX),
@@ -135,7 +131,7 @@ app_urlpatterns = [
         views.KeyViewSet.as_view({'get': 'list', 'post': 'create'})),
     # hooks
     re_path(
-        r'^hooks/keys/(?P<id>{})/(?P<username>[-_\w]+)?$'.format(settings.APP_URL_REGEX),
+        r'^hooks/keys/(?P<id>{})/(?P<username>[-_\w]+)/?$'.format(settings.APP_URL_REGEX),
         views.KeyHookViewSet.as_view({'get': 'users'})),
     re_path(
         r'^hooks/keys/(?P<id>{})/?$'.format(settings.APP_URL_REGEX),
@@ -173,6 +169,25 @@ app_urlpatterns = [
     re_path(
         r'^certs/?$',
         views.CertificateViewSet.as_view({'get': 'list', 'post': 'create'})),
+    # gateways
+    re_path(
+        r"^apps/(?P<id>{})/gateways/?$".format(settings.APP_URL_REGEX),
+        views.GatewayViewSet.as_view(
+            {'post': 'create_or_update', 'get': 'list', 'delete': 'delete'})),
+    # routes
+    re_path(
+        r"^apps/(?P<id>{})/routes/?$".format(settings.APP_URL_REGEX),
+        views.GatewayViewSet.as_view(
+            {'post': 'create', 'get': 'list', 'delete': 'delete'})),
+    re_path(
+        r"^apps/(?P<id>{})/routes/(?P<name>[-_\w]+)/attach/?$".format(settings.APP_URL_REGEX),
+        views.RouteViewSet.as_view({'patch': 'attach'})),
+    re_path(
+        r"^apps/(?P<id>{})/routes/(?P<name>[-_\w]+)/detach/?$".format(settings.APP_URL_REGEX),
+        views.RouteViewSet.as_view({'patch': 'detach'})),
+    re_path(
+        r"^apps/(?P<id>{})/routes/(?P<name>[-_\w]+)/rules/?$".format(settings.APP_URL_REGEX),
+        views.RouteViewSet.as_view({'get': 'get', 'put': 'set'})),
     # users
     re_path(
         r'^users/?$',

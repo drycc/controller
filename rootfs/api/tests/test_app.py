@@ -389,15 +389,6 @@ class AppTest(DryccTestCase):
             status_code=409
         )
 
-    def test_app_create_failure_kubernetes_create(self, mock_requests):
-        """
-        Create an app but have scheduler.svc.create fail with an exception
-        """
-        with mock.patch('scheduler.resources.service.Service.create') as mock_kube:
-            mock_kube.side_effect = KubeException('Boom!')
-            response = self.client.post('/v2/apps')
-            self.assertEqual(response.status_code, 503, response.data)
-
     def test_app_delete_failure_kubernetes_destroy(self, mock_requests):
         """
         Create an app and then delete but have scheduler.ns.delete
@@ -542,16 +533,6 @@ class AppTest(DryccTestCase):
         self.assertEqual(apps[1]['id'], 'foxtrot')
         self.assertEqual(apps[2]['id'], 'tango')
         self.assertEqual(apps[3]['id'], 'zulu')
-
-    def test_app_service_metadata(self, mock_requests):
-        """
-        Test that application service has annotations and labels in the metadata
-        """
-        app_id = self.create_app()
-        app = App.objects.get(id=app_id)
-        svc = app._fetch_service_config(app_id)
-        self.assertIn('labels', svc['metadata'])
-        self.assertIn('annotations', svc['metadata'])
 
     def test_get_private_registry_config(self, mock_requests):
         registry = {'username': 'test', 'password': 'test'}

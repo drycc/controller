@@ -89,21 +89,6 @@ class BufferingMiddleware(BaseMiddleware):
         return data
 
 
-class IPWhiteListMiddleware(BaseMiddleware):
-    name_suffix = "-ip-white-list"
-
-    def manifest(self, name, allowlist=None, resource_version=None):
-        data = super().manifest(name, resource_version)
-        data.update({
-            "spec": {
-                "ipWhiteList": {
-                    "sourceRange": allowlist if allowlist is not None else []
-                }
-            }
-        })
-        return data
-
-
 class RedirectSchemeMiddleware(BaseMiddleware):
     name_suffix = "-redirect-scheme"
 
@@ -126,7 +111,6 @@ class TraefikIngress(BaseIngress):
         super().__init__(url, k8s_api_verify_tls)
         self.middlewares = {
             "buffering": BufferingMiddleware(url, k8s_api_verify_tls),
-            "allowlist": IPWhiteListMiddleware(url, k8s_api_verify_tls),
             "ssl_redirect": RedirectSchemeMiddleware(url, k8s_api_verify_tls),
         }
 
@@ -147,17 +131,6 @@ class TraefikIngress(BaseIngress):
         for middleware in self.middlewares.keys():
             name = self.middlewares[middleware].fullname(ingress)
             self.middlewares[middleware].create(namespace, name=name)
-        return response
-
-    def put(self, namespace, ingress, version, **kwargs):
-        response = super().put(ingress, namespace, version, **kwargs)
-        if "allowlist" in kwargs:
-            name = self.middlewares["allowlist"].fullname(ingress)
-            self.middlewares["allowlist"].put(
-                namespace,
-                name,
-                allowlist=kwargs["allowlist"],
-            )
         return response
 
     def delete(self, namespace, ingress):

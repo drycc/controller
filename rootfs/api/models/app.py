@@ -1,7 +1,7 @@
 import backoff
 import base64
 import math
-from collections import OrderedDict, defaultdict
+from collections import OrderedDict
 from datetime import datetime
 from docker import auth as docker_auth
 import functools
@@ -24,8 +24,9 @@ from api.utils import get_session
 from api.exceptions import AlreadyExists, DryccException, ServiceUnavailable
 from api.utils import generate_app_name, apply_tasks, unit_to_bytes, unit_to_millicpu
 from scheduler import KubeHTTPException, KubeException
+from .gateway import Gateway, Route
 from .config import Config
-from .domain import Domain
+from .service import Service
 from .release import Release
 from .tls import TLS
 from .appsettings import AppSettings
@@ -108,134 +109,9 @@ class App(UuidAuditedModel):
 
         return application
 
-    def __str__(self):
-        return self.id
-
-    def _get_job_id(self, container_type):
-        app = self.id
-        return "{app}-{container_type}".format(**locals())
-
     @property
     def types(self):
         return list(self.procfile_structure.keys())
-
-    def _get_command(self, container_type):
-        """
-        Return the kubernetes "container arguments" to be sent off to the scheduler.
-        """
-        release = self.release_set.filter(failed=False).latest()
-        if release is not None and release.build is not None:
-            # dockerfile or container image
-            if release.build.dockerfile or not release.build.sha:
-                # has profile
-                if release.build.procfile and container_type in release.build.procfile:
-                    cmd = release.build.procfile[container_type]
-                    # if the entrypoint is `/bin/bash -c`, we want to supply the list
-                    # as a script. Otherwise, we want to send it as a list of arguments.
-                    if self._get_entrypoint(container_type) == ['/bin/sh', '-c']:
-                        return [cmd]
-                    else:
-                        return cmd.split()
-        return []
-
-    def _get_stack(self, release):
-        stack = release.config.values.get("DRYCC_STACK", None)
-        if stack is None:
-            if release.build.procfile \
-                    and release.build.sha \
-                    and not release.build.dockerfile:
-                stack = "buildpack"
-            else:
-                stack = "container"
-        return stack
-
-    def _get_entrypoint(self, container_type):
-        """
-        Return the kubernetes "container command" to be sent off to the scheduler.
-        """
-        entrypoint = []
-        release = self.release_set.filter(failed=False).latest()
-        if release is not None and release.build is not None:
-            if release.build.procfile and container_type in release.build.procfile:
-                entrypoint = ['/bin/sh', '-c']
-        if self._get_stack(release) == "buildpack":
-            if container_type in release.build.procfile:
-                entrypoint = [container_type]
-            else:
-                entrypoint = ['launcher']
-        return entrypoint
-
-    def _refresh_certificate(self, certs_auto_enabled, hosts):
-        namespace = name = self.id
-        try:
-            data = self._scheduler.certificate.get(namespace, name).json()
-        except KubeException:
-            self.log("certificate {} does not exist".format(namespace), level=logging.INFO)
-            data = None
-
-        if certs_auto_enabled:
-            if data:
-                version = data["metadata"]["resourceVersion"]
-                self._scheduler.certificate.put(
-                    namespace, name, hosts, version)
-            else:
-                self._scheduler.certificate.create(
-                    namespace, name, hosts)
-        elif data:
-            self._scheduler.certificate.delete(namespace, name)
-
-    def _refresh_ingress(self, hosts, tls_map, ssl_redirect, appsettings):
-        ingress = namespace = self.id
-        # Put Ingress
-        kwargs = {
-            "hosts": hosts,
-            "tls": [{"secretName": k, "hosts": v} for k, v in tls_map.items()],
-            "ssl_redirect": ssl_redirect,
-            "allowlist": appsettings.allowlist
-        }
-        try:
-            # In order to create an ingress, we must first have a namespace.
-            if ingress == "":
-                raise ServiceUnavailable('Empty hostname')
-            try:
-                data = self._scheduler.ingress(
-                    settings.INGRESS_CLASS).get(namespace, ingress).json()
-                version = data["metadata"]["resourceVersion"]
-                self._scheduler.ingress(settings.INGRESS_CLASS).put(
-                    namespace, ingress, version, **kwargs)
-            except KubeException:
-                self.log("creating Ingress {}".format(namespace), level=logging.INFO)
-                self._scheduler.ingress(settings.INGRESS_CLASS).create(
-                    namespace, ingress, **kwargs)
-        except KubeException as e:
-            raise ServiceUnavailable('Could not create Ingress in Kubernetes') from e
-
-    def refresh(self):
-        """
-        Read and write are separated, in transaction the read database is not updated.
-        When calling, the corresponding resource object needs.
-        """
-        if not getattr(self, 'refresh_enabled', True):
-            return
-        app_settings = self.appsettings_set.latest()
-        if not app_settings.routable:
-            return
-        tls = self.tls_set.latest()
-        ssl_redirect = bool(tls.https_enforced)
-        certs_auto_enabled = bool(tls.certs_auto_enabled)
-        hosts, tls_map = [], defaultdict(list)
-        domains = Domain.objects.filter(app=self)
-        for domain in domains:
-            host = str(domain.domain)
-            hosts.append(host)
-            if domain.certificate:
-                secret_name = '%s-certificate' % domain.certificate.name
-                tls_map[secret_name].append(host)
-            if certs_auto_enabled and not domain.domain.startswith("*."):
-                secret_name = '%s-certificate-auto' % self.id
-                tls_map[secret_name].append(host)
-        self._refresh_ingress(hosts, dict(tls_map), ssl_redirect, app_settings)
-        self._refresh_certificate(certs_auto_enabled, hosts)
 
     def log(self, message, level=logging.INFO):
         """Logs a message in the context of this application.
@@ -260,15 +136,15 @@ class App(UuidAuditedModel):
 
         # Only create if no release can be found
         try:
-            rel = self.release_set.latest()
+            self.release_set.latest()
         except Release.DoesNotExist:
-            rel = Release.objects.create(
+            Release.objects.create(
                 version=1, owner=self.owner, app=self,
                 config=cfg, build=None
             )
 
         # create required minimum resources in k8s for the application
-        namespace = limits_name = quota_name = service = self.id
+        namespace = limits_name = quota_name = self.id
         try:
             self.log('creating Namespace {} and services'.format(namespace), level=logging.DEBUG)
             # Create essential resources
@@ -296,10 +172,6 @@ class App(UuidAuditedModel):
                     self._scheduler.limits.get(namespace, limits_name)
                 except KubeException:
                     self._scheduler.limits.create(namespace, limits_name, spec=limits_spec)
-            try:
-                self._scheduler.svc.get(namespace, service)
-            except KubeException:
-                self._scheduler.svc.create(namespace, service)
         except KubeException as e:
             # Blow it all away only if something horrible happens
             try:
@@ -309,25 +181,8 @@ class App(UuidAuditedModel):
                 raise ServiceUnavailable('Could not delete the Namespace in Kubernetes') from e
 
             raise ServiceUnavailable('Kubernetes resources could not be created') from e
-        try:
-            setattr(self, 'refresh_enabled', False)  # do not refresh
-            try:
-                self.appsettings_set.latest()
-            except AppSettings.DoesNotExist:
-                AppSettings.objects.create(owner=self.owner, app=self)
-            try:
-                self.tls_set.latest()
-            except TLS.DoesNotExist:
-                TLS.objects.create(owner=self.owner, app=self)
-            # Attach the platform specific application sub domain to the k8s service
-            # Only attach it on first release in case a customer has remove the app domain
-            domain = "%s.%s" % (self.id, settings.PLATFORM_DOMAIN)
-            if rel.version == 1 and not Domain.objects.filter(domain=domain).exists():
-                Domain.objects.create(owner=self.owner, app=self, domain=domain)
-            # The default routable is true, so refresh ingress and tls
-        finally:
-            setattr(self, 'refresh_enabled', True)
-        self.refresh()  # refresh
+        AppSettings.objects.get_or_create(owner=self.owner, app=self)
+        TLS.objects.get_or_create(owner=self.owner, app=self)
 
     def delete(self, *args, **kwargs):
         """Delete this application including all containers"""
@@ -378,18 +233,6 @@ class App(UuidAuditedModel):
             apply_tasks(tasks)
         except Exception as e:
             err = "warning, some pods failed to restart:\n{}".format(str(e))
-            self.log(err, logging.WARNING)
-
-    def _clean_app_logs(self):
-        """Delete application logs stored by the logger component"""
-        try:
-            url = 'http://{}:{}/logs/{}'.format(settings.LOGGER_HOST,
-                                                settings.LOGGER_PORT, self.id)
-            requests.delete(url)
-        except Exception as e:
-            # Ignore errors deleting application logs.  An error here should not interfere with
-            # the overall success of deleting an application, but we should log it.
-            err = 'Error deleting existing application logs: {}'.format(e)
             self.log(err, logging.WARNING)
 
     def scale(self, user, structure):  # noqa
@@ -443,39 +286,6 @@ class App(UuidAuditedModel):
             return True
 
         return False
-
-    def _scale_pods(self, scale_types):
-        release = self.release_set.filter(failed=False).latest()
-        app_settings = self.appsettings_set.latest()
-        volumes = Volume.objects.filter(app=self, path__isnull=False)
-
-        tasks = []
-        for scale_type, replicas in scale_types.items():
-            scale_type_volumes = [_ for _ in volumes if scale_type in _.path.keys()]
-            data = self._gather_app_settings(release, app_settings, scale_type, replicas, volumes=scale_type_volumes)  # noqa
-
-            # gather all proc types to be deployed
-            tasks.append(
-                functools.partial(
-                    self._scheduler.scale,
-                    namespace=self.id,
-                    name=self._get_job_id(scale_type),
-                    image=release.image,
-                    entrypoint=self._get_entrypoint(scale_type),
-                    command=self._get_command(scale_type),
-                    **data
-                )
-            )
-
-        try:
-            # create the application config in k8s (secret in this case) for all deploy objects
-            self.set_application_config(release)
-
-            apply_tasks(tasks)
-        except Exception as e:
-            err = '(scale): {}'.format(e)
-            self.log(err, logging.ERROR)
-            raise ServiceUnavailable(err) from e
 
     def deploy(self, release, force_deploy=False, rollback_on_failure=True):  # noqa
         """
@@ -574,74 +384,9 @@ class App(UuidAuditedModel):
             err = '(app::deploy): {}'.format(e)
             self.log(err, logging.ERROR)
             raise ServiceUnavailable(err) from e
-
-        app_type = 'web' if 'web' in deploys else 'cmd' if 'cmd' in deploys else None
-        # Make sure the application is routable and uses the correct port done after the fact to
-        # let initial deploy settle before routing traffic to the application
-        if deploys and app_type:
-            routable = deploys[app_type].get('routable')
-            port = deploys[app_type].get('envs', {}).get('PORT', None)
-            self._update_application_service(self.id, app_type, port, routable)  # noqa
-            # Wait until application is available in the router
-            # Only run when there is no previous build / release
-            old = release.previous()
-            if old is None or old.build is None:
-                self.verify_application_health(**deploys[app_type])
+        self._update_default_deploys(release, deploys)
         # cleanup old release objects from kubernetes
         release.cleanup_old()
-
-    def _set_default_config(self):
-        default_cpu = "{}m".format(settings.KUBERNETES_LIMITS_MIN_CPU)
-        default_memory = "{}M".format(settings.KUBERNETES_LIMITS_MIN_MEMORY)
-        config = self.config_set.latest()
-        new_cpu, new_memory = {}, {}
-        for _type in self.types:
-            new_cpu[_type] = config.cpu.get(_type, default_cpu)
-            new_memory[_type] = config.memory.get(_type, default_memory)
-        config.cpu = new_cpu
-        config.memory = new_memory
-        config.save()
-
-    def _check_deployment_in_progress(self, deploys, force_deploy=False):
-        if force_deploy:
-            return
-        for scale_type, kwargs in deploys.items():
-            # Is there an existing deployment in progress?
-            name = self._get_job_id(scale_type)
-            in_progress, deploy_okay = self._scheduler.deployment.in_progress(
-                self.id, name, kwargs.get("deploy_timeout"), kwargs.get("deploy_batches"),
-                kwargs.get("replicas"), kwargs.get("tags")
-            )
-            # throw a 409 if things are in progress but we do not want to let through the deploy
-            if in_progress and not deploy_okay:
-                raise AlreadyExists('Deployment for {} is already in progress'.format(name))
-
-    @staticmethod
-    def _default_structure(release):
-        """Scale to default structure based on release type"""
-        # If web in procfile then honor it
-        if release.build.procfile and 'web' in release.build.procfile:
-            structure = {'web': 1}
-
-        # if there is no SHA, assume a docker image is being promoted
-        elif not release.build.sha:
-            structure = {'cmd': 1}
-
-        # if a dockerfile, assume docker workflow
-        elif release.build.dockerfile:
-            structure = {'cmd': 1}
-
-        # if a procfile exists without a web entry and dockerfile, assume heroku workflow
-        # and return empty structure as only web type needs to be created by default and
-        # other types have to be manually scaled
-        elif release.build.procfile and 'web' not in release.build.procfile:
-            structure = {}
-
-        # default to heroku workflow
-        else:
-            structure = {'web': 1}
-
-        return structure
 
     def verify_application_health(self, **kwargs):
         """
@@ -664,7 +409,8 @@ class App(UuidAuditedModel):
         url = 'http://{}:{}'.format(settings.ROUTER_HOST, settings.ROUTER_PORT)
 
         # if a httpGet probe is available then 200 is the only acceptable status code
-        if 'livenessProbe' in kwargs.get('healthcheck', {}) and 'httpGet' in kwargs.get('healthcheck').get('livenessProbe'):  # noqa
+        if ('livenessProbe' in kwargs.get('healthcheck', {}) and
+                'httpGet' in kwargs['healthcheck']['livenessProbe']):
             allowed = [200]
             handler = kwargs['healthcheck']['livenessProbe']['httpGet']
             url = urljoin(url, handler.get('path', '/'))
@@ -841,86 +587,6 @@ class App(UuidAuditedModel):
             self.log(err, logging.ERROR)
             raise ServiceUnavailable(err) from e
 
-    def _scheduler_filter(self, **kwargs):
-        labels = {'app': self.id, 'heritage': 'drycc'}
-
-        # always supply a version, either latest or a specific one
-        if 'release' not in kwargs or kwargs['release'] is None:
-            release = self.release_set.filter(failed=False).latest()
-        else:
-            release = self.release_set.get(version=kwargs['release'])
-
-        version = "v{}".format(release.version)
-        labels.update({'version': version})
-
-        if 'type' in kwargs:
-            labels.update({'type': kwargs['type']})
-
-        return labels
-
-    def _build_env_vars(self, release):
-        """
-        Build a dict of env vars, setting default vars based on app type
-        and then combining with the user set ones
-        """
-        if release.build is None:
-            raise DryccException('No build associated with this release to run this command')
-
-        # mix in default environment information drycc may require
-        default_env = {
-            'DRYCC_APP': self.id,
-            'WORKFLOW_RELEASE': 'v{}'.format(release.version),
-            'WORKFLOW_RELEASE_SUMMARY': release.summary,
-            'WORKFLOW_RELEASE_CREATED_AT': str(release.created.strftime(
-                settings.DRYCC_DATETIME_FORMAT))
-        }
-
-        default_env['SOURCE_VERSION'] = release.build.sha
-
-        # fetch application port and inject into ENV vars as needed
-        port = release.get_port()
-        if port:
-            default_env['PORT'] = port
-
-        # merge envs on top of default to make envs win
-        default_env.update(release.config.values)
-        return default_env
-
-    def routable(self, routable):
-        """
-        Turn on/off if an application is publically routable
-        """
-        if routable:
-            self.refresh()
-        else:
-            try:
-                namespace = ingress = self.id
-                self._scheduler.ingress(settings.INGRESS_CLASS).delete(namespace, ingress)
-            except KubeException as e:
-                raise ServiceUnavailable(str(e)) from e
-
-    def _update_application_service(self, namespace, app_type, port, routable=False):  # noqa
-        """Update application service with all the various required information"""
-        service = self._fetch_service_config(namespace)
-        old_service = service.copy()  # in case anything fails for rollback
-
-        try:
-            # Set app type selector
-            service['spec']['selector']['type'] = app_type
-
-            # Find if target port exists already, update / create as required
-            if routable:
-                for pos, item in enumerate(service['spec']['ports']):
-                    if item['port'] == 80 and port != item['targetPort']:
-                        # port 80 is the only one we care about right now
-                        service['spec']['ports'][pos]['targetPort'] = int(port)
-
-            self._scheduler.svc.update(namespace, namespace, data=service)
-        except Exception as e:
-            # Fix service to old port and app type
-            self._scheduler.svc.update(namespace, namespace, data=old_service)
-            raise ServiceUnavailable(str(e)) from e
-
     def autoscale(self, proc_type, autoscale):
         """
         Set autoscale rules for the application
@@ -978,6 +644,293 @@ class App(UuidAuditedModel):
                 )
 
         return name
+
+    def set_application_config(self, release):
+        """
+        Creates the application config as a secret in Kubernetes and
+        updates it if it already exists
+        """
+        # env vars are stored in secrets and mapped to env in k8s
+        version = 'v{}'.format(release.version)
+        try:
+            labels = {
+                'version': version,
+                'type': 'env'
+            }
+
+            # secrets use dns labels for keys, map those properly here
+            secrets_env = {}
+            for key, value in self._build_env_vars(release).items():
+                secrets_env[key.lower().replace('_', '-')] = str(value)
+
+            # dictionary sorted by key
+            secrets_env = OrderedDict(sorted(secrets_env.items(), key=lambda t: t[0]))
+
+            secret_name = "{}-{}-env".format(self.id, version)
+            self._scheduler.secret.get(self.id, secret_name)
+        except KubeHTTPException:
+            self._scheduler.secret.create(self.id, secret_name, secrets_env, labels=labels)
+        else:
+            self._scheduler.secret.update(self.id, secret_name, secrets_env, labels=labels)
+
+    def to_measurements(self, timestamp: float):
+        measurements = []
+        config = self.config_set.latest()
+        for container_type, scale in self.structure.items():
+            measurements.append({
+                "app_id": str(self.uuid),
+                "owner": self.owner_id,
+                "name": container_type,
+                "type": "cpu",
+                "unit": "milli",
+                "usage": unit_to_millicpu(config.cpu.get(container_type)) * scale,
+                "timestamp": int(timestamp)
+            })
+            measurements.append({
+                "app_id": str(self.uuid),
+                "owner": self.owner_id,
+                "name": container_type,
+                "type": "memory",
+                "unit": "bytes",
+                "usage": unit_to_bytes(config.memory.get(container_type)) * scale,
+                "timestamp": int(timestamp)
+            })
+        return measurements
+
+    def __str__(self):
+        return self.id
+
+    def _get_job_id(self, container_type):
+        app = self.id
+        return "{app}-{container_type}".format(**locals())
+
+    def _get_command(self, container_type):
+        """
+        Return the kubernetes "container arguments" to be sent off to the scheduler.
+        """
+        release = self.release_set.filter(failed=False).latest()
+        if release is not None and release.build is not None:
+            # dockerfile or container image
+            if release.build.dockerfile or not release.build.sha:
+                # has profile
+                if release.build.procfile and container_type in release.build.procfile:
+                    cmd = release.build.procfile[container_type]
+                    # if the entrypoint is `/bin/bash -c`, we want to supply the list
+                    # as a script. Otherwise, we want to send it as a list of arguments.
+                    if self._get_entrypoint(container_type) == ['/bin/sh', '-c']:
+                        return [cmd]
+                    else:
+                        return cmd.split()
+        return []
+
+    def _get_stack(self, release):
+        stack = release.config.values.get("DRYCC_STACK", None)
+        if stack is None:
+            if release.build.procfile \
+                    and release.build.sha \
+                    and not release.build.dockerfile:
+                stack = "buildpack"
+            else:
+                stack = "container"
+        return stack
+
+    def _get_entrypoint(self, container_type):
+        """
+        Return the kubernetes "container command" to be sent off to the scheduler.
+        """
+        entrypoint = []
+        release = self.release_set.filter(failed=False).latest()
+        if release is not None and release.build is not None:
+            if (release.build.procfile and container_type in release.build.procfile) \
+                    or container_type == "run":
+                entrypoint = ['/bin/sh', '-c']
+        if self._get_stack(release) == "buildpack":
+            if container_type in release.build.procfile:
+                entrypoint = [container_type]
+            else:
+                entrypoint = ['launcher']
+        return entrypoint
+
+    def _clean_app_logs(self):
+        """Delete application logs stored by the logger component"""
+        try:
+            url = 'http://{}:{}/logs/{}'.format(settings.LOGGER_HOST,
+                                                settings.LOGGER_PORT, self.id)
+            requests.delete(url)
+        except Exception as e:
+            # Ignore errors deleting application logs.  An error here should not interfere with
+            # the overall success of deleting an application, but we should log it.
+            err = 'Error deleting existing application logs: {}'.format(e)
+            self.log(err, logging.WARNING)
+
+    def _scale_pods(self, scale_types):
+        release = self.release_set.filter(failed=False).latest()
+        app_settings = self.appsettings_set.latest()
+        volumes = Volume.objects.filter(app=self, path__isnull=False)
+
+        tasks = []
+        for scale_type, replicas in scale_types.items():
+            scale_type_volumes = [_ for _ in volumes if scale_type in _.path.keys()]
+            data = self._gather_app_settings(release, app_settings, scale_type, replicas, volumes=scale_type_volumes)  # noqa
+
+            # gather all proc types to be deployed
+            tasks.append(
+                functools.partial(
+                    self._scheduler.scale,
+                    namespace=self.id,
+                    name=self._get_job_id(scale_type),
+                    image=release.image,
+                    entrypoint=self._get_entrypoint(scale_type),
+                    command=self._get_command(scale_type),
+                    **data
+                )
+            )
+
+        try:
+            # create the application config in k8s (secret in this case) for all deploy objects
+            self.set_application_config(release)
+
+            apply_tasks(tasks)
+        except Exception as e:
+            err = '(scale): {}'.format(e)
+            self.log(err, logging.ERROR)
+            raise ServiceUnavailable(err) from e
+
+    def _set_default_config(self):
+        default_cpu = "{}m".format(settings.KUBERNETES_LIMITS_MIN_CPU)
+        default_memory = "{}M".format(settings.KUBERNETES_LIMITS_MIN_MEMORY)
+        config = self.config_set.latest()
+        new_cpu, new_memory = {}, {}
+        for _type in self.types:
+            new_cpu[_type] = config.cpu.get(_type, default_cpu)
+            new_memory[_type] = config.memory.get(_type, default_memory)
+        config.cpu = new_cpu
+        config.memory = new_memory
+        config.save()
+
+    def _create_default_ingress(self, service):
+        port = 80
+        gateway, created = Gateway.objects.get_or_create(app=self, name=self.id, owner=self.owner)
+        if created:
+            gateway.add(port, "HTTP")
+            gateway.save()
+        route, created = Route.objects.get_or_create(
+            app=self, owner=self.owner, kind="HTTPRoute", name=self.id,
+            defaults={"port": port, "procfile_type": service.procfile_type}
+        )
+        if created:
+            route.rules = {"backendRefs": route.get_backend_refs()}
+            attached, msg = route.attach(gateway.name, port)
+            if not attached:
+                raise DryccException(msg)
+            route.save()
+
+    def _update_default_deploys(self, release, deploys):
+        # Create or update service
+        for procfile_type, value in deploys.items():
+            if procfile_type in ("web", "cmd"):  # http
+                port = 80
+                target_port = value.get('envs', {}).get('PORT', 5000)
+                service, created = Service.objects.get_or_create(
+                    owner=self.owner, app=self, procfile_type=procfile_type,
+                )
+                if created:
+                    service.add_port(port, "TCP", target_port)
+                    service.save()
+                else:
+                    service.refresh_k8s_svc()
+                self._create_default_ingress(service)
+                # Wait until application is available in the router
+                # Only run when there is no previous build / release
+                old = release.previous()
+                if old is None or old.build is None:
+                    self.verify_application_health(**deploys[procfile_type])
+
+    def _check_deployment_in_progress(self, deploys, force_deploy=False):
+        if force_deploy:
+            return
+        for scale_type, kwargs in deploys.items():
+            # Is there an existing deployment in progress?
+            name = self._get_job_id(scale_type)
+            in_progress, deploy_okay = self._scheduler.deployment.in_progress(
+                self.id, name, kwargs.get("deploy_timeout"), kwargs.get("deploy_batches"),
+                kwargs.get("replicas"), kwargs.get("tags")
+            )
+            # throw a 409 if things are in progress but we do not want to let through the deploy
+            if in_progress and not deploy_okay:
+                raise AlreadyExists('Deployment for {} is already in progress'.format(name))
+
+    @staticmethod
+    def _default_structure(release):
+        """Scale to default structure based on release type"""
+        # If web in procfile then honor it
+        if release.build.procfile and 'web' in release.build.procfile:
+            structure = {'web': 1}
+
+        # if there is no SHA, assume a docker image is being promoted
+        elif not release.build.sha:
+            structure = {'cmd': 1}
+
+        # if a dockerfile, assume docker workflow
+        elif release.build.dockerfile:
+            structure = {'cmd': 1}
+
+        # if a procfile exists without a web entry and dockerfile, assume heroku workflow
+        # and return empty structure as only web type needs to be created by default and
+        # other types have to be manually scaled
+        elif release.build.procfile and 'web' not in release.build.procfile:
+            structure = {}
+
+        # default to heroku workflow
+        else:
+            structure = {'web': 1}
+
+        return structure
+
+    def _scheduler_filter(self, **kwargs):
+        labels = {'app': self.id, 'heritage': 'drycc'}
+
+        # always supply a version, either latest or a specific one
+        if 'release' not in kwargs or kwargs['release'] is None:
+            release = self.release_set.filter(failed=False).latest()
+        else:
+            release = self.release_set.get(version=kwargs['release'])
+
+        version = "v{}".format(release.version)
+        labels.update({'version': version})
+
+        if 'type' in kwargs:
+            labels.update({'type': kwargs['type']})
+
+        return labels
+
+    def _build_env_vars(self, release):
+        """
+        Build a dict of env vars, setting default vars based on app type
+        and then combining with the user set ones
+        """
+        if release.build is None:
+            raise DryccException('No build associated with this release to run this command')
+
+        # mix in default environment information drycc may require
+        default_env = {
+            'DRYCC_APP': self.id,
+            'WORKFLOW_RELEASE': 'v{}'.format(release.version),
+            'WORKFLOW_RELEASE_SUMMARY': release.summary,
+            'WORKFLOW_RELEASE_CREATED_AT': str(release.created.strftime(
+                settings.DRYCC_DATETIME_FORMAT))
+        }
+
+        default_env['SOURCE_VERSION'] = release.build.sha
+
+        # fetch application port and inject into ENV vars as needed
+        port = release.get_port()
+        if port:
+            default_env['PORT'] = port
+
+        # merge envs on top of default to make envs win
+        default_env.update(release.config.values)
+        return default_env
 
     def _get_private_registry_config(self, image, registry=None):
         name = settings.REGISTRY_SECRET_PREFIX
@@ -1132,55 +1085,3 @@ class App(UuidAuditedModel):
             'volumes': volumes_info,
             'volume_mounts': volume_mounts_info,
         }
-
-    def set_application_config(self, release):
-        """
-        Creates the application config as a secret in Kubernetes and
-        updates it if it already exists
-        """
-        # env vars are stored in secrets and mapped to env in k8s
-        version = 'v{}'.format(release.version)
-        try:
-            labels = {
-                'version': version,
-                'type': 'env'
-            }
-
-            # secrets use dns labels for keys, map those properly here
-            secrets_env = {}
-            for key, value in self._build_env_vars(release).items():
-                secrets_env[key.lower().replace('_', '-')] = str(value)
-
-            # dictionary sorted by key
-            secrets_env = OrderedDict(sorted(secrets_env.items(), key=lambda t: t[0]))
-
-            secret_name = "{}-{}-env".format(self.id, version)
-            self._scheduler.secret.get(self.id, secret_name)
-        except KubeHTTPException:
-            self._scheduler.secret.create(self.id, secret_name, secrets_env, labels=labels)
-        else:
-            self._scheduler.secret.update(self.id, secret_name, secrets_env, labels=labels)
-
-    def to_measurements(self, timestamp: float):
-        measurements = []
-        config = self.config_set.latest()
-        for container_type, scale in self.structure.items():
-            measurements.append({
-                "app_id": str(self.uuid),
-                "owner": self.owner_id,
-                "name": container_type,
-                "type": "cpu",
-                "unit": "milli",
-                "usage": unit_to_millicpu(config.cpu.get(container_type)) * scale,
-                "timestamp": int(timestamp)
-            })
-            measurements.append({
-                "app_id": str(self.uuid),
-                "owner": self.owner_id,
-                "name": container_type,
-                "type": "memory",
-                "unit": "bytes",
-                "usage": unit_to_bytes(config.memory.get(container_type)) * scale,
-                "timestamp": int(timestamp)
-            })
-        return measurements

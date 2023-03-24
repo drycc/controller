@@ -30,7 +30,7 @@ spec:
               number: 80
   {{- if .Values.global.certManagerEnabled }}
   tls:
-    - secretName: drycc-controller-certificate-auto
+    - secretName: drycc-controller-auto-tls
       hosts:
         - drycc.{{ .Values.global.platformDomain }}
   {{- end }}

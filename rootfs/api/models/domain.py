@@ -28,7 +28,6 @@ class Domain(AuditedModel):
     @transaction.atomic
     def save(self, *args, **kwargs):
         super(Domain, self).save(*args, **kwargs)
-        self.app.refresh()
 
     @transaction.atomic
     def delete(self, *args, **kwargs):
@@ -36,7 +35,6 @@ class Domain(AuditedModel):
         if self.certificate:
             self.certificate.detach(domain=str(self.domain))
         super(Domain, self).delete(*args, **kwargs)
-        self.app.refresh()
 
     def __str__(self):
         return self.domain

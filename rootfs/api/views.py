@@ -352,34 +352,6 @@ class AppSettingsViewSet(AppResourceViewSet):
     serializer_class = serializers.AppSettingsSerializer
 
 
-class AllowlistViewSet(AppResourceViewSet):
-    model = models.appsettings.AppSettings
-    serializer_class = serializers.AppSettingsSerializer
-
-    def list(self, *args, **kwargs):
-        appSettings = self.get_app().appsettings_set.latest()
-        data = {"addresses": appSettings.allowlist}
-        return Response(data, status=status.HTTP_200_OK)
-
-    def create(self, request, **kwargs):
-        appSettings = self.get_app().appsettings_set.latest()
-        addresses = self.get_serializer().validate_allowlist(request.data.get('addresses'))
-        addresses = list(set(appSettings.allowlist) | set(addresses))
-        new_appsettings = appSettings.new(self.request.user, allowlist=addresses)
-        return Response({"addresses": new_appsettings.allowlist}, status=status.HTTP_201_CREATED)
-
-    def delete(self, request, **kwargs):
-        appSettings = self.get_app().appsettings_set.latest()
-        addresses = self.get_serializer().validate_allowlist(request.data.get('addresses'))
-
-        unfound_addresses = set(addresses) - set(appSettings.allowlist)
-        if len(unfound_addresses) != 0:
-            raise UnprocessableEntity('addresses {} does not exist in allowlist'.format(unfound_addresses))  # noqa
-        addresses = list(set(appSettings.allowlist) - set(addresses))
-        appSettings.new(self.request.user, allowlist=addresses)
-        return Response(status=status.HTTP_204_NO_CONTENT)
-
-
 class DomainViewSet(AppResourceViewSet):
     """A viewset for interacting with Domain objects."""
     model = models.domain.Domain
@@ -421,36 +393,39 @@ class ServiceViewSet(AppResourceViewSet):
         return Response({"services": data}, status=status.HTTP_200_OK)
 
     def create_or_update(self, request, **kwargs):
-        svt = self.get_serializer().validate_service_type(request.data.get('service_type'))
-        pft = self.get_serializer().validate_procfile_type(request.data.get('procfile_type'))
+        app = self.get_app()
         port = self.get_serializer().validate_port(request.data.get('port'))
         protocol = self.get_serializer().validate_protocol(request.data.get('protocol'))
+        procfile_type = self.get_serializer().validate_procfile_type(request.data.get(
+            'procfile_type'))
         target_port = self.get_serializer().validate_target_port(request.data.get('target_port'))
-        app = self.get_app()
-        svc = app.service_set.filter(procfile_type=pft).first()
-        if svc:
-            if svc.service_type == svt:
-                return Response(status=status.HTTP_204_NO_CONTENT)
-            else:
-                svc.service_type = svt
-                svc.save()
+        service = app.service_set.filter(procfile_type=procfile_type).first()
+        if service:
+            for item in service.ports:
+                if item["port"] == port:
+                    return Response(status=status.HTTP_400_BAD_REQUEST, data="port is occupied")
+            http_status = status.HTTP_204_NO_CONTENT
         else:
-            svc = models.service.Service.objects.create(
-                owner=app.owner,
-                app=app,
-                service_type=svt,
-                procfile_type=pft,
-                port=port,
-                protocol=protocol,
-                target_port=target_port,
-            )
-        return Response(status=status.HTTP_201_CREATED)
+            service = self.model(owner=app.owner, app=app, procfile_type=procfile_type)
+            http_status = status.HTTP_201_CREATED
+        service.add_port(port, protocol, target_port)
+        service.save()
+        return Response(status=http_status)
 
     def delete(self, request, **kwargs):
-        pft = self.get_serializer().validate_procfile_type(request.data.get('procfile_type'))
-        qs = self.get_queryset(**kwargs)
-        svc = get_object_or_404(qs, procfile_type=pft)
-        svc.delete()
+        port = self.get_serializer().validate_port(request.data.get('port'))
+        procfile_type = self.get_serializer().validate_procfile_type(
+            request.data.get('procfile_type'))
+        service = get_object_or_404(self.get_queryset(**kwargs), procfile_type=procfile_type)
+        ports = []
+        for item in service.ports:
+            if item["port"] != port:
+                ports.append(item)
+        if len(ports) == 0:
+            service.delete()
+        elif len(ports) < len(service.ports):
+            service.ports = ports
+            service.save()
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 
@@ -866,6 +841,124 @@ class AppResourceBindingViewSet(AppResourceViewSet):
             return Response(serializer.data)
         else:
             return Http404("unknown action")
+
+
+class GatewayViewSet(AppResourceViewSet):
+    """A viewset for interacting with Gateway objects."""
+    model = models.gateway.Gateway
+    filter_backends = [filters.SearchFilter]
+    search_fields = ['^id', ]
+    service_class = serializers.ServiceSerializer
+    serializer_class = serializers.GatewaySerializer
+
+    def _get_listeners(self, service, protocol, port):
+        if protocol in ("TLS", "HTTPS"):
+            for domain in models.domain.Domain.objects.filter():
+                pass
+        listener_name = "%s-%s" % (str(service), port)
+        return [{
+            "allowedRoutes": {"namespaces": {"from": "All"}},
+            "name": listener_name,
+            "port": port,
+            "protocol": protocol,
+        }]
+
+    def create_or_update(self, request, *args, **kwargs):
+        app = self.get_app()
+        name = request.data['name']
+        port = self.service_class.validate_port(request.data['port'])
+        protocol = self.service_class.validate_port(request.data['protocol'])
+        gateway = app.gateway_set.filter(name=name).first()
+        if not gateway:
+            gateway = self.model(app=app, owner=app.owner, name=name)
+        added, msg = gateway.add(port, protocol)
+        if not added:
+            return Response(status=status.HTTP_400_BAD_REQUEST, data=msg)
+        gateway.save()
+        return Response(status=status.HTTP_201_CREATED)
+
+    def delete(self, request, **kwargs):
+        app = self.get_app()
+        port = self.service_class.validate_port(request.data.get('port'))
+        protocol = self.service_class.validate_port(request.data['protocol'])
+        gateway = get_object_or_404(app.gateway_set, name=request.data.get("name"))
+        ok, msg = gateway.remove(port, protocol)
+        if not ok:
+            return Response(status=status.HTTP_400_BAD_REQUEST, data=msg)
+        if len(gateway.listeners) == 0:
+            gateway.delete()
+        else:
+            gateway.save()
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class RouteViewSet(AppResourceViewSet):
+    """A viewset for interacting with Route objects."""
+    model = models.gateway.Route
+    filter_backends = [filters.SearchFilter]
+    search_fields = ['^id', ]
+    service_class = serializers.ServiceSerializer
+    serializer_class = serializers.RouteSerializer
+
+    def get(self, request, *args, **kwargs):
+        app = self.get_app()
+        route = get_object_or_404(app.route_set, name=kwargs['name'])
+        return Response(route.rules, status=status.HTTP_200_OK)
+
+    def set(self, request, *args, **kwargs):
+        app = self.get_app()
+        route = get_object_or_404(self.model, app=app, name=kwargs['name'])
+        rules = json.loads(request.body.decode("utf8"))
+        route.rules = rules
+        route.save()
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+    def create(self, request, *args, **kwargs):
+        app = self.get_app()
+        port = self.service_class.validate_port(request.data.get('port'))
+        app_settings = app.appsettings_set.latest()
+        procfile_type = self.service_class.validate_procfile_type(
+            request.data.get('procfile_type'))
+        route = self.model(
+            app=app,
+            owner=app.owner,
+            kind=request.data['kind'],
+            name=request.data['name'],
+            port=port,
+            routable=app_settings.routable,
+            procfile_type=procfile_type,
+        )
+        route.rules = {"backendRefs": route.get_backend_refs()}  # default backends
+        route.save()
+        return Response(status=status.HTTP_201_CREATED)
+
+    def attach(self, request, *args, **kwargs):
+        app = self.get_app()
+        port = self.service_class.validate_port(request.data.get('port'))
+        gateway_name = request.data['gateway']
+        route = get_object_or_404(self.model, app=app, name=kwargs['name'])
+        attached, msg = route.attach(gateway_name, port)
+        if not attached:
+            return Response(status=status.HTTP_400_BAD_REQUEST, data=msg)
+        route.save()
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+    def detach(self, request, *args, **kwargs):
+        app = self.get_app()
+        port = self.service_class.validate_port(request.data.get('port'))
+        gateway_name = request.data['gateway']
+        route = get_object_or_404(self.model, app=app, name=kwargs['name'])
+        detached, msg = route.detach(gateway_name, port)
+        if not detached:
+            return Response(status=status.HTTP_400_BAD_REQUEST, data=msg)
+        route.save()
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+    def delete(self, request, *args, **kwargs):
+        app = self.get_app()
+        route = get_object_or_404(self.model, app=app, name=kwargs['name'])
+        route.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
 
 class AdminPermsViewSet(BaseDryccViewSet):

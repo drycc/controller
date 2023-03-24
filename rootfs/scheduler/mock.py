@@ -82,7 +82,7 @@ resources = [
     'secrets', 'services', 'events', 'deployments', 'replicasets',
     'horizontalpodautoscalers', 'scale', 'resourcequotas', 'ingresses',
     'persistentvolumeclaims', 'serviceinstances', 'servicebindings',
-    'limitranges'
+    'limitranges', 'gateways', 'httproutes', 'tcproutes', 'udproutes',
 ]
 
 
@@ -135,7 +135,7 @@ def get_namespace(url, resource_type):
     # check if this is a subresource
     subresource, resource_type, url = is_subresource(resource_type, url)
     # get namespace name
-    name = url.split('api_v1_namespaces_').pop(1).split("_{}_".format(resource_type), 1).pop(0)
+    name = url.split('_namespaces_', 1).pop(1).split("_{}_".format(resource_type), 1).pop(0)
     return 'api_v1_namespaces_' + name
 
 

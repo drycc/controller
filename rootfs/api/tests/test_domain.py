@@ -353,8 +353,8 @@ class DomainTest(DryccTestCase):
         """
         app_id = self.create_app()
 
-        # scheduler.svc.update exception
-        with mock.patch('scheduler.resources.service.Service.update'):
+        # scheduler.svc.patch exception
+        with mock.patch('scheduler.resources.service.Service.patch'):
             domain = 'foo.com'
             url = '/v2/apps/{}/domains'.format(app_id)
             response = self.client.post(url, {'domain': domain})

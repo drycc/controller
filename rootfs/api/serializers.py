@@ -8,7 +8,6 @@ import jmespath
 import re
 import jsonschema
 import idna
-import ipaddress
 from urllib.parse import urlparse
 
 from django.conf import settings
@@ -17,16 +16,11 @@ from django.utils import timezone
 from rest_framework import serializers
 
 from api import models
-
-# proc type name is lowercase alphanumeric
-# https://docs-v2.readthedocs.io/en/latest/using-workflow/process-types-and-the-procfile/#declaring-process-types
 from api.exceptions import DryccException
 
 
 User = get_user_model()
 logger = logging.getLogger(__name__)
-SVCTYPE_MATCH = re.compile(r'^(ClusterIP|LoadBalancer)$')
-SVCTYPE_MISMATCH_MSG = "The service type currently only supports ClusterIP and LoadBalancer"
 PROTOCOL_MATCH = re.compile(r'^(TCP|UDP|SCTP)$')
 PROTOCOL_MISMATCH_MSG = "Currently, the protocol only supports TCP, UDP, and SCTP"
 PROCTYPE_MATCH = re.compile(r'^(?P<type>[a-z0-9]+(\-[a-z0-9]+)*)$')
@@ -517,13 +511,12 @@ class ServiceSerializer(serializers.ModelSerializer):
     port = serializers.IntegerField(default=5000)
     protocol = serializers.CharField(default="TCP")
     target_port = serializers.IntegerField(default=5000)
-    service_type = serializers.CharField(required=True)
     procfile_type = serializers.CharField(required=True)
 
     class Meta:
         """Metadata options for a :class:`ServiceSerializer`."""
         model = models.service.Service
-        fields = ['owner', 'created', 'updated', 'app', 'service_type', 'procfile_type']
+        fields = ['owner', 'created', 'updated', 'app', 'procfile_type']
         read_only_fields = ['uuid']
 
     @staticmethod
@@ -540,20 +533,9 @@ class ServiceSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError(PROTOCOL_MISMATCH_MSG)
         return value
 
-    @staticmethod
-    def validate_target_port(value):
-        if not str(value).isnumeric():
-            raise serializers.ValidationError('target port can only be a numeric value')
-        elif int(value) not in range(1, 65536):
-            raise serializers.ValidationError('target port needs to be between 1 and 65535')
-        return value
-
-    @staticmethod
-    def validate_service_type(value):
-        if not re.match(SVCTYPE_MATCH, value):
-            raise serializers.ValidationError(SVCTYPE_MISMATCH_MSG)
-
-        return value
+    @classmethod
+    def validate_target_port(cls, value):
+        return cls.validate_port(value)
 
     @staticmethod
     def validate_procfile_type(value):
@@ -609,26 +591,6 @@ class AppSettingsSerializer(serializers.ModelSerializer):
         fields = '__all__'
 
     @staticmethod
-    def validate_allowlist(data):
-        for address in data:
-            try:
-                ipaddress.ip_address(address)
-            except Exception as e:
-                logger.exception(e)
-                try:
-                    ipaddress.ip_network(address)
-                except Exception as e:
-                    logger.exception(e)
-                    try:
-                        ipaddress.ip_interface(address)
-                    except Exception as e:
-                        logger.exception(e)
-                        raise serializers.ValidationError(
-                           "The address {} is not valid".format(address))
-
-        return data
-
-    @staticmethod
     def validate_autoscale(data):
         schema = {
             "$schema": "http://json-schema.org/schema#",
@@ -644,17 +606,15 @@ class AppSettingsSerializer(serializers.ModelSerializer):
             "required": ["min", "max", "cpu_percent"],
         }
 
-        for proc, autoscale in data.items():
+        for _, autoscale in data.items():
             if autoscale is None:
                 continue
-
             try:
                 jsonschema.validate(autoscale, schema)
             except jsonschema.ValidationError as e:
                 raise serializers.ValidationError(
                     "could not validate {}: {}".format(autoscale, e.message)
                 )
-
         return data
 
 
@@ -764,3 +724,18 @@ class MetricSerializer(serializers.Serializer):
                 'The amount of data requested is too large.'
             )
         return attrs
+
+
+class GatewaySerializer(serializers.Serializer):
+    app = serializers.SlugRelatedField(slug_field='id', queryset=models.app.App.objects.all())
+    owner = serializers.ReadOnlyField(source='owner.username')
+    name = serializers.CharField(max_length=63, required=True)
+    listeners = serializers.JSONField(required=False)
+
+
+class RouteSerializer(serializers.Serializer):
+    app = serializers.SlugRelatedField(slug_field='id', queryset=models.app.App.objects.all())
+    owner = serializers.ReadOnlyField(source='owner.username')
+    kind = serializers.CharField(max_length=15, required=False)
+    name = serializers.CharField(max_length=63, required=True)
+    rules = serializers.JSONField(required=False)

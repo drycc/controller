@@ -18,10 +18,7 @@ class AppSettings(UuidAuditedModel):
 
     owner = models.ForeignKey(User, on_delete=models.PROTECT)
     app = models.ForeignKey('App', on_delete=models.CASCADE)
-    routable = models.BooleanField(null=True)
-    # the default values is None to differentiate from user sending an empty allowlist
-    # and user just updating other fields meaning the values needs to be copied from prev release
-    allowlist = models.JSONField(default=None, null=True)
+    routable = models.BooleanField(default=True)
     autoscale = models.JSONField(default=dict, blank=True)
     label = models.JSONField(default=dict, blank=True)
 
@@ -37,15 +34,11 @@ class AppSettings(UuidAuditedModel):
     def __str__(self):
         return "{}-{}".format(self.app.id, str(self.uuid)[:7])
 
-    def new(self, user, allowlist):
+    def new(self, user):
         """
-        Create a new application appSettings using the provided allowlist
-        on behalf of a user.
+        Create a new application appSettings on behalf of a user.
         """
-
-        app_settings = AppSettings.objects.create(
-            owner=user, app=self.app, allowlist=allowlist)
-
+        app_settings = AppSettings.objects.create(owner=user, app=self.app)
         return app_settings
 
     def _update_routable(self, previous_settings):
@@ -54,34 +47,11 @@ class AppSettings(UuidAuditedModel):
         # If no previous settings then assume it is the first record and default to true
         if previous_settings is None:
             setattr(self, 'routable', True)
-            self.app.routable(True)
         # if nothing changed copy the settings from previous
         elif new is None and old is not None:
             setattr(self, 'routable', old)
         elif old != new:
-            self.app.routable(new)
             self.summary += ["{} changed routablity from {} to {}".format(self.owner, old, new)]
-
-    def _update_allowlist(self, previous_settings):
-        # If no previous settings then assume it is the first record and set as empty
-        # to prevent from database constraint violation
-        if not previous_settings:
-            setattr(self, 'allowlist', [])
-        old = getattr(previous_settings, 'allowlist', [])
-        new = getattr(self, 'allowlist', None)
-        # if nothing changed copy the settings from previous
-        if new is None and old is not None:
-            setattr(self, 'allowlist', old)
-        elif set(old) != set(new):
-            added = ', '.join(k for k in set(new)-set(old))
-            added = 'added ' + added if added else ''
-            deleted = ', '.join(k for k in set(old)-set(new))
-            deleted = 'deleted ' + deleted if deleted else ''
-            changes = ', '.join(i for i in (added, deleted) if i)
-            if changes:
-                if self.summary:
-                    self.summary += ' and '
-                self.summary += "{} {}".format(self.owner, changes)
 
     def _update_autoscale(self, previous_settings):
         data = getattr(previous_settings, 'autoscale', {}).copy()
@@ -165,7 +135,6 @@ class AppSettings(UuidAuditedModel):
 
         try:
             self._update_routable(previous_settings)
-            self._update_allowlist(previous_settings)
             self._update_autoscale(previous_settings)
             self._update_label(previous_settings)
         except (UnprocessableEntity, NotFound):
@@ -180,4 +149,3 @@ class AppSettings(UuidAuditedModel):
         summary = ' '.join(self.summary)
         self.app.log('summary of app setting changes: {}'.format(summary), logging.DEBUG)
         super(AppSettings, self).save(**kwargs)
-        self.app.refresh()

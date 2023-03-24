@@ -11,12 +11,16 @@ from scheduler.utils import generate_random_name
 class ServicesTest(TestCase):
     """Tests scheduler service calls"""
 
-    def create(self, data={}):
+    def create(self, port=5000, protocol="TCP", target_port=5000):
         """
         Helper function to create and verify a service on the namespace
         """
         name = generate_random_name()
-        service = self.scheduler.svc.create(self.namespace, name, data=data)
+        service = self.scheduler.svc.create(self.namespace, name, **{
+            "port": port,
+            "protocol": protocol,
+            "target_port": target_port,
+        })
         data = service.json()
         self.assertEqual(service.status_code, 201, data)
         self.assertEqual(data['metadata']['name'], name)
@@ -32,23 +36,10 @@ class ServicesTest(TestCase):
 
     def test_create(self):
         # helper method takes care of the verification
-        self.create()
-
-        # create with more ports
-        name = self.create(data={
-            'spec': {
-                'ports': [{
-                    'name': 'http',
-                    'port': 80,
-                    'targetPort': 5001,
-                    'protocol': 'TCP'
-                }],
-            }
-        })
+        name = self.create()
 
         service = self.scheduler.svc.get(self.namespace, name).json()
         self.assertEqual(service['spec']['ports'][0]['targetPort'], 5000, service)
-        self.assertEqual(service['spec']['ports'][1]['targetPort'], 5001, service)
 
     def test_update_failure(self):
         # test failure
@@ -56,7 +47,24 @@ class ServicesTest(TestCase):
             KubeHTTPException,
             msg='failed to update Service foo in Namespace {}: 404 Not Found'.format(self.namespace)  # noqa
         ):
-            self.scheduler.svc.update(self.namespace, 'foo', {})
+            self.scheduler.svc.patch(self.namespace, 'foo', {})
+
+    def test_patch(self):
+        name = self.create()
+        expect = {
+            "port": 6000,
+            "protocol": "UDP",
+            "target_port": "6000",
+            "version": 1,
+        }
+        self.scheduler.svc.patch(self.namespace, name, **expect)
+        service = self.scheduler.svc.get(self.namespace, name).json()
+        self.assertEqual(expect, {
+            "port": service['spec']['ports'][0]['port'],
+            "protocol": service['spec']['ports'][0]['protocol'],
+            "target_port": service['spec']['ports'][0]['targetPort'],
+            "version": service['metadata']['resourceVersion']
+        })
 
     def test_update(self):
         # test success
@@ -64,8 +72,7 @@ class ServicesTest(TestCase):
         service = self.scheduler.svc.get(self.namespace, name).json()
         self.assertEqual(service['spec']['ports'][0]['targetPort'], 5000, service)
 
-        service['spec']['ports'][0]['targetPort'] = 5001
-        response = self.scheduler.svc.update(self.namespace, name, service)
+        response = self.scheduler.svc.patch(self.namespace, name, target_port=5001)
         self.assertEqual(response.status_code, 200, response.json())
 
         service = self.scheduler.svc.get(self.namespace, name).json()

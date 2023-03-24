@@ -1,15 +1,29 @@
+import copy
+import logging
 from django.db import models
 from django.db import transaction
 from django.contrib.auth import get_user_model
 from api.exceptions import AlreadyExists
+from api.exceptions import ServiceUnavailable
+from scheduler import KubeException
 from .base import UuidAuditedModel
 
+
 User = get_user_model()
+logger = logging.getLogger(__name__)
 
 
 class TLS(UuidAuditedModel):
+    DEFAULT_ISSUER = {
+        "email": "anonymous@cert-manager.io",
+        "server": "https://acme-v02.api.letsencrypt.org/directory",
+        "key_id": "",
+        "key_secret": "",
+    }
+
     owner = models.ForeignKey(User, on_delete=models.PROTECT)
     app = models.ForeignKey('App', on_delete=models.CASCADE)
+    issuer = models.JSONField(default=dict)
     https_enforced = models.BooleanField(null=True)
     certs_auto_enabled = models.BooleanField(null=True)
 
@@ -42,11 +56,62 @@ class TLS(UuidAuditedModel):
         except TLS.DoesNotExist:
             pass
 
+    def _refresh_secret_to_k8s(self):
+        secret_name = f"{self.app.id}-acme-external-account-binding-secret"
+        try:
+            try:
+                data = self._scheduler.secret.get(self.app.id, secret_name).json()
+                self._scheduler.secret.patch(self.app.id, secret_name, **{
+                    "secret": self.issuer["key_secret"],
+                    "version": data["metadata"]["resourceVersion"],
+                })
+            except KubeException:
+                self._scheduler.secret.create(self.app.id, secret_name, **{
+                    "secret": self.issuer["key_secret"],
+                })
+        except KubeException as e:
+            raise ServiceUnavailable('Kubernetes secret could not be created') from e
+
+    def refresh_issuer_to_k8s(self):
+        name = namespace = self.app.id
+        try:
+            data = copy.copy(self.issuer)
+            data["parent_refs"] = [
+                {
+                    "group": "gateway.networking.k8s.io",
+                    "kind": "Gateway",
+                    "name": gateway.name,
+                }
+                for gateway in self.app.gateway_set
+            ]
+            if self.issuer["key_id"] and self.issuer["key_secret"]:
+                self._refresh_secret_to_k8s()
+            try:
+                data = self._scheduler.issuer.get(namespace, name, **data).json()
+                data.update({"version": data["metadata"]["resourceVersion"]})
+                self._scheduler.issuer.patch(namespace, name, **data)
+            except KubeException:
+                self._scheduler.issuer.create(namespace, name, **data)
+        except KubeException as e:
+            raise ServiceUnavailable('Kubernetes secret could not be created') from e
+
+    def refresh_certificate_to_k8s(self):
+        namespace = name = self.app.id
+        if self.certs_auto_enabled:
+            hosts = [domain.domain for domain in self.app.domain_set]
+            try:
+                data = self._scheduler.certificate.get(namespace, name).json()
+                version = data["metadata"]["resourceVersion"]
+                self._scheduler.certificate.put(namespace, name, hosts, version)
+            except KubeException:
+                logger.log(
+                    msg="certificate {} does not exist".format(namespace), level=logging.INFO)
+                self._scheduler.certificate.create(namespace, name, hosts)
+        else:
+            self._scheduler.certificate.delete(namespace, name, ignore_exception=True)
+
     @transaction.atomic
     def save(self, *args, **kwargs):
         self._check_previous_tls_settings()
+        self.app.release_set.filter(failed=False).latest().config
         super(TLS, self).save(*args, **kwargs)
-        self.sync()
-
-    def sync(self):
-        self.app.refresh()

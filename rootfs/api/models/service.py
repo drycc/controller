@@ -14,10 +14,7 @@ logger = logging.getLogger(__name__)
 class Service(AuditedModel):
     owner = models.ForeignKey(User, on_delete=models.PROTECT)
     app = models.ForeignKey('App', on_delete=models.CASCADE)
-    port = models.PositiveIntegerField(default=5000)
-    protocol = models.TextField(default="TCP")
-    target_port = models.PositiveIntegerField(default=5000)
-    service_type = models.TextField()
+    ports = models.JSONField(default=dict)
     procfile_type = models.TextField()
 
     class Meta:
@@ -28,58 +25,48 @@ class Service(AuditedModel):
     def __str__(self):
         return self._svc_name()
 
-    def _get_ips(self):
-        namespace = self._namespace()
-        svc_name = self._svc_name()
-        response = self._scheduler.svc.get(namespace, svc_name)
-        data = response.json()
-        cluster_ip = data['spec']['clusterIP']
-        if 'ingress' in data['status']['loadBalancer']:
-            external_ip = data['status']['loadBalancer']['ingress'][0]['ip']
-        else:
-            external_ip = None
-        return cluster_ip, external_ip
-
     def as_dict(self):
         namespace = self._namespace()
         svc_name = self._svc_name()
         cluster_domain = settings.KUBERNETES_CLUSTER_DOMAIN
-        cluster_ip, external_ip = self._get_ips()
         return {
-            "port": self.port,
             "domain": f"{svc_name}.{namespace}.svc.{cluster_domain}",
-            "protocol": self.protocol,
-            "cluster_ip": cluster_ip,
-            "external_ip": external_ip,
-            "target_port": self.target_port,
-            "service_type": self.service_type,
+            "ports": self.ports,
             "procfile_type": self.procfile_type,
         }
 
-    def create(self):
-        namespace = self._namespace()
+    def port_name(self, port, protocol):
+        return "%s-%s-%s-%s" % (self.app.id, self.procfile_type, protocol, port)
+
+    def add_port(self, port, protocol, target_port):
+        self.ports.append({
+            "name": self.port_name(port, protocol),
+            "port": port,
+            "protocol": protocol,
+            "target_port": target_port,
+        })
+
+    def refresh_k8s_svc(self):
         svc_name = self._svc_name()
+        namespace = self._namespace()
         self.log('creating service: {}'.format(svc_name), level=logging.DEBUG)
         try:
             try:
-                self._scheduler.svc.get(namespace, svc_name)
+                data = self._scheduler.svc.get(namespace, svc_name).json()
+                self._scheduler.svc.patch(namespace, svc_name, **{
+                    "ports": self.ports,
+                    "version": data["metadata"]["resourceVersion"],
+                })
             except KubeException:
-                self._scheduler.svc.create(
-                    namespace,
-                    svc_name,
-                    service_type=self.service_type,
-                    port=self.port,
-                    protocol=self.protocol,
-                    target_port=self.target_port,
-                )
+                self._scheduler.svc.create(namespace, svc_name, **{
+                    "ports": self.ports,
+                })
         except KubeException as e:
             raise ServiceUnavailable('Kubernetes service could not be created') from e
 
     def save(self, *args, **kwargs):
         service = super(Service, self).save(*args, **kwargs)
-
-        self.create()
-
+        self.refresh_k8s_svc()
         return service
 
     def delete(self, *args, **kwargs):
@@ -112,4 +99,6 @@ class Service(AuditedModel):
         return self.app.id
 
     def _svc_name(self):
+        if self.procfile_type in ("web", "cmd"):
+            return self.app.id
         return "{}-{}".format(self.app.id, self.procfile_type)

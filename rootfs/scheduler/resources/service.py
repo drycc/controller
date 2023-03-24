@@ -1,10 +1,34 @@
 from scheduler.exceptions import KubeHTTPException
 from scheduler.resources import Resource
-from scheduler.utils import dict_merge
 
 
 class Service(Resource):
     short_name = 'svc'
+
+    def manifest(self, namespace, name, **kwargs):
+        data = {
+            'kind': 'Service',
+            'apiVersion': self.api_version,
+            'metadata': {
+                'name': name,
+                'labels': {
+                    'app': namespace,
+                    'heritage': 'drycc'
+                },
+                'annotations': {}
+            },
+            'spec': {
+                'type': kwargs.get("type", "ClusterIP"),
+                'ports': kwargs.get("ports"),
+                'selector': {
+                    'app': name,
+                    'heritage': 'drycc'
+                }
+            }
+        }
+        if "version" in kwargs:
+            data["metadata"]["resourceVersion"] = kwargs.get("version")
+        return data
 
     def get(self, namespace, name=None, **kwargs):
         """
@@ -28,34 +52,7 @@ class Service(Resource):
         return response
 
     def create(self, namespace, name, **kwargs):
-        # Ports and app type will be overwritten as required
-        manifest = {
-            'kind': 'Service',
-            'apiVersion': self.api_version,
-            'metadata': {
-                'name': name,
-                'labels': {
-                    'app': namespace,
-                    'heritage': 'drycc'
-                },
-                'annotations': {}
-            },
-            'spec': {
-                'type': kwargs.get("type", "ClusterIP"),
-                'ports': [{
-                    'name': name,
-                    'port': kwargs.get("port", 80),
-                    'targetPort': kwargs.get("target_port", 5000),
-                    'protocol': kwargs.get("protocol", "TCP"),
-                }],
-                'selector': {
-                    'app': name,
-                    'heritage': 'drycc'
-                }
-            }
-        }
-
-        data = dict_merge(manifest, kwargs.get('data', {}))
+        data = self.manifest(namespace, name, **kwargs)
         url = self.api("/namespaces/{}/services", namespace)
         response = self.http_post(url, json=data)
         if self.unhealthy(response.status_code):
@@ -64,6 +61,18 @@ class Service(Resource):
                 'create Service "{}" in Namespace "{}"', namespace, namespace
             )
 
+        return response
+
+    def patch(self, namespace, name, ignore_exception=False, **kwargs):
+        url = self.api("/namespaces/{}/services/{}", namespace, name)
+        data = self.manifest(namespace, name, **kwargs)
+        response = self.http_patch(
+            url,
+            json=data,
+            headers={"Content-Type": "application/merge-patch+json"}
+        )
+        if not ignore_exception and self.unhealthy(response.status_code):
+            raise KubeHTTPException(response, "patch svc {}".format(namespace))
         return response
 
     def update(self, namespace, name, data):

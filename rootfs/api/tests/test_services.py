@@ -2,7 +2,6 @@ from django.contrib.auth import get_user_model
 from django.core.cache import cache
 from rest_framework.authtoken.models import Token
 
-
 from api.tests import DryccTransactionTestCase
 
 User = get_user_model()
@@ -37,8 +36,6 @@ class TestServices(DryccTransactionTestCase):
             {
                 'port': 5000,
                 'protocol': 'UDP',
-                'target_port': 5000,
-                'service_type': 'ClusterIP',
                 'procfile_type': 'test'
             }
         )
@@ -50,8 +47,6 @@ class TestServices(DryccTransactionTestCase):
         expected1 = {
             'port': 5000,
             'protocol': 'UDP',
-            'target_port': 5000,
-            'service_type': 'ClusterIP',
             'procfile_type': 'test'
         }
         self.assertDictContainsSubset(expected1, response.data['services'][0])
@@ -61,12 +56,10 @@ class TestServices(DryccTransactionTestCase):
             {
                 'port': 5000,
                 'protocol': 'UDP',
-                'target_port': 5000,
-                'service_type': 'LoadBalancer',
                 'procfile_type': 'test'
             }
         )
-        self.assertEqual(response.status_code, 201, response.data)
+        self.assertEqual(response.status_code, 204, response.data)
         # list 1st service and get new value
         response = self.client.get('/v2/apps/{}/services'.format(app_id))
         self.assertEqual(response.status_code, 200, response.data)
@@ -74,8 +67,6 @@ class TestServices(DryccTransactionTestCase):
         expected1 = {
             'port': 5000,
             'protocol': 'UDP',
-            'target_port': 5000,
-            'service_type': 'LoadBalancer',
             'procfile_type': 'test'
         }
         self.assertDictContainsSubset(expected1, response.data['services'][0])
@@ -85,8 +76,6 @@ class TestServices(DryccTransactionTestCase):
             {
                 'port': 5000,
                 'protocol': 'UDP',
-                'target_port': 5000,
-                'service_type': 'ClusterIP',
                 'procfile_type': 'test2'
             }
         )
@@ -98,8 +87,6 @@ class TestServices(DryccTransactionTestCase):
         expected2 = {
             'port': 5000,
             'protocol': 'UDP',
-            'target_port': 5000,
-            'service_type': 'ClusterIP',
             'procfile_type': 'test2'
         }
         self.assertDictContainsSubset(expected2, response.data['services'][0])

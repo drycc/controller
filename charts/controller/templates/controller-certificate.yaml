@@ -4,7 +4,7 @@ kind: Certificate
 metadata:
   name: drycc-controller
 spec:
-  secretName: drycc-controller-certificate-auto
+  secretName: drycc-controller-auto-tls
   issuerRef:
     name: drycc-cluster-issuer
     kind: ClusterIssuer

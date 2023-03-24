@@ -19,6 +19,8 @@ from rest_framework.authtoken.models import Token
 from api.utils import get_session
 from api.tasks import retrieve_resource, send_measurements
 from api.models.app import App
+from api.models.service import Service
+from api.models.gateway import Gateway
 from api.models.appsettings import AppSettings
 from api.models.build import Build
 from api.models.certificate import Certificate
@@ -131,13 +133,13 @@ post_delete.connect(_log_instance_removed, sender=Resource, dispatch_uid='api.mo
 
 # automatically generate a new token on creation
 @receiver(post_save, sender=User)
-def create_auth_token_handle(sender, instance=None, created=False, **kwargs):
+def create_auth_token_handle(sender, instance, created=False, **kwargs):
     if created:
         Token.objects.create(user=instance)
 
 
 @receiver(post_save, sender=App)
-def app_changed_handle(sender, instance=None, created=False, update_fields=None, **kwargs):
+def app_changed_handle(sender, instance: App, created=False, update_fields=None, **kwargs):
     # measure limits to workflow manager
     if settings.WORKFLOW_MANAGER_URL and not created and (
             update_fields is not None and "structure" in update_fields):
@@ -148,8 +150,58 @@ def app_changed_handle(sender, instance=None, created=False, update_fields=None,
         )
 
 
+@receiver(post_save, sender=TLS)
+def tls_changed_handle(sender, instance: TLS, created=False, update_fields=None, **kwargs):
+    if (update_fields and "issuer" in update_fields) or created:
+        instance.refresh_issuer_to_k8s()
+    if (update_fields and "https_enforced" in update_fields) or created:
+        for route in instance.app.route_set.all():
+            route.refresh_to_k8s()
+    if (update_fields and "certs_auto_enabled" in update_fields) or created:
+        instance.refresh_certificate_to_k8s()
+        for gateway in instance.app.gateway_set.all():
+            gateway.refresh_to_k8s()
+        for route in instance.app.route_set.all():
+            route.refresh_to_k8s()
+
+
+@receiver(post_save, sender=Gateway)
+def gateway_changed_handle(
+        sender, instance: Gateway, created=False, update_fields=None, **kwargs):
+    if created or (not created and update_fields is None):  # create or delete
+        for tls in instance.app.tls_set:
+            tls.refresh_certificate_to_k8s()
+        for route in instance.app.route_set:
+            route.refresh_to_k8s()
+
+
+@receiver(signal=[post_save, post_delete], sender=Service)
+def service_changed_handle(
+        sender, instance: Service, created=False, update_fields=None, **kwargs):
+    if not created and update_fields is None:  # delete
+        instance.app.route_set.filter(procfile_type=instance.procfile_type).delete()
+
+
+@receiver(signal=[post_save, post_delete], sender=Domain)
+def domain_changed_handle(
+        sender, instance: Domain, created=False, update_fields=None, **kwargs):
+    for gateway in instance.app.gateway_set:
+        gateway.refresh_to_k8s()
+    for route in instance.app.route_set:
+        route.refresh_to_k8s()
+
+
+@receiver(signal=[post_save, post_delete], sender=AppSettings)
+def appsettings_changed_handle(
+        sender, instance: AppSettings, created=False, update_fields=None, **kwargs):
+    if not created and (update_fields is not None and "routable" in update_fields):
+        for route in instance.app.route_set:
+            route.routable = instance.routable
+            route.save()
+
+
 @receiver(post_save, sender=Config)
-def config_changed_handle(sender, instance=None, created=False, update_fields=None, **kwargs):
+def config_changed_handle(sender, instance: Config, created=False, update_fields=None, **kwargs):
     # measure limits to workflow manager
     if settings.WORKFLOW_MANAGER_URL and (
         created or (
@@ -163,7 +215,7 @@ def config_changed_handle(sender, instance=None, created=False, update_fields=No
 
 
 @receiver(post_save, sender=Volume)
-def volume_changed_handle(sender, instance=None, created=False, update_fields=None, **kwargs):
+def volume_changed_handle(sender, instance: Volume, created=False, update_fields=None, **kwargs):
     # measure volumes to workflow manager
     if settings.WORKFLOW_MANAGER_URL and created:
         timestamp = time.time()
@@ -174,7 +226,8 @@ def volume_changed_handle(sender, instance=None, created=False, update_fields=No
 
 
 @receiver(post_save, sender=Resource)
-def resource_changed_handle(sender, instance=None, created=False, update_fields=None, **kwargs):
+def resource_changed_handle(
+        sender, instance: Resource, created=False, update_fields=None, **kwargs):
     # retrieve_resource
     if created or instance.binding == "Binding" or (
             update_fields is not None and "plan" in update_fields):
