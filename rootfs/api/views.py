@@ -403,7 +403,7 @@ class ServiceViewSet(AppResourceViewSet):
         if service:
             for item in service.ports:
                 if item["port"] == port:
-                    return Response(status=status.HTTP_400_BAD_REQUEST, data="port is occupied")
+                    return Response(status=status.HTTP_400_BAD_REQUEST, data={"detail": "port is occupied"})  # noqa
             http_status = status.HTTP_204_NO_CONTENT
         else:
             service = self.model(owner=app.owner, app=app, procfile_type=procfile_type)
@@ -414,12 +414,13 @@ class ServiceViewSet(AppResourceViewSet):
 
     def delete(self, request, **kwargs):
         port = self.get_serializer().validate_port(request.data.get('port'))
+        protocol = self.get_serializer().validate_protocol(request.data.get('protocol'))
         procfile_type = self.get_serializer().validate_procfile_type(
             request.data.get('procfile_type'))
         service = get_object_or_404(self.get_queryset(**kwargs), procfile_type=procfile_type)
         ports = []
         for item in service.ports:
-            if item["port"] != port:
+            if item["port"] != port or item["protocol"] != protocol:
                 ports.append(item)
         if len(ports) == 0:
             service.delete()
@@ -848,26 +849,13 @@ class GatewayViewSet(AppResourceViewSet):
     model = models.gateway.Gateway
     filter_backends = [filters.SearchFilter]
     search_fields = ['^id', ]
-    service_class = serializers.ServiceSerializer
     serializer_class = serializers.GatewaySerializer
-
-    def _get_listeners(self, service, protocol, port):
-        if protocol in ("TLS", "HTTPS"):
-            for domain in models.domain.Domain.objects.filter():
-                pass
-        listener_name = "%s-%s" % (str(service), port)
-        return [{
-            "allowedRoutes": {"namespaces": {"from": "All"}},
-            "name": listener_name,
-            "port": port,
-            "protocol": protocol,
-        }]
 
     def create_or_update(self, request, *args, **kwargs):
         app = self.get_app()
         name = request.data['name']
-        port = self.service_class.validate_port(request.data['port'])
-        protocol = self.service_class.validate_port(request.data['protocol'])
+        port = self.get_serializer().validate_port(request.data['port'])
+        protocol = self.get_serializer().validate_protocol(request.data['protocol'])
         gateway = app.gateway_set.filter(name=name).first()
         if not gateway:
             gateway = self.model(app=app, owner=app.owner, name=name)
@@ -879,8 +867,8 @@ class GatewayViewSet(AppResourceViewSet):
 
     def delete(self, request, **kwargs):
         app = self.get_app()
-        port = self.service_class.validate_port(request.data.get('port'))
-        protocol = self.service_class.validate_port(request.data['protocol'])
+        port = self.get_serializer().validate_port(request.data.get('port'))
+        protocol = self.get_serializer().validate_protocol(request.data['protocol'])
         gateway = get_object_or_404(app.gateway_set, name=request.data.get("name"))
         ok, msg = gateway.remove(port, protocol)
         if not ok:
@@ -897,7 +885,6 @@ class RouteViewSet(AppResourceViewSet):
     model = models.gateway.Route
     filter_backends = [filters.SearchFilter]
     search_fields = ['^id', ]
-    service_class = serializers.ServiceSerializer
     serializer_class = serializers.RouteSerializer
 
     def get(self, request, *args, **kwargs):
@@ -910,14 +897,17 @@ class RouteViewSet(AppResourceViewSet):
         route = get_object_or_404(self.model, app=app, name=kwargs['name'])
         rules = json.loads(request.body.decode("utf8"))
         route.rules = rules
+        ok, msg = route.check_rules()
+        if not ok:
+            return Response(status=status.HTTP_400_BAD_REQUEST, data=msg)
         route.save()
         return Response(status=status.HTTP_204_NO_CONTENT)
 
     def create(self, request, *args, **kwargs):
         app = self.get_app()
-        port = self.service_class.validate_port(request.data.get('port'))
+        port = self.get_serializer().validate_port(request.data.get('port'))
         app_settings = app.appsettings_set.latest()
-        procfile_type = self.service_class.validate_procfile_type(
+        procfile_type = self.get_serializer().validate_procfile_type(
             request.data.get('procfile_type'))
         route = self.model(
             app=app,
@@ -928,13 +918,13 @@ class RouteViewSet(AppResourceViewSet):
             routable=app_settings.routable,
             procfile_type=procfile_type,
         )
-        route.rules = {"backendRefs": route.get_backend_refs()}  # default backends
+        route.rules = route.default_rules  # default backends
         route.save()
         return Response(status=status.HTTP_201_CREATED)
 
     def attach(self, request, *args, **kwargs):
         app = self.get_app()
-        port = self.service_class.validate_port(request.data.get('port'))
+        port = self.get_serializer().validate_port(request.data.get('port'))
         gateway_name = request.data['gateway']
         route = get_object_or_404(self.model, app=app, name=kwargs['name'])
         attached, msg = route.attach(gateway_name, port)
@@ -945,7 +935,7 @@ class RouteViewSet(AppResourceViewSet):
 
     def detach(self, request, *args, **kwargs):
         app = self.get_app()
-        port = self.service_class.validate_port(request.data.get('port'))
+        port = self.get_serializer().validate_port(request.data.get('port'))
         gateway_name = request.data['gateway']
         route = get_object_or_404(self.model, app=app, name=kwargs['name'])
         detached, msg = route.detach(gateway_name, port)

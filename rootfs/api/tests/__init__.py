@@ -4,7 +4,6 @@ import requests_mock
 import time
 from os.path import dirname, realpath
 
-from django.conf import settings
 from django.test.runner import DiscoverRunner
 from rest_framework.test import APITestCase, APITransactionTestCase
 
@@ -32,11 +31,10 @@ def fake_responses(request, context):
     return response['text']
 
 
-url = 'http://{}:{}'.format(settings.ROUTER_HOST, settings.ROUTER_PORT)
 adapter = requests_mock.Adapter()
-adapter.register_uri('GET', url + '/', text=fake_responses)
-adapter.register_uri('GET', url + '/health', text=fake_responses)
-adapter.register_uri('GET', url + '/healthz', text=fake_responses)
+adapter.register_uri('GET', '/', text=fake_responses)
+adapter.register_uri('GET', '/health', text=fake_responses)
+adapter.register_uri('GET', '/healthz', text=fake_responses)
 
 # Root of the test directory (for files and such)
 TEST_ROOT = dirname(realpath(__file__))

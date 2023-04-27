@@ -169,9 +169,9 @@ def tls_changed_handle(sender, instance: TLS, created=False, update_fields=None,
 def gateway_changed_handle(
         sender, instance: Gateway, created=False, update_fields=None, **kwargs):
     if created or (not created and update_fields is None):  # create or delete
-        for tls in instance.app.tls_set:
+        for tls in instance.app.tls_set.all():
             tls.refresh_certificate_to_k8s()
-        for route in instance.app.route_set:
+        for route in instance.app.route_set.all():
             route.refresh_to_k8s()
 
 
@@ -185,9 +185,9 @@ def service_changed_handle(
 @receiver(signal=[post_save, post_delete], sender=Domain)
 def domain_changed_handle(
         sender, instance: Domain, created=False, update_fields=None, **kwargs):
-    for gateway in instance.app.gateway_set:
+    for gateway in instance.app.gateway_set.all():
         gateway.refresh_to_k8s()
-    for route in instance.app.route_set:
+    for route in instance.app.route_set.all():
         route.refresh_to_k8s()
 
 
@@ -195,7 +195,7 @@ def domain_changed_handle(
 def appsettings_changed_handle(
         sender, instance: AppSettings, created=False, update_fields=None, **kwargs):
     if not created and (update_fields is not None and "routable" in update_fields):
-        for route in instance.app.route_set:
+        for route in instance.app.route_set.all():
             route.routable = instance.routable
             route.save()
 

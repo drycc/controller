@@ -163,6 +163,8 @@ global:
   registrySecretPrefix: "private-registry"
   # Role-Based Access Control for Kubernetes >= 1.5
   rbac: false
+  # GatewayClass is cluster-scoped resource defined by the infrastructure provider.
+  gatewayClass: ""
   # Please check `kubernetes.io/ingress.class`
   ingressClass: ""
   # A domain name consists of one or more parts.

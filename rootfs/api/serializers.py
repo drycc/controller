@@ -21,8 +21,10 @@ from api.exceptions import DryccException
 
 User = get_user_model()
 logger = logging.getLogger(__name__)
-PROTOCOL_MATCH = re.compile(r'^(TCP|UDP|SCTP)$')
-PROTOCOL_MISMATCH_MSG = "Currently, the protocol only supports TCP, UDP, and SCTP"
+SERVICE_PROTOCOL_MATCH = re.compile(r'^(TCP|UDP|SCTP)$')
+SERVICE_PROTOCOL_MISMATCH_MSG = "the service protocol only supports TCP, UDP, and SCTP"
+GATEWAY_PROTOCOL_MATCH = re.compile(r'^(HTTP|HTTPS|TCP|TLS|UDP)$')
+GATEWAY_PROTOCOL_MISMATCH_MSG = "the gateway protocol only supports HTTP, HTTPS, TCP, TLS and UDP"
 PROCTYPE_MATCH = re.compile(r'^(?P<type>[a-z0-9]+(\-[a-z0-9]+)*)$')
 PROCTYPE_MISMATCH_MSG = "Process types can only contain lowercase alphanumeric characters"
 MEMLIMIT_MATCH = re.compile(r'^(?P<mem>([1-9][0-9]*[mgMG]))$', re.IGNORECASE)
@@ -529,8 +531,8 @@ class ServiceSerializer(serializers.ModelSerializer):
 
     @staticmethod
     def validate_protocol(value):
-        if not re.match(PROTOCOL_MATCH, value):
-            raise serializers.ValidationError(PROTOCOL_MISMATCH_MSG)
+        if not re.match(SERVICE_PROTOCOL_MATCH, value):
+            raise serializers.ValidationError(SERVICE_PROTOCOL_MISMATCH_MSG)
         return value
 
     @classmethod
@@ -732,10 +734,48 @@ class GatewaySerializer(serializers.Serializer):
     name = serializers.CharField(max_length=63, required=True)
     listeners = serializers.JSONField(required=False)
 
+    @staticmethod
+    def validate_port(value):
+        if not str(value).isnumeric():
+            raise serializers.ValidationError('port can only be a numeric value')
+        elif int(value) not in range(1, 65536):
+            raise serializers.ValidationError('port needs to be between 1 and 65535')
+        return value
+
+    @staticmethod
+    def validate_protocol(value):
+        if not re.match(GATEWAY_PROTOCOL_MATCH, value):
+            raise serializers.ValidationError(GATEWAY_PROTOCOL_MISMATCH_MSG)
+        return value
+
+    @staticmethod
+    def validate_procfile_type(value):
+        if not re.match(PROCTYPE_MATCH, value):
+            raise serializers.ValidationError(PROCTYPE_MISMATCH_MSG)
+
+        return value
+
 
 class RouteSerializer(serializers.Serializer):
     app = serializers.SlugRelatedField(slug_field='id', queryset=models.app.App.objects.all())
     owner = serializers.ReadOnlyField(source='owner.username')
     kind = serializers.CharField(max_length=15, required=False)
     name = serializers.CharField(max_length=63, required=True)
+    procfile_type = serializers.CharField(max_length=63, required=True)
     rules = serializers.JSONField(required=False)
+    parent_refs = serializers.JSONField(required=False)
+
+    @staticmethod
+    def validate_port(value):
+        if not str(value).isnumeric():
+            raise serializers.ValidationError('port can only be a numeric value')
+        elif int(value) not in range(1, 65536):
+            raise serializers.ValidationError('port needs to be between 1 and 65535')
+        return value
+
+    @staticmethod
+    def validate_procfile_type(value):
+        if not re.match(PROCTYPE_MATCH, value):
+            raise serializers.ValidationError(PROCTYPE_MISMATCH_MSG)
+
+        return value

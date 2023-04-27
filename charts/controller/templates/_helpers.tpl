@@ -3,9 +3,9 @@
 env:
 - name: REGISTRATION_MODE
   value: {{ .Values.registrationMode }}
-# Environmental variable value for $INGRESS_CLASS
-- name: "DRYCC_INGRESS_CLASS"
-  value: "{{ .Values.global.ingressClass }}"
+# Environmental variable value for $GATEWAY_CLASS
+- name: "DRYCC_GATEWAY_CLASS"
+  value: "{{ .Values.global.gatewayClass }}"
 - name: "DRYCC_PLATFORM_DOMAIN"
   value: "{{ .Values.global.platformDomain }}"
 - name: "K8S_API_VERIFY_TLS"

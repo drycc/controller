@@ -83,6 +83,7 @@ resources = [
     'horizontalpodautoscalers', 'scale', 'resourcequotas', 'ingresses',
     'persistentvolumeclaims', 'serviceinstances', 'servicebindings',
     'limitranges', 'gateways', 'httproutes', 'tcproutes', 'udproutes',
+    'issuers', 'certificates'
 ]
 
 
@@ -752,7 +753,6 @@ def put(request, context):
     subresource, resource_type, url = is_subresource(resource_type, url)
     if subresource != resource_type:
         cache.set(original_url, request.json(), None)
-
     item = cache.get(url)
     if item is None:
         context.status_code = 404
@@ -792,7 +792,6 @@ def put(request, context):
 
         # Update the individual resource
         cache.set(url, data, None)
-
         if resource_type in ['replicationcontrollers', 'replicasets']:
             upsert_pods(data, url)
         elif resource_type == 'deployments':

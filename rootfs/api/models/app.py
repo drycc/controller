@@ -12,6 +12,8 @@ import re
 import requests
 import string
 import time
+import socket
+from contextlib import closing
 from itertools import groupby
 from urllib.parse import urljoin
 
@@ -384,95 +386,29 @@ class App(UuidAuditedModel):
             err = '(app::deploy): {}'.format(e)
             self.log(err, logging.ERROR)
             raise ServiceUnavailable(err) from e
-        self._update_default_deploys(release, deploys)
+        for procfile_type, value in deploys.items():
+            if procfile_type in ("web", "cmd"):  # http
+                target_port = int(value.get('envs', {}).get('PORT', 5000))
+                self._create_default_ingress(procfile_type, target_port)
+            service = self.service_set.filter(procfile_type=procfile_type).first()
+            if not service:
+                continue
+            old = release.previous()
+            if old and old.build:
+                continue
+            if procfile_type in ("web", "cmd"):
+                self._verify_http_health(service, **deploys[procfile_type])
+            else:
+                self._verify_tcp_health(service, **deploys[procfile_type])
         # cleanup old release objects from kubernetes
         release.cleanup_old()
-
-    def verify_application_health(self, **kwargs):
-        """
-        Verify an application is healthy via the router.
-        This is only used in conjunction with the kubernetes health check system and should
-        only run after kubernetes has reported all pods as healthy
-        """
-        # Bail out early if the application is not routable
-        app_settings = self.appsettings_set.latest()
-        if not kwargs.get('routable', False) and app_settings.routable:
-            return
-
-        app_type = kwargs.get('app_type')
-        self.log(
-            'Waiting for router to be ready to serve traffic to process type {}'.format(app_type),
-            level=logging.DEBUG
-        )
-
-        # Get the router host and append healthcheck path
-        url = 'http://{}:{}'.format(settings.ROUTER_HOST, settings.ROUTER_PORT)
-
-        # if a httpGet probe is available then 200 is the only acceptable status code
-        if ('livenessProbe' in kwargs.get('healthcheck', {}) and
-                'httpGet' in kwargs['healthcheck']['livenessProbe']):
-            allowed = [200]
-            handler = kwargs['healthcheck']['livenessProbe']['httpGet']
-            url = urljoin(url, handler.get('path', '/'))
-            req_timeout = handler.get('timeoutSeconds', 1)
-        else:
-            allowed = set(range(200, 599))
-            allowed.remove(404)
-            req_timeout = 3
-
-        # Give the router max of 10 tries or max 30 seconds to become healthy
-        # Uses time module to account for the timeout value of 3 seconds
-        start = time.time()
-        failed = False
-        headers = {
-            # set the Host header for the application being checked - not used for actual routing
-            'Host': '{}.{}.nip.io'.format(self.id, settings.ROUTER_HOST),
-        }
-        for _ in range(10):
-            try:
-                # http://docs.python-requests.org/en/master/user/advanced/#timeouts
-                response = get_session().get(url, timeout=req_timeout, headers=headers)
-                failed = False
-            except requests.exceptions.RequestException:
-                # In case of a failure where response object is not available
-                failed = True
-                # We are fine with timeouts and request problems, lets keep trying
-                time.sleep(1)  # just a bit of a buffer
-                continue
-
-            # 30 second timeout (timeout per request * 10)
-            if (time.time() - start) > (req_timeout * 10):
-                break
-
-            # check response against the allowed pool
-            if response.status_code in allowed:
-                break
-
-            # a small sleep since router usually resolve within 10 seconds
-            time.sleep(1)
-
-        # Endpoint did not report healthy in time
-        if ('response' in locals() and response.status_code == 404) or failed:
-            # bankers rounding
-            delta = round(time.time() - start)
-            self.log(
-                'Router was not ready to serve traffic to process type {} in time, waited {} seconds'.format(app_type, delta),  # noqa
-                level=logging.WARNING
-            )
-            return
-
-        self.log(
-            'Router is ready to serve traffic to process type {}'.format(app_type),
-            level=logging.DEBUG
-        )
 
     @backoff.on_exception(backoff.expo, ServiceUnavailable, max_tries=3)
     def logs(self, log_lines=str(settings.LOG_LINES)):
         """Return aggregated log data for this application."""
+        url = "http://{}:{}/logs/{}?log_lines={}".format(
+            settings.LOGGER_HOST, settings.LOGGER_PORT, self.id, log_lines)
         try:
-            url = "http://{}:{}/logs/{}?log_lines={}".format(settings.LOGGER_HOST,
-                                                             settings.LOGGER_PORT,
-                                                             self.id, log_lines)
             r = requests.get(url)
         # Handle HTTP request errors
         except requests.exceptions.RequestException as e:
@@ -808,43 +744,111 @@ class App(UuidAuditedModel):
         config.memory = new_memory
         config.save()
 
-    def _create_default_ingress(self, service):
+    def _create_default_ingress(self, procfile_type, target_port):
         port = 80
-        gateway, created = Gateway.objects.get_or_create(app=self, name=self.id, owner=self.owner)
-        if created:
-            gateway.add(port, "HTTP")
+        # create default service
+        try:
+            service = self.service_set.filter(procfile_type=procfile_type).latest()
+        except Service.DoesNotExist:
+            service = Service(owner=self.owner, app=self, procfile_type=procfile_type)
+            service.add_port(port, "TCP", target_port)
+            service.save()
+        # create default gateway
+        try:
+            gateway = self.gateway_set.filter(name=self.id).latest()
+        except Gateway.DoesNotExist:
+            gateway = Gateway(app=self, owner=self.owner, name=self.id)
+            added, msg = gateway.add(port, "HTTP")
+            if not added:
+                raise DryccException(msg)
             gateway.save()
-        route, created = Route.objects.get_or_create(
-            app=self, owner=self.owner, kind="HTTPRoute", name=self.id,
-            defaults={"port": port, "procfile_type": service.procfile_type}
-        )
-        if created:
-            route.rules = {"backendRefs": route.get_backend_refs()}
+        # create default route
+        try:
+            self.route_set.filter(name=self.id).latest()
+        except Route.DoesNotExist:
+            route = Route(app=self, owner=self.owner, kind="HTTPRoute", name=self.id,
+                          port=port, procfile_type=service.procfile_type)
+            route.rules = route.default_rules
             attached, msg = route.attach(gateway.name, port)
             if not attached:
                 raise DryccException(msg)
             route.save()
 
-    def _update_default_deploys(self, release, deploys):
-        # Create or update service
-        for procfile_type, value in deploys.items():
-            if procfile_type in ("web", "cmd"):  # http
-                port = 80
-                target_port = value.get('envs', {}).get('PORT', 5000)
-                service, created = Service.objects.get_or_create(
-                    owner=self.owner, app=self, procfile_type=procfile_type,
-                )
-                if created:
-                    service.add_port(port, "TCP", target_port)
-                    service.save()
+    def _verify_http_health(self, service, **kwargs):
+        """
+        Verify an application is healthy via the svc.
+        This is only used in conjunction with the kubernetes health check system and should
+        only run after kubernetes has reported all pods as healthy
+        """
+
+        app_type = kwargs.get('app_type')
+        self.log(
+            'Waiting for service to be ready to serve traffic to process type {}'.format(app_type),
+            level=logging.DEBUG
+        )
+        url = 'http://{}:{}'.format(service.domain, service.ports[0]["port"])
+        # if a httpGet probe is available then 200 is the only acceptable status code
+        if ('livenessProbe' in kwargs.get('healthcheck', {}) and
+                'httpGet' in kwargs['healthcheck']['livenessProbe']):
+            allowed = [200]
+            handler = kwargs['healthcheck']['livenessProbe']['httpGet']
+            url = urljoin(url, handler.get('path', '/'))
+            req_timeout = handler.get('timeoutSeconds', 1)
+        else:
+            allowed = set(range(200, 599))
+            allowed.remove(404)
+            req_timeout = 3
+        # Give the svc max of 10 tries or max 30 seconds to become healthy
+        # Uses time module to account for the timeout value of 3 seconds
+        start = time.time()
+        failed = False
+        response = None
+        for _ in range(10):
+            try:
+                # http://docs.python-requests.org/en/master/user/advanced/#timeouts
+                response = get_session().get(url, timeout=req_timeout)
+                failed = False
+            except requests.exceptions.RequestException:
+                # In case of a failure where response object is not available
+                failed = True
+                # We are fine with timeouts and request problems, lets keep trying
+                time.sleep(1)  # just a bit of a buffer
+                continue
+
+            # 30 second timeout (timeout per request * 10)
+            if (time.time() - start) > (req_timeout * 10):
+                break
+
+            # check response against the allowed pool
+            if response.status_code in allowed:
+                break
+
+            # a small sleep since router usually resolve within 10 seconds
+            time.sleep(1)
+
+        # Endpoint did not report healthy in time
+        if (response and response.status_code == 404) or failed:
+            # bankers rounding
+            delta = round(time.time() - start)
+            self.log(
+                'Router was not ready to serve traffic to process type {} in time, waited {} seconds'.format(app_type, delta),  # noqa
+                level=logging.WARNING
+            )
+            return
+
+        self.log(
+            'Router is ready to serve traffic to process type {}'.format(app_type),
+            level=logging.DEBUG
+        )
+
+    def _verify_tcp_health(self, service, **kwargs):
+        for _ in range(10):
+            with closing(socket.socket(socket.AF_INET, socket.SOCK_STREAM)) as sock:
+                sock.settimeout(3)
+                if sock.connect_ex((service.domain, service.ports[0]["port"])) == 0:
+                    break
                 else:
-                    service.refresh_k8s_svc()
-                self._create_default_ingress(service)
-                # Wait until application is available in the router
-                # Only run when there is no previous build / release
-                old = release.previous()
-                if old is None or old.build is None:
-                    self.verify_application_health(**deploys[procfile_type])
+                    time.sleep(3)
 
     def _check_deployment_in_progress(self, deploys, force_deploy=False):
         if force_deploy:

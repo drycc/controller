@@ -326,7 +326,7 @@ class Pod(Resource):
                 healthchecks['livenessProbe']['httpGet']['port'] = env['PORT']
             container.update(healthchecks)
         elif kwargs.get('routable', False):
-            self._default_readiness_probe(container, kwargs.get('build_type'), env.get('PORT', 5000))  # noqa
+            container.update(self._default_container_readiness_probe(env.get('PORT', 5000)))
 
     @staticmethod
     def _set_lifecycle_hooks(container, env, **kwargs):
@@ -359,13 +359,6 @@ class Pod(Resource):
                         }
                 }
             container["lifecycle"] = dict(lifecycle)
-
-    def _default_readiness_probe(self, container, build_type, port=5000):
-        # Update only the application container with the health check
-        if build_type == "buildpack":
-            container.update(self._default_container_readiness_probe(port))
-        elif port:
-            container.update(self._default_container_readiness_probe(port))
 
     @staticmethod
     def _default_container_readiness_probe(port, delay=5, timeout=5, period_seconds=5,

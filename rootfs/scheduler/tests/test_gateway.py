@@ -69,29 +69,15 @@ class GatewayTest(TestCase):
 class HTTPRouteTest(TestCase):
     """Tests scheduler gateway calls"""
 
-    def create_http_route(self, name="test-gateway", weight=0.0):
+    def create_http_route(self, name="test-gateway"):
         self.scheduler.ns.create(name)
-        return self.scheduler.httproutes.create(
+        return self.scheduler.httproute.create(
             name,
             name,
             port=5000,
             procfile_type="web",
-            weight=weight
-        )
-
-    def test_create_http_route_1(self):
-        response = self.create_http_route(weight=0.9)
-        for backend in response.json()['spec']['rules'][0]['backendRefs']:
-            if backend["name"].endswith("canary"):
-                self.assertEqual(backend["weight"], 9)
-            else:
-                self.assertEqual(backend["weight"], 991)
-
-    def test_create_http_route_2(self):
-        response = self.create_http_route(name="test-gateway1", weight=0.0)
-        self.assertEqual(
-            len(response.json()["spec"]["rules"][0]["backendRefs"]),
-            1
+            rules={},
+            parent_refs={},
         )
 
     def test_patch_http_route(self):
@@ -112,20 +98,21 @@ class HTTPRouteTest(TestCase):
                 ]
             }
         ]
-        response = self.scheduler.httproutes.patch(
+        response = self.scheduler.httproute.patch(
             "test-gateway",
             "test-gateway",
             port=8000,
             procfile_type="cmd",
             version=1,
-            rules=rules
+            rules=rules,
+            parent_refs={},
         )
         self.assertEqual(response.json()["spec"]["rules"], rules)
 
     def test_delete_http_route(self):
-        self.test_create_http_route_2()
-        self.scheduler.httproutes.delete("test-gateway", "test-gateway")
-        response = self.scheduler.httproutes.get(
+        self.test_patch_http_route()
+        self.scheduler.httproute.delete("test-gateway", "test-gateway")
+        response = self.scheduler.httproute.get(
             "test-gateway",
             "test-gateway",
             ignore_exception=True
@@ -136,29 +123,15 @@ class HTTPRouteTest(TestCase):
 class TCPRouteTest(TestCase):
     """Tests scheduler gateway calls"""
 
-    def create_tcp_route(self, name="test-tcp-route", weight=0.0):
+    def create_tcp_route(self, name="test-tcp-route"):
         self.scheduler.ns.create(name)
         return self.scheduler.tcproutes.create(
             name,
             name,
             port=5000,
             procfile_type="celery",
-            weight=weight
-        )
-
-    def test_create_tcp_route_1(self):
-        response = self.create_tcp_route(weight=0.9)
-        for backend in response.json()['spec']['rules'][0]['backendRefs']:
-            if backend["name"].endswith("canary"):
-                self.assertEqual(backend["weight"], 9)
-            else:
-                self.assertEqual(backend["weight"], 991)
-
-    def test_create_tcp_route_2(self):
-        response = self.create_tcp_route(name="test-tcp-route1", weight=0.0)
-        self.assertEqual(
-            len(response.json()["spec"]["rules"][0]["backendRefs"]),
-            1
+            rules={},
+            parent_refs={},
         )
 
     def test_patch_tcp_route(self):
@@ -185,12 +158,13 @@ class TCPRouteTest(TestCase):
             port=8000,
             procfile_type="cmd",
             version=1,
-            rules=rules
+            rules=rules,
+            parent_refs={},
         )
         self.assertEqual(response.json()["spec"]["rules"], rules)
 
     def test_delete_tcp_route(self):
-        self.test_create_tcp_route_2()
+        self.test_patch_tcp_route()
         self.scheduler.tcproutes.delete("test-tcp-route", "test-tcp-route")
         response = self.scheduler.tcproutes.get(
             "test-tcp-route",
@@ -203,29 +177,15 @@ class TCPRouteTest(TestCase):
 class UDPRouteTest(TestCase):
     """Tests scheduler gateway calls"""
 
-    def create_udp_route(self, name="test-udp-route", weight=0.0):
+    def create_udp_route(self, name="test-udp-route"):
         self.scheduler.ns.create(name)
         return self.scheduler.udproutes.create(
             name,
             name,
             port=5000,
             procfile_type="celery",
-            weight=weight
-        )
-
-    def test_create_udp_route_1(self):
-        response = self.create_udp_route(weight=0.9)
-        for backend in response.json()['spec']['rules'][0]['backendRefs']:
-            if backend["name"].endswith("canary"):
-                self.assertEqual(backend["weight"], 9)
-            else:
-                self.assertEqual(backend["weight"], 991)
-
-    def test_create_udp_route_2(self):
-        response = self.create_udp_route(name="test-udp-route1", weight=0.0)
-        self.assertEqual(
-            len(response.json()["spec"]["rules"][0]["backendRefs"]),
-            1
+            rules={},
+            parent_refs={}
         )
 
     def test_patch_udp_route(self):
@@ -252,12 +212,13 @@ class UDPRouteTest(TestCase):
             port=8000,
             procfile_type="cmd",
             version=1,
-            rules=rules
+            rules=rules,
+            parent_refs={}
         )
         self.assertEqual(response.json()["spec"]["rules"], rules)
 
     def test_delete_udp_route(self):
-        self.test_create_udp_route_2()
+        self.test_patch_udp_route()
         self.scheduler.udproutes.delete("test-udp-route", "test-udp-route")
         response = self.scheduler.udproutes.get(
             "test-udp-route",
