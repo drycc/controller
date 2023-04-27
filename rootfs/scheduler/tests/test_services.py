@@ -16,11 +16,11 @@ class ServicesTest(TestCase):
         Helper function to create and verify a service on the namespace
         """
         name = generate_random_name()
-        service = self.scheduler.svc.create(self.namespace, name, **{
+        service = self.scheduler.svc.create(self.namespace, name, ports=[{
             "port": port,
             "protocol": protocol,
-            "target_port": target_port,
-        })
+            "targetPort": target_port,
+        }])
         data = service.json()
         self.assertEqual(service.status_code, 201, data)
         self.assertEqual(data['metadata']['name'], name)
@@ -52,17 +52,21 @@ class ServicesTest(TestCase):
     def test_patch(self):
         name = self.create()
         expect = {
-            "port": 6000,
-            "protocol": "UDP",
-            "target_port": "6000",
+            "ports": [{
+                "port": 6000,
+                "protocol": "UDP",
+                "targetPort": "6000",
+            }],
             "version": 1,
         }
         self.scheduler.svc.patch(self.namespace, name, **expect)
         service = self.scheduler.svc.get(self.namespace, name).json()
         self.assertEqual(expect, {
-            "port": service['spec']['ports'][0]['port'],
-            "protocol": service['spec']['ports'][0]['protocol'],
-            "target_port": service['spec']['ports'][0]['targetPort'],
+            "ports": [{
+                "port": service['spec']['ports'][0]['port'],
+                "protocol": service['spec']['ports'][0]['protocol'],
+                "targetPort": service['spec']['ports'][0]['targetPort'],
+            }],
             "version": service['metadata']['resourceVersion']
         })
 
@@ -72,7 +76,11 @@ class ServicesTest(TestCase):
         service = self.scheduler.svc.get(self.namespace, name).json()
         self.assertEqual(service['spec']['ports'][0]['targetPort'], 5000, service)
 
-        response = self.scheduler.svc.patch(self.namespace, name, target_port=5001)
+        response = self.scheduler.svc.patch(self.namespace, name, ports=[{
+            "port": service['spec']['ports'][0]['port'],
+            "protocol": service['spec']['ports'][0]['protocol'],
+            "targetPort": 5001,
+        }])
         self.assertEqual(response.status_code, 200, response.json())
 
         service = self.scheduler.svc.get(self.namespace, name).json()

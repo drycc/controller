@@ -158,7 +158,7 @@ app_urlpatterns = [
         views.AdminPermsViewSet.as_view({'get': 'list', 'post': 'create'})),
     # certificates
     re_path(
-        r'^certs/(?P<name>[-_*.\w]+)/domain/(?P<domain>\**\.?[-\._\w]+)?$',
+        r'^certs/(?P<name>[-_*.\w]+)/domain/(?P<domain>\**\.?[-\._\w]+)?/?$',
         views.CertificateViewSet.as_view({'delete': 'detach', 'post': 'attach'})),
     re_path(
         r'^certs/(?P<name>[-_*.\w]+)/?$',
@@ -176,8 +176,8 @@ app_urlpatterns = [
             {'post': 'create_or_update', 'get': 'list', 'delete': 'delete'})),
     # routes
     re_path(
-        r"^apps/(?P<id>{})/routes/?$".format(settings.APP_URL_REGEX),
-        views.GatewayViewSet.as_view(
+        r"^apps/(?P<id>{})/routes/(?P<name>[-_\w]+)?/?$".format(settings.APP_URL_REGEX),
+        views.RouteViewSet.as_view(
             {'post': 'create', 'get': 'list', 'delete': 'delete'})),
     re_path(
         r"^apps/(?P<id>{})/routes/(?P<name>[-_\w]+)/attach/?$".format(settings.APP_URL_REGEX),

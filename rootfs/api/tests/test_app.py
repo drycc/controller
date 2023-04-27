@@ -443,11 +443,12 @@ class AppTest(DryccTestCase):
             {'text': 'Not Found', 'status_code': 404},
             {'text': 'OK', 'status_code': 200}
         ]
-        hostname = 'http://{}:{}/'.format(settings.ROUTER_HOST, settings.ROUTER_PORT)
-        mr = mock_requests.register_uri('GET', hostname, responses)
 
         # create app
         app_id = self.create_app()
+        hostname = 'http://{}.{}.svc.{}:80/'.format(
+            app_id, app_id, settings.KUBERNETES_CLUSTER_DOMAIN)
+        mr = mock_requests.register_uri('GET', hostname, responses)
 
         # deploy app to get verification
         url = "/v2/apps/{}/builds".format(app_id)
@@ -477,12 +478,13 @@ class AppTest(DryccTestCase):
             {'text': 'Not Found', 'status_code': 404},
             {'text': 'Not Found', 'status_code': 404},
         ]
-        hostname = 'http://{}:{}/'.format(settings.ROUTER_HOST, settings.ROUTER_PORT)
-        mr = mock_requests.register_uri('GET', hostname, responses)
 
         # create app
         app_id = self.create_app()
 
+        hostname = 'http://{}.{}.svc.{}:80/'.format(
+            app_id, app_id, settings.KUBERNETES_CLUSTER_DOMAIN)
+        mr = mock_requests.register_uri('GET', hostname, responses)
         # deploy app to get verification
         url = "/v2/apps/{}/builds".format(app_id)
         body = {'image': 'autotest/example', 'stack': 'container'}
@@ -501,12 +503,12 @@ class AppTest(DryccTestCase):
         def _raise_exception(request, ctx):
             raise requests.exceptions.RequestException('Boom!')
 
-        # function tries to hit router 10 times
-        hostname = 'http://{}:{}/'.format(settings.ROUTER_HOST, settings.ROUTER_PORT)
-        mr = mock_requests.register_uri('GET', hostname, text=_raise_exception)
-
         # create app
         app_id = self.create_app()
+        # function tries to hit router 10 times
+        hostname = 'http://{}.{}.svc.{}:80/'.format(
+            app_id, app_id, settings.KUBERNETES_CLUSTER_DOMAIN)
+        mr = mock_requests.register_uri('GET', hostname, text=_raise_exception)
 
         # deploy app to get verification
         url = "/v2/apps/{}/builds".format(app_id)

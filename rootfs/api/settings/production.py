@@ -274,8 +274,8 @@ random_secret = 'CHANGEME_sapm$s%upvsw5l_zuy_&29rkywd^78ff(qi*#@&*^'
 SECRET_KEY = os.environ.get('DRYCC_SECRET_KEY', random_secret)
 BUILDER_KEY = os.environ.get('DRYCC_BUILDER_KEY', random_secret)
 
-# ingress class name
-INGRESS_CLASS = os.environ.get('DRYCC_INGRESS_CLASS', '')
+# gateway class name
+GATEWAY_CLASS = os.environ.get('DRYCC_GATEWAY_CLASS', '')
 
 PLATFORM_DOMAIN = os.environ.get('DRYCC_PLATFORM_DOMAIN', 'local.drycc.cc')
 
@@ -401,10 +401,6 @@ REGISTRY_SECRET_PREFIX = os.environ.get('DRYCC_REGISTRY_SECRET_PREFIX', 'private
 # logger settings
 LOGGER_HOST = os.environ.get('DRYCC_LOGGER_SERVICE_HOST', '127.0.0.1')
 LOGGER_PORT = os.environ.get('DRYCC_LOGGER_SERVICE_PORT_HTTP', 80)
-
-# router information
-ROUTER_HOST = os.environ.get('DRYCC_ROUTER_SERVICE_HOST', '127.0.0.1')
-ROUTER_PORT = os.environ.get('DRYCC_ROUTER_SERVICE_PORT', 80)
 
 DRYCC_DATABASE_URL = os.environ.get('DRYCC_DATABASE_URL', 'postgres://postgres:@:5432/drycc')
 DATABASES = {

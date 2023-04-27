@@ -38,7 +38,6 @@ def get_k8s_session(k8s_api_verify_tls):
 
 
 class KubeHTTPClient(object):
-    abstract = False
     api_version = 'v1'
     api_prefix = 'api'
     # ISO-8601 which is used by kubernetes
@@ -56,7 +55,7 @@ class KubeHTTPClient(object):
             name = str(res.__name__).lower()  # singular
             component = name + 's'  # make plural
             # check if component has already been processed
-            if component in resource_mapping or res.abstract:
+            if component in resource_mapping:
                 continue
 
             # get past recursion problems in case of self reference

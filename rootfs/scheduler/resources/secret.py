@@ -90,6 +90,20 @@ class Secret(Resource):
 
         return response
 
+    def patch(self, namespace, name, data, secret_type='Opaque', labels={}):
+        manifest = self.manifest(namespace, name, data, secret_type, labels)
+        url = self.api("/namespaces/{}/secrets/{}", namespace, name)
+        response = self.http_patch(url, json=manifest, headers={
+                                   "Content-Type": "application/merge-patch+json"})
+        if self.unhealthy(response.status_code):
+            raise KubeHTTPException(
+                response,
+                'failed to update Secret "{}" in Namespace "{}"',
+                name, namespace
+            )
+
+        return response
+
     def update(self, namespace, name, data, secret_type='Opaque', labels={}):
         manifest = self.manifest(namespace, name, data, secret_type, labels)
         url = self.api("/namespaces/{}/secrets/{}", namespace, name)

@@ -36,7 +36,6 @@ def custom_exception_handler(exc, context):
     if isinstance(exc, Http404):
         set_rollback()
         return Response(str(exc), status=status.HTTP_404_NOT_FOUND)
-
     # Call REST framework's default exception handler after specific 404 handling,
     # to get the standard error response.
     response = exception_handler(exc, context)

@@ -14,7 +14,7 @@ logger = logging.getLogger(__name__)
 class Service(AuditedModel):
     owner = models.ForeignKey(User, on_delete=models.PROTECT)
     app = models.ForeignKey('App', on_delete=models.CASCADE)
-    ports = models.JSONField(default=dict)
+    ports = models.JSONField(default=list)
     procfile_type = models.TextField()
 
     class Meta:
@@ -25,25 +25,28 @@ class Service(AuditedModel):
     def __str__(self):
         return self._svc_name()
 
+    @property
+    def domain(self):
+        return "{}.{}.svc.{}".format(
+            self._svc_name(), self._namespace(), settings.KUBERNETES_CLUSTER_DOMAIN
+        )
+
     def as_dict(self):
-        namespace = self._namespace()
-        svc_name = self._svc_name()
-        cluster_domain = settings.KUBERNETES_CLUSTER_DOMAIN
         return {
-            "domain": f"{svc_name}.{namespace}.svc.{cluster_domain}",
+            "domain": self.domain,
             "ports": self.ports,
             "procfile_type": self.procfile_type,
         }
 
     def port_name(self, port, protocol):
-        return "%s-%s-%s-%s" % (self.app.id, self.procfile_type, protocol, port)
+        return "-".join([self.app.id, self.procfile_type, protocol, str(port)]).lower()
 
     def add_port(self, port, protocol, target_port):
         self.ports.append({
             "name": self.port_name(port, protocol),
             "port": port,
             "protocol": protocol,
-            "target_port": target_port,
+            "targetPort": target_port,
         })
 
     def refresh_k8s_svc(self):
@@ -56,10 +59,12 @@ class Service(AuditedModel):
                 self._scheduler.svc.patch(namespace, svc_name, **{
                     "ports": self.ports,
                     "version": data["metadata"]["resourceVersion"],
+                    "procfile_type": self.procfile_type,
                 })
             except KubeException:
                 self._scheduler.svc.create(namespace, svc_name, **{
                     "ports": self.ports,
+                    "procfile_type": self.procfile_type,
                 })
         except KubeException as e:
             raise ServiceUnavailable('Kubernetes service could not be created') from e

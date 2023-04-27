@@ -21,13 +21,15 @@ class Service(Resource):
                 'type': kwargs.get("type", "ClusterIP"),
                 'ports': kwargs.get("ports"),
                 'selector': {
-                    'app': name,
+                    'app': namespace,
                     'heritage': 'drycc'
                 }
             }
         }
         if "version" in kwargs:
             data["metadata"]["resourceVersion"] = kwargs.get("version")
+        if "procfile_type" in kwargs:
+            data["spec"]["selector"]['type'] = kwargs.get("procfile_type")
         return data
 
     def get(self, namespace, name=None, **kwargs):

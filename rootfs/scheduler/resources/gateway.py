@@ -70,9 +70,7 @@ class Gateway(Resource):
         return response
 
 
-class BaseRoute(Resource):
-    abstract = True
-    kind = "BaseRoute"
+class Route(Resource):
     api_prefix = 'apis'
     api_version = 'gateway.networking.k8s.io/v1beta1'
 
@@ -140,8 +138,19 @@ class BaseRoute(Resource):
         return response
 
 
-class HTTPRoute(BaseRoute):
+class TCPRoute(Route):
+    kind = "TCPRoute"
+    api_version = 'gateway.networking.k8s.io/v1alpha2'
+
+
+class UDPRoute(Route):
+    kind = "UDPRoute"
+    api_version = 'gateway.networking.k8s.io/v1alpha2'
+
+
+class HTTPRoute(Route):
     kind = "HTTPRoute"
+    api_version = 'gateway.networking.k8s.io/v1beta1'
 
     def manifest(self, namespace, name, **kwargs):
         data = super().manifest(namespace, name, **kwargs)
@@ -150,15 +159,23 @@ class HTTPRoute(BaseRoute):
         return data
 
 
-class GRPCRoute(HTTPRoute):
+class GRPCRoute(Route):
     kind = "GRPCRoute"
+    api_version = 'gateway.networking.k8s.io/v1beta1'
+
+    def manifest(self, namespace, name, **kwargs):
+        data = super().manifest(namespace, name, **kwargs)
+        if "hostnames" in kwargs:
+            data["spec"]["hostnames"] = kwargs["hostnames"]
+        return data
 
 
-class TCPRoute(BaseRoute):
-    kind = "TCPRoute"
-    api_version = 'gateway.networking.k8s.io/v1alpha2'
+class TLSRoute(Route):
+    kind = "GRPCRoute"
+    api_version = 'gateway.networking.k8s.io/v1beta1'
 
-
-class UDPRoute(BaseRoute):
-    kind = "UDPRoute"
-    api_version = 'gateway.networking.k8s.io/v1alpha2'
+    def manifest(self, namespace, name, **kwargs):
+        data = super().manifest(namespace, name, **kwargs)
+        if "hostnames" in kwargs:
+            data["spec"]["hostnames"] = kwargs["hostnames"]
+        return data

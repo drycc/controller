@@ -7,7 +7,6 @@ from unittest import mock
 
 from django.contrib.auth import get_user_model
 from django.core.cache import cache
-from django.conf import settings
 from rest_framework.authtoken.models import Token
 
 from api.models.domain import Domain
@@ -69,9 +68,7 @@ class DomainTest(DryccTestCase):
         url = '/v2/apps/{app_id}/domains'.format(app_id=self.app_id)
         response = self.client.get(url)
         expected = [data['domain'] for data in response.data['results']]
-        self.assertEqual(
-            sorted(["%s.%s" % (self.app_id, settings.PLATFORM_DOMAIN), domain]),
-            expected, msg)
+        self.assertEqual([domain], expected, msg)
 
     def test_manage_idn_domain(self):
         url = '/v2/apps/{app_id}/domains'.format(app_id=self.app_id)
@@ -107,9 +104,7 @@ class DomainTest(DryccTestCase):
             url = '/v2/apps/{app_id}/domains'.format(app_id=self.app_id)
             response = self.client.get(url)
             expected = [data['domain'] for data in response.data['results']]
-            self.assertEqual(
-                sorted(["%s.%s" % (self.app_id, settings.PLATFORM_DOMAIN), ace_domain]),
-                sorted(expected), msg)
+            self.assertEqual([ace_domain], expected, msg)
 
             # Verify creation failure for same domain with different encoding
             if ace_domain != domain:
@@ -130,13 +125,11 @@ class DomainTest(DryccTestCase):
             # Verify removal
             url = '/v2/apps/{app_id}/domains'.format(app_id=self.app_id)
             response = self.client.get(url)
-            self.assertEqual(1, response.data['count'], msg)
+            self.assertEqual(0, response.data['count'], msg)
 
             # verify only app domain is left
             expected = [data['domain'] for data in response.data['results']]
-            self.assertEqual(
-                ["%s.%s" % (self.app_id, settings.PLATFORM_DOMAIN)],
-                expected, msg)
+            self.assertEqual([], expected, msg)
 
             # Use different encoding for creating and deleting (ACE)
             if ace_domain != domain:
@@ -148,9 +141,7 @@ class DomainTest(DryccTestCase):
                 url = '/v2/apps/{app_id}/domains'.format(app_id=self.app_id)
                 response = self.client.get(url)
                 expected = [data['domain'] for data in response.data['results']]
-                self.assertEqual(
-                    sorted(["%s.%s" % (self.app_id, settings.PLATFORM_DOMAIN), ace_domain]),
-                    sorted(expected), msg)
+                self.assertEqual([ace_domain], expected, msg)
 
                 # Delete
                 url = '/v2/apps/{app_id}/domains/{hostname}'.format(hostname=ace_domain,
@@ -161,13 +152,11 @@ class DomainTest(DryccTestCase):
                 # Verify removal
                 url = '/v2/apps/{app_id}/domains'.format(app_id=self.app_id)
                 response = self.client.get(url)
-                self.assertEqual(1, response.data['count'], msg)
+                self.assertEqual(0, response.data['count'], msg)
 
                 # verify only app domain is left
                 expected = [data['domain'] for data in response.data['results']]
-                self.assertEqual(
-                    ["%s.%s" % (self.app_id, settings.PLATFORM_DOMAIN)],
-                    expected, msg)
+                self.assertEqual([], expected, msg)
 
             # Use different encoding for creating and deleting (Unicode)
             if unicode_domain != domain:
@@ -179,9 +168,7 @@ class DomainTest(DryccTestCase):
                 url = '/v2/apps/{app_id}/domains'.format(app_id=self.app_id)
                 response = self.client.get(url)
                 expected = [data['domain'] for data in response.data['results']]
-                self.assertEqual(
-                    sorted(["%s.%s" % (self.app_id, settings.PLATFORM_DOMAIN), ace_domain]),
-                    sorted(expected), msg)
+                self.assertEqual([ace_domain], expected, msg)
 
                 # Delete
                 url = '/v2/apps/{app_id}/domains/{hostname}'.format(hostname=unicode_domain,
@@ -192,13 +179,11 @@ class DomainTest(DryccTestCase):
                 # Verify removal
                 url = '/v2/apps/{app_id}/domains'.format(app_id=self.app_id)
                 response = self.client.get(url)
-                self.assertEqual(1, response.data['count'], msg)
+                self.assertEqual(0, response.data['count'], msg)
 
                 # verify only app domain is left
                 expected = [data['domain'] for data in response.data['results']]
-                self.assertEqual(
-                    ["%s.%s" % (self.app_id, settings.PLATFORM_DOMAIN)],
-                    expected, msg)
+                self.assertEqual([], expected, msg)
 
     def test_manage_domain(self):
         url = '/v2/apps/{app_id}/domains'.format(app_id=self.app_id)
@@ -228,9 +213,7 @@ class DomainTest(DryccTestCase):
             url = '/v2/apps/{app_id}/domains'.format(app_id=self.app_id)
             response = self.client.get(url)
             expected = [data['domain'] for data in response.data['results']]
-            self.assertEqual(
-                sorted(["%s.%s" % (self.app_id, settings.PLATFORM_DOMAIN), domain]),
-                sorted(expected), msg)
+            self.assertEqual([domain], expected, msg)
 
             # Delete
             url = '/v2/apps/{app_id}/domains/{hostname}'.format(hostname=domain,
@@ -241,13 +224,11 @@ class DomainTest(DryccTestCase):
             # Verify removal
             url = '/v2/apps/{app_id}/domains'.format(app_id=self.app_id)
             response = self.client.get(url)
-            self.assertEqual(1, response.data['count'], msg)
+            self.assertEqual(0, response.data['count'], msg)
 
             # verify only app domain is left
             expected = [data['domain'] for data in response.data['results']]
-            self.assertEqual(
-                ["%s.%s" % (self.app_id, settings.PLATFORM_DOMAIN)],
-                expected, msg)
+            self.assertEqual([], expected, msg)
 
     def test_delete_domain_does_not_exist(self):
         """Remove a domain that does not exist"""
@@ -274,17 +255,10 @@ class DomainTest(DryccTestCase):
         with self.assertRaises(Domain.DoesNotExist):
             Domain.objects.get(domain=test_domains[0])
 
-    def test_delete_domain_does_not_remove_default(self):
-        domain = "%s.%s" % (self.app_id, settings.PLATFORM_DOMAIN)
-        url = '/v2/apps/{app_id}/domains/{domain}'.format(domain=domain,
-                                                          app_id=self.app_id)
-        response = self.client.delete(url)
-        self.assertEqual(response.status_code, 403, response.data)
-
     def test_delete_domain_does_not_remove_others(self):
         """https://github.com/drycc/drycc/issues/3475"""
         self.test_delete_domain_does_not_remove_latest()
-        self.assertEqual(Domain.objects.all().count(), 2)
+        self.assertEqual(Domain.objects.all().count(), 1)
 
     def test_manage_domain_invalid_app(self):
         # Create domain
