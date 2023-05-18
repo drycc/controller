@@ -6,11 +6,11 @@ COPY requirements.txt ${DRYCC_HOME_DIR}/requirements.txt
 COPY dev_requirements.txt ${DRYCC_HOME_DIR}/dev_requirements.txt
 
 ENV PGDATA="/opt/drycc/postgresql/data" \
-  PYTHON_VERSION="3.10.6" \
-  REDIS_VERSION="7.0.4" \
-  RABBITMQ_VERSION="3.10.7" \
+  PYTHON_VERSION="3.10.11" \
+  REDIS_VERSION="7.0.9" \
+  RABBITMQ_VERSION="3.11.16" \
   POSTGRES_VERSION="14.5" \
-  GOSU_VERSION="1.14"
+  GOSU_VERSION="1.16"
 
 RUN buildDeps='gcc rustc cargo  libffi-dev musl-dev openssl'; \
   install-packages mercurial ca-certificates git $buildDeps \
