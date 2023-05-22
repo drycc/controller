@@ -898,6 +898,7 @@ class RouteViewSet(AppResourceViewSet):
         rules = request.data
         if isinstance(rules, str):
             rules = json.loads(rules)
+        rules = self.get_serializer().validate_rules(rules)
         route.rules = rules
         ok, msg = route.check_rules()
         if not ok:
