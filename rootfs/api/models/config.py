@@ -138,6 +138,23 @@ class Config(UuidAuditedModel):
                 self.cpu[container_type] = f"{settings.KUBERNETES_LIMITS_MIN_CPU}m"
                 self.memory[container_type] = f"{settings.KUBERNETES_LIMITS_MIN_MEMORY}M"
 
+    def previous(self):
+        """
+        Return the previous Release to this one.
+
+        :return: the previous :class:`Release`, or None
+        """
+        configs = self.app.config_set
+        if self.pk:
+            configs = configs.exclude(pk=self.pk)
+
+        try:
+            # Get the Release previous to this one
+            prev_release = configs.latest()
+        except Release.DoesNotExist:
+            prev_release = None
+        return prev_release
+
     def set_registry(self):
         # lower case all registry options for consistency
         self.registry = {key.lower(): value for key, value in self.registry.copy().items()}

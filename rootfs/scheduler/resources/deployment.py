@@ -106,6 +106,8 @@ class Deployment(Resource):
 
         # set the old deployment spec annotations on this deployment
         manifest['spec']['template']['metadata']['annotations'] = spec_annotations
+        if "resource_version" in kwargs:
+            manifest["metadata"]["resourceVersion"] = kwargs.get("resource_version")
 
         return manifest
 
@@ -142,10 +144,30 @@ class Deployment(Resource):
 
         return response
 
-    def delete(self, namespace, name):
+    def patch(self, namespace, name, image, entrypoint, command, spec_annotations, **kwargs):
+        manifest = self.manifest(namespace, name, image,
+                                 entrypoint, command, spec_annotations, **kwargs)
+
+        url = self.api("/namespaces/{}/deployments/{}", namespace, name)
+        response = self.http_patch(
+            url,
+            json=manifest,
+            headers={"Content-Type": "application/merge-patch+json"}
+        )
+
+        if self.unhealthy(response.status_code):
+            self.log(namespace, 'template: {}'.format(json.dumps(manifest, indent=4)), 'DEBUG')
+            raise KubeHTTPException(response, 'patch Deployment "{}"', name)
+
+        self.wait_until_updated(namespace, name)
+        self.wait_until_ready(namespace, name, **kwargs)
+
+        return response
+
+    def delete(self, namespace, name, ignore_exception=False):
         url = self.api("/namespaces/{}/deployments/{}", namespace, name)
         response = self.http_delete(url)
-        if self.unhealthy(response.status_code):
+        if not ignore_exception and self.unhealthy(response.status_code):
             raise KubeHTTPException(
                 response,
                 'delete Deployment "{}" in Namespace "{}"', name, namespace
@@ -153,7 +175,7 @@ class Deployment(Resource):
 
         return response
 
-    def scale(self, namespace, name, image, entrypoint, command, **kwargs):
+    def scale(self, namespace, name, **kwargs):
         """
         A convenience wrapper around Deployment update that does a little bit of introspection
         to determine if scale level is already where it needs to be

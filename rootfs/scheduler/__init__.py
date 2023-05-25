@@ -336,7 +336,7 @@ class KubeHTTPClient(object):
                     raise
 
         # let the scale failure bubble up
-        self.deployment.scale(namespace, name, image, entrypoint, command, **kwargs)
+        self.deployment.scale(namespace, name, **kwargs)
 
     def run(self, namespace, name, image, entrypoint, command, **kwargs):
         """Run a one-off command."""

@@ -1,0 +1,69 @@
+{
+	"stable": [{
+		"matches": [{
+			"path": {
+				"type": "PathPrefix",
+				"value": "/add-multiple-response-headers"
+			}
+		}],
+		"filters": [{
+			"type": "ResponseHeaderModifier",
+			"responseHeaderModifier": {
+				"add": [{
+						"name": "X-Header-Add-1",
+						"value": "header-add-1"
+					},
+					{
+						"name": "X-Header-Add-2",
+						"value": "header-add-2"
+					},
+					{
+						"name": "X-Header-Add-3",
+						"value": "header-add-3"
+					}
+				]
+			}
+		}],
+		"backendRefs": [{
+			"name": "echo",
+			"port": 8080
+		}]
+	}],
+	"canary": [{
+		"matches": [{
+			"path": {
+				"type": "PathPrefix",
+				"value": "/add-multiple-response-headers"
+			}
+		}],
+		"filters": [{
+			"type": "ResponseHeaderModifier",
+			"responseHeaderModifier": {
+				"add": [{
+						"name": "X-Header-Add-1",
+						"value": "header-add-1"
+					},
+					{
+						"name": "X-Header-Add-2",
+						"value": "header-add-2"
+					},
+					{
+						"name": "X-Header-Add-3",
+						"value": "header-add-3"
+					}
+				]
+			}
+		}],
+		"backendRefs": [{
+				"name": "echo",
+				"port": 8080,
+				"weight": 10
+			},
+			{
+				"name": "echo-canary",
+				"port": 8080,
+				"weight": 90
+			}
+		]
+	}]
+}

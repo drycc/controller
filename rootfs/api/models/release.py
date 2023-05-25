@@ -24,6 +24,7 @@ class Release(UuidAuditedModel):
     version = models.PositiveIntegerField()
     summary = models.TextField(blank=True, null=True)
     failed = models.BooleanField(default=False)
+    canary = models.BooleanField(default=False)
     exception = models.TextField(blank=True, null=True)
 
     config = models.ForeignKey('Config', on_delete=models.CASCADE)
@@ -41,7 +42,7 @@ class Release(UuidAuditedModel):
     def image(self):
         return self.build.image
 
-    def new(self, user, config, build, summary=None, source_version='latest'):
+    def new(self, user, config, build, summary=None, canary=False):
         """
         Create a new application release using the provided Build and Config
         on behalf of a user.
@@ -53,7 +54,7 @@ class Release(UuidAuditedModel):
         # create new release and auto-increment version
         return Release.objects.create(
             owner=user, app=self.app, config=config,
-            build=build, version=new_version, summary=summary
+            build=build, version=new_version, summary=summary, canary=canary
         )
 
     def get_port(self):
@@ -134,13 +135,14 @@ class Release(UuidAuditedModel):
             prev = self.app.release_set.get(version=version)
             if prev.failed:
                 raise DryccException('Cannot roll back to failed release.')
+            app_settings = self.app.appsettings_set.latest()
             latest_version = self.app.release_set.latest().version
             new_release = self.new(
                 user,
                 build=prev.build,
                 config=prev.config,
                 summary="{} rolled back to v{}".format(user, version),
-                source_version='v{}'.format(version)
+                canary=len(app_settings.canaries) > 0,
             )
 
             if self.build is not None:

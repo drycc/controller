@@ -75,7 +75,15 @@ app_urlpatterns = [
     # application settings
     re_path(
         r"^apps/(?P<id>{})/settings/?$".format(settings.APP_URL_REGEX),
-        views.AppSettingsViewSet.as_view({'get': 'retrieve', 'post': 'create'})),
+        views.AppSettingsViewSet.as_view(
+            {'get': 'retrieve', 'post': 'create', 'delete': 'remove'})),
+    # application canary
+    re_path(
+        r"^apps/(?P<id>{})/canary/release/?$".format(settings.APP_URL_REGEX),
+        views.CanaryViewSet.as_view({'post': 'release'})),
+    re_path(
+        r"^apps/(?P<id>{})/canary/rollback/?$".format(settings.APP_URL_REGEX),
+        views.CanaryViewSet.as_view({'post': 'rollback'})),
     # application TLS settings
     re_path(
         r"^apps/(?P<id>{})/tls/?$".format(settings.APP_URL_REGEX),
@@ -96,7 +104,7 @@ app_urlpatterns = [
         views.AppVolumesViewSet.as_view({'patch': 'expand', 'delete': 'destroy'})),
     re_path(
         r"^apps/(?P<id>{})/volumes/(?P<name>[-_\w]+)/path/?$".format(settings.APP_URL_REGEX),
-        views.AppVolumeMountPathViewSet.as_view({'patch': 'path'})),
+        views.AppVolumesViewSet.as_view({'patch': 'path'})),
     # application resources
     re_path(r"^resources/services/?$", views.AppResourcesViewSet.as_view({'get': 'services'})),
     re_path(

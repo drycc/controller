@@ -1,11 +1,15 @@
+import os
 import json
 import string
 import random
+import jsonschema
 from django.contrib.auth import get_user_model
 from django.core.cache import cache
 from rest_framework.authtoken.models import Token
 
+from api.models.app import App
 from api.tests import TEST_ROOT, DryccTransactionTestCase
+from api.schemas.rules import SCHEMA as RULES_SCHEMA
 
 User = get_user_model()
 
@@ -241,7 +245,7 @@ class RouteTest(BaseGatewayTest):
 
     def test_route_attach(self):
         app_id = self.create_app()
-        _, port, route_name = self.create_route(app_id)
+        procfile_type, port, route_name = self.create_route(app_id)
         gateway_name_1 = 'bing-gateway-1'
         self.create_gateway(app_id, gateway_name_1, 5000, "HTTP")
         self.client.patch(
@@ -264,10 +268,10 @@ class RouteTest(BaseGatewayTest):
         )
         response = self.client.get('/v2/apps/{}/routes/'.format(app_id))
         self.assertEqual(len(response.data["results"][0]["parent_refs"]), 2)
-        return app_id, gateway_name_1, gateway_name_2, port, route_name
+        return procfile_type, app_id, gateway_name_1, gateway_name_2, port, route_name
 
     def test_route_detach(self):
-        app_id, gateway_name_1, gateway_name_2, port, route_name = self.test_route_attach()
+        _, app_id, gateway_name_1, gateway_name_2, port, route_name = self.test_route_attach()
         self.client.patch(
             '/v2/apps/{}/routes/{}/detach/'.format(app_id, route_name),
             {
@@ -297,6 +301,25 @@ class RouteTest(BaseGatewayTest):
         )
         self.assertEqual(response.status_code, 400)
 
+    def test_app_settings_change_routable(self):
+        _, app_id, _, _, _, route_name = self.test_route_attach()
+        # Set routable to false
+        response = self.client.post(
+            f'/v2/apps/{app_id}/settings',
+            {'routable': False}
+        )
+        self.assertEqual(response.status_code, 201, response.data)
+        app = App.objects.get(id=app_id)
+        response = app._scheduler.httproute.get(app_id, route_name, ignore_exception=True)
+        self.assertEqual(response.status_code, 404)
+        # Set routable to false
+        response = self.client.post(
+            f'/v2/apps/{app_id}/settings',
+            {'routable': True}
+        )
+        response = app._scheduler.httproute.get(app_id, route_name, ignore_exception=True)
+        self.assertEqual(response.status_code, 200)
+
     def test_route_delete(self):
         app_id = self.create_app()
         _, _, route_name = self.create_route(app_id)
@@ -315,35 +338,67 @@ class RouteTest(BaseGatewayTest):
         response = self.client.get(
             '/v2/apps/{}/routes/{}/rules/'.format(app_id, route_name),
         )
-        expect = [{
-            'backendRefs': [{
-                'kind': 'Service',
-                'name': "%s-%s" % (app_id, procfile_type),
-                'port': 5000
+        expect = {
+            'canary': [{
+                'backendRefs': [{
+                    'kind': 'Service',
+                    'name': '%s-%s' % (app_id, procfile_type),
+                    'port': 5000,
+                    'weight': 100
+                }, {
+                    'kind': 'Service',
+                    'name': '%s-%s-canary' % (app_id, procfile_type),
+                    'port': 5000,
+                    'weight': 0
+                }]
+            }],
+            'stable': [{
+                'backendRefs': [{
+                    'kind': 'Service',
+                    'name': '%s-%s' % (app_id, procfile_type),
+                    'port': 5000,
+                    'weight': 100
+                }]
             }]
-        }]
-        self.assertEqual(response.data, expect)
+        }
+        self.assertEqual(response.data["stable"], expect["stable"])
+        self.assertEqual(response.data["canary"], expect["canary"])
+
+    def test_schemas(self):
+        for rule in os.listdir("{}/rules/".format(TEST_ROOT)):
+            with open("{}/rules/{}".format(TEST_ROOT, rule)) as f:
+                data = f.read()
+                try:
+                    jsonschema.validate(data, RULES_SCHEMA)
+                except Exception as e:
+                    raise self.failureException("validate %s rule error: %s" % (rule, str(e)))
 
     def test_rule_set(self):
         app_id = self.create_app()
         procfile_type, _, route_name = self.create_route(app_id)
-        expect = [{
-            "matches": [
-                {
-                    "path": {
-                        "type": "PathPrefix",
-                        "value": "/get"
-                    }
-                }
-            ],
-            'backendRefs': [
-                {
-                    'kind': 'Service',
-                    'name': "%s-%s" % (app_id, procfile_type),
-                    'port': 5000
-                }
-            ]
-        }]
+        expect = {
+            "canary": [{
+                "backendRefs": [{
+                    "kind": "Service",
+                    "name": "%s-%s" % (app_id, procfile_type),
+                    "port": 5000,
+                    "weight": 100
+                }, {
+                    "kind": "Service",
+                    "name": "%s-%s-canary" % (app_id, procfile_type),
+                    "port": 5000,
+                    "weight": 0
+                }]
+            }],
+            "stable": [{
+                "backendRefs": [{
+                    "kind": "Service",
+                    "name": "%s-%s" % (app_id, procfile_type),
+                    "port": 5000,
+                    "weight": 100
+                }]
+            }]
+        }
         response = self.client.put(
             '/v2/apps/{}/routes/{}/rules/'.format(app_id, route_name),
             json.dumps(expect),
@@ -353,24 +408,29 @@ class RouteTest(BaseGatewayTest):
             '/v2/apps/{}/routes/{}/rules/'.format(app_id, route_name),
         )
         self.assertEqual(json.dumps(response.data), json.dumps(expect))
-
-        expect = [{
-            'backendRefs': [
-                {
-                    'kind': 'Service',
-                    'name': "%s-%s-noexists" % (app_id, procfile_type),
-                    'port': 5000
-                }
-            ],
-            "matches": [
-                {
-                    "path": {
-                        "type": "PathPrefix",
-                        "value": "/get"
-                    }
-                }
-            ]
-        }]
+        expect = {
+            "canary": [{
+                "backendRefs": [{
+                    "kind": "Service",
+                    "name": "%s-%s-noexits" % (app_id, procfile_type),
+                    "port": 5000,
+                    "weight": 100
+                }, {
+                    "kind": "Service",
+                    "name": "%s-%s-noexits-canary" % (app_id, procfile_type),
+                    "port": 5000,
+                    "weight": 0
+                }]
+            }],
+            "stable": [{
+                "backendRefs": [{
+                    "kind": "Service",
+                    "name": "%s-%s-noexits" % (app_id, procfile_type),
+                    "port": 5000,
+                    "weight": 100
+                }]
+            }]
+        }
         response = self.client.put(
             '/v2/apps/{}/routes/{}/rules/'.format(app_id, route_name),
             json.dumps(expect),

@@ -5,7 +5,6 @@ import uuid
 import logging
 import json
 import time
-from copy import deepcopy
 from django.core.cache import cache
 from django.http import Http404, HttpResponse
 from django.conf import settings
@@ -215,7 +214,10 @@ class ReleasableViewSet(AppResourceViewSet):
     """A viewset for application resources which affect the release cycle."""
     def get_object(self):
         """Retrieve the object based on the latest release's value"""
-        return getattr(self.get_app().release_set.filter(failed=False).latest(), self.model.__name__.lower())  # noqa
+        return getattr(
+            self.get_app().release_set.filter(failed=False).latest(),
+            self.model.__name__.lower()
+        )
 
 
 class AppViewSet(BaseDryccViewSet):
@@ -310,7 +312,8 @@ class ConfigViewSet(ReleasableViewSet):
         release = config.app.release_set.filter(failed=False).latest()
         latest_version = config.app.release_set.latest().version
         try:
-            self.release = release.new(self.request.user, config=config, build=release.build)
+            self.release = release.new(
+                self.request.user, config=config, build=release.build, canary=release.canary)
             # It's possible to set config values before a build
             if self.release.build is not None:
                 config.app.deploy(self.release)
@@ -320,7 +323,8 @@ class ConfigViewSet(ReleasableViewSet):
                 self.release = config.app.release_set.latest()
             if hasattr(self, 'release'):
                 self.release.failed = True
-                self.release.summary = "{} deployed a config that failed".format(self.request.user)  # noqa
+                self.release.summary = "{} deployed a config that failed".format(
+                    self.request.user)
                 # Get the exception that has occured
                 self.release.exception = "error: {}".format(str(e))
                 self.release.save()
@@ -350,6 +354,42 @@ class PodViewSet(AppResourceViewSet):
 class AppSettingsViewSet(AppResourceViewSet):
     model = models.appsettings.AppSettings
     serializer_class = serializers.AppSettingsSerializer
+
+    def remove(self, request, *args, **kwargs):
+        app = self.get_app()
+        app_settings = self.get_object()
+        new_canaries = []
+        remove_canaries = request.data["canaries"]
+        for procfile_tyle in app_settings.canaries:
+            if procfile_tyle not in remove_canaries:
+                new_canaries.append(procfile_tyle)
+        new_app_settings = self.model(app=app, owner=app.owner, canaries=new_canaries)
+        new_app_settings.summary = f"{app.owner} remove canaries {','.join(remove_canaries)}"
+        new_app_settings.save(ignore_update_field=["canaries"])
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class CanaryViewSet(AppResourceViewSet):
+    model = models.appsettings.AppSettings
+    serializer_class = serializers.AppSettingsSerializer
+
+    def _clean_canaries(self):
+        app = self.get_app()
+        app_settings = self.model(app=app, owner=app.owner, canaries=[])
+        app_settings.summary = "canary release"
+        app_settings.save(ignore_update_field=["canaries"])
+
+    def release(self, request, *args, **kwargs):
+        self._clean_canaries()
+        release = self.get_app().release_set.filter(failed=False).latest()
+        data = {'version': release.rollback(request.user, release.version).version}
+        return Response(data, status=status.HTTP_201_CREATED)
+
+    def rollback(self, request, *args, **kwargs):
+        self._clean_canaries()
+        release = self.get_app().release_set.filter(failed=False, canary=False).latest()
+        data = {'version': release.rollback(request.user, release.version).version}
+        return Response(data, status=status.HTTP_201_CREATED)
 
 
 class DomainViewSet(AppResourceViewSet):
@@ -409,6 +449,7 @@ class ServiceViewSet(AppResourceViewSet):
             service = self.model(owner=app.owner, app=app, procfile_type=procfile_type)
             http_status = status.HTTP_201_CREATED
         service.add_port(port, protocol, target_port)
+        service.canary = procfile_type in app.appsettings_set.latest().canaries
         service.save()
         return Response(status=http_status)
 
@@ -588,7 +629,11 @@ class BuildHookViewSet(BaseHookViewSet):
         request.data['owner'] = self.user
         super(BuildHookViewSet, self).create(request, *args, **kwargs)
         # return the application databag
-        response = {'release': {'version': app.release_set.filter(failed=False).latest().version}}
+        response = {
+            'release': {
+                'version': app.release_set.filter(failed=False).latest().version
+            }
+        }
         return Response(response, status=status.HTTP_200_OK)
 
     def post_save(self, build):
@@ -661,46 +706,39 @@ class AppVolumesViewSet(ReleasableViewSet):
     model = models.volume.Volume
     serializer_class = serializers.VolumeSerializer
 
-    def expand(self, request, **kwargs):
-        volume = get_object_or_404(models.volume.Volume,
-                                   app__id=self.kwargs['id'],
-                                   name=self.kwargs['name'])
-        volume.expand(request.data['size'])
-        serializer = self.get_serializer(volume, many=False)
-        return Response(serializer.data)
-
-    def destroy(self, request, **kwargs):
-        volume = get_object_or_404(models.volume.Volume,
-                                   app__id=self.kwargs['id'],
-                                   name=self.kwargs['name'])
-        volume.delete()
-        return Response(status=status.HTTP_204_NO_CONTENT)
-
-
-class AppVolumeMountPathViewSet(ReleasableViewSet):
-    serializer_class = serializers.VolumeSerializer
-
     def get_object(self):
         return get_object_or_404(models.volume.Volume,
                                  app__id=self.kwargs['id'],
                                  name=self.kwargs['name'])
 
+    def expand(self, request, **kwargs):
+        volume = self.get_object()
+        volume.expand(request.data['size'])
+        serializer = self.get_serializer(volume, many=False)
+        return Response(serializer.data)
+
+    def destroy(self, request, **kwargs):
+        volume = self.get_object()
+        if volume.path != {}:
+            raise DryccException("this volume is mounting")
+        volume.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
     def path(self, request, *args, **kwargs):
         new_path = request.data.get('path')
         if new_path is None:
             raise DryccException("path is a required field")
-        obj = self.get_object()
+        volume = self.get_object()
         container_types = [_ for _ in new_path.keys()
-                           if _ not in obj.app.types or
-                           _ not in obj.app.structure.keys()]
+                           if _ not in volume.app.types]
         if container_types:
             raise DryccException("process type {} is not included in profile".
                                  format(','.join(container_types)))
 
-        if set(new_path.items()).issubset(set(obj.path.items())):
+        if set(new_path.items()).issubset(set(volume.path.items())):
             raise DryccException("mount path not changed")
 
-        other_volumes = self.get_app().volume_set.exclude(name=obj.name)
+        other_volumes = self.get_app().volume_set.exclude(name=volume.name)
         type_paths = {}  # {'type1':[path1,path2], tyep2:[path3,path4]}
         for _ in other_volumes:
             for k, v in _.path.items():
@@ -712,8 +750,7 @@ class AppVolumeMountPathViewSet(ReleasableViewSet):
         if repeat_path:
             raise DryccException("path {} is used by another volume".
                                  format(','.join(repeat_path)))
-        path = obj.path
-        pre_path = deepcopy(path)
+        path = volume.path
         # merge mount path
         # remove path keys if a null value is provided
         for key, value in new_path.items():
@@ -725,43 +762,13 @@ class AppVolumeMountPathViewSet(ReleasableViewSet):
                 path.pop(key)
             else:
                 path[key] = value
-        obj.path = path  # after merge path
-        obj.save()
-        self.deploy(obj, pre_path)
-        serializer = self.get_serializer(obj, many=False)
-        return Response(serializer.data)
 
-    def deploy(self, volume, pre_mount_path):
         app = self.get_app()
-        latest_release = app.release_set.filter(failed=False).latest()
-        latest_version = app.release_set.latest().version
-        try:
-            summary = "{user} changed volume mount for {volume}".\
-                format(user=self.request.user, volume=volume.name)
-            self.release = latest_release.new(
-                self.request.user,
-                config=latest_release.config,
-                build=latest_release.build,
-                summary=summary)
-            # It's possible to mount volume before a build
-            if self.release.build is not None:
-                app.deploy(self.release)
-        except Exception as e:
-            if (not hasattr(self, 'release') and
-                    app.release_set.latest().version == latest_version+1):
-                self.release = app.release_set.latest()
-            if hasattr(self, 'release'):
-                self.release.failed = True
-                self.release.summary = "{} deploy with a volume that failed".\
-                    format(self.request.user)  # noqa
-                # Get the exception that has occured
-                self.release.exception = "error: {}".format(str(e))
-                self.release.save()
-            volume.path = pre_mount_path
-            volume.save()
-            if isinstance(e, AlreadyExists):
-                raise
-            raise DryccException(str(e)) from e
+        volume.path = path  # after merge path
+        app.mount(self.request.user, volume)
+        volume.save()
+        serializer = self.get_serializer(volume, many=False)
+        return Response(serializer.data)
 
 
 class AppResourcesViewSet(AppResourceViewSet):
@@ -928,7 +935,7 @@ class RouteViewSet(AppResourceViewSet):
             procfile_type=procfile_type,
         )
         route.rules = route.default_rules
-        if not route.rules[0]["backendRefs"]:
+        if not route.current_rules[0]["backendRefs"]:
             return Response(status=status.HTTP_400_BAD_REQUEST, data={
                 "detail": "this route does not match services. please add service first."
             })
@@ -1089,7 +1096,7 @@ class MetricView(BaseDryccViewSet):
         app_id = self._get_app().id
         data = serializers.MetricSerializer(data=self.request.query_params)
         if not data.is_valid():
-            return Response(data.errors, status=422)
+            return Response(data.errors, status=status.HTTP_422_UNPROCESSABLE_ENTITY)
         start, stop, every = data.validated_data['start'], data.validated_data[
             'stop'], data.validated_data["every"]
         return Response({

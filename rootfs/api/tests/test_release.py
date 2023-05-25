@@ -115,7 +115,7 @@ class ReleaseTest(DryccTransactionTestCase):
         response = self.client.get(url)
         for key in response.data.keys():
             self.assertIn(key, ['uuid', 'owner', 'created', 'updated', 'app', 'build', 'config',
-                                'summary', 'version', 'failed', 'exception'])
+                                'summary', 'canary', 'version', 'failed', 'exception'])
         expected = {
             'owner': self.user.username,
             'app': app_id,

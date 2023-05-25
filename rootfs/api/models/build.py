@@ -54,6 +54,7 @@ class Build(UuidAuditedModel):
         return 'git-{}'.format(self.sha) if self.source_based else 'latest'
 
     def create(self, user, *args, **kwargs):
+        app_settings = self.app.appsettings_set.latest()
         latest_release = self.app.release_set.filter(failed=False).latest()
         latest_version = self.app.release_set.latest().version
         try:
@@ -61,7 +62,7 @@ class Build(UuidAuditedModel):
                 user,
                 build=self,
                 config=latest_release.config,
-                source_version=self.version
+                canary=len(app_settings.canaries) > 0,
             )
             self.app.deploy(new_release)
             return new_release

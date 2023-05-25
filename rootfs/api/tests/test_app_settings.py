@@ -172,3 +172,26 @@ class TestAppSettings(DryccTransactionTestCase):
             labels
         )
         self.assertEqual(response.status_code, 422, response.data)
+
+    def test_canaries(self, mock_requests):
+        app_id = self.create_app()
+        self.client.post(
+            f'/v2/apps/{app_id}/settings',
+            {'canaries': ["web", "task"]}
+        )
+        response = self.client.post(
+            f'/v2/apps/{app_id}/settings',
+            {'canaries': ["new", "apps"]}
+        )
+        self.assertEqual(
+            response.json()["canaries"],
+            ["web", "task", "new", "apps"],
+            response.data
+        )
+        response = self.client.delete(
+            f'/v2/apps/{app_id}/settings',
+            {'canaries': ["new", "apps"]}
+        )
+        app = App.objects.get(id=app_id)
+        app_settings = app.appsettings_set.latest()
+        self.assertEqual(app_settings.canaries, ["web", "task"])

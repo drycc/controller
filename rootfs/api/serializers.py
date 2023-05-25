@@ -17,6 +17,9 @@ from rest_framework import serializers
 
 from api import models
 from api.exceptions import DryccException
+from api.schemas.rules import SCHEMA as RULES_SCHEMA
+from api.schemas.autoscale import SCHEMA as AUTOSCALE_SCHEMA
+from api.schemas.healthcheck import SCHEMA as HEALTHCHECK_SCHEMA
 
 
 User = get_user_model()
@@ -27,7 +30,7 @@ GATEWAY_PROTOCOL_MATCH = re.compile(r'^(HTTP|HTTPS|TCP|TLS|UDP)$')
 GATEWAY_PROTOCOL_MISMATCH_MSG = "the gateway protocol only supports HTTP, HTTPS, TCP, TLS and UDP"
 ROUTE_PROTOCOL_MATCH = re.compile(r'^(HTTPRoute|TCPRoute|UDPRoute|TLSRoute)$')
 ROUTE_PROTOCOL_MISMATCH_MSG = "the route kind only supports HTTPRoute, TCPRoute, UDPRoute, and TLSRoute"  # noqa
-PROCTYPE_MATCH = re.compile(r'^(?P<type>[a-z0-9]+(\-[a-z0-9]+)*)$')
+PROCTYPE_MATCH = re.compile(r'^(?P<type>[a-z0-9]+(\-[a-z0-9]+)*)(?<!-canary)$')
 PROCTYPE_MISMATCH_MSG = "Process types can only contain lowercase alphanumeric characters"
 MEMLIMIT_MATCH = re.compile(r'^(?P<mem>([1-9][0-9]*[mgMG]))$', re.IGNORECASE)
 CPUSHARE_MATCH = re.compile(r'^(?P<cpu>([-+]?[1-9][0-9]*[m]?))$')
@@ -37,73 +40,6 @@ TERMINATION_GRACE_PERIOD_MATCH = re.compile(r'^[0-9]*$')
 VOLUME_SIZE_MATCH = re.compile(r'^(?P<volume>([1-9][0-9]*[gG]))$', re.IGNORECASE)
 VOLUME_PATH = re.compile(r'^\/(\w+\/?)+$', re.IGNORECASE)
 METRIC_EVERY = re.compile(r'^[1-9][0-9]*m$')
-
-PROBE_SCHEMA = {
-    "$schema": "http://json-schema.org/schema#",
-
-    "type": "object",
-    "properties": {
-        # Exec specifies the action to take.
-        # More info: http://kubernetes.io/docs/api-reference/v1/definitions/#_v1_execaction
-        "exec": {
-            "type": "object",
-            "properties": {
-                "command": {
-                    "type": "array",
-                    "minItems": 1,
-                    "items": {"type": "string"}
-                }
-            },
-            "required": ["command"]
-        },
-        # HTTPGet specifies the http request to perform.
-        # More info: http://kubernetes.io/docs/api-reference/v1/definitions/#_v1_httpgetaction
-        "httpGet": {
-            "type": "object",
-            "properties": {
-                "path": {"type": "string"},
-                "port": {"type": "integer"},
-                "host": {"type": "string"},
-                "scheme": {"type": "string"},
-                "httpHeaders": {
-                    "type": "array",
-                    "minItems": 0,
-                    "items": {
-                        "type": "object",
-                        "properties": {
-                            "name": {"type": "string"},
-                            "value": {"type": "string"},
-                        }
-                    }
-                }
-            },
-            "required": ["port"]
-        },
-        # TCPSocket specifies an action involving a TCP port.
-        # More info: http://kubernetes.io/docs/api-reference/v1/definitions/#_v1_tcpsocketaction
-        "tcpSocket": {
-            "type": "object",
-            "properties": {
-                "port": {"type": "integer"},
-            },
-            "required": ["port"]
-        },
-        # Number of seconds after the container has started before liveness probes are initiated.
-        # More info: http://releases.k8s.io/HEAD/docs/user-guide/pod-states.md#container-probes
-        "initialDelaySeconds": {"type": "integer"},
-        # Number of seconds after which the probe times out.
-        # More info: http://releases.k8s.io/HEAD/docs/user-guide/pod-states.md#container-probes
-        "timeoutSeconds": {"type": "integer"},
-        # How often (in seconds) to perform the probe.
-        "periodSeconds": {"type": "integer"},
-        # Minimum consecutive successes for the probe to be considered successful
-        # after having failed.
-        "successThreshold": {"type": "integer"},
-        # Minimum consecutive failures for the probe to be considered
-        # failed after having succeeded.
-        "failureThreshold": {"type": "integer"},
-    }
-}
 
 
 class JSONFieldSerializer(serializers.JSONField):
@@ -404,7 +340,7 @@ class ConfigSerializer(serializers.ModelSerializer):
                     raise serializers.ValidationError(
                         "Healthcheck keys must be either livenessProbe or readinessProbe")
                 try:
-                    jsonschema.validate(value, PROBE_SCHEMA)
+                    jsonschema.validate(value, HEALTHCHECK_SCHEMA)
                 except jsonschema.ValidationError as e:
                     raise serializers.ValidationError(
                         "could not validate {}: {}".format(value, e.message))
@@ -586,6 +522,7 @@ class AppSettingsSerializer(serializers.ModelSerializer):
 
     app = serializers.SlugRelatedField(slug_field='id', queryset=models.app.App.objects.all())
     owner = serializers.ReadOnlyField(source='owner.username')
+    canaries = serializers.JSONField(required=False)
     autoscale = JSONFieldSerializer(convert_to_str=False, required=False, binary=True)
     label = JSONFieldSerializer(convert_to_str=False, required=False, binary=True)
 
@@ -596,25 +533,11 @@ class AppSettingsSerializer(serializers.ModelSerializer):
 
     @staticmethod
     def validate_autoscale(data):
-        schema = {
-            "$schema": "http://json-schema.org/schema#",
-            "type": "object",
-            "properties": {
-                # minimum replicas autoscale will keep resource at based on load
-                "min": {"type": "integer"},
-                # maximum replicas autoscale will keep resource at based on load
-                "max": {"type": "integer"},
-                # how much CPU load there is to trigger scaling rules
-                "cpu_percent": {"type": "integer"},
-            },
-            "required": ["min", "max", "cpu_percent"],
-        }
-
         for _, autoscale in data.items():
             if autoscale is None:
                 continue
             try:
-                jsonschema.validate(autoscale, schema)
+                jsonschema.validate(autoscale, AUTOSCALE_SCHEMA)
             except jsonschema.ValidationError as e:
                 raise serializers.ValidationError(
                     "could not validate {}: {}".format(autoscale, e.message)
@@ -791,212 +714,8 @@ class RouteSerializer(serializers.Serializer):
 
     @staticmethod
     def validate_rules(value):
-        http_header_filter_properties = {
-            "set": {
-                "type": "array",
-                "items": {
-                    "type": "object",
-                    "properties": {
-                        "name": {"type": "string"},
-                        "value": {"type": "string"}
-                    }
-                }
-            },
-            "add": {
-                "type": "array",
-                "items": {
-                    "type": "object",
-                    "properties": {
-                        "name": {"type": "string"},
-                        "value": {"type": "string"}
-                    }
-                }
-            },
-            "remove": {"type": "array"}
-        }
-        filter_properties = {
-            # Type identifies the type of filter to apply.
-            # As with other API fields, types are classified into three conformance levels:
-            "type": {
-                "type": "string",
-                "enum": ["ExtensionRef", "RequestHeaderModifier", "RequestMirror", "RequestRedirect", "ResponseHeaderModifier", "URLRewrite"],  # noqa
-            },
-            # ExtensionRef is an optional, implementation-specific extension to the “filter” behavior. # noqa
-            # For example, resource “myroutefilter” in group “networking.example.net”).
-            # ExtensionRef MUST NOT be used for core and extended filters.
-            "extensionRef": {
-                "type": "object",
-                "properties": {
-                    "group": {"type": "string"},
-                    "kind": {"type": "string"},
-                    "name": {"type": "string"}
-                },
-                "required": ["group", "kind", "name"],
-                "additionalProperties": False
-            },
-            # RequestHeaderModifier defines a schema for a filter that modifies request headers.
-            "requestHeaderModifier": {
-                "type": "object",
-                "properties": http_header_filter_properties,
-                "additionalProperties": False
-            },
-            # ResponseHeaderModifier defines a schema for a filter that modifies response headers.
-            "responseHeaderModifier": {
-                "type": "object",
-                "properties": http_header_filter_properties,
-                "additionalProperties": False
-            },
-            # RequestMirror defines a schema for a filter that mirrors requests.
-            # Requests are sent to the specified destination, but responses from that destination are ignored. # noqa
-            "requestMirror": {
-                "type": "object",
-                "properties": {
-                    "backendRef": {
-                        "properties": {
-                            "group": {"type": "string"},
-                            "kind": {"type": "string"},
-                            "name": {"type": "string"},
-                            "namespace": {"type": "string"},
-                            "port": {"type": "integer"},
-                        },
-                        "required": ["name"],
-                        "additionalProperties": False
-                    },
-                },
-                "required": ["backendRef"],
-                "additionalProperties": False
-            },
-            # RequestRedirect defines a schema for a filter that responds to the request with an HTTP redirection. # noqa
-            "requestRedirect": {
-                "type": "object",
-                "properties": {
-                    "scheme": {"type": "string"},
-                    "hostname": {"type": "string"},
-                    "path": {"type": "string"},
-                    "port": {"type": "integer"},
-                    "statusCode": {"type": "integer"}
-                }
-            },
-            # URLRewrite defines a schema for a filter that modifies a request during forwarding
-            "urlRewrite": {
-                "hostname": {"type": "string"},
-                "path": {"type": "string"},
-            }
-        }
-
-        # More info: https://gateway-api.sigs.k8s.io/references/spec/#gateway.networking.k8s.io%2fv1beta1.HTTPRouteRule # noqa
-        HTTP_RULES_SCHEMA = {
-            "$schema": "http://json-schema.org/draft-07/schema#",
-
-            "type": "array",
-            "items": {
-                "properties": {
-                    # Matches define conditions used for matching the rule against incoming HTTP requests. # noqa
-                    # Each match is independent, i.e. this rule will be matched if any one of the matches is satisfied. # noqa
-                    # More info: https://gateway-api.sigs.k8s.io/references/spec/#gateway.networking.k8s.io/v1beta1.HTTPRouteMatch # noqa
-                    "matches": {
-                        "type": "array",
-                        "items": {
-                            "properties": {
-                                # Path specifies a HTTP request path matcher.
-                                # If this field is not specified, a default prefix match on the “/” path is provided. # noqa
-                                "path": {
-                                    "type": "object",
-                                    "properties": {
-                                        "type": {
-                                            "type": "string",
-                                            "enum": ["Exact", "PathPrefix", "RegularExpression"],
-                                            "default": "PathPrefix"
-                                        },
-                                        "value": {"type": "string"}
-                                    },
-                                    "additionalProperties": False
-                                },
-                                # Headers specifies HTTP request header matchers. Multiple match values are ANDed together, # noqa
-                                # meaning, a request must match all the specified headers to select the route. # noqa
-                                # gateway.networking.k8s.io/v1beta1.HTTPHeaderMatch
-                                # More info: https: // gateway-api.sigs.k8s.io/references/spec /
-                                "headers": {
-                                    "type": "array",
-                                    "items": {
-                                        "properties": {
-                                            "type": {
-                                                "type": "string",
-                                                "enum": ["Exact", "RegularExpression"],
-                                                "default": "Exact"
-                                            },
-                                            "name": {"type": "string"},
-                                            "value": {"type": "string"}
-                                        },
-                                        "additionalProperties": False
-                                    }
-                                },
-                                # QueryParams specifies HTTP query parameter matchers. Multiple match values are ANDed together, # noqa
-                                # meaning, a request must match all the specified query parameters to select the route. # noqa
-                                "queryParams": {
-                                    "type": "array",
-                                    "items": {
-                                        "properties": {
-                                            "type": {
-                                                "type": "string",
-                                                "enum": ["Exact", "RegularExpression"],
-                                                "default": "Exact"
-                                            },
-                                            "name": {"type": "string"},
-                                            "value": {"type": "string"}
-                                        },
-                                        "additionalProperties": False
-                                    }
-                                },
-                                "method": {
-                                    "type": "string",
-                                    "enum": ["CONNECT", "DELETE", "GET", "HEAD", "OPTIONS", "PATCH", "POST", "PUT", "TRACE"],  # noqa
-                                }
-                            },
-                            "additionalProperties": False
-                        }
-                    },
-                    # Filters define the filters that are applied to requests that match this rule.
-                    # More info: https://gateway-api.sigs.k8s.io/references/spec/#gateway.networking.k8s.io/v1beta1.HTTPRouteFilter # noqa
-                    "filters": {
-                        "type": "array",
-                        "items": {
-                            "properties": filter_properties,
-                            "additionalProperties": False
-                        },
-                    },
-                    # BackendRefs defines the backend(s) where matching requests should be sent.
-                    # More info: https://gateway-api.sigs.k8s.io/references/spec/#gateway.networking.k8s.io/v1beta1.HTTPBackendRef # noqa
-                    "backendRefs": {
-                        "type": "array",
-                        "items": {
-                            "properties": {
-                                "filters": {
-                                    "type": "array",
-                                    "items": {
-                                        "properties": filter_properties,
-                                        "additionalProperties": False
-                                    },
-                                },
-                                "group": {"type": "string"},
-                                "kind": {"type": "string"},
-                                "name": {"type": "string"},
-                                "namespace": {"type": "string"},
-                                "port": {"type": "integer"},
-                                "weight": {"type": "integer"}
-                            },
-                            "required": ["name"],
-                            "additionalProperties": False
-                        }
-                    }
-                },
-                "required": ["backendRefs"],
-                "additionalProperties": False
-            }
-        }
-
         try:
-            jsonschema.validate(value, HTTP_RULES_SCHEMA)
+            jsonschema.validate(value, RULES_SCHEMA)
         except jsonschema.ValidationError as e:
             raise serializers.ValidationError(
                 "could not validate {}: {}".format(value, e.message)

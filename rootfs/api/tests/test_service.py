@@ -3,12 +3,14 @@ from django.core.cache import cache
 from django.conf import settings
 from rest_framework.authtoken.models import Token
 
+from api.models.app import App
 from api.tests import DryccTransactionTestCase
+from api.tests.test_gateway import RouteTest
 
 User = get_user_model()
 
 
-class TestServices(DryccTransactionTestCase):
+class ServiceTest(DryccTransactionTestCase):
 
     """Tests push notification from build system"""
 
@@ -18,6 +20,10 @@ class TestServices(DryccTransactionTestCase):
         self.user = User.objects.get(username='autotest')
         self.token = Token.objects.get(user=self.user).key
         self.client.credentials(HTTP_AUTHORIZATION='Token ' + self.token)
+        self.test_route = RouteTest()
+        self.test_route.user = self.user
+        self.test_route.token = self.token
+        self.test_route.client = self.client
 
     def tearDown(self):
         # make sure every test has a clean slate for k8s mocking
@@ -158,3 +164,25 @@ class TestServices(DryccTransactionTestCase):
             {'procfile_type': 'test', "protocol": "UDP", "port": 5000}
         )
         self.assertEqual(response.status_code, 404, response.data)
+
+    def test_app_settings_change_canaries(self):
+        procfile_type, app_id, _, _, _, _ = self.test_route.test_route_attach()
+        # Add canaries
+        response = self.client.post(
+            f'/v2/apps/{app_id}/settings',
+            {'canaries': [procfile_type]}
+        )
+        self.assertEqual(response.status_code, 201, response.data)
+        app = App.objects.get(id=app_id)
+        response = app._scheduler.svc.get(app_id)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(len(response.json()["items"]), 2)
+        # Remove canaries to false
+        response = self.client.delete(
+            f'/v2/apps/{app_id}/settings',
+            {'canaries': [procfile_type]}
+        )
+        self.assertEqual(response.status_code, 204, response.data)
+        response = app._scheduler.svc.get(app_id)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(len(response.json()["items"]), 1)

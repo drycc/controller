@@ -18,6 +18,7 @@ class AppSettings(UuidAuditedModel):
 
     owner = models.ForeignKey(User, on_delete=models.PROTECT)
     app = models.ForeignKey('App', on_delete=models.CASCADE)
+    canaries = models.JSONField(default=list)
     routable = models.BooleanField(default=True)
     autoscale = models.JSONField(default=dict, blank=True)
     label = models.JSONField(default=dict, blank=True)
@@ -34,21 +35,41 @@ class AppSettings(UuidAuditedModel):
     def __str__(self):
         return "{}-{}".format(self.app.id, str(self.uuid)[:7])
 
-    def new(self, user):
+    def previous(self):
         """
-        Create a new application appSettings on behalf of a user.
+        Return the previous Release to this one.
+
+        :return: the previous :class:`Release`, or None
         """
-        app_settings = AppSettings.objects.create(owner=user, app=self.app)
-        return app_settings
+        app_settings_set = self.app.appsettings_set
+        if self.pk:
+            app_settings_set = app_settings_set.exclude(pk=self.pk)
+        try:
+            # Get the Release previous to this one
+            prev_app_settings = app_settings_set.latest()
+        except AppSettings.DoesNotExist:
+            prev_app_settings = None
+        return prev_app_settings
+
+    def _update_canaries(self, previous_settings):
+        old = getattr(previous_settings, 'canaries', [])
+        new = getattr(self, 'canaries', [])
+        data = old.copy()
+        if data and not new:
+            setattr(self, 'canaries', data)
+        elif data != new:
+            for procfile_type in new:
+                if procfile_type not in data:
+                    data.append(procfile_type)
+            setattr(self, 'canaries', data)
+            self.summary += [
+                "{} add canaries for process types {}".format(self.owner, ','.join(new))]
 
     def _update_routable(self, previous_settings):
         old = getattr(previous_settings, 'routable', None)
         new = getattr(self, 'routable', None)
-        # If no previous settings then assume it is the first record and default to true
-        if previous_settings is None:
-            setattr(self, 'routable', True)
         # if nothing changed copy the settings from previous
-        elif new is None and old is not None:
+        if new is None and old is not None:
             setattr(self, 'routable', old)
         elif old != new:
             self.summary += ["{} changed routablity from {} to {}".format(self.owner, old, new)]
@@ -125,18 +146,17 @@ class AppSettings(UuidAuditedModel):
                     self.summary += ' and '
                 self.summary += ["{} {}".format(self.owner, changes)]
 
-    @transaction.atomic
-    def save(self, *args, **kwargs):
+    def _update_fields(self, ignore_update_fields=None):
         previous_settings = None
         try:
             previous_settings = self.app.appsettings_set.latest()
         except AppSettings.DoesNotExist:
             pass
-
+        update_fields = ["canaries", "routable", "autoscale", "label"]
         try:
-            self._update_routable(previous_settings)
-            self._update_autoscale(previous_settings)
-            self._update_label(previous_settings)
+            for update_field in update_fields:
+                if ignore_update_fields is None or update_field not in ignore_update_fields:
+                    getattr(self, "_update_%s" % update_field)(previous_settings)
         except (UnprocessableEntity, NotFound):
             raise
         except Exception as e:
@@ -148,4 +168,25 @@ class AppSettings(UuidAuditedModel):
             raise AlreadyExists("{} changed nothing".format(self.owner))
         summary = ' '.join(self.summary)
         self.app.log('summary of app setting changes: {}'.format(summary), logging.DEBUG)
+
+    def diff_canaries(self):
+        prev_app_settings = self.previous()
+        action, canaries = None, []
+        if prev_app_settings is not None:
+            if prev_app_settings.canaries != self.canaries:
+                for procfile_type in self.canaries:  # add canary
+                    if procfile_type not in prev_app_settings.canaries:
+                        if action is None:
+                            action = "append"
+                        canaries.append(procfile_type)
+                for procfile_type in prev_app_settings.canaries:  # delete canary
+                    if procfile_type not in self.canaries:
+                        if action is None:
+                            action = "remove"
+                        canaries.append(procfile_type)
+        return prev_app_settings, action, canaries
+
+    @transaction.atomic
+    def save(self, ignore_update_field=None, *args, **kwargs):
+        self._update_fields(ignore_update_field)
         super(AppSettings, self).save(**kwargs)

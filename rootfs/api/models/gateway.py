@@ -1,3 +1,4 @@
+import re
 import logging
 from django.db import models
 from django.conf import settings
@@ -163,42 +164,65 @@ class Route(AuditedModel):
 
     @property
     def default_rules(self):
-        return [{"backendRefs": self.default_backend_refs}]
-
-    @property
-    def default_backend_refs(self):
         service = get_object_or_404(self.app.service_set, procfile_type=self.procfile_type)
-        backend_refs = []
+        stable_backend_refs, canary_backend_refs = [], []
         for item in service.ports:
             if item["port"] == self.port:
-                backend_refs.append({
+                stable_backend = {
                     "kind": "Service",
                     "name": str(service),
                     "port": item["port"],
-                })
-        return backend_refs
+                    "weight": 100,
+                }
+                canary_backend = {
+                    "kind": "Service",
+                    "name": "%s-canary" % str(service),
+                    "port": item["port"],
+                    "weight": 0,
+                }
+                stable_backend_refs.append(stable_backend)
+                canary_backend_refs.append(stable_backend)
+                canary_backend_refs.append(canary_backend)
+        return {
+            "stable": [{"backendRefs": stable_backend_refs}],
+            "canary": [{"backendRefs": canary_backend_refs}],
+        }
+
+    @property
+    def current_rules(self):
+        app_settings = self.app.appsettings_set.latest()
+        if self.procfile_type in app_settings.canaries:
+            return self.rules["canary"]
+        return self.rules["stable"]
 
     def check_rules(self):
         service = self.app.service_set.filter(
             procfile_type=self.procfile_type).first()
         ports = [item["port"] for item in service.ports]
-        for rule in self.rules:
-            for backend_ref in rule["backendRefs"]:
-                if backend_ref["name"] != str(service) or backend_ref["port"] not in ports:
-                    return False, {"detail": "backendRefs associated with incorrect service"}
+        for rules in self.rules.values():
+            for rule in rules:
+                for backend_ref in rule["backendRefs"]:
+                    port = backend_ref["port"]
+                    name = re.sub(r'(.*)-canary', r'\1', backend_ref["name"])
+                    if port not in ports or name != str(service):
+                        return False, {"detail": "backendRefs associated with incorrect service"}
         return True, ""
 
     def refresh_to_k8s(self):
-        parent_refs, http_parent_refs = self._get_all_parent_refs()
-        tls = self.app.tls_set.latest()
-        if tls.https_enforced and self.kind == "HTTPRoute":
-            self._https_enforced_to_k8s(http_parent_refs)
-        elif self.kind == "HTTPRoute":
-            parent_refs.extend(http_parent_refs)
-            self._scheduler.httproute.delete(self.app.id, f"{self.name}-https-redirect")
+        if self.routable:
+            parent_refs, http_parent_refs = self._get_all_parent_refs()
+            tls = self.app.tls_set.latest()
+            if tls.https_enforced and self.kind == "HTTPRoute":
+                self._https_enforced_to_k8s(http_parent_refs)
+            elif self.kind == "HTTPRoute":
+                parent_refs.extend(http_parent_refs)
+                self._scheduler.httproute.delete(self.app.id, self._https_redirect_name)
+            else:
+                parent_refs.extend(http_parent_refs)
+            self._refresh_to_k8s(self.current_rules, parent_refs)
         else:
-            parent_refs.extend(http_parent_refs)
-        self._refresh_to_k8s(self.rules, parent_refs)
+            self._scheduler.httproute.delete(self.app.id, self.name)
+            self._scheduler.httproute.delete(self.app.id, self._https_redirect_name)
 
     def attach(self, gateway_name, port):
         ok, msg = self._check_parent(gateway_name, port)
@@ -236,6 +260,10 @@ class Route(AuditedModel):
                 level=logging.ERROR,
             )
         return super().delete(*args, **kwargs)
+
+    @property
+    def _https_redirect_name(self):
+        return f"{self.name}-https-redirect"
 
     def _check_parent(self, gateway_name, port):
         try:
@@ -286,23 +314,20 @@ class Route(AuditedModel):
                 "requestRedirect": {"port": 443, "scheme": "https", "statusCode": 301}
             }]
         }
-        route_name = f"{self.name}-https-redirect"
         try:
-            if not self.routable:
-                self._scheduler.httproute.delete(self.app.id, route_name)
-            else:
-                try:
-                    data = self._scheduler.httproute.get(self.app.id, route_name).json()
-                    self._scheduler.httproute.patch(self.app.id, route_name, **{
-                        "rules": rules,
-                        "parent_refs": parent_refs,
-                        "version": data["metadata"]["resourceVersion"],
-                    })
-                except KubeException:
-                    self._scheduler.httproute.create(self.app.id, route_name, **{
-                        "rules": rules,
-                        "parent_refs": parent_refs,
-                    })
+            try:
+                data = self._scheduler.httproute.get(
+                    self.app.id, self._https_redirect_name).json()
+                self._scheduler.httproute.patch(self.app.id, self._https_redirect_name, **{
+                    "rules": rules,
+                    "parent_refs": parent_refs,
+                    "version": data["metadata"]["resourceVersion"],
+                })
+            except KubeException:
+                self._scheduler.httproute.create(self.app.id, self._https_redirect_name, **{
+                    "rules": rules,
+                    "parent_refs": parent_refs,
+                })
         except KubeException as e:
             raise ServiceUnavailable(
                 f'Kubernetes {self.kind.lower()} could not be created') from e
