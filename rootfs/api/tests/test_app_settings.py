@@ -175,23 +175,38 @@ class TestAppSettings(DryccTransactionTestCase):
 
     def test_canaries(self, mock_requests):
         app_id = self.create_app()
+        app = App.objects.get(id=app_id)
+        expect = ["web", "task", "new", "apps"]
+        for index, scale_type in enumerate(expect):
+            response = self.client.post(
+                '/v2/apps/{}/services'.format(app_id),
+                {
+                    'port': 5000 + index,
+                    'protocol': 'TCP',
+                    'target_port': 5000 + index,
+                    'procfile_type': scale_type
+                }
+            )
+            self.assertEqual(response.status_code, 201, response.data)
         self.client.post(
             f'/v2/apps/{app_id}/settings',
-            {'canaries': ["web", "task"]}
+            {'canaries': expect[:2]}
         )
         response = self.client.post(
             f'/v2/apps/{app_id}/settings',
-            {'canaries': ["new", "apps"]}
+            {'canaries': expect[2:]}
         )
+        expect = ["web", "task", "new", "apps"]
         self.assertEqual(
             response.json()["canaries"],
-            ["web", "task", "new", "apps"],
+            expect,
             response.data
         )
+
+        self.assertEqual(len(app.service_set.all()), 4)
         response = self.client.delete(
             f'/v2/apps/{app_id}/settings',
             {'canaries': ["new", "apps"]}
         )
-        app = App.objects.get(id=app_id)
         app_settings = app.appsettings_set.latest()
         self.assertEqual(app_settings.canaries, ["web", "task"])

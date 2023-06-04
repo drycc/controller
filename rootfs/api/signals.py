@@ -178,7 +178,7 @@ def gateway_changed_handle(
 @receiver(signal=[post_save, post_delete], sender=Service)
 def service_changed_handle(
         sender, instance: Service, created=False, update_fields=None, **kwargs):
-    if not created and update_fields is None:  # delete
+    if kwargs['signal'] == post_delete:
         instance.app.route_set.filter(procfile_type=instance.procfile_type).delete()
 
 
@@ -203,9 +203,10 @@ def appsettings_changed_handle(
             elif action == "remove":
                 instance.app.cleanup_old()
         for procfile_type in canaries:
+            canary = (action == "append")
             service = instance.app.service_set.filter(procfile_type=procfile_type).first()
-            if service is not None:
-                service.canary = action == "append"
+            if service is not None and service.canary != canary:
+                service.canary = canary
                 service.save()
         if prev_settings.routable != instance.routable:
             for route in instance.app.route_set.all():
