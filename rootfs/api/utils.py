@@ -62,10 +62,13 @@ def validate_label(value):
         raise ValidationError("Can only contain a-z (lowercase), 0-9 and hyphens")
 
 
+def random_string(num):
+    return ''.join(
+        [random.choice(string.ascii_lowercase) for i in range(num)])
+
+
 def generate_app_name():
     """Return a randomly-generated memorable name."""
-    random_string = lambda num: ''.join(
-        [random.choice(string.ascii_lowercase) for i in range(num)])
     return "{}-{}".format(random_string(6), random_string(8))
 
 
