@@ -345,7 +345,7 @@ class KubeHTTPClient(object):
         )
 
         # run pods never restart
-        kwargs['restartPolicy'] = 'Never'
+        kwargs['restart_policy'] = 'Never'
         kwargs['command'] = entrypoint
         kwargs['args'] = command
 
