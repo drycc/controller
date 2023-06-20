@@ -28,14 +28,14 @@ check-docker:
 build: docker-build
 
 docker-build: check-docker
-	docker build ${DOCKER_BUILD_FLAGS} -t ${IMAGE} rootfs
+	docker build ${DOCKER_BUILD_FLAGS} --build-arg CODENAME=${CODENAME} -t ${IMAGE} rootfs
 	docker tag ${IMAGE} ${MUTABLE_IMAGE}
 
 docker-buildx: check-docker
-	docker buildx build --platform ${PLATFORM} -t ${IMAGE} rootfs --push
+	docker buildx build --build-arg CODENAME=${CODENAME} --platform ${PLATFORM} -t ${IMAGE} rootfs --push
 
 docker-build-test: check-docker
-	docker build ${DOCKER_BUILD_FLAGS} -t ${IMAGE}.test -f rootfs/Dockerfile.test rootfs
+	docker build ${DOCKER_BUILD_FLAGS} --build-arg CODENAME=${CODENAME} -t ${IMAGE}.test -f rootfs/Dockerfile.test rootfs
 
 deploy: check-kubectl docker-build docker-push
 	kubectl --namespace=drycc patch deployment drycc-$(COMPONENT) --type='json' -p='[{"op": "replace", "path": "/spec/template/spec/containers/0/image", "value":"$(IMAGE)"}]'

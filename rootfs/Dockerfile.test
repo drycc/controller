@@ -1,4 +1,5 @@
-FROM registry.drycc.cc/drycc/base:bookworm
+ARG CODENAME
+FROM registry.drycc.cc/drycc/base:${CODENAME}
 
 ARG DRYCC_HOME_DIR=/workspace
 

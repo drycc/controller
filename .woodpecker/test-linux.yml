@@ -14,6 +14,7 @@ pipeline:
   commands:
   - make test docker-build-test upload-coverage
   secrets:
+  - codename
   - dev_registry
   - codecov_token
   when:

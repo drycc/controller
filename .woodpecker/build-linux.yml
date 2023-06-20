@@ -16,6 +16,7 @@ pipeline:
   - echo $CONTAINER_PASSWORD | docker login $DRYCC_REGISTRY --username $CONTAINER_USERNAME --password-stdin > /dev/null 2>&1
   - make docker-build docker-immutable-push
   secrets:
+  - codename
   - dev_registry
   - drycc_registry
   - container_username
