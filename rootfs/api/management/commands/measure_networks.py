@@ -4,7 +4,7 @@ import logging
 from django.utils import timezone
 from django.core.management.base import BaseCommand
 from django.conf import settings
-from api import influxdb
+from api import monitor
 from api.models.app import App
 from api.tasks import send_measurements
 
@@ -18,16 +18,16 @@ class Command(BaseCommand):
         stop = timestamp - (timestamp % 3600)
         start = stop - 3600
         networks = []
-        for record in influxdb.query_network_flow(app_map.keys(), start, stop):
-            app_id = record["namespace"]
-            owner_id = app_map[app_id].owner_id
+        for namespace, pod_name, rx_bytes, tx_bytes in monitor.query_network_flow(
+                app_map.keys(), start, stop):
+            owner_id = app_map[namespace].owner_id
             networks.append({
-                "app_id":  str(app_map[app_id].uuid),
+                "app_id":  str(app_map[namespace].uuid),
                 "owner": owner_id,
-                "name": record["pod_name"],
+                "name": pod_name,
                 "type": "network",
                 "unit": "bytes",
-                "usage": record["rx_bytes"] + record["tx_bytes"],
+                "usage": rx_bytes + tx_bytes,
                 "timestamp": start
             })
         send_measurements.delay(networks)

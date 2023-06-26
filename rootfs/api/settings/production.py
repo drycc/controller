@@ -413,6 +413,11 @@ DRYCC_DATABASE_REPLICA_URL = os.environ.get('DRYCC_DATABASE_REPLICA_URL', None)
 if DRYCC_DATABASE_REPLICA_URL is not None:
     DATABASES["replica"] = dj_database_url.config(default=DRYCC_DATABASE_REPLICA_URL)
 
+# database monitor setting
+DRYCC_DATABASE_MONITOR_URL = os.environ.get('DRYCC_DATABASE_MONITOR_URL', None)
+if DRYCC_DATABASE_MONITOR_URL is not None:
+    DATABASES["monitor"] = dj_database_url.config(default=DRYCC_DATABASE_MONITOR_URL)
+
 # database routers
 DATABASE_ROUTERS = ['api.routers.DefaultReplicaRouter', ]
 
@@ -494,12 +499,6 @@ CACHES = {
         }
     }
 }
-
-# Influxdb Configuration Options
-DRYCC_INFLUXDB_URL = os.environ.get('DRYCC_INFLUXDB_URL', 'http://localhost:8086')
-DRYCC_INFLUXDB_BUCKET = os.environ.get('DRYCC_INFLUXDB_BUCKET', 'drycc')
-DRYCC_INFLUXDB_ORG = os.environ.get('DRYCC_INFLUXDB_ORG', 'root')
-DRYCC_INFLUXDB_TOKEN = os.environ.get('DRYCC_INFLUXDB_TOKEN', 'root')
 
 # Workflow-manager Configuration Options
 WORKFLOW_MANAGER_URL = os.environ.get('WORKFLOW_MANAGER_URL', None)

@@ -71,6 +71,13 @@ env:
       name: controller-creds
       key: database-replica-url
 {{- end }}
+{{- if (.Values.databaseMonitorUrl) }}
+- name: DRYCC_DATABASE_MONITOR_URL
+  valueFrom:
+    secretKeyRef:
+      name: controller-creds
+      key: database-monitor-url
+{{- end }}
 {{- else if eq .Values.global.databaseLocation "on-cluster"  }}
 - name: DRYCC_DATABASE_USER
   valueFrom:
@@ -86,6 +93,8 @@ env:
   value: "postgres://$(DRYCC_DATABASE_USER):$(DRYCC_DATABASE_PASSWORD)@drycc-database.{{.Release.Namespace}}.svc.{{.Values.global.clusterDomain}}:5432/controller"
 - name: DRYCC_DATABASE_REPLICA_URL
   value: "postgres://$(DRYCC_DATABASE_USER):$(DRYCC_DATABASE_PASSWORD)@drycc-database-replica.{{.Release.Namespace}}.svc.{{.Values.global.clusterDomain}}:5432/controller"
+- name: DRYCC_DATABASE_MONITOR_URL
+  value: "postgres://$(DRYCC_DATABASE_USER):$(DRYCC_DATABASE_PASSWORD)@drycc-database-replica.{{.Release.Namespace}}.svc.{{.Values.global.clusterDomain}}:5432/monitor"
 {{- end }}
 {{- if (.Values.workflowManagerUrl) }}
 - name: WORKFLOW_MANAGER_URL
@@ -109,31 +118,6 @@ env:
     secretKeyRef:
       name: redis-creds
       key: password
-{{- if eq .Values.global.influxdbLocation "off-cluster" }}
-- name: "DRYCC_INFLUXDB_URL"
-  valueFrom:
-    secretKeyRef:
-      name: influxdb-creds
-      key: url
-{{- else }}
-- name: "DRYCC_INFLUXDB_URL"
-  value: http://$(DRYCC_INFLUXDB_SERVICE_HOST):$(DRYCC_INFLUXDB_SERVICE_PORT)
-{{- end }}
-- name: "DRYCC_INFLUXDB_BUCKET"
-  valueFrom:
-    secretKeyRef:
-      name: influxdb-creds
-      key: bucket
-- name: "DRYCC_INFLUXDB_ORG"
-  valueFrom:
-    secretKeyRef:
-      name: influxdb-creds
-      key: org
-- name: "DRYCC_INFLUXDB_TOKEN"
-  valueFrom:
-    secretKeyRef:
-      name: influxdb-creds
-      key: token
 {{- if (.Values.rabbitmqUrl) }}
 - name: DRYCC_RABBITMQ_URL
   valueFrom:

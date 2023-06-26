@@ -4,7 +4,6 @@ RESTful view classes for presenting Drycc API objects.
 import uuid
 import logging
 import json
-import time
 from django.core.cache import cache
 from django.http import Http404, HttpResponse
 from django.conf import settings
@@ -19,7 +18,7 @@ from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.response import Response
 from rest_framework.viewsets import GenericViewSet
 
-from api import influxdb, models, permissions, serializers, viewsets, authentication
+from api import monitor, models, permissions, serializers, viewsets, authentication
 from api.tasks import scale_app, restart_app
 from api.exceptions import AlreadyExists, ServiceUnavailable, DryccException, \
     UnprocessableEntity
@@ -1022,23 +1021,19 @@ class UserView(BaseDryccViewSet):
 
 
 class MetricView(BaseDryccViewSet):
-    """Getting monitoring indicators from influxdb"""
+    """Getting monitoring indicators from monitor database"""
 
     def _get_app(self):
         app = get_object_or_404(models.app.App, id=self.kwargs['id'])
         self.check_object_permissions(self.request, app)
         return app
 
-    def _to_timestamp(t):
-        return int(time.mktime(t.timetuple()))
-
     def _get_cpus(self, app_id, container_type, start, stop, every):
         avg_list, max_list = [], []
-        for record in influxdb.query_cpu_usage(app_id, container_type, start, stop, every):
-            if record["result"] == "mean":
-                avg_list.append((int(time.mktime(record["_time"].timetuple())), record["_value"]))
-            else:
-                max_list.append((int(time.mktime(record["_time"].timetuple())), record["_value"]))
+        for _, _, _, timestamp, max, avg in monitor.query_cpu_usage(
+                app_id, container_type, start, stop, every):
+            max_list.append((timestamp, max))
+            avg_list.append((timestamp, avg))
         return {
             "max": max_list,
             "avg": avg_list,
@@ -1046,11 +1041,10 @@ class MetricView(BaseDryccViewSet):
 
     def _get_memory(self, app_id, container_type, start, stop, every):
         max_list, avg_list = [], []
-        for record in influxdb.query_memory_usage(app_id, container_type, start, stop, every):
-            if record["result"] == "mean":
-                avg_list.append((int(time.mktime(record["_time"].timetuple())), record["_value"]))
-            else:
-                max_list.append((int(time.mktime(record["_time"].timetuple())), record["_value"]))
+        for _, _, _, timestamp, max, avg in monitor.query_memory_usage(
+                app_id, container_type, start, stop, every):
+            max_list.append((timestamp, max))
+            avg_list.append((timestamp, avg))
         return {
             "max": max_list,
             "avg": avg_list,
@@ -1058,19 +1052,10 @@ class MetricView(BaseDryccViewSet):
 
     def _get_networks(self, app_id, container_type, start, stop, every):
         networks = []
-        for record in influxdb.query_network_usage(app_id, container_type, start, stop, every):
-            networks.append((
-                int(time.mktime(record["_time"].timetuple())),
-                record["rx_bytes"],
-                record["tx_bytes"]
-            ))
+        for _, _, timestamp, rx_bytes, tx_bytes in monitor.query_network_usage(
+                app_id, container_type, start, stop, every):
+            networks.append((timestamp, rx_bytes, tx_bytes))
         return networks
-
-    def _get_container_count(self, app_id, container_type, start, stop):
-        for record in influxdb.query_container_count([app_id, ], start, stop):
-            if record["container_name"] == "%s-%s" % (app_id, container_type):
-                return record["_value"]
-        return 0
 
     def status(self, request, **kwargs):
         """
@@ -1102,8 +1087,7 @@ class MetricView(BaseDryccViewSet):
         return Response({
             "id": app_id,
             "type": kwargs['type'],
-            "count": self._get_container_count(
-                app_id, kwargs['type'], start, stop),
+            "count": monitor.query_container_count(app_id, kwargs['type'], start, stop),
             "status": {
                 "cpus": self._get_cpus(
                     app_id, kwargs['type'], start, stop, every),

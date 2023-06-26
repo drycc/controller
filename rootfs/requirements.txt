@@ -25,7 +25,6 @@ requests-toolbelt==1.0.0
 celery==5.2.7
 hiredis==2.2.3
 django_redis==5.2.0
-influxdb-client==1.36.1
 dj-database-url==2.0.0
 social-auth-app-django==5.2.0
 python-jose==3.3.0
