@@ -14,10 +14,8 @@ LEFT OUTER JOIN kubernetes_pod_network_tag
 ON kubernetes_pod_network.tag_id = kubernetes_pod_network_tag.tag_id
 WHERE
   namespace in ({namespace_range})
-  AND
-  time < to_timestamp({start})
-  AND
-  time > to_timestamp({stop})
+  AND time < to_timestamp({start})
+  AND time > to_timestamp({stop})
 GROUP by namespace, pod_name
 """
 
@@ -35,7 +33,7 @@ FROM (
   ON kubernetes_pod_container.tag_id = kubernetes_pod_container_tag.tag_id
   WHERE
     namespace='{namespace}'
-    container_name='{container_name}'
+    AND container_name='{container_name}'
     AND time < to_timestamp({start})
     AND time > to_timestamp({stop})
   GROUP BY namespace, pod_name, container_name, kubernetes_pod_container.tag_id
@@ -57,7 +55,7 @@ LEFT OUTER JOIN kubernetes_pod_container_tag
 ON kubernetes_pod_container.tag_id = kubernetes_pod_container_tag.tag_id
 WHERE
   namespace='{namespace}'
-  container_name='{container_name}'
+  AND container_name='{container_name}'
   AND time < to_timestamp({start})
   AND time > to_timestamp({stop})
 GROUP BY namespace, pod_name, container_name, timestamp
@@ -77,7 +75,7 @@ LEFT OUTER JOIN kubernetes_pod_container_tag
 ON kubernetes_pod_container.tag_id = kubernetes_pod_container_tag.tag_id
 WHERE
   namespace='{namespace}'
-  container_name='{container_name}'
+  AND container_name='{container_name}'
   AND time < to_timestamp({start})
   AND time > to_timestamp({stop})
 GROUP BY namespace, pod_name, container_name, timestamp
@@ -96,11 +94,9 @@ LEFT OUTER JOIN kubernetes_pod_network_tag
 ON kubernetes_pod_network.tag_id = kubernetes_pod_network_tag.tag_id
 WHERE
   namespace='{namespace}'
-  pod_name like '{pod_name_prefix}%'
-  AND
-  time < to_timestamp({start})
-  AND
-  time > to_timestamp({stop})
+  AND pod_name like '{pod_name_prefix}%'
+  AND time < to_timestamp({start})
+  AND time > to_timestamp({stop})
 GROUP by namespace, pod_name, timestamp
 """
 
@@ -118,7 +114,7 @@ def query_network_flow(namespaces: Iterator[str],
 def query_container_count(namespace: str, container_type: str, start: int, stop: int) -> int:
     with closing(connections['monitor'].cursor()) as cursor:
         container_name = "%s-%s" % (namespace, container_type)
-        sql = query_network_flow_sql_tpl.format(
+        sql = query_container_count_sql_tpl.format(
             namespace=namespace, container_name=container_name, start=start, stop=stop)
         cursor.execute(sql)
         row = cursor.fetchone()
