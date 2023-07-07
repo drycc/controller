@@ -58,12 +58,6 @@ env:
     secretKeyRef:
       name: builder-key-auth
       key: builder-key
-{{- if (.Values.databaseUrl) }}
-- name: DRYCC_DATABASE_URL
-  valueFrom:
-    secretKeyRef:
-      name: controller-creds
-      key: database-url
 {{- if (.Values.databaseReplicaUrl) }}
 - name: DRYCC_DATABASE_REPLICA_URL
   valueFrom:
@@ -71,30 +65,47 @@ env:
       name: controller-creds
       key: database-replica-url
 {{- end }}
+{{- if (.Values.databaseUrl) }}
+- name: DRYCC_DATABASE_URL
+  valueFrom:
+    secretKeyRef:
+      name: controller-creds
+      key: database-url
+{{- else if eq .Values.global.databaseLocation "on-cluster"  }}
+- name: DRYCC_PG_USER
+  valueFrom:
+    secretKeyRef:
+      name: database-creds
+      key: user
+- name: DRYCC_PG_PASSWORD
+  valueFrom:
+    secretKeyRef:
+      name: database-creds
+      key: password
+- name: DRYCC_DATABASE_URL
+  value: "postgres://$(DRYCC_PG_USER):$(DRYCC_PG_PASSWORD)@drycc-database.{{.Release.Namespace}}.svc.{{.Values.global.clusterDomain}}:5432/controller"
+- name: DRYCC_DATABASE_REPLICA_URL
+  value: "postgres://$(DRYCC_PG_USER):$(DRYCC_PG_PASSWORD)@drycc-database-replica.{{.Release.Namespace}}.svc.{{.Values.global.clusterDomain}}:5432/controller"
+{{- end }}
 {{- if (.Values.databaseMonitorUrl) }}
 - name: DRYCC_DATABASE_MONITOR_URL
   valueFrom:
     secretKeyRef:
       name: controller-creds
       key: database-monitor-url
-{{- end }}
-{{- else if eq .Values.global.databaseLocation "on-cluster"  }}
-- name: DRYCC_DATABASE_USER
+{{- else if eq .Values.global.timeseriesLocation "on-cluster"  }}
+- name: DRYCC_TS_USER
   valueFrom:
     secretKeyRef:
       name: database-creds
       key: user
-- name: DRYCC_DATABASE_PASSWORD
+- name: DRYCC_TS_PASSWORD
   valueFrom:
     secretKeyRef:
       name: database-creds
       key: password
-- name: DRYCC_DATABASE_URL
-  value: "postgres://$(DRYCC_DATABASE_USER):$(DRYCC_DATABASE_PASSWORD)@drycc-database.{{.Release.Namespace}}.svc.{{.Values.global.clusterDomain}}:5432/controller"
-- name: DRYCC_DATABASE_REPLICA_URL
-  value: "postgres://$(DRYCC_DATABASE_USER):$(DRYCC_DATABASE_PASSWORD)@drycc-database-replica.{{.Release.Namespace}}.svc.{{.Values.global.clusterDomain}}:5432/controller"
 - name: DRYCC_DATABASE_MONITOR_URL
-  value: "postgres://$(DRYCC_DATABASE_USER):$(DRYCC_DATABASE_PASSWORD)@drycc-database-replica.{{.Release.Namespace}}.svc.{{.Values.global.clusterDomain}}:5432/monitor"
+  value: "postgres://$(DRYCC_TS_USER):$(DRYCC_TS_PASSWORD)@drycc-timeseries-replica.{{.Release.Namespace}}.svc.{{.Values.global.clusterDomain}}:5432/monitor"
 {{- end }}
 {{- if (.Values.workflowManagerUrl) }}
 - name: WORKFLOW_MANAGER_URL
