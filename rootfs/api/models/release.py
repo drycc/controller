@@ -165,40 +165,40 @@ class Release(UuidAuditedModel):
         """
         Cleanup any old resources from Kubernetes
 
-        This includes any RCs that are no longer considered the latest release (just a safety net)
+        This includes any RSs that are no longer considered the latest release (just a safety net)
         Secrets no longer tied to any ReplicaSet
         Stray pods no longer relevant to the latest release
         """
         latest_version = 'v{}'.format(self.version)
         self.app.log(
-            'Cleaning up RCs for releases older than {} (latest)'.format(latest_version),
+            'Cleaning up RSs for releases older than {} (latest)'.format(latest_version),
             level=logging.DEBUG
         )
 
         # Cleanup controllers
         labels = {'heritage': 'drycc'}
-        controller_removal = []
-        controllers = self._scheduler.rc.get(self.app.id, labels=labels).json()['items']
-        if not controllers:
-            controllers = []
-        for controller in controllers:
-            current_version = controller['metadata']['labels']['version']
+        replica_sets_removal = []
+        replica_sets = self._scheduler.rs.get(self.app.id, labels=labels).json()['items']
+        if not replica_sets:
+            replica_sets = []
+        for replica_set in replica_sets:
+            current_version = replica_set['metadata']['labels']['version']
             # skip the latest release
             if current_version == latest_version:
                 continue
 
             # aggregate versions together to removal all at once
-            if current_version not in controller_removal:
-                controller_removal.append(current_version)
+            if current_version not in replica_sets_removal:
+                replica_sets_removal.append(current_version)
 
-        if controller_removal:
+        if replica_sets_removal:
             self.app.log(
-                'Found the following versions to cleanup: {}'.format(', '.join(controller_removal)),  # noqa
+                'Found the following versions to cleanup: {}'.format(', '.join(replica_sets_removal)),  # noqa
                 level=logging.DEBUG
             )
 
         # this is RC related
-        for version in controller_removal:
+        for version in replica_sets_removal:
             self._delete_release_in_scheduler(self.app.id, version)
 
         # handle Deployments specific cleanups
@@ -269,7 +269,7 @@ class Release(UuidAuditedModel):
         """
         Deletes a specific release in k8s based on ReplicationController
 
-        Scale RCs to 0 then delete RCs and the version specific
+        Scale RSs to 0 then delete RSs and the version specific
         secret that container the env var
         """
         labels = {
@@ -281,14 +281,14 @@ class Release(UuidAuditedModel):
         # see if the app config has deploy timeout preference, otherwise use global
         timeout = self.config.values.get('DRYCC_DEPLOY_TIMEOUT', settings.DRYCC_DEPLOY_TIMEOUT)
 
-        controllers = self._scheduler.rc.get(namespace, labels=labels).json()['items']
-        if not controllers:
-            controllers = []
-        for controller in controllers:
-            # Deployment takes care of this in the API, RC does not
-            # Have the RC scale down pods and delete itself
-            self._scheduler.rc.scale(namespace, controller['metadata']['name'], 0, timeout)
-            self._scheduler.rc.delete(namespace, controller['metadata']['name'])
+        replica_sets = self._scheduler.rs.get(namespace, labels=labels).json()['items']
+        if not replica_sets:
+            replica_sets = []
+        for replica_set in replica_sets:
+            # Deployment takes care of this in the API, RS does not
+            # Have the RS scale down pods and delete itself
+            self._scheduler.rs.scale(namespace, replica_set['metadata']['name'], 0, timeout)
+            self._scheduler.rs.delete(namespace, replica_set['metadata']['name'])
 
     def save(self, *args, **kwargs):  # noqa
         if not self.summary:

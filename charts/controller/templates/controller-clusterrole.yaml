@@ -69,7 +69,7 @@ rules:
   verbs: ["get"]
 - apiGroups: ["apps"]
   resources: ["replicasets"]
-  verbs: ["get", "list", "watch"]
+  verbs: ["get", "list", "watch", "delete"]
 - apiGroups: [""]
   resources: ["persistentvolumeclaims"]
   verbs: ["get", "list", "watch", "create", "delete", "patch", "update"]
