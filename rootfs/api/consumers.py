@@ -96,11 +96,11 @@ class AppPodExecConsumer(BaseAppConsumer):
     async def task(self):
         deadline = time.time() + settings.DRYCC_APP_POD_EXEC_TIMEOUT
         while self.stream.is_open() and self.conneted and time.time() < deadline:
-            self.stream.update(timeout=9)
-            if await sync_to_async(self.stream.peek_stdout)():
+            await sync_to_async(self.stream.update)(0.1)
+            if self.stream.peek_stdout():
                 data = self.stream.read_stdout()
-            elif await sync_to_async(self.stream.peek_stderr)():
-                data = self.stream.peek_stderr()
+            elif self.stream.peek_stderr():
+                data = self.stream.read_stderr()
             else:
                 data = None
             await self.send(data)
