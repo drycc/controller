@@ -14,8 +14,8 @@ LEFT OUTER JOIN kubernetes_pod_network_tag
 ON kubernetes_pod_network.tag_id = kubernetes_pod_network_tag.tag_id
 WHERE
   namespace in ({namespace_range})
-  AND time < to_timestamp({start})
-  AND time > to_timestamp({stop})
+  AND time > to_timestamp({start})
+  AND time < to_timestamp({stop})
 GROUP by namespace, pod_name
 """
 
@@ -34,8 +34,8 @@ FROM (
   WHERE
     namespace='{namespace}'
     AND container_name='{container_name}'
-    AND time < to_timestamp({start})
-    AND time > to_timestamp({stop})
+    AND time > to_timestamp({start})
+    AND time < to_timestamp({stop})
   GROUP BY namespace, pod_name, container_name, kubernetes_pod_container.tag_id
 ) AS container
 GROUP BY namespace, container_name
@@ -56,8 +56,8 @@ ON kubernetes_pod_container.tag_id = kubernetes_pod_container_tag.tag_id
 WHERE
   namespace='{namespace}'
   AND container_name='{container_name}'
-  AND time < to_timestamp({start})
-  AND time > to_timestamp({stop})
+  AND time > to_timestamp({start})
+  AND time < to_timestamp({stop})
 GROUP BY namespace, pod_name, container_name, timestamp
 """
 
@@ -76,8 +76,8 @@ ON kubernetes_pod_container.tag_id = kubernetes_pod_container_tag.tag_id
 WHERE
   namespace='{namespace}'
   AND container_name='{container_name}'
-  AND time < to_timestamp({start})
-  AND time > to_timestamp({stop})
+  AND time > to_timestamp({start})
+  AND time < to_timestamp({stop})
 GROUP BY namespace, pod_name, container_name, timestamp
 """
 
@@ -95,8 +95,8 @@ ON kubernetes_pod_network.tag_id = kubernetes_pod_network_tag.tag_id
 WHERE
   namespace='{namespace}'
   AND pod_name like '{pod_name_prefix}%'
-  AND time < to_timestamp({start})
-  AND time > to_timestamp({stop})
+  AND time > to_timestamp({start})
+  AND time < to_timestamp({stop})
 GROUP by namespace, pod_name, timestamp
 """
 
