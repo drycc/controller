@@ -401,7 +401,8 @@ class App(UuidAuditedModel):
             if scale_type in app_settings.canaries:
                 names.append(self._get_job_id(scale_type, True))
             names.append(self._get_job_id(scale_type, False))
-        deployments = self._scheduler.deployments.get(self.id).json()["items"]
+        labels = {'heritage': 'drycc'}
+        deployments = self._scheduler.deployments.get(self.id, labels=labels).json()["items"]
         if deployments is not None:
             for deployment in deployments:
                 name = deployment['metadata']['name']
