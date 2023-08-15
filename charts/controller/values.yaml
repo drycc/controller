@@ -67,15 +67,13 @@ api:
     values:
     - "true"
   podAffinityPreset:
-    key: "security"
     type: ""
-    values:
-    - "drycc-security"
+    extraMatchLabels:
+      security: "drycc-security"
   podAntiAffinityPreset:
-    key: "app"
     type: "soft"
-    values:
-    - "drycc-controller-api"
+    extraMatchLabels:
+      app: "drycc-controller-api"
 
 celery:
   nodeAffinityPreset:
@@ -84,15 +82,13 @@ celery:
     values:
     - "true"
   podAffinityPreset:
-    key: "security"
     type: ""
-    values:
-    - "drycc-security"
+    extraMatchLabels:
+      security: "drycc-security"
   podAntiAffinityPreset:
-    key: "app"
     type: "soft"
-    values:
-    - "drycc-controller-celery"
+    extraMatchLabels:
+      app: "drycc-controller-celery"
 
 webhook:
   nodeAffinityPreset:
@@ -101,32 +97,13 @@ webhook:
     values:
     - "true"
   podAffinityPreset:
-    key: "security"
     type: ""
-    values:
-    - "drycc-security"
+    extraMatchLabels:
+      security: "drycc-security"
   podAntiAffinityPreset:
-    key: "app"
     type: "soft"
-    values:
-    - "drycc-controller-webhook"
-
-cronjob:
-  nodeAffinityPreset:
-    key: "drycc.cc/node"
-    type: "soft"
-    values:
-    - "true"
-  podAffinityPreset:
-    key: "security"
-    type: ""
-    values:
-    - "drycc-security"
-  podAntiAffinityPreset:
-    key: "app"
-    type: "soft"
-    values:
-    - "drycc-controller-webhook"
+    extraMatchLabels:
+      component: "drycc-controller-webhook"
 
 redis:
   replicas: 1

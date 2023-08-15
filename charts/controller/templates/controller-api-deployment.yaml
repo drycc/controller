@@ -18,12 +18,12 @@ spec:
       app: drycc-controller-api
   template:
     metadata:
-      labels:
+      labels: {{- include "common.labels.standard" . | nindent 8 }}
         app: drycc-controller-api
     spec:
       affinity:
-        podAffinity: {{- include "common.affinities.pods" (dict "type" .Values.api.podAffinityPreset.type "key" .Values.api.podAffinityPreset.key "values" .Values.api.podAffinityPreset.values ) | nindent 10 }}
-        podAntiAffinity: {{- include "common.affinities.pods" (dict "type" .Values.api.podAntiAffinityPreset.type "key" .Values.api.podAntiAffinityPreset.key "values" .Values.api.podAntiAffinityPreset.values ) | nindent 10 }}
+        podAffinity: {{- include "common.affinities.pods" (dict "type" .Values.api.podAffinityPreset.type "component" "" "extraMatchLabels" .Values.api.podAffinityPreset.extraMatchLabels "topologyKey" "" "context" $) | nindent 10 }}
+        podAntiAffinity: {{- include "common.affinities.pods" (dict "type" .Values.api.podAntiAffinityPreset.type "component" "" "extraMatchLabels" .Values.api.podAntiAffinityPreset.extraMatchLabels "topologyKey" "" "context" $) | nindent 10 }}
         nodeAffinity: {{- include "common.affinities.nodes" (dict "type" .Values.api.nodeAffinityPreset.type "key" .Values.api.nodeAffinityPreset.key "values" .Values.api.nodeAffinityPreset.values ) | nindent 10 }}
       serviceAccount: drycc-controller
       initContainers:

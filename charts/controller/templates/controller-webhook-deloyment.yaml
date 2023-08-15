@@ -9,12 +9,12 @@ spec:
       component: drycc-controller-webhook
   template:
     metadata:
-      labels:
+      labels: {{- include "common.labels.standard" . | nindent 8 }}
         component: drycc-controller-webhook
     spec:
       affinity:
-        podAffinity: {{- include "common.affinities.pods" (dict "type" .Values.webhook.podAffinityPreset.type "key" .Values.webhook.podAffinityPreset.key "values" .Values.webhook.podAffinityPreset.values ) | nindent 10 }}
-        podAntiAffinity: {{- include "common.affinities.pods" (dict "type" .Values.webhook.podAntiAffinityPreset.type "key" .Values.webhook.podAntiAffinityPreset.key "values" .Values.webhook.podAntiAffinityPreset.values ) | nindent 10 }}
+        podAffinity: {{- include "common.affinities.pods" (dict "type" .Values.webhook.podAffinityPreset.type "component" "" "extraMatchLabels" .Values.webhook.podAffinityPreset.extraMatchLabels "topologyKey" "" "context" $) | nindent 10 }}
+        podAntiAffinity: {{- include "common.affinities.pods" (dict "type" .Values.webhook.podAntiAffinityPreset.type "component" "" "extraMatchLabels" .Values.webhook.podAntiAffinityPreset.extraMatchLabels "topologyKey" "" "context" $) | nindent 10 }}
         nodeAffinity: {{- include "common.affinities.nodes" (dict "type" .Values.webhook.nodeAffinityPreset.type "key" .Values.webhook.nodeAffinityPreset.key "values" .Values.webhook.nodeAffinityPreset.values ) | nindent 10 }}
       initContainers:
       - name: drycc-controller-init
