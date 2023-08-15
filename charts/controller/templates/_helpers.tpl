@@ -97,12 +97,12 @@ env:
 - name: DRYCC_TS_USER
   valueFrom:
     secretKeyRef:
-      name: database-creds
+      name: timeseries-creds
       key: user
 - name: DRYCC_TS_PASSWORD
   valueFrom:
     secretKeyRef:
-      name: database-creds
+      name: timeseries-creds
       key: password
 - name: DRYCC_DATABASE_MONITOR_URL
   value: "postgres://$(DRYCC_TS_USER):$(DRYCC_TS_PASSWORD)@drycc-timeseries-replica.{{.Release.Namespace}}.svc.{{.Values.global.clusterDomain}}:5432/monitor"
