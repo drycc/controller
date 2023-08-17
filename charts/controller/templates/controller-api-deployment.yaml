@@ -34,7 +34,7 @@ spec:
         - netcat
         - -v
         - -u
-        - $(DRYCC_DATABASE_URL),$(DRYCC_DATABASE_REPLICA_URL),$(DRYCC_RABBITMQ_URL),$(DRYCC_PASSPORT_URL)
+        - $(DRYCC_DATABASE_URL),$(DRYCC_DATABASE_REPLICA_URL),$(DRYCC_RABBITMQ_URL)
         - -a
         - $(DRYCC_REDIS_ADDRS)
         {{- include "controller.envs" . | indent 8 }}
