@@ -92,13 +92,13 @@ class GatewayTest(BaseGatewayTest):
             "name": "bing-gateway",
             "listeners": [
                 {
-                    "name": "%s-8000-tcp" % app_id,
+                    "name": "tcp-8000-%s" % 0,
                     "port": 8000,
                     "protocol": "HTTP",
                     "allowedRoutes": {"namespaces": {"from": "All"}}
                 },
                 {
-                    "name": "%s-443-tcp" % app_id,
+                    "name": "tcp-443-%s" % 0,
                     "port": 443,
                     "protocol": "HTTP",
                     "allowedRoutes": {"namespaces": {"from": "All"}}
@@ -116,9 +116,9 @@ class GatewayTest(BaseGatewayTest):
         self.assertEqual(response.status_code, 201)
         response = self.client.get('/v2/apps/{}/gateways/'.format(app_id))
         if protocol == "HTTPS":
-            listener_name = "%s-443-mix-%s" % (app_id, domain)
+            listener_name = "mix-443-%s" % 0
         else:
-            listener_name = "%s-443-tcp-%s" % (app_id, domain)
+            listener_name = "tcp-443-%s" % 0
         results = [{
             "app": app_id,
             "owner": "autotest",

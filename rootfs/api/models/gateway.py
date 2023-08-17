@@ -34,17 +34,14 @@ class Gateway(AuditedModel):
             domains = domains.exclude(certificate=None)
         return domains
 
-    def _get_listener_name(self, port, protocol, suffix=None):
-        names = [self.app.id, str(port)]
+    def _get_listener_name(self, port, protocol, index):
         if protocol in ("TCP", "TLS", "HTTP"):
-            names.append("TCP")
+            protocol = "TCP"
         elif protocol in ("HTTPS", ):
-            names.append("MIX")
+            protocol = "MIX"
         else:
-            names.append("UDP")
-        if suffix:
-            names.append(suffix)
-        return "-".join(names).lower()
+            protocol = "UDP"
+        return "-".join([protocol, str(port), str(index)]).lower()
 
     def add(self, port, protocol):
         # check port
@@ -76,7 +73,7 @@ class Gateway(AuditedModel):
                                    auto_tls else domain.certificate.name)
                     listeners.append({
                         "allowedRoutes": {"namespaces": {"from": "All"}},
-                        "name": self._get_listener_name(port, protocol, domain.domain),
+                        "name": self._get_listener_name(port, protocol, domains.index(domain)),
                         "port": port,
                         "hostname": domain.domain,
                         "protocol": protocol,
@@ -85,7 +82,7 @@ class Gateway(AuditedModel):
             else:
                 listeners.append({
                     "allowedRoutes": {"namespaces": {"from": "All"}},
-                    "name": self._get_listener_name(port, protocol),
+                    "name": self._get_listener_name(port, protocol, 0),
                     "port": port,
                     "protocol": protocol,
                 })

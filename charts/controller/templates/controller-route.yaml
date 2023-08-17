@@ -14,12 +14,12 @@ spec:
   - group: gateway.networking.k8s.io
     kind: Gateway
     name: drycc-gateway
-    sectionName: drycc-gateway-listener-http
+    sectionName: http
 {{- if .Values.global.certManagerEnabled }}
   - group: gateway.networking.k8s.io
     kind: Gateway
     name: drycc-gateway
-    sectionName: drycc-gateway-listener-https
+    sectionName: https
 {{- end }}
   rules:
   - matches:
