@@ -146,7 +146,6 @@ def app_changed_handle(sender, instance: App, created=False, update_fields=None,
         timestamp = time.time()
         send_measurements.apply_async(
             args=[instance.to_measurements(timestamp), ],
-            queue="priority.middle",
         )
 
 
@@ -225,7 +224,6 @@ def config_changed_handle(sender, instance: Config, created=False, update_fields
         timestamp = time.time()
         send_measurements.apply_async(
             args=[instance.app.to_measurements(timestamp), ],
-            queue="priority.middle",
         )
 
 
@@ -236,7 +234,6 @@ def volume_changed_handle(sender, instance: Volume, created=False, update_fields
         timestamp = time.time()
         send_measurements.apply_async(
             args=[instance.to_measurements(timestamp), ],
-            queue="priority.middle",
         )
 
 
@@ -259,5 +256,4 @@ def resource_changed_handle(
         timestamp = time.time()
         send_measurements.apply_async(
             args=[instance.to_measurements(timestamp), ],
-            queue="priority.middle",
         )

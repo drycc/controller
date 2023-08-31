@@ -39,22 +39,14 @@ spec:
           - $(DRYCC_REDIS_ADDRS),$(DRYCC_CONTROLLER_API_SERVICE_HOST):$(DRYCC_CONTROLLER_API_SERVICE_PORT)
         {{- include "controller.envs" . | indent 8 }}
       containers:
-      - name: drycc-controller-celery-high
-        image: {{.Values.imageRegistry}}/{{.Values.imageOrg}}/controller:{{.Values.imageTag}}
-        imagePullPolicy: {{.Values.imagePullPolicy}}
+      {{- range $key := (list "low" "middle" "high") }}
+      - name: drycc-controller-celery-{{$key}}
+        image: {{$.Values.imageRegistry}}/{{$.Values.imageOrg}}/controller:{{$.Values.imageTag}}
+        imagePullPolicy: {{$.Values.imagePullPolicy}}
         args:
           - /bin/bash
           - -c
-          - celery -A api worker -Q priority.high --autoscale=32,1 --loglevel=WARNING
-        {{- include "controller.limits" . | indent 8 }}
-        {{- include "controller.envs" . | indent 8 }}
-      - name: drycc-controller-celery-low
-        image: {{.Values.imageRegistry}}/{{.Values.imageOrg}}/controller:{{.Values.imageTag}}
-        imagePullPolicy: {{.Values.imagePullPolicy}}
-        args:
-          - /bin/bash
-          - -c
-          - celery -A api worker -Q priority.low --autoscale=32,1 --loglevel=WARNING
-        {{- include "controller.limits" . | indent 8 }}
-        {{- include "controller.envs" . | indent 8 }}
-
+          - celery -A api worker -Q controller.priority.{{$key}} --autoscale=32,1 --loglevel=WARNING
+        {{- include "controller.limits" $ | indent 8 }}
+        {{- include "controller.envs" $ | indent 8 }}
+      {{- end }}

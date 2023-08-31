@@ -19,7 +19,7 @@ class Config:
     result_expires = 24 * 60 * 60
     broker_url = os.environ.get('DRYCC_RABBITMQ_URL', 'amqp://guest:guest@127.0.0.1:5672/')  # noqa
     cache_backend = 'django-cache'
-    task_default_queue = 'priority.low'
+    task_default_queue = 'controller.priority.low'
     worker_cancel_long_running_tasks_on_connection_loss = True
 
 
@@ -27,9 +27,10 @@ app = Celery('drycc')
 app.config_from_object(Config)
 app.conf.update(
     task_routes={
-        'api.tasks.scale_app': {'queue': 'priority.high'},
-        'api.tasks.restart_app': {'queue': 'priority.high'},
-        'api.tasks.retrieve_resource': {'queue': 'priority.high'},
+        'api.tasks.scale_app': {'queue': 'controller.priority.high'},
+        'api.tasks.restart_app': {'queue': 'controller.priority.high'},
+        'api.tasks.retrieve_resource': {'queue': 'controller.priority.high'},
+        'api.tasks.send_measurements': {'queue': 'controller.priority.middle'},
     },
 )
 app.autodiscover_tasks()
