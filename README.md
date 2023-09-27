@@ -33,10 +33,10 @@ The Drycc project welcomes contributions from all developers. The high-level pro
 
 ## Prerequisites
 
-### Docker
+### Podman
 
-Unit tests and code linters for controller run in a Docker container with your local code directory
-mounted in. You need [Docker][] to run `make test`.
+Unit tests and code linters for controller run in a container with your local code directory
+mounted in. You need [Podman][] to run `make test`.
 
 ### Kubernetes
 
@@ -53,13 +53,13 @@ When you've built your new feature or fixed a bug, make sure you've added approp
 
 Also, since this component is central to the platform, it's recommended that you manually test and verify that your feature or fix works as expected. To do so, ensure the following environment variables are set:
 
-* `DRYCC_REGISTRY` - A Docker registry that you have push access to and your Kubernetes cluster can pull from
-  * If this is [Docker Hub](https://hub.docker.com/), leave this variable empty
-* `IMAGE_PREFIX` - The organization in the Docker repository. This defaults to `drycc`, but if you don't have access to that organization, set this to one you have push access to.
+* `DRYCC_REGISTRY` - A Container registry that you have push access to and your Kubernetes cluster can pull from
+  * If this is [Drycc Registry](https://registry.drycc.cc/), leave this variable empty
+* `IMAGE_PREFIX` - The organization in the Container repository. This defaults to `drycc`, but if you don't have access to that organization, set this to one you have push access to.
 * `SHORT_NAME` (optional) - The name of the image. This defaults to `controller`
-* `VERSION` (optional) - The tag of the Docker image. This defaults to the current Git SHA (the output of `git rev-parse --short HEAD`)
+* `VERSION` (optional) - The tag of the Container image. This defaults to the current Git SHA (the output of `git rev-parse --short HEAD`)
 
-Then, run `make deploy` to build and push a new Docker image with your changes and replace the existing one with your new one in the Kubernetes cluster. See below for an example with appropriate environment variables.
+Then, run `make deploy` to build and push a new Container image with your changes and replace the existing one with your new one in the Kubernetes cluster. See below for an example with appropriate environment variables.
 
 ```console
 export IMAGE_PREFIX=arschles
@@ -76,7 +76,7 @@ kubectl get pod --namespace=drycc -w | grep drycc-controller
 [issues]: https://github.com/drycc/controller/issues
 [prs]: https://github.com/drycc/controller/pulls
 [workflow]: https://github.com/drycc/workflow
-[Docker]: https://www.docker.com/
+[Podman]: https://podman.io/
 
 
 ## License

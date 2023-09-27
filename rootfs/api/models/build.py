@@ -37,7 +37,7 @@ class Build(UuidAuditedModel):
         elif self.sha:
             return 'buildpack'
         else:
-            # docker image (or any sort of image) used via drycc pull
+            # container image (or any sort of image) used via drycc pull
             return 'image'
 
     @property

@@ -12,7 +12,7 @@ pipeline:
 - name: test-linux
   image: bash
   commands:
-  - make test docker-build-test upload-coverage
+  - make test podman-build-test upload-coverage
   secrets:
   - codename
   - dev_registry

@@ -7,7 +7,7 @@ PLATFORM ?= linux/amd64,linux/arm64
 
 include versioning.mk
 
-SHELLCHECK_PREFIX := docker run -v ${CURDIR}:/workdir -w /workdir ${DEV_REGISTRY}/drycc/go-dev shellcheck
+SHELLCHECK_PREFIX := podman run -v ${CURDIR}:/workdir -w /workdir ${DEV_REGISTRY}/drycc/go-dev shellcheck
 SHELL_SCRIPTS = $(wildcard rootfs/bin/*) $(shell find "rootfs" -name '*.sh') $(wildcard _scripts/*.sh)
 
 # Test processes used in quick unit testing
@@ -19,44 +19,41 @@ check-kubectl:
 	  exit 2; \
 	fi
 
-check-docker:
-	@if [ -z $$(which docker) ]; then \
-	  echo "Missing \`docker\` client which is required for development"; \
+check-podman:
+	@if [ -z $$(which podman) ]; then \
+	  echo "Missing \`podman\` client which is required for development"; \
 	  exit 2; \
 	fi
 
-build: docker-build
+build: podman-build
 
-docker-build: check-docker
-	docker build ${DOCKER_BUILD_FLAGS} --build-arg CODENAME=${CODENAME} -t ${IMAGE} rootfs
-	docker tag ${IMAGE} ${MUTABLE_IMAGE}
+podman-build: check-podman
+	podman build --build-arg CODENAME=${CODENAME} -t ${IMAGE} rootfs
+	podman tag ${IMAGE} ${MUTABLE_IMAGE}
 
-docker-buildx: check-docker
-	docker buildx build --build-arg CODENAME=${CODENAME} --platform ${PLATFORM} -t ${IMAGE} rootfs --push
+podman-build-test: check-podman
+	podman build --build-arg CODENAME=${CODENAME} -t ${IMAGE}.test -f rootfs/Dockerfile.test rootfs
 
-docker-build-test: check-docker
-	docker build ${DOCKER_BUILD_FLAGS} --build-arg CODENAME=${CODENAME} -t ${IMAGE}.test -f rootfs/Dockerfile.test rootfs
-
-deploy: check-kubectl docker-build docker-push
+deploy: check-kubectl podman-build podman-push
 	kubectl --namespace=drycc patch deployment drycc-$(COMPONENT) --type='json' -p='[{"op": "replace", "path": "/spec/template/spec/containers/0/image", "value":"$(IMAGE)"}]'
 
-clean: check-docker
-	docker rmi $(IMAGE)
+clean: check-podman
+	podman rmi $(IMAGE)
 
 commit-hook:
 	cp _scripts/util/commit-msg .git/hooks/commit-msg
 
-full-clean: check-docker
-	docker images -q $(IMAGE_PREFIX)/$(COMPONENT) | xargs docker rmi -f
+full-clean: check-podman
+	podman images -q $(IMAGE_PREFIX)/$(COMPONENT) | xargs podman rmi -f
 
 test: test-style test-unit test-functional
 
-test-style: docker-build-test
-	docker run -v ${CURDIR}:/test -w /test/rootfs ${IMAGE}.test /test/rootfs/bin/test-style
+test-style: podman-build-test
+	podman run -v ${CURDIR}:/test -w /test/rootfs ${IMAGE}.test /test/rootfs/bin/test-style
 	${SHELLCHECK_PREFIX} $(SHELL_SCRIPTS)
 
-test-unit: docker-build-test
-	docker run -v ${CURDIR}:/test -w /test/rootfs ${IMAGE}.test /test/rootfs/bin/test-unit
+test-unit: podman-build-test
+	podman run -v ${CURDIR}:/test -w /test/rootfs ${IMAGE}.test /test/rootfs/bin/test-unit
 
 test-functional:
 	@echo "Implement functional tests in _tests directory"
@@ -66,6 +63,6 @@ test-integration:
 
 upload-coverage:
 	$(eval CI_ENV := $(shell curl -s https://codecov.io/env | bash))
-	docker run --rm ${CI_ENV} -v ${CURDIR}:/test -w /test/rootfs ${IMAGE}.test /test/rootfs/bin/upload-coverage
+	podman run --rm ${CI_ENV} -v ${CURDIR}:/test -w /test/rootfs ${IMAGE}.test /test/rootfs/bin/upload-coverage
 
-.PHONY: check-kubectl check-docker build docker-build docker-build-test deploy clean commit-hook full-clean test test-style test-unit test-functional test-integration upload-coverage
+.PHONY: check-kubectl check-podman build podman-build podman-build-test deploy clean commit-hook full-clean test test-style test-unit test-functional test-integration upload-coverage

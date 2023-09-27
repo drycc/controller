@@ -10,13 +10,13 @@ info:
 	@echo "Immutable tag:   ${IMAGE}"
 	@echo "Mutable tag:     ${MUTABLE_IMAGE}"
 
-.PHONY: docker-push
-docker-push: docker-mutable-push docker-immutable-push
+.PHONY: podman-push
+podman-push: podman-mutable-push podman-immutable-push
 
-.PHONY: docker-immutable-push
-docker-immutable-push:
-	docker push ${IMAGE}
+.PHONY: podman-immutable-push
+podman-immutable-push:
+	podman push ${IMAGE}
 
-.PHONY: docker-mutable-push
-docker-mutable-push:
-	docker push ${MUTABLE_IMAGE}
+.PHONY: podman-mutable-push
+podman-mutable-push:
+	podman push ${MUTABLE_IMAGE}

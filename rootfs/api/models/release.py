@@ -61,7 +61,7 @@ class Release(UuidAuditedModel):
         """
         Get application port for a given release. If pulling from private registry
         then use default port or read from ENV var, otherwise attempt to pull from
-        the docker image
+        the container image
         """
         try:
             envs = self.config.values

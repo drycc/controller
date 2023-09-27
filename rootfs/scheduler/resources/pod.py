@@ -364,8 +364,8 @@ class Pod(Resource):
     def _default_container_readiness_probe(port, delay=5, timeout=5, period_seconds=5,
                                            success_threshold=1, failure_threshold=1):
         """
-        Applies tcp socket readiness probe to the docker app container only if some port is exposed
-        by the docker image.
+        Applies tcp socket readiness probe to the app container only if some port is exposed
+        by the container image.
         """
         readinessprobe = {
             'readinessProbe': {

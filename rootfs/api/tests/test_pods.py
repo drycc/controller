@@ -131,7 +131,7 @@ class PodTest(DryccTransactionTestCase):
         response = self.client.get(url)
         self.assertEqual(response.status_code, 200, response.data)
 
-    def test_container_api_docker(self, mock_requests):
+    def test_container_api(self, mock_requests):
         app_id = self.create_app()
 
         # should start with zero
@@ -519,7 +519,7 @@ class PodTest(DryccTransactionTestCase):
         self.assertEqual(app._get_command('web'), [])
         self.assertEqual(app._get_command('worker'), [])
 
-        # switch to docker image app
+        # switch to container image app
         build.sha = ''
         build.save()
         self.assertEqual(app._get_command('web'), ['node server.js'])

@@ -1110,7 +1110,7 @@ class MockSchedulerClient(KubeHTTPClient):
                         "bootID": "11895587-b7f1-4332-8e33-ec222c147d0b",
                         "kernelVersion": "4.2.2-coreos-r2",
                         "osImage": "CoreOS 835.12.0",
-                        "containerRuntimeVersion": "docker://1.8.3",
+                        "containerRuntimeVersion": "oci://1.8.3",
                         "kubeletVersion": "v1.1.7",
                         "kubeProxyVersion": "v1.1.7"
                     }
