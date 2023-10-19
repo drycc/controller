@@ -20,7 +20,7 @@ env:
   value: "{{ .Values.global.clusterDomain }}"
 {{- if (.Values.appStorageClass) }}
 - name: "DRYCC_APP_STORAGE_CLASS"
-  value: "{{ .Values.appStorageClass }}"
+  value: "{{ (tpl .Values.appStorageClass .) }}"
 {{- end }}
 {{- if (.Values.appRuntimeClass) }}
 - name: "DRYCC_APP_RUNTIME_CLASS"

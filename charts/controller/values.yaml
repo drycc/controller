@@ -17,7 +17,7 @@ registrationMode: "admin_only"
 k8sApiVerifyTls: "true"
 
 # Set storageClassName. It is used for application.
-appStorageClass: "drycc-storage"
+appStorageClass: "{{ .Values.storage.csi.storageClassName }}"
 # Set runtimeClassName. It is used for application.
 appRuntimeClass: ""
 # Set appDNSPolicy. It is used for application.
@@ -107,6 +107,10 @@ webhook:
 
 redis:
   replicas: 1
+
+storage:
+  csi:
+    storageClassName: drycc-storage
 
 global:
   # Admin email, used for each component to send email to administrator
