@@ -515,7 +515,7 @@ class App(UuidAuditedModel):
                 if 'startTime' in p['status']:
                     started = p['status']['startTime']
                 else:
-                    started = str(datetime.utcnow().strftime(settings.DEIS_DATETIME_FORMAT))
+                    started = str(datetime.utcnow().strftime(settings.DRYCC_DATETIME_FORMAT))
                 item['started'] = started
 
                 data.append(item)
