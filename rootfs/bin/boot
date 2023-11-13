@@ -25,7 +25,7 @@ python /workspace/manage.py healthchecks
 
 echo ""
 echo "Database Migrations:"
-python /workspace/manage.py migrate --noinput
+python /workspace/manage.py cluster_migrate --noinput
 
 # spawn a gunicorn server in the background
 echo ""
