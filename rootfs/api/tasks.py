@@ -89,3 +89,21 @@ def restart_app(app, **kwargs):
         raise e
     else:
         signals.request_finished.send(sender=task_id)
+
+
+@shared_task(
+    autoretry_for=(ServiceUnavailable, ),
+    retry_jitter=True,
+    retry_kwargs={'max_retries': 3}
+)
+def mount_app(app, user, volume):
+    task_id = uuid.uuid4().hex
+    signals.request_started.send(sender=task_id)
+    try:
+        app.mount(user, volume)
+        volume.save()
+    except Exception as e:
+        signals.got_request_exception.send(sender=task_id)
+        raise e
+    else:
+        signals.request_finished.send(sender=task_id)

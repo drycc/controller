@@ -19,7 +19,7 @@ from rest_framework.response import Response
 from rest_framework.viewsets import GenericViewSet
 
 from api import monitor, models, permissions, serializers, viewsets, authentication
-from api.tasks import scale_app, restart_app
+from api.tasks import scale_app, restart_app, mount_app
 from api.exceptions import AlreadyExists, ServiceUnavailable, DryccException, \
     UnprocessableEntity
 
@@ -761,11 +761,9 @@ class AppVolumesViewSet(ReleasableViewSet):
                 path.pop(key)
             else:
                 path[key] = value
-
         app = self.get_app()
-        volume.path = path  # after merge path
-        app.mount(self.request.user, volume)
-        volume.save()
+        volume.path = path  # volume save by task success
+        mount_app.delay(app, self.request.user, volume)
         serializer = self.get_serializer(volume, many=False)
         return Response(serializer.data)
 
