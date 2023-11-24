@@ -658,6 +658,12 @@ class GatewaySerializer(serializers.Serializer):
     owner = serializers.ReadOnlyField(source='owner.username')
     name = serializers.CharField(max_length=63, required=True)
     listeners = serializers.JSONField(required=False)
+    addresses = serializers.JSONField(read_only=True)
+
+    def to_representation(self, instance):
+        representation = super().to_representation(instance)
+        representation['addresses'] = instance.addresses
+        return representation
 
     @staticmethod
     def validate_port(value):
