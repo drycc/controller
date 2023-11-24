@@ -383,7 +383,7 @@ KUBERNETES_POD_DEFAULT_ANNOTATIONS = os.environ.get(
     'KUBERNETES_POD_DEFAULT_ANNOTATIONS',
     json.dumps({
         "kubernetes.io/egress-bandwidth": "100M",
-        "kubernetes.io/igress-bandwidth": "100M",
+        "kubernetes.io/ingress-bandwidth": "100M",
     })
 )
 # Default quota spec for application namespace
