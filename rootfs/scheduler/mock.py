@@ -712,6 +712,13 @@ def post(request, context):
                 ]
             }
         }
+    if resource_type in ["gateways"]:
+        data['status'] = {
+            "addresses": [{
+                "type": "IPAddress",
+                "value": "172.22.108.207"
+            }],
+        }
     # Handle RC / RS / Deployments
     if resource_type in ['replicationcontrollers', 'replicasets', 'deployments']:
         data['status'] = {
@@ -806,7 +813,7 @@ def put(request, context):
     return request.json()
 
 
-def patch(request, context):
+def patch(request, context):  # noqa: C901
     """Process a PATCH request to the kubernetes API"""
     url = cache_key(request.url)
     # type is the second last element
@@ -869,6 +876,9 @@ def patch(request, context):
             upsert_pods(data, url)
         elif resource_type == 'deployments':
             manage_replicasets(data, url)
+    elif resource_type in ['gateways']:
+        data['status'] = item['status']
+        cache.set(url, data, None)
     else:
         # Update the individual resource
         cache.set(url, data, None)
