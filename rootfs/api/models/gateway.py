@@ -88,6 +88,14 @@ class Gateway(AuditedModel):
                 })
         return listeners
 
+    @property
+    def addresses(self):
+        data = self._scheduler.gateways.get(self.app.id, self.name, ignore_exception=True)
+        if data.status_code != 200:
+            return []
+        addresses = data.json()["status"].get("addresses", [])
+        return addresses
+
     def refresh_to_k8s(self):
         try:
             try:

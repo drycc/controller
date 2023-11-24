@@ -102,7 +102,11 @@ class GatewayTest(BaseGatewayTest):
                     "port": 443,
                     "protocol": "HTTP",
                     "allowedRoutes": {"namespaces": {"from": "All"}}
-                }]
+                }],
+            "addresses": [{
+                "type": "IPAddress",
+                "value": "172.22.108.207"
+            }]
         }]
         self.assertEqual(results, json.loads(json.dumps(response.data["results"])))
 
@@ -139,6 +143,10 @@ class GatewayTest(BaseGatewayTest):
                         "from": "All"
                     }
                 }
+            }],
+            "addresses": [{
+                "type": "IPAddress",
+                "value": "172.22.108.207"
             }]
         }]
         self.assertEqual(results, json.loads(json.dumps(response.data["results"])))
