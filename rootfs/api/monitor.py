@@ -109,7 +109,7 @@ max_over_time(kube_service_status_load_balancer_ingress{namespace=~"%s"}[60m])
 
 
 def query_loadbalancer(namespaces: Iterator[str],
-                        start: int, stop: int) -> Iterator[Dict[str, str]]:
+                       start: int, stop: int) -> Iterator[Dict[str, str]]:
     promql = query_loadbalancer_promql_tpl % "|".join(namespaces)
     params = {"query": promql, "start": start, "end": stop}
     response = requests.get(settings.DRYCC_PROMETHEUS_URL, params=params)
