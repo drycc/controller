@@ -279,7 +279,6 @@ class DomainTest(DryccTestCase):
             'django.pa--assandbox',
             'too.looooooooooooooooooooooooooooooooooooooooooooooooooooooooooooong',
             'foo.*.bar.com',
-            'test.local.drycc.cc',
             '*',
             'a' * 300,
             '.'.join(['a'] * 128)

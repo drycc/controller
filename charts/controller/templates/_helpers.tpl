@@ -6,8 +6,6 @@ env:
 # Environmental variable value for $GATEWAY_CLASS
 - name: "DRYCC_GATEWAY_CLASS"
   value: "{{ .Values.global.gatewayClass }}"
-- name: "DRYCC_PLATFORM_DOMAIN"
-  value: "{{ .Values.global.platformDomain }}"
 - name: "K8S_API_VERIFY_TLS"
   value: "{{ .Values.k8sApiVerifyTls }}"
 - name: "DRYCC_REGISTRY_LOCATION"

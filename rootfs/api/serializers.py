@@ -403,9 +403,6 @@ class DomainSerializer(serializers.ModelSerializer):
         if value == "*":
             raise serializers.ValidationError("Hostname can't only be a wildcard")
 
-        if value.endswith(".{}".format(settings.PLATFORM_DOMAIN)):
-            raise serializers.ValidationError("This is a reserved domain")
-
         labels = value.split('.')
 
         # Let wildcards through by not trying to validate it
