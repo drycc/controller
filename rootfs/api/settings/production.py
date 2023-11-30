@@ -269,6 +269,8 @@ SCHEDULER_URL = "https://{}:{}".format(
 )
 
 K8S_API_VERIFY_TLS = bool(strtobool(os.environ.get('K8S_API_VERIFY_TLS', 'true')))
+# drycc prometheus url
+DRYCC_PROMETHEUS_URL = os.environ.get('DRYCC_PROMETHEUS_URL', '')
 
 # security keys and auth tokens
 random_secret = 'CHANGEME_sapm$s%upvsw5l_zuy_&29rkywd^78ff(qi*#@&*^'

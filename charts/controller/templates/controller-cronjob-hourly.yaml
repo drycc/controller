@@ -42,3 +42,11 @@ spec:
             - -c
             - python -u /workspace/manage.py measure_networks
             {{- include "controller.envs" . | indent 12 }}
+          - image: {{.Values.imageRegistry}}/{{.Values.imageOrg}}/controller:{{.Values.imageTag}}
+            imagePullPolicy: {{.Values.pull_policy}}
+            name: drycc-controller-measure-loadbalancer
+            args:
+            - /bin/bash
+            - -c
+            - python -u /workspace/manage.py measure_loadbalancers
+            {{- include "controller.envs" . | indent 12 }}
