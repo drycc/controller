@@ -1,6 +1,7 @@
 import requests
 from typing import Iterator, Dict
 from contextlib import closing
+from urllib.parse import urljoin
 from django.db import connections
 from django.conf import settings
 
@@ -104,7 +105,7 @@ GROUP by namespace, pod_name, timestamp
 
 
 query_loadbalancer_promql_tpl = """
-max_over_time(kube_service_status_load_balancer_ingress{namespace=~"%s"}[60m])
+kube_service_status_load_balancer_ingress{namespace=~"%s"}
 """
 
 
@@ -112,7 +113,8 @@ def query_loadbalancer(namespaces: Iterator[str],
                        start: int, stop: int) -> Iterator[Dict[str, str]]:
     promql = query_loadbalancer_promql_tpl % "|".join(namespaces)
     params = {"query": promql, "start": start, "end": stop}
-    response = requests.get(settings.DRYCC_PROMETHEUS_URL, params=params)
+    response = requests.get(
+        urljoin(settings.DRYCC_PROMETHEUS_URL, "/api/v1/query"), params=params)
     if response.status_code != 200:
         return StopIteration
     yield from (metric["metric"] for metric in response.json()["data"]["result"])

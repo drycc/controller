@@ -147,7 +147,7 @@ env:
       name: prometheus-creds
       key: password
 - name: "DRYCC_PROMETHEUS_URL"
-  value: "http://$(DRYCC_PROMETHEUS_USERNAME):$(DRYCC_PROMETHEUS_PASSWORD)@drycc-prometheus.{{$.Release.Namespace}}.svc.{{$.Values.global.clusterDomain}}:9090//api/v1/query"
+  value: "http://$(DRYCC_PROMETHEUS_USERNAME):$(DRYCC_PROMETHEUS_PASSWORD)@drycc-prometheus.{{$.Release.Namespace}}.svc.{{$.Values.global.clusterDomain}}:9090"
 {{- end }}
 {{- if (.Values.rabbitmqUrl) }}
 - name: DRYCC_RABBITMQ_URL
