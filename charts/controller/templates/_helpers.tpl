@@ -135,7 +135,7 @@ env:
     secretKeyRef:
       name: prometheus-creds
       key: url
-{- else }
+{{- else }}
 - name: "DRYCC_PROMETHEUS_USERNAME"
   valueFrom:
     secretKeyRef:
