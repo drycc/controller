@@ -280,8 +280,6 @@ BUILDER_KEY = os.environ.get('DRYCC_BUILDER_KEY', random_secret)
 # gateway class name
 GATEWAY_CLASS = os.environ.get('DRYCC_GATEWAY_CLASS', '')
 
-PLATFORM_DOMAIN = os.environ.get('DRYCC_PLATFORM_DOMAIN', 'local.drycc.cc')
-
 IMAGE_PULL_POLICY = os.environ.get('IMAGE_PULL_POLICY', "IfNotPresent")
 
 # True, true, yes, y and more evaluate to True
