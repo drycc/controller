@@ -55,8 +55,8 @@ class Config(UuidAuditedModel):
         success_threshold = int(self.values.get('HEALTHCHECK_SUCCESS_THRESHOLD', 1))
         failure_threshold = int(self.values.get('HEALTHCHECK_FAILURE_THRESHOLD', 3))
 
-        self.healthcheck['web/cmd'] = {}
-        self.healthcheck['web/cmd']['livenessProbe'] = {
+        self.healthcheck['web'] = {}
+        self.healthcheck['web']['livenessProbe'] = {
             'initialDelaySeconds': delay,
             'timeoutSeconds': timeout,
             'periodSeconds': period_seconds,
@@ -67,7 +67,7 @@ class Config(UuidAuditedModel):
             }
         }
 
-        self.healthcheck['web/cmd']['readinessProbe'] = {
+        self.healthcheck['web']['readinessProbe'] = {
             'initialDelaySeconds': delay,
             'timeoutSeconds': timeout,
             'periodSeconds': period_seconds,
@@ -86,7 +86,7 @@ class Config(UuidAuditedModel):
             'livenessProbe' in self.healthcheck.keys() or
             'readinessProbe' in self.healthcheck.keys()
         ):
-            return {'web/cmd': self.healthcheck}
+            return {'web': self.healthcheck}
         return self.healthcheck
 
     def _set_cpu_memory(self):
@@ -205,9 +205,9 @@ class Config(UuidAuditedModel):
         # TODO: This is required for backward compatibility and can be
         # removed in next major version change.
         if 'livenessProbe' in data.keys() or 'readinessProbe' in data.keys():
-            data = {'web/cmd': data.copy()}
+            data = {'web': data.copy()}
         if 'livenessProbe' in new_data.keys() or 'readinessProbe' in new_data.keys():  # noqa
-            new_data = {'web/cmd': new_data.copy()}
+            new_data = {'web': new_data.copy()}
 
         # remove config keys if a null value is provided
         for key, value in new_data.items():

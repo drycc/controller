@@ -113,15 +113,15 @@ class BuildTest(DryccTransactionTestCase):
         response = self.client.post(url, body)
         self.assertEqual(response.status_code, 201, response.data)
 
-        url = "/v2/apps/{app_id}/pods/cmd".format(**locals())
+        url = "/v2/apps/{app_id}/pods/web".format(**locals())
         response = self.client.get(url)
         self.assertEqual(response.status_code, 200, response.data)
         self.assertEqual(len(response.data['results']), 1)
         container = response.data['results'][0]
-        self.assertEqual(container['type'], 'cmd')
+        self.assertEqual(container['type'], 'web')
         self.assertEqual(container['release'], 'v2')
         # pod name is auto generated so use regex
-        self.assertRegex(container['name'], app_id + '-cmd-[0-9]{1,10}-[a-z0-9]{5}')
+        self.assertRegex(container['name'], app_id + '-web-[0-9]{1,10}-[a-z0-9]{5}')
 
         # post an image as a build with a procfile
         app_id = self.create_app()
@@ -160,15 +160,15 @@ class BuildTest(DryccTransactionTestCase):
         response = self.client.post(url, body)
         self.assertEqual(response.status_code, 201, response.data)
 
-        url = "/v2/apps/{app_id}/pods/cmd".format(**locals())
+        url = "/v2/apps/{app_id}/pods/web".format(**locals())
         response = self.client.get(url)
         self.assertEqual(response.status_code, 200, response.data)
         self.assertEqual(len(response.data['results']), 1)
         container = response.data['results'][0]
-        self.assertEqual(container['type'], 'cmd')
+        self.assertEqual(container['type'], 'web')
         self.assertEqual(container['release'], 'v2')
         # pod name is auto generated so use regex
-        self.assertRegex(container['name'], app_id + '-cmd-[0-9]{1,10}-[a-z0-9]{5}')
+        self.assertRegex(container['name'], app_id + '-web-[0-9]{1,10}-[a-z0-9]{5}')
 
         # start with a new app
         app_id = self.create_app()
@@ -187,15 +187,15 @@ class BuildTest(DryccTransactionTestCase):
         response = self.client.post(url, body)
         self.assertEqual(response.status_code, 201, response.data)
 
-        url = "/v2/apps/{app_id}/pods/cmd".format(**locals())
+        url = "/v2/apps/{app_id}/pods/web".format(**locals())
         response = self.client.get(url)
         self.assertEqual(response.status_code, 200, response.data)
         self.assertEqual(len(response.data['results']), 1)
         container = response.data['results'][0]
-        self.assertEqual(container['type'], 'cmd')
+        self.assertEqual(container['type'], 'web')
         self.assertEqual(container['release'], 'v2')
         # pod name is auto generated so use regex
-        self.assertRegex(container['name'], app_id + '-cmd-[0-9]{1,10}-[a-z0-9]{5}')
+        self.assertRegex(container['name'], app_id + '-web-[0-9]{1,10}-[a-z0-9]{5}')
 
         # start with a new app
         app_id = self.create_app()
@@ -298,19 +298,13 @@ class BuildTest(DryccTransactionTestCase):
         url = "/v2/apps/{app_id}/pods/web".format(**locals())
         response = self.client.get(url)
         self.assertEqual(response.status_code, 200, response.data)
-        self.assertEqual(len(response.data['results']), 0)
-
-        # verify cmd is there
-        url = "/v2/apps/{app_id}/pods/cmd".format(**locals())
-        response = self.client.get(url)
-        self.assertEqual(response.status_code, 200, response.data)
         self.assertEqual(len(response.data['results']), 1)
 
         # look at the app structure
         url = "/v2/apps/{app_id}".format(**locals())
         response = self.client.get(url)
         self.assertEqual(response.status_code, 200, response.data)
-        self.assertEqual(response.json()['structure'], {'cmd': 1, 'web': 0, 'worker': 0})
+        self.assertEqual(response.json()['structure'], {'web': 1, 'worker': 0})
 
     @override_settings(DRYCC_DEPLOY_PROCFILE_MISSING_REMOVE=False)
     def test_build_no_remove_process(self, mock_requests):

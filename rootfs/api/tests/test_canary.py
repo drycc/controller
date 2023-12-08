@@ -53,7 +53,7 @@ class CanaryTest(DryccTransactionTestCase):
         # add canary
         self.client.post(
             f'/v2/apps/{app_id}/settings',
-            {'canaries': ["cmd"]}
+            {'canaries': ["web"]}
         )
         # add v3 release
         url = f'/v2/apps/{app_id}/builds'

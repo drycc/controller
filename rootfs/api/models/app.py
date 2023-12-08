@@ -290,8 +290,8 @@ class App(UuidAuditedModel):
                 if prev_release.build.type != release.build.type:
                     structure = self.structure.copy()
                     # zero out canonical pod counts
-                    for proctype in ['cmd', 'web']:
-                        if proctype in structure:
+                    for proctype in structure.keys():
+                        if proctype == "web":
                             structure[proctype] = 0
                     # update with the default process type.
                     structure.update(self._default_structure(release))
@@ -365,7 +365,7 @@ class App(UuidAuditedModel):
             self.log(err, logging.ERROR)
             raise ServiceUnavailable(err) from e
         for procfile_type, value in deploys.items():
-            if procfile_type in ("web", "cmd"):  # http
+            if procfile_type == "web":  # http
                 target_port = int(value.get('envs', {}).get('PORT', 5000))
                 self._create_default_ingress(procfile_type, target_port)
             service = self.service_set.filter(procfile_type=procfile_type).first()
@@ -373,7 +373,7 @@ class App(UuidAuditedModel):
                 continue
             if prev_release and prev_release.build:
                 continue
-            if procfile_type in ("web", "cmd"):
+            if procfile_type == "web":
                 self._verify_http_health(service, **deploys[procfile_type])
             else:
                 self._verify_tcp_health(service, **deploys[procfile_type])
@@ -659,13 +659,13 @@ class App(UuidAuditedModel):
             if release.build.dockerfile or not release.build.sha:
                 # has profile
                 if release.build.procfile and container_type in release.build.procfile:
-                    cmd = release.build.procfile[container_type]
+                    command = release.build.procfile[container_type]
                     # if the entrypoint is `/bin/bash -c`, we want to supply the list
                     # as a script. Otherwise, we want to send it as a list of arguments.
                     if self._get_entrypoint(container_type) == ['/bin/sh', '-c']:
-                        return [cmd]
+                        return [command]
                     else:
-                        return cmd.split()
+                        return command.split()
         return []
 
     def _get_stack(self, release):
@@ -764,9 +764,8 @@ class App(UuidAuditedModel):
         # test for available process types
         available_process_types = release.build.procfile or {}
         for container_type in structure:
-            if container_type == 'cmd':
-                continue  # allow docker cmd types in case we don't have the image source
-
+            if self._get_stack(release) == "container":
+                continue  # allow container types in case we don't have the image source
             if container_type not in available_process_types:
                 raise NotFound(
                     'Container type {} does not exist in application'.format(container_type))
@@ -957,28 +956,12 @@ class App(UuidAuditedModel):
     @staticmethod
     def _default_structure(release):
         """Scale to default structure based on release type"""
-        # If web in procfile then honor it
-        if release.build.procfile and 'web' in release.build.procfile:
-            structure = {'web': 1}
-
-        # if there is no SHA, assume a docker image is being promoted
-        elif not release.build.sha:
-            structure = {'cmd': 1}
-
-        # if a dockerfile, assume docker workflow
-        elif release.build.dockerfile:
-            structure = {'cmd': 1}
-
-        # if a procfile exists without a web entry and dockerfile, assume heroku workflow
-        # and return empty structure as only web type needs to be created by default and
-        # other types have to be manually scaled
-        elif release.build.procfile and 'web' not in release.build.procfile:
+        if release.build.sha and not release.build.dockerfile and \
+                (release.build.procfile and 'web' not in release.build.procfile):
             structure = {}
-
         # default to heroku workflow
         else:
             structure = {'web': 1}
-
         return structure
 
     def _scheduler_filter(self, **kwargs):
@@ -1132,13 +1115,13 @@ class App(UuidAuditedModel):
         # create image pull secret if needed
         image_pull_secret_name = self.image_pull_secret(self.id, config.registry, release.image)
 
-        # only web / cmd are routable
-        # http://docs.drycc.cc/en/latest/using_drycc/process-types/#web-vs-cmd-process-types
-        routable = True if process_type in ['web', 'cmd'] and app_settings.routable else False
+        # only web is routable
+        # https://www.drycc.cc/applications/managing-app-processes/#default-process-types
+        routable = True if process_type == 'web' and app_settings.routable else False
 
         healthcheck = config.get_healthcheck().get(process_type, {})
-        if not healthcheck and process_type in ['web', 'cmd']:
-            healthcheck = config.get_healthcheck().get('web/cmd', {})
+        if not healthcheck and process_type == 'web':
+            healthcheck = config.get_healthcheck().get('web', {})
         volumes_info = [{
             "name": _.name,
             "claimName": _.name,

@@ -85,7 +85,7 @@ class Service(AuditedModel):
         return self.app.id
 
     def _svc_name(self, canary):
-        if self.procfile_type in ("web", "cmd"):
+        if self.procfile_type == 'web':
             svc_name = self.app.id
         else:
             svc_name = "{}-{}".format(self.app.id, self.procfile_type)

@@ -279,15 +279,15 @@ class HookTest(DryccTransactionTestCase):
         self.assertEqual(build['sha'], SHA)
         self.assertEqual(build['dockerfile'], DOCKERFILE)
         # test default container
-        url = "/v2/apps/{app_id}/pods/cmd".format(**locals())
+        url = "/v2/apps/{app_id}/pods/web".format(**locals())
         response = self.client.get(url)
         self.assertEqual(response.status_code, 200, response.data)
         self.assertEqual(len(response.data['results']), 1)
         container = response.data['results'][0]
-        self.assertEqual(container['type'], 'cmd')
+        self.assertEqual(container['type'], 'web')
         self.assertEqual(container['release'], 'v2')
         # pod name is auto generated so use regex
-        self.assertRegex(container['name'], app_id + '-cmd-[0-9]{1,10}-[a-z0-9]{5}')
+        self.assertRegex(container['name'], app_id + '-web-[0-9]{1,10}-[a-z0-9]{5}')
 
         # post the build without an auth token
         self.client.credentials()

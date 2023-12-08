@@ -152,7 +152,7 @@ class PodTest(DryccTransactionTestCase):
 
         # scale up
         url = "/v2/apps/{app_id}/scale".format(**locals())
-        body = {'cmd': 6}
+        body = {'web': 6}
         response = self.client.post(url, body)
         self.assertEqual(response.status_code, 204, response.data)
 
@@ -166,14 +166,14 @@ class PodTest(DryccTransactionTestCase):
         self.assertEqual(response.status_code, 200, response.data)
 
         # test listing/retrieving container info
-        url = "/v2/apps/{app_id}/pods/cmd".format(**locals())
+        url = "/v2/apps/{app_id}/pods/web".format(**locals())
         response = self.client.get(url)
         self.assertEqual(response.status_code, 200, response.data)
         self.assertEqual(len(response.data['results']), 6)
 
         # scale down
         url = "/v2/apps/{app_id}/scale".format(**locals())
-        body = {'cmd': 3}
+        body = {'web': 3}
         response = self.client.post(url, body)
         self.assertEqual(response.status_code, 204, response.data)
 
@@ -188,7 +188,7 @@ class PodTest(DryccTransactionTestCase):
 
         # scale down to 0
         url = "/v2/apps/{app_id}/scale".format(**locals())
-        body = {'cmd': 0}
+        body = {'web': 0}
         response = self.client.post(url, body)
         self.assertEqual(response.status_code, 204, response.data)
 
