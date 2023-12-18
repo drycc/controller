@@ -14,6 +14,9 @@ class ServiceCatalog(Resource):
         data = {
             "apiVersion": self.api_version,
             "kind": "ServiceInstance",
+            "finalizers": [
+                "kubernetes-incubator/service-catalog",
+            ],
             "metadata": {
                 "name": name,
                 "namespace": namespace,
@@ -96,6 +99,21 @@ class ServiceCatalog(Resource):
             raise KubeHTTPException(
                 response,
                 "update serviceinstances {}".format(namespace))
+        return response
+
+    def patch_instance(self, namespace, name, version, ignore_exception=False, **kwargs):
+        """
+        Patch serviceinstances
+        """
+        url = self.api('/namespaces/{}/serviceinstances/{}', namespace, name)
+        data = self.service_instance_manifest(namespace, name, version, **kwargs)
+        response = self.http_patch(
+            url,
+            json=data,
+            headers={"Content-Type": "application/merge-patch+json"}
+        )
+        if not ignore_exception and self.unhealthy(response.status_code):
+            raise KubeHTTPException(response, "patch serviceinstances {}".format(namespace))
         return response
 
     def delete_instance(self, namespace, name):

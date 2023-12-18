@@ -92,7 +92,9 @@ class Resource(UuidAuditedModel):
     @transaction.atomic
     def delete(self, *args, **kwargs):
         if self.binding == "Ready":
-            raise DryccException("the plan is still binding")
+            raise DryccException("the resource instance is still binding")
+        if self.status == "Provisioning":
+            raise DryccException("the resource instance is provisioning")
         # Deatch ServiceInstance, updates k8s
         self.detach(*args, **kwargs)
         # Delete from DB
@@ -119,9 +121,9 @@ class Resource(UuidAuditedModel):
 
     def bind(self, *args, **kwargs):
         if self.status != "Ready":
-            raise DryccException("the resource is not ready")
+            raise DryccException("the resource instance is not ready")
         if self.binding == "Ready":
-            raise DryccException("the resource is binding")
+            raise DryccException("the resource instance is binding")
         self.binding = "Binding"
         self.save()
         try:
@@ -141,7 +143,7 @@ class Resource(UuidAuditedModel):
 
     def unbind(self, *args, **kwargs):
         if not self.binding:
-            raise DryccException("the resource is not binding")
+            raise DryccException("the resource instance is not binding")
         try:
             # We raise an exception when a resource doesn't exist
             self._scheduler.svcat.get_binding(self.app.id, self.name)
@@ -168,7 +170,7 @@ class Resource(UuidAuditedModel):
                 "parameters": self.options,
                 "external_id": data["spec"]["externalID"]
             }
-            self._scheduler.svcat.put_instance(
+            self._scheduler.svcat.patch_instance(
                 self.app.id, self.name, version, **kwargs
             )
         except KubeException as e:
