@@ -9,6 +9,7 @@ from django.core.cache import cache
 from django.conf import settings
 from rest_framework.authtoken.models import Token
 from api.tests import adapter, DryccTransactionTestCase
+from api.exceptions import DryccException
 import requests_mock
 
 User = get_user_model()
@@ -112,9 +113,11 @@ class ResourceTest(DryccTransactionTestCase):
         # bind
         url = '/v2/apps/{app_id}/resources/mysql/binding/'.format(app_id=app_id)
         data = {"bind_action": "bind"}
-        response = self.client.patch(url, data=data)
-        # expected = response.data['path']
-        self.assertEqual(response.status_code, 400)
+        self.client.patch(url, data=data)
+        self.assertRaises(
+            DryccException,
+            msg='the resource instance is not ready'
+        )
 
     def test_resource_unbind(self, mock_requests):
         # create
@@ -124,9 +127,12 @@ class ResourceTest(DryccTransactionTestCase):
         # unbind
         url = '/v2/apps/{app_id}/resources/mysql/binding/'.format(app_id=app_id)
         data = {"bind_action": "unbind"}
-        response = self.client.patch(url, data=data)
+        self.client.patch(url, data=data)
         # expected = response.data['path']
-        self.assertEqual(response.status_code, 400)
+        self.assertRaises(
+            DryccException,
+            msg='the resource instance is not binding'
+        )
 
     def call_command(self, *args, **kwargs):
         from io import StringIO

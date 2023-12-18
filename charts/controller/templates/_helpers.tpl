@@ -32,9 +32,8 @@ env:
 - name: "DRYCC_APP_POD_EXEC_TIMEOUT"
   value: "{{ .Values.appPodExecTimeout }}"
 {{- end }}
-
 - name: "TZ"
-  value: {{ .Values.time_zone | default "UTC" | quote }}
+  value: {{ .Values.timezone | default "UTC" | quote }}
 - name: "DJANGO_SETTINGS_MODULE"
   value: "api.settings.production"
 {{- if (.Values.deployHookUrls) }}
