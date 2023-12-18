@@ -6,6 +6,7 @@ appImagePullPolicy: "Always"
 # A comma-separated list of URLs to send app release information to
 # See https://www.drycc.cc/managing-workflow/deploy-hooks/
 deployHookUrls: ""
+time_zone: "UTC"
 # limitsCpu: "100m"
 # limitsMemory: "50Mi"
 # Possible values are:
