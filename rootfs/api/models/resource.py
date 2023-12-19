@@ -102,9 +102,10 @@ class Resource(UuidAuditedModel):
 
     def detach(self, *args, **kwargs):
         try:
-            # We raise an exception when a resource doesn't exist
-            self._scheduler.svcat.get_instance(self.app.id, self.name)
-            self._scheduler.svcat.delete_instance(self.app.id, self.name)
+            resp = self._scheduler.svcat.get_instance(
+                self.app.id, self.name, ignore_exception=True)
+            if resp.status_code != 404:
+                self._scheduler.svcat.delete_instance(self.app.id, self.name)
         except KubeException as e:
             raise ServiceUnavailable("Could not delete resource {} for application {}".format(self.name, self.app_id)) from e  # noqa
 
@@ -177,6 +178,20 @@ class Resource(UuidAuditedModel):
             msg = 'There was a problem update the resource ' \
                   '{} for {}'.format(self.name, self.app_id)
             raise ServiceUnavailable(msg) from e
+
+    @property
+    def message(self):
+        try:
+            resp = self._scheduler.svcat.get_instance(
+                self.app.id, self.name)
+            if resp.status_code != 200:
+                message = ""
+            message = resp.json().get("status", {}).get("conditions", [{}])[-1].\
+                get("message", "")
+            return message
+        except KubeException as e:
+            logger.info("retrieve instance info error: {}".format(e))
+            return ""
 
     def retrieve(self, *args, **kwargs):
         update_flag = False

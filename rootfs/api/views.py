@@ -799,7 +799,9 @@ class AppSingleResourceViewSet(AppResourceViewSet):
     def retrieve(self, request, *args, **kwargs):
         resource = self.get_object()
         resource.retrieve(request)
-        return super(AppSingleResourceViewSet, self).retrieve(request, *args, **kwargs)  # noqa
+        response =  super(AppSingleResourceViewSet, self).retrieve(request, *args, **kwargs)  # noqa
+        response.data["message"] = resource.message
+        return response
 
     def destroy(self, request, *args, **kwargs):
         resource = self.get_object()
