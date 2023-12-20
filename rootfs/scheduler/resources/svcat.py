@@ -59,7 +59,7 @@ class ServiceCatalog(Resource):
             raise KubeHTTPException(response, message)
         return response
 
-    def get_instance(self, namespace, name=None):
+    def get_instance(self, namespace, name=None, ignore_exception=False,):
         """
         Fetch a single serviceinstance or a list of serviceinstances
         """
@@ -71,7 +71,7 @@ class ServiceCatalog(Resource):
             url = self.api('/namespaces/{}/serviceinstances', namespace)
             message = 'get serviceinstances'
         response = self.http_get(url)
-        if self.unhealthy(response.status_code):
+        if not ignore_exception and self.unhealthy(response.status_code):
             raise KubeHTTPException(response, message)
         return response
 

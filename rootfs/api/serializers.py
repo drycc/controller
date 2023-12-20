@@ -616,7 +616,7 @@ class ResourceSerializer(serializers.ModelSerializer):
     def update(self, instance, validated_data):
         if instance.plan.split(':')[0] != validated_data.get('plan', '').split(':')[0]:  # noqa
             raise DryccException("the resource instance cann't changed")
-        if instance.state == "Provisioning":
+        if instance.status == "Provisioning":
             raise DryccException("this resource instance is in progress")
         instance.plan = validated_data.get('plan')
         instance.options.update(validated_data.get('options', {}))
