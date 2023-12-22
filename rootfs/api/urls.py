@@ -108,7 +108,7 @@ app_urlpatterns = [
     # application resources
     re_path(r"^resources/services/?$", views.AppResourcesViewSet.as_view({'get': 'services'})),
     re_path(
-        r"^resources/services/(?P<id>[-_\w]+)/plans/?$",
+        r"^resources/services/(?P<id>[-_ \.\d\w]+)/plans/?$",
         views.AppResourcesViewSet.as_view({'get': 'plans'})),
     re_path(
         r"^apps/(?P<id>{})/resources/?$".format(settings.APP_URL_REGEX),
