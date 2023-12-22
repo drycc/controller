@@ -223,10 +223,7 @@ class Resource(UuidAuditedModel):
                 logger.info("retrieve binding info error: {}".format(e))
         if update_flag is True:
             self.save()
-        if self.status == "Ready" and self.binding == "Ready":
-            return True
-        else:
-            return False
+        return self.status == "Ready"
 
     def detach_resource(self, *args, **kwargs):
         if self.binding != "Ready":

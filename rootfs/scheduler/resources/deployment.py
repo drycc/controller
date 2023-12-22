@@ -34,6 +34,7 @@ class Deployment(Resource):
         replicas = kwargs.get('replicas', 0)
         batches = kwargs.get('deploy_batches', None)
         tags = kwargs.get('tags', {})
+        annotations = kwargs.get('annotations', {})
 
         labels = {
             'app': namespace,
@@ -106,6 +107,8 @@ class Deployment(Resource):
 
         # set the old deployment spec annotations on this deployment
         manifest['spec']['template']['metadata']['annotations'] = spec_annotations
+        if annotations:
+            manifest['spec']['template']['metadata']['annotations'].update(annotations)
         if "resource_version" in kwargs:
             manifest["metadata"]["resourceVersion"] = kwargs.get("resource_version")
 
