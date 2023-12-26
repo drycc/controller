@@ -19,7 +19,7 @@ from rest_framework.response import Response
 from rest_framework.viewsets import GenericViewSet
 
 from api import monitor, models, permissions, serializers, viewsets, authentication
-from api.tasks import scale_app, restart_app, mount_app
+from api.tasks import scale_app, restart_app, mount_app, sync_downstream_model_owner
 from api.exceptions import AlreadyExists, ServiceUnavailable, DryccException, \
     UnprocessableEntity
 
@@ -281,14 +281,9 @@ class AppViewSet(BaseDryccViewSet):
             if self.request.user != app.owner and not self.request.user.is_superuser:
                 raise PermissionDenied()
             new_owner = get_object_or_404(User, username=request.data['owner'])
-            app.owner = new_owner
             # ensure all downstream objects that are owned by this user and are part of this app
             # is also updated
-            for downstream_model in [
-                    models.appsettings.AppSettings, models.build.Build, models.config.Config,
-                    models.domain.Domain, models.release.Release, models.tls.TLS]:
-                downstream_model.objects.filter(owner=old_owner, app=app).update(owner=new_owner)
-        app.save()
+            sync_downstream_model_owner.delay(app, old_owner, new_owner)
         return Response(status=status.HTTP_200_OK)
 
 
