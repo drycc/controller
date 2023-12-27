@@ -25,8 +25,6 @@ def retrieve_resource(resource):
                 retrieve_resource.apply_async(args=(resource, ), countdown=30)
             elif t < 3600 * 12:
                 retrieve_resource.apply_async(args=(resource, ), countdown=1800)
-            else:
-                resource.detach_resource()
     except (Exception, Resource.DoesNotExist) as e:
         signals.got_request_exception.send(sender=task_id)
         if isinstance(e, Resource.DoesNotExist):
@@ -110,21 +108,22 @@ def mount_app(app, user, volume):
 
 
 @shared_task(
-    retry_kwargs={'max_retries': None}
+    retry_kwargs={'max_retries': 3}
 )
 def downstream_model_owner(app, old_owner, new_owner):
     task_id = uuid.uuid4().hex
     signals.request_started.send(sender=task_id)
     try:
         for downstream_model in [
-            models.appsettings.AppSettings, models.build.Build, models.certificate.Certificate,
-            models.config.Config, models.domain.Domain, models.key.Key, models.release.Release,
-            models.resource.Resource, models.tls.TLS, models.service.Service,
-            models.volume.Volume, models.gateway.Gateway, models.gateway.Route]:
+                models.appsettings.AppSettings, models.build.Build, models.config.Config,
+                models.domain.Domain, models.release.Release, models.resource.Resource,
+                models.tls.TLS, models.service.Service, models.volume.Volume,
+                models.gateway.Gateway, models.gateway.Route]:
             downstream_model.objects.filter(owner=old_owner, app=app).update(owner=new_owner)
         app.owner = new_owner
         app.save()
     except Exception as e:
         signals.got_request_exception.send(sender=task_id)
+        raise e
     else:
         signals.request_finished.send(sender=task_id)

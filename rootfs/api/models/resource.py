@@ -194,53 +194,9 @@ class Resource(UuidAuditedModel):
             return ""
 
     def retrieve(self, *args, **kwargs):
-        update_flag = False
-        if self.status != "Ready":
-            try:
-                resp_i = self._scheduler.svcat.get_instance(
-                    self.app.id, self.name).json()
-                self.status = resp_i.get('status', {}).\
-                    get('lastConditionState')
-                self.options = resp_i.get('spec', {}).get('parameters', {})
-                update_flag = True
-            except KubeException as e:
-                logger.info("retrieve instance info error: {}".format(e))
-        if self.binding != "Ready":
-            try:
-                # We raise an exception when a resource doesn't exist
-                resp_b = self._scheduler.svcat.get_binding(
-                    self.app.id, self.name).json()
-                self.binding = resp_b.get('status', {}).\
-                    get('lastConditionState')
-                update_flag = True
-                secret_name = resp_b.get('spec', {}).get('secretName')
-                if secret_name:
-                    resp_s = self._scheduler.secret.get(
-                        self.app.id, secret_name).json()
-                    self.data = resp_s.get('data', {})
-                    update_flag = True
-            except KubeException as e:
-                logger.info("retrieve binding info error: {}".format(e))
-        if update_flag is True:
+        if self._retrieve_status() or self._retrieve_binding():
             self.save()
-        return self.status == "Ready"
-
-    def detach_resource(self, *args, **kwargs):
-        if self.binding != "Ready":
-            try:
-                resp_b = self._scheduler.svcat.get_binding(
-                    self.app.id, self.name).json()
-                secret_name = resp_b.get('spec', {}).get('secretName')
-                if secret_name:
-                    self._scheduler.secret.delete(self.app.id, secret_name)
-                self._scheduler.svcat.delete_binding(
-                    self.app.id, self.name)
-            except KubeException as e:
-                logger.info("delete binding info error: {}".format(e))
-            self.binding = None
-
-        if (self.status != "Ready") or (not self.binding):
-            self.delete()
+        return self.status == self.binding == "Ready"
 
     def to_measurements(self, timestamp: float):
         return [{
@@ -252,3 +208,40 @@ class Resource(UuidAuditedModel):
             "usage": 1,
             "timestamp": int(timestamp)
         }]
+
+    def _retrieve_status(self):
+        changed = False
+        try:
+            response = self._scheduler.svcat.get_instance(
+                self.app.id, self.name).json()
+            status = response.get('status', {}).get('lastConditionState')
+            options = response.get('spec', {}).get('parameters', {})
+            if self.status != status:
+                self.status = status
+                changed = True
+            if self.options != options:
+                self.options = options
+                changed = True
+        except KubeException as e:
+            logger.info("retrieve instance info error: {}".format(e))
+        return changed
+
+    def _retrieve_binding(self):
+        changed = False
+        try:
+            # We raise an exception when a resource doesn't exist
+            response = self._scheduler.svcat.get_binding(self.app.id, self.name).json()
+            binding = response.get('status', {}).get('lastConditionState')
+            secret_name = response.get('spec', {}).get('secretName')
+            if self.binding != binding:
+                self.binding = binding
+                changed = True
+            if secret_name:
+                response = self._scheduler.secret.get(self.app.id, secret_name).json()
+                data = response.get('data', {})
+                if self.data != data:
+                    self.data = data
+                    changed = True
+        except KubeException as e:
+            logger.info("retrieve binding info error: {}".format(e))
+        return changed

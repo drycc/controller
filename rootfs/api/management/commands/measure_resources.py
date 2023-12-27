@@ -19,7 +19,7 @@ class Command(BaseCommand):
             task_id = uuid.uuid4().hex
             logger.info(f"pushing {task_id} resources to workflow_manager when {timezone.now()}")
             resource_list = []
-            for resource in Resource.objects.all():
+            for resource in Resource.objects.filter(status="Ready"):
                 resource_list.extend(resource.to_measurements(timestamp))
                 if len(resource_list) % 1000 == 0:
                     send_measurements.delay(resource_list)
