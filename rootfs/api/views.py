@@ -269,7 +269,7 @@ class AppViewSet(BaseDryccViewSet):
             raise DryccException("command is a required field")
         volumes = request.data.get('volumes', None)
         if volumes:
-            serializers.VolumeSerializer().validate_path(volumes)
+            volumes = serializers.VolumeSerializer().validate_path(volumes)
         rc, output = app.run(self.request.user, request.data['command'], volumes)
         return Response({'exit_code': rc, 'output': str(output)})
 
@@ -717,6 +717,8 @@ class AppVolumesViewSet(ReleasableViewSet):
         new_path = request.data.get('path')
         if new_path is None:
             raise DryccException("path is a required field")
+        else:
+            new_path = serializers.VolumeSerializer().validate_path(new_path)
         volume = self.get_object()
         container_types = [_ for _ in new_path.keys()
                            if _ not in volume.app.types]
@@ -734,7 +736,7 @@ class AppVolumesViewSet(ReleasableViewSet):
                 if k not in type_paths:
                     type_paths[k] = [v]
                 else:
-                    type_paths[k].append(k)
+                    type_paths[k].append(v)
         repeat_path = [v for k, v in new_path.items() if v in type_paths.get(k, [])]  # noqa
         if repeat_path:
             raise DryccException("path {} is used by another volume".

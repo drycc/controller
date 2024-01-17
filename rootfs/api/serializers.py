@@ -586,17 +586,23 @@ class VolumeSerializer(serializers.ModelSerializer):
 
     @staticmethod
     def validate_path(data):
+        logger.debug(f"mount validate_path data: {data}")
+        new_data = {}
         for key, value in data.items():
-            if value is None:  # use NoneType to unset an item
-                continue
-
             if not re.match(PROCTYPE_MATCH, key):
                 raise serializers.ValidationError(PROCTYPE_MISMATCH_MSG)
+            if value is None:  # use NoneType to unset an item
+                new_data[key] = value
+                continue
 
             if not re.match(VOLUME_PATH, str(value)):
                 raise serializers.ValidationError(
                     "Volume path format: /path")
-        return data
+            if value.endswith("/"):
+                value = value.rstrip("/")
+            new_data[key] = value
+        logger.debug(f"mount validate_path new_data: {new_data}")
+        return new_data
 
 
 class ResourceSerializer(serializers.ModelSerializer):
