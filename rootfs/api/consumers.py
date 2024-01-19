@@ -125,6 +125,7 @@ class AppPodExecConsumer(BaseAppConsumer):
                 await self.close(code=1000)
         elif self.stream is not None:
             data = text_data if text_data else bytes_data
-            await sync_to_async(self.stream.write_stdin)(data)
+            channel, data = ord(data[0]), data[1:]
+            await sync_to_async(self.stream.write_channel)(channel, data)
         else:
             raise ValueError("This operation is not supported!")
