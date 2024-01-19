@@ -30,7 +30,7 @@ class Secret(Resource):
 
         # decode the base64 data
         secrets = response.json()
-        for key, value in secrets['data'].items():
+        for key, value in secrets.get('data', {}).items():
             if value is None:
                 secrets['data'][key] = ''
                 continue
