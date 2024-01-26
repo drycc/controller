@@ -364,8 +364,22 @@ KUBERNETES_LIMITS_MAX_MEMORY = int(os.environ.get('KUBERNETES_LIMITS_MAX_MEMORY'
 KUBERNETES_LIMITS_MIN_VOLUME = int(os.environ.get('KUBERNETES_LIMITS_MIN_VOLUME', 1))
 # Max Stroage Volume limit, units are represented in Gigabytes(G)
 KUBERNETES_LIMITS_MAX_VOLUME = int(os.environ.get('KUBERNETES_LIMITS_MAX_VOLUME', 1024 * 16))
+# Default pod spec volumes for application.
+KUBERNETES_POD_DEFAULT_VOLUMES = os.environ.get('KUBERNETES_POD_DEFAULT_VOLUMES', '[]')
+# Default pod spec volume mounts for application.
+KUBERNETES_POD_DEFAULT_VOLUME_MOUNTS = os.environ.get('KUBERNETES_POD_DEFAULT_VOLUME_MOUNTS', '[]')
+# Default pod spec security context for application.
+KUBERNETES_POD_DEFAULT_SECURITY_CONTEXT = os.environ.get(
+    'KUBERNETES_POD_DEFAULT_SECURITY_CONTEXT',
+    json.dumps({
+        'capabilities': {
+            'add': ['SYS_ADMIN']
+        },
+        'allowPrivilegeEscalation': True,
+    })
+)
 
-# Default pod spec for application.
+# Default pod spec resources for application.
 KUBERNETES_POD_DEFAULT_RESOURCES = os.environ.get(
     'KUBERNETES_POD_DEFAULT_RESOURCES',
     json.dumps({

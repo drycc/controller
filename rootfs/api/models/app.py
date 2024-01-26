@@ -1126,11 +1126,12 @@ class App(UuidAuditedModel):
             "name": _.name,
             "claimName": _.name,
         } for _ in volumes] if volumes else []
-
+        volumes_info.extend(json.loads(settings.KUBERNETES_POD_DEFAULT_VOLUMES))
         volume_mounts_info = [{
             "name": _.name,
             "mount_path": _.path.get(process_type),
         } for _ in volumes] if volumes else []
+        volume_mounts_info.extend(json.loads(settings.KUBERNETES_POD_DEFAULT_VOLUME_MOUNTS))
 
         return {
             'memory': memory,
@@ -1161,4 +1162,5 @@ class App(UuidAuditedModel):
             'image_pull_policy': image_pull_policy,
             'volumes': volumes_info,
             'volume_mounts': volume_mounts_info,
+            'security_context': json.loads(settings.KUBERNETES_POD_DEFAULT_SECURITY_CONTEXT),
         }

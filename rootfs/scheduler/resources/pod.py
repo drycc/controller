@@ -213,7 +213,8 @@ class Pod(Resource):
         data['imagePullPolicy'] = kwargs.get('image_pull_policy')
         # add in any volumes that need to be mounted into the container
         data['volumeMounts'] = kwargs.get('volumeMounts', [])
-
+        # set the security context to use
+        data["securityContext"] = kwargs.get('security_context', {})
         # create env list if missing
         if 'env' not in data:
             data['env'] = []
