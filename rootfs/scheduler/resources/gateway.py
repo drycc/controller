@@ -4,7 +4,7 @@ from scheduler.exceptions import KubeHTTPException
 
 class Gateway(Resource):
     api_prefix = 'apis'
-    api_version = 'gateway.networking.k8s.io/v1beta1'
+    api_version = 'gateway.networking.k8s.io/v1'
 
     def manifest(self, namespace, name, **kwargs):
         data = {
@@ -12,7 +12,10 @@ class Gateway(Resource):
             "kind": "Gateway",
             "metadata": {
                 "name": name,
-                "namespace": namespace
+                "namespace": namespace,
+                "annotations": {
+                    "cert-manager.io/issuer": namespace
+                },
             },
             "spec": {
                 "gatewayClassName": kwargs.get("gateway_class", "default"),
@@ -72,7 +75,7 @@ class Gateway(Resource):
 
 class Route(Resource):
     api_prefix = 'apis'
-    api_version = 'gateway.networking.k8s.io/v1beta1'
+    api_version = 'gateway.networking.k8s.io/v1'
 
     def manifest(self, namespace, name, **kwargs):
         data = {
@@ -150,7 +153,7 @@ class UDPRoute(Route):
 
 class HTTPRoute(Route):
     kind = "HTTPRoute"
-    api_version = 'gateway.networking.k8s.io/v1beta1'
+    api_version = 'gateway.networking.k8s.io/v1'
 
     def manifest(self, namespace, name, **kwargs):
         data = super().manifest(namespace, name, **kwargs)
@@ -161,7 +164,7 @@ class HTTPRoute(Route):
 
 class GRPCRoute(Route):
     kind = "GRPCRoute"
-    api_version = 'gateway.networking.k8s.io/v1beta1'
+    api_version = 'gateway.networking.k8s.io/v1alpha2'
 
     def manifest(self, namespace, name, **kwargs):
         data = super().manifest(namespace, name, **kwargs)
@@ -172,7 +175,7 @@ class GRPCRoute(Route):
 
 class TLSRoute(Route):
     kind = "GRPCRoute"
-    api_version = 'gateway.networking.k8s.io/v1beta1'
+    api_version = 'gateway.networking.k8s.io/v1alpha2'
 
     def manifest(self, namespace, name, **kwargs):
         data = super().manifest(namespace, name, **kwargs)
