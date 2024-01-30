@@ -2,6 +2,7 @@ from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.core.exceptions import ObjectDoesNotExist
 
+from social_core.utils import cache
 from social_core.backends.oauth import BaseOAuth2
 from social_core.backends.open_id_connect import OpenIdConnectAuth
 
@@ -95,8 +96,6 @@ class DryccOIDC(OpenIdConnectAuth):
         ('id_token', 'id_token'),
         ('scope', 'scope'),
     ]
-
-    from social_core.utils import cache
 
     @cache(ttl=86400)
     def oidc_config(self):
