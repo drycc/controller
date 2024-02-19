@@ -660,12 +660,7 @@ class App(UuidAuditedModel):
                 # has profile
                 if release.build.procfile and container_type in release.build.procfile:
                     command = release.build.procfile[container_type]
-                    # if the entrypoint is `/bin/bash -c`, we want to supply the list
-                    # as a script. Otherwise, we want to send it as a list of arguments.
-                    if self._get_entrypoint(container_type) == ['/bin/sh', '-c']:
-                        return [command]
-                    else:
-                        return command.split()
+                    return command.split()
         return []
 
     def _get_stack(self, release):
@@ -685,10 +680,6 @@ class App(UuidAuditedModel):
         """
         entrypoint = []
         release = self.release_set.filter(failed=False).latest()
-        if release is not None and release.build is not None:
-            if (release.build.procfile and container_type in release.build.procfile) \
-                    or container_type == "run":
-                entrypoint = ['/bin/sh', '-c']
         if self._get_stack(release) == "buildpack":
             if container_type in release.build.procfile:
                 entrypoint = [container_type]
