@@ -19,9 +19,8 @@ class AuditedModel(models.Model):
         """Mark :class:`AuditedModel` as abstract."""
         abstract = True
 
-    @classmethod
     @property
-    def _scheduler(cls):
+    def _scheduler(self):
         mod = importlib.import_module(settings.SCHEDULER_MODULE)
         return mod.SchedulerClient(settings.SCHEDULER_URL, settings.K8S_API_VERIFY_TLS)
 

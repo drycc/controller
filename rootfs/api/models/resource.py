@@ -36,11 +36,10 @@ class Resource(UuidAuditedModel):
         # Save to DB
         return super(Resource, self).save(*args, **kwargs)
 
-    @classmethod
     @property
-    def services(cls):
+    def services(self):
         services = []
-        for serviceclass in cls._scheduler.svcat.get_serviceclasses().json()["items"]:
+        for serviceclass in self._scheduler.svcat.get_serviceclasses().json()["items"]:
             services.append({
                 "id": serviceclass["spec"]["externalID"],
                 "name": serviceclass["spec"]["externalName"],

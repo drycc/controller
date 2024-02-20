@@ -1072,6 +1072,22 @@ class App(UuidAuditedModel):
             raise DryccException('Units are represented in Megabytes(M), or Gigabytes (G)')
         return "{num}{unit}".format(num=math.ceil(num), unit=unit)
 
+    def _get_volumes_and_mounts(self, process_type, volumes):
+        k8s_volumes, k8s_volume_mounts = [], []
+        if volumes:
+            for volume in volumes:
+                k8s_volumes.append({
+                    "name": volume.name,
+                    "claimName": volume.name
+                })
+                k8s_volume_mounts.append({
+                    "name": volume.name,
+                    "mount_path": volume.path.get(process_type)
+                })
+        k8s_volumes.extend(json.loads(settings.KUBERNETES_POD_DEFAULT_VOLUMES))
+        k8s_volume_mounts.extend(json.loads(settings.KUBERNETES_POD_DEFAULT_VOLUME_MOUNTS))
+        return k8s_volumes, k8s_volume_mounts
+
     def _gather_app_settings(self, release, app_settings, process_type, replicas, volumes=None):
         """
         Gathers all required information needed in one easy place for passing into
@@ -1113,17 +1129,7 @@ class App(UuidAuditedModel):
         healthcheck = config.get_healthcheck().get(process_type, {})
         if not healthcheck and process_type == 'web':
             healthcheck = config.get_healthcheck().get('web', {})
-        volumes_info = [{
-            "name": _.name,
-            "claimName": _.name,
-        } for _ in volumes] if volumes else []
-        volumes_info.extend(json.loads(settings.KUBERNETES_POD_DEFAULT_VOLUMES))
-        volume_mounts_info = [{
-            "name": _.name,
-            "mount_path": _.path.get(process_type),
-        } for _ in volumes] if volumes else []
-        volume_mounts_info.extend(json.loads(settings.KUBERNETES_POD_DEFAULT_VOLUME_MOUNTS))
-
+        volumes, volume_mounts = self._get_volumes_and_mounts(process_type, volumes)
         return {
             'memory': memory,
             'cpu': cpu,
@@ -1151,7 +1157,7 @@ class App(UuidAuditedModel):
             'pod_termination_grace_period_each': config.termination_grace_period,
             'image_pull_secret_name': image_pull_secret_name,
             'image_pull_policy': image_pull_policy,
-            'volumes': volumes_info,
-            'volume_mounts': volume_mounts_info,
+            'volumes': volumes,
+            'volume_mounts': volume_mounts,
             'security_context': json.loads(settings.KUBERNETES_POD_DEFAULT_SECURITY_CONTEXT),
         }
