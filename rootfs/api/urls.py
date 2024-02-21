@@ -101,7 +101,8 @@ app_urlpatterns = [
         views.AppVolumesViewSet.as_view({'get': 'list', 'post': 'create'})),
     re_path(
         r"^apps/(?P<id>{})/volumes/(?P<name>[-_\w]+)/?$".format(settings.APP_URL_REGEX),
-        views.AppVolumesViewSet.as_view({'patch': 'expand', 'delete': 'destroy'})),
+        views.AppVolumesViewSet.as_view(
+            {'get': 'retrieve', 'patch': 'expand', 'delete': 'destroy'})),
     re_path(
         r"^apps/(?P<id>{})/volumes/(?P<name>[-_\w]+)/path/?$".format(settings.APP_URL_REGEX),
         views.AppVolumesViewSet.as_view({'patch': 'path'})),
@@ -115,11 +116,8 @@ app_urlpatterns = [
         views.AppResourcesViewSet.as_view({'get': 'list', 'post': 'create'})),
     re_path(
         r"^apps/(?P<id>{})/resources/(?P<name>[-_\w]+)/?$".format(settings.APP_URL_REGEX),
-        views.AppSingleResourceViewSet.as_view({
-            'get': 'retrieve',
-            'delete': 'destroy',
-            'put': 'update'
-        })),
+        views.AppSingleResourceViewSet.as_view(
+            {'get': 'retrieve', 'delete': 'destroy', 'put': 'update'})),
     re_path(
         r"^apps/(?P<id>{})/resources/(?P<name>[-_\w]+)/binding/?$".format(settings.APP_URL_REGEX),
         views.AppResourceBindingViewSet.as_view({'patch': 'binding'})),

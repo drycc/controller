@@ -12,16 +12,22 @@ logger = logging.getLogger(__name__)
 
 
 class Volume(UuidAuditedModel):
+    TYPE_CHOICES = (
+        ("csi", "container storage interface"),
+        ("nfs", "network file system"),
+    )
     owner = models.ForeignKey(User, on_delete=models.PROTECT)
     app = models.ForeignKey('App', on_delete=models.CASCADE)
     name = models.CharField(max_length=63, validators=[validate_label])
-    size = models.CharField(max_length=128)
-    path = models.JSONField(default=dict, blank=True)
+    size = models.CharField(default='0G', max_length=128)
+    path = models.JSONField(default=dict)
+    type = models.CharField(default=TYPE_CHOICES[0][0], choices=TYPE_CHOICES)
+    parameters = models.JSONField(default=dict)
 
     @transaction.atomic
     def save(self, *args, **kwargs):
         # Attach volume, updates k8s
-        if self.created == self.updated:
+        if self.type == "csi" and self.created == self.updated:
             self._create_pvc()
         # Save to DB
         return super(Volume, self).save(*args, **kwargs)
@@ -31,26 +37,30 @@ class Volume(UuidAuditedModel):
         if self.path:
             raise DryccException("the volume is not unmounted")
         # Deatch volume, updates k8s
-        self._delete_pvc()
+        if self.type == "csi":
+            self._delete_pvc()
         # Delete from DB
         return super(Volume, self).delete(*args, **kwargs)
 
     @transaction.atomic
     def expand(self, size):
-        if unit_to_bytes(size) < unit_to_bytes(self.size):
-            raise DryccException('Shrink volume is not supported.')
-        self.size = size
-        self.save()
-        try:
-            kwargs = {
-                "size": self._get_size(self.size),
-                "storage_class": settings.DRYCC_APP_STORAGE_CLASS,
-            }
-            self._scheduler.pvc.patch(self.app.id, self.name, **kwargs)
-        except KubeException as e:
-            msg = 'There was a problem expand the volume ' \
-                    '{} for {}'.format(self.name, self.app_id)
-            raise ServiceUnavailable(msg) from e
+        if self.type == "csi":
+            if unit_to_bytes(size) < unit_to_bytes(self.size):
+                raise DryccException('Shrink volume is not supported.')
+            self.size = size
+            self.save()
+            try:
+                kwargs = {
+                    "size": self._format_size(self.size),
+                    "storage_class": settings.DRYCC_APP_STORAGE_CLASS,
+                }
+                self._scheduler.pvc.patch(self.app.id, self.name, **kwargs)
+            except KubeException as e:
+                msg = 'There was a problem expand the volume ' \
+                        '{} for {}'.format(self.name, self.app_id)
+                raise ServiceUnavailable(msg) from e
+        else:
+            raise DryccException(f'{self.type} volume is not support expand.')
 
     def log(self, message, level=logging.INFO):
         """Logs a message in the context of this service.
@@ -70,7 +80,7 @@ class Volume(UuidAuditedModel):
             "name": self.name,
             "type": "volume",
             "unit": "bytes",
-            "usage": unit_to_bytes(self.size),
+            "usage": unit_to_bytes(self.size) if self.type == "csi" else 0,
             "timestamp": int(timestamp)
         }]
 
@@ -78,7 +88,7 @@ class Volume(UuidAuditedModel):
         return self.name
 
     @staticmethod
-    def _get_size(size):
+    def _format_size(size):
         """ Format volume limit value """
         if size[-2:-1].isalpha() and size[-1].isalpha():
             size = size[:-1]
@@ -97,7 +107,7 @@ class Volume(UuidAuditedModel):
             logger.info(e)
             try:
                 kwargs = {
-                    "size": self._get_size(self.size),
+                    "size": self._format_size(self.size),
                     "storage_class": settings.DRYCC_APP_STORAGE_CLASS,
                 }
                 self._scheduler.pvc.create(self.app.id, self.name, **kwargs)

@@ -18,6 +18,7 @@ from rest_framework import serializers
 from api import models
 from api.exceptions import DryccException
 from api.schemas.rules import SCHEMA as RULES_SCHEMA
+from api.schemas.volumes import SCHEMA as VOLUMES_SCHEMA
 from api.schemas.autoscale import SCHEMA as AUTOSCALE_SCHEMA
 from api.schemas.healthcheck import SCHEMA as HEALTHCHECK_SCHEMA
 
@@ -25,21 +26,42 @@ from api.schemas.healthcheck import SCHEMA as HEALTHCHECK_SCHEMA
 User = get_user_model()
 logger = logging.getLogger(__name__)
 SERVICE_PROTOCOL_MATCH = re.compile(r'^(TCP|UDP|SCTP)$')
-SERVICE_PROTOCOL_MISMATCH_MSG = "the service protocol only supports TCP, UDP, and SCTP"
+SERVICE_PROTOCOL_MISMATCH_MSG = (
+    "the service protocol only supports: %s" % SERVICE_PROTOCOL_MATCH.pattern)
 GATEWAY_PROTOCOL_MATCH = re.compile(r'^(HTTP|HTTPS|TCP|TLS|UDP)$')
-GATEWAY_PROTOCOL_MISMATCH_MSG = "the gateway protocol only supports HTTP, HTTPS, TCP, TLS and UDP"
+GATEWAY_PROTOCOL_MISMATCH_MSG = (
+    "the gateway protocol only supports: %s" % GATEWAY_PROTOCOL_MATCH.pattern)
 ROUTE_PROTOCOL_MATCH = re.compile(r'^(HTTPRoute|TCPRoute|UDPRoute|TLSRoute)$')
-ROUTE_PROTOCOL_MISMATCH_MSG = "the route kind only supports HTTPRoute, TCPRoute, UDPRoute, and TLSRoute"  # noqa
+ROUTE_PROTOCOL_MISMATCH_MSG = (
+    "the route kind only supports: %s" % ROUTE_PROTOCOL_MATCH.pattern)
 PROCTYPE_MATCH = re.compile(r'^(?P<type>[a-z0-9]+(\-[a-z0-9]+)*)(?<!-canary)$')
-PROCTYPE_MISMATCH_MSG = "Process types can only contain lowercase alphanumeric characters"
+PROCTYPE_MISMATCH_MSG = "Process types can only supports: %s" % PROCTYPE_MATCH.pattern
 MEMLIMIT_MATCH = re.compile(r'^(?P<mem>([1-9][0-9]*[mgMG]))$', re.IGNORECASE)
+MEMLIMIT_MISMATCH_MSG = (
+    "Memory limit format: <number><unit>, "
+    "where unit = M or G"
+)
 CPUSHARE_MATCH = re.compile(r'^(?P<cpu>([-+]?[1-9][0-9]*[m]?))$')
+CPUSHARE_MISMATCH_MSG = "CPU limit format: <value>, where value must be a numeric"
 TAGVAL_MATCH = re.compile(r'^(?:[a-zA-Z\d][-\.\w]{0,61})?[a-zA-Z\d]$')
 CONFIGKEY_MATCH = re.compile(r'^[a-z_]+[a-z0-9_]*$', re.IGNORECASE)
+CONFIGKEY_MISMATCH_MSG = (
+    "Config keys must start with a letter or underscore and "
+    "only contain [A-z0-9_]"
+)
+
 TERMINATION_GRACE_PERIOD_MATCH = re.compile(r'^[0-9]*$')
+TERMINATION_GRACE_PERIOD_MISMATCH_MSG = (
+    "Termination Grace Period format: %s" % TERMINATION_GRACE_PERIOD_MATCH.pattern)
+VOLUME_TYPE_MATCH = re.compile(r'^(csi|nfs)$')
+VOLUME_TYPE_MISMATCH_MSG = "Volume type pattern: %s" % VOLUME_TYPE_MATCH.pattern
 VOLUME_SIZE_MATCH = re.compile(r'^(?P<volume>([1-9][0-9]*[gG]))$', re.IGNORECASE)
-VOLUME_PATH = re.compile(r'^\/(\w+\/?)+$', re.IGNORECASE)
-METRIC_EVERY = re.compile(r'^[1-9][0-9]*m$')
+VOLUME_SIZE_MISMATCH_MSG = (
+    "Volume size limit format: <number><unit> or <number><unit>/<number><unit>, "
+    "where unit = G, range: %sG~%sG"
+) % (settings.KUBERNETES_LIMITS_MAX_VOLUME, settings.KUBERNETES_LIMITS_MIN_VOLUME)
+VOLUME_PATH_MATCH = re.compile(r'^\/(\w+\/?)+$', re.IGNORECASE)
+METRIC_EVERY_MATCH = re.compile(r'^[1-9][0-9]*m$')
 
 
 class JSONFieldSerializer(serializers.JSONField):
@@ -179,9 +201,7 @@ class ConfigSerializer(serializers.ModelSerializer):
                 continue
 
             if not re.match(CONFIGKEY_MATCH, key):
-                raise serializers.ValidationError(
-                    "Config keys must start with a letter or underscore and "
-                    "only contain [A-z0-9_]")
+                raise serializers.ValidationError(CONFIGKEY_MISMATCH_MSG)
 
             # Validate PORT
             if key == 'PORT':
@@ -231,9 +251,7 @@ class ConfigSerializer(serializers.ModelSerializer):
                 raise serializers.ValidationError(PROCTYPE_MISMATCH_MSG)
 
             if not re.match(MEMLIMIT_MATCH, str(value)):
-                raise serializers.ValidationError(
-                    "Memory limit format: <number><unit>, "
-                    "where unit = M or G")
+                raise serializers.ValidationError(MEMLIMIT_MISMATCH_MSG)
             range_error = "Memory setting is not in allowed range: %sM~%sM" % (
                 min_memory, max_memory)
             memory_size = int(value[:-1]) * 1024 if value.endswith("G") else int(value[:-1])
@@ -255,8 +273,7 @@ class ConfigSerializer(serializers.ModelSerializer):
 
             shares = re.match(CPUSHARE_MATCH, str(value))
             if not shares:
-                raise serializers.ValidationError(
-                    "CPU limit format: <value>, where value must be a numeric")
+                raise serializers.ValidationError(CPUSHARE_MISMATCH_MSG)
             range_error = "CPU setting is not in allowed range: %sm~%sm" % (
                 min_cpu, max_cpu)
             cpu_size = int(value) * 1000 if value.isdigit() else int(value[:-1])
@@ -322,9 +339,7 @@ class ConfigSerializer(serializers.ModelSerializer):
                 continue
 
             if not re.match(CONFIGKEY_MATCH, key):
-                raise serializers.ValidationError(
-                    "Config keys must start with a letter or underscore and "
-                    "only contain [A-z0-9_]")
+                raise serializers.ValidationError(CONFIGKEY_MISMATCH_MSG)
 
         return data
 
@@ -560,28 +575,27 @@ class VolumeSerializer(serializers.ModelSerializer):
     app = serializers.SlugRelatedField(slug_field='id', queryset=models.app.App.objects.all())
     owner = serializers.ReadOnlyField(source='owner.username')
     name = serializers.CharField()
-    size = serializers.CharField()
+    size = serializers.CharField(required=False)
     path = JSONFieldSerializer(required=False, binary=True)
+    type = serializers.CharField(required=False)
+    parameters = serializers.JSONField(required=False)
 
     class Meta:
         """Metadata options for a :class:`AppVolumeSerializer`."""
         model = models.volume.Volume
         fields = '__all__'
 
-    @staticmethod
-    def validate_size(data):
+    def validate_size(self, data):
+        # check size format
         if not re.match(VOLUME_SIZE_MATCH, data):
-            raise serializers.ValidationError(
-                "Volume size limit format: <number><unit> or <number><unit>/<number><unit>, "
-                "where unit = G")
+            raise serializers.ValidationError(VOLUME_SIZE_MISMATCH_MSG)
+        # check volume size
+        volume_size = int(data[:-1])
         max_volume = settings.KUBERNETES_LIMITS_MAX_VOLUME
         # The minimum limit memory is equal to the memory allocated by default
         min_volume = settings.KUBERNETES_LIMITS_MIN_VOLUME
-        range_error = "Volume setting is not in allowed range: %sG~%sG" % (
-            min_volume, max_volume)
-        volume_size = int(data[:-1])
         if volume_size < min_volume or volume_size > max_volume:
-            raise serializers.ValidationError(range_error)
+            raise serializers.ValidationError(VOLUME_SIZE_MISMATCH_MSG)
         return data.upper()
 
     @staticmethod
@@ -595,7 +609,7 @@ class VolumeSerializer(serializers.ModelSerializer):
                 new_data[key] = value
                 continue
 
-            if not re.match(VOLUME_PATH, str(value)):
+            if not re.match(VOLUME_PATH_MATCH, str(value)):
                 raise serializers.ValidationError(
                     "Volume path format: /path")
             if value.endswith("/"):
@@ -603,6 +617,23 @@ class VolumeSerializer(serializers.ModelSerializer):
             new_data[key] = value
         logger.debug(f"mount validate_path new_data: {new_data}")
         return new_data
+
+    def validate_type(self, data):
+        if not re.match(VOLUME_TYPE_MATCH, data):
+            raise serializers.ValidationError(VOLUME_TYPE_MISMATCH_MSG)
+        elif data != "csi" and not self.initial_data.get("parameters", None):
+            raise serializers.ValidationError(
+                "parameters cannot be empty when the type is not csi.")
+        return data
+
+    @staticmethod
+    def validate_parameters(data):
+        try:
+            jsonschema.validate(data, VOLUMES_SCHEMA)
+        except jsonschema.ValidationError as e:
+            raise serializers.ValidationError(
+                "could not validate {}: {}".format(data, e.message))
+        return data
 
 
 class ResourceSerializer(serializers.ModelSerializer):
@@ -641,9 +672,9 @@ class MetricSerializer(serializers.Serializer):
     every = serializers.CharField(max_length=50, required=False, default='5m')
 
     def validate(self, attrs):
-        if not re.match(METRIC_EVERY, attrs["every"]):
+        if not re.match(METRIC_EVERY_MATCH, attrs["every"]):
             raise serializers.ValidationError(
-                "The format of every is:%s" % METRIC_EVERY.pattern
+                "The format of every is:%s" % METRIC_EVERY_MATCH.pattern
             )
         interval = attrs.get("stop") - attrs.get("start")
         if interval < 0 or interval > 3600 * 24:

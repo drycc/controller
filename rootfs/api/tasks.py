@@ -101,6 +101,7 @@ def mount_app(app, user, volume):
         app.mount(user, volume)
         volume.save()
     except Exception as e:
+        print(e)
         signals.got_request_exception.send(sender=task_id)
         raise e
     else:

@@ -129,7 +129,6 @@ class Pod(Resource):
 
     def manifest(self, namespace, name, image, **kwargs):
         app_type = kwargs.get('app_type')
-        volumes = kwargs.get('volumes')
 
         # labels that represent the pod(s)
         labels = {
@@ -169,16 +168,8 @@ class Pod(Resource):
 
         # How long until a pod is forcefully terminated. 30 is kubernetes default
         spec['terminationGracePeriodSeconds'] = self._get_termination_grace_period(kwargs)  # noqa
-
-        if volumes:
-            exist_volumes = spec.get('volumes', [])
-            for volume in volumes:
-                exist_volumes.append(
-                    {"name": volume.get('name'),
-                     "persistentVolumeClaim": {
-                         "claimName": volume.get('claimName')
-                     }})
-            spec['volumes'] = exist_volumes
+        # set pod volumes
+        spec['volumes'] = kwargs.get('volumes', [])
         # create the base container
         container = {}
 
@@ -212,7 +203,7 @@ class Pod(Resource):
         # set the image pull policy for the above image
         data['imagePullPolicy'] = kwargs.get('image_pull_policy')
         # add in any volumes that need to be mounted into the container
-        data['volumeMounts'] = kwargs.get('volumeMounts', [])
+        data['volumeMounts'] = kwargs.get('volume_mounts', [])
         # set the security context to use
         data["securityContext"] = kwargs.get('security_context', {})
         # create env list if missing
@@ -256,19 +247,6 @@ class Pod(Resource):
         self._set_health_checks(data, env, **kwargs)
 
         self._set_lifecycle_hooks(data, env, **kwargs)
-
-        self._set_volume_mounts(data, kwargs)
-
-    @staticmethod
-    def _set_volume_mounts(container, kwargs):
-        # set volume_mounts
-        volume_mounts = kwargs.get('volume_mounts', [])
-        exist_volume_mounts = container.get('volumeMounts', [])
-        for volume_mount in volume_mounts:
-            exist_volume_mounts.append(
-                {"name": volume_mount.get('name'),
-                 "mountPath": volume_mount.get('mount_path')})
-        container['volumeMounts'] = exist_volume_mounts
 
     def _set_resources(self, container, kwargs):
         """ Set CPU/memory resource management manifest """

@@ -35,6 +35,25 @@ class VolumeTest(DryccTransactionTestCase):
     def test_volumecreate(self, mock_requests):
         """Test that the serialized response contains only relevant data."""
         app_id = self.create_app()
+        # parameters is required
+        response = self.client.post(
+            '/v2/apps/{}/volumes'.format(app_id),
+            data={
+                'name': 'myvolume', 'size': '500G', 'type': 'nfs'
+            }
+        )
+        self.assertEqual(response.status_code, 400, response.data)
+
+        # parameters format error
+        response = self.client.post(
+            '/v2/apps/{}/volumes'.format(app_id),
+            data={
+                'name': 'myvolume',
+                'type': 'nfs',
+                'parameters': {'nfs': {'path': '/'}}
+            }
+        )
+        self.assertEqual(response.status_code, 400, response.data)
 
         response = self.client.post(
             '/v2/apps/{}/volumes'.format(app_id),
@@ -47,7 +66,7 @@ class VolumeTest(DryccTransactionTestCase):
         for key in response.data:
             self.assertIn(key,
                           ['uuid', 'owner', 'created', 'updated', 'app', 'name',
-                           'size', 'path'])
+                           'size', 'path', 'type', 'parameters'])
 
         expected = {
             'owner': self.user.username,
@@ -84,8 +103,7 @@ class VolumeTest(DryccTransactionTestCase):
         # create
         app_id = self.create_app()
         data = {'name': 'myvolume1', 'size': '500G'}
-        self.client.post('/v2/apps/{}/volumes'.format(app_id), data=data)
-
+        response = self.client.post('/v2/apps/{}/volumes'.format(app_id), data=data)
         # Patch
         url = '/v2/apps/{app_id}/volumes/{volume}'.format(app_id=app_id,
                                                           volume='myvolume1')
@@ -105,6 +123,26 @@ class VolumeTest(DryccTransactionTestCase):
         }
         assert len(response.data["results"]) == 1
         self.assertDictContainsSubset(expected, response.data["results"][0])
+        # nfs expand
+        response = self.client.post(
+            '/v2/apps/{}/volumes'.format(app_id),
+            data={
+                'name': 'myvolume2',
+                'type': 'nfs',
+                'parameters': {
+                    'nfs': {
+                        'server': 'test.drycc.cc',
+                        'path': '/',
+                        'readOnly': False,
+                    }
+                }
+            }
+        )
+        self.assertEqual(response.status_code, 201, response.data)
+        url = '/v2/apps/{app_id}/volumes/{volume}'.format(app_id=app_id,
+                                                          volume='myvolume2')
+        response = self.client.patch(url, {'name': 'myvolume2', 'size': '1024G'})
+        self.assertEqual(response.status_code, 400, response.data)
 
     def test_volume_delete(self, mock_requests):
         """
@@ -173,6 +211,10 @@ class VolumeTest(DryccTransactionTestCase):
         response = self.client.patch(url, data=mount_path)
         expected = response.data['path']
         self.assertEqual(mount_path['path'], expected)
+        # check mount
+        url = '/v2/apps/{app_id}/volumes/myvolume1'.format(app_id=app_id)
+        response = self.client.get(url)
+        self.assertEqual(response.data["path"], mount_path["path"])
 
         # unmount
         url = '/v2/apps/{app_id}/volumes/myvolume1/path'.format(app_id=app_id)
