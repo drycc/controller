@@ -36,12 +36,22 @@ app.conf.update(
             'exchange': 'controller.priority',
             'routing_key': 'controller.priority.high',
         },
+        'api.tasks.mount_app': {
+            'queue': 'low',
+            'exchange': 'controller.priority',
+            'routing_key': 'controller.priority.high',
+        },
         'api.tasks.restart_app': {
             'queue': 'high',
             'exchange': 'controller.priority',
             'routing_key': 'controller.priority.high',
         },
         'api.tasks.retrieve_resource': {
+            'queue': 'high',
+            'exchange': 'controller.priority',
+            'routing_key': 'controller.priority.high',
+        },
+        'api.tasks.downstream_model_owner': {
             'queue': 'high',
             'exchange': 'controller.priority',
             'routing_key': 'controller.priority.high',

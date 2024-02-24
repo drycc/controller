@@ -381,7 +381,7 @@ class App(UuidAuditedModel):
         self.cleanup_old()
         release.cleanup_old()
 
-    def mount(self, user, volume):
+    def mount(self, user, volume, structure=None):
         if self.release_set.filter(failed=False).latest().build is None:
             raise DryccException('No build associated with this release')
         release = self.release_set.filter(failed=False).latest()
@@ -391,7 +391,8 @@ class App(UuidAuditedModel):
                 user,
                 volume,
                 self.release_set.filter(failed=False, canary=False).latest(),
-                app_settings
+                app_settings,
+                structure=structure,
             )
         self._mount(user, volume, release, app_settings)
 
@@ -699,14 +700,14 @@ class App(UuidAuditedModel):
             err = 'Error deleting existing application logs: {}'.format(e)
             self.log(err, logging.WARNING)
 
-    def _mount(self, user, volume, release, app_settings):
-        volumes = list(Volume.objects.filter(app=self).exclude(name=volume.name))
-        volumes.append(volume)
+    def _mount(self, user, volume, release, app_settings, structure=None):
+        volumes = Volume.objects.filter(app=self)
         tasks = []
-        for scale_type, replicas in self.structure.items():
+        for scale_type, replicas in structure.items() if structure else self.structure.items():
             if not release.canary or scale_type in app_settings.canaries:
                 replicas = self.structure.get(scale_type, 0)
-                scale_type_volumes = [_ for _ in volumes if scale_type in _.path.keys()]
+                scale_type_volumes = [
+                    volume for volume in volumes if scale_type in volume.path.keys()]
                 data = self._gather_app_settings(
                     release, app_settings, scale_type, replicas, volumes=scale_type_volumes)
                 deployment = self._scheduler.deployment.get(
@@ -735,9 +736,7 @@ class App(UuidAuditedModel):
             err = f'(changed volume mount for {volume}: {e}'
             self.log(err, logging.ERROR)
             raise ServiceUnavailable(err) from e
-
-        msg = f'{user.username} changed volume mount for {volume}'
-        self.log(msg)
+        self.log(f'{user.username} changed volume mount for {volume}')
 
     def _scale(self, user, structure, release, app_settings):  # noqa
         """Scale containers up or down to match requested structure."""

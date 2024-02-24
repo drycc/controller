@@ -20,8 +20,7 @@ from rest_framework.viewsets import GenericViewSet
 
 from api import monitor, models, permissions, serializers, viewsets, authentication
 from api.tasks import scale_app, restart_app, mount_app, downstream_model_owner
-from api.exceptions import AlreadyExists, ServiceUnavailable, DryccException, \
-    UnprocessableEntity
+from api.exceptions import AlreadyExists, ServiceUnavailable, DryccException
 
 from django.views.decorators.cache import never_cache
 from django.contrib.auth import REDIRECT_FIELD_NAME
@@ -714,48 +713,22 @@ class AppVolumesViewSet(ReleasableViewSet):
         return Response(status=status.HTTP_204_NO_CONTENT)
 
     def path(self, request, *args, **kwargs):
-        new_path = request.data.get('path')
-        if new_path is None:
+        path = request.data.get('path')
+        if path is None:
             raise DryccException("path is a required field")
         else:
-            new_path = serializers.VolumeSerializer().validate_path(new_path)
+            path = serializers.VolumeSerializer().validate_path(path)
         volume = self.get_object()
-        container_types = [_ for _ in new_path.keys()
+        container_types = [_ for _ in path.keys()
                            if _ not in volume.app.types]
         if container_types:
             raise DryccException("process type {} is not included in profile".
                                  format(','.join(container_types)))
-
-        if set(new_path.items()).issubset(set(volume.path.items())):
+        if set(path.items()).issubset(set(volume.path.items())):
             raise DryccException("mount path not changed")
 
-        other_volumes = self.get_app().volume_set.exclude(name=volume.name)
-        type_paths = {}  # {'type1':[path1,path2], tyep2:[path3,path4]}
-        for _ in other_volumes:
-            for k, v in _.path.items():
-                if k not in type_paths:
-                    type_paths[k] = [v]
-                else:
-                    type_paths[k].append(v)
-        repeat_path = [v for k, v in new_path.items() if v in type_paths.get(k, [])]  # noqa
-        if repeat_path:
-            raise DryccException("path {} is used by another volume".
-                                 format(','.join(repeat_path)))
-        path = volume.path
-        # merge mount path
-        # remove path keys if a null value is provided
-        for key, value in new_path.items():
-            if value is None:
-                # error if unsetting non-existing key
-                if key not in path:
-                    raise UnprocessableEntity(
-                        '{} does not exist under {}'.format(key, "volume"))  # noqa
-                path.pop(key)
-            else:
-                path[key] = value
         app = self.get_app()
-        volume.path = path  # volume save by task success
-        mount_app.delay(app, self.request.user, volume)
+        mount_app.delay(app, self.request.user, volume, path)
         serializer = self.get_serializer(volume, many=False)
         return Response(serializer.data)
 

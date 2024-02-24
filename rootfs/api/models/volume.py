@@ -29,6 +29,8 @@ class Volume(UuidAuditedModel):
         # Attach volume, updates k8s
         if self.type == "csi" and self.created == self.updated:
             self._create_pvc()
+        # check path
+        self._check_path()
         # Save to DB
         return super(Volume, self).save(*args, **kwargs)
 
@@ -97,10 +99,24 @@ class Volume(UuidAuditedModel):
             size = size.upper() + "i"
         return size
 
+    def _check_path(self):
+        other_volumes = self.app.volume_set.exclude(name=self.name)
+        type_paths = {}  # {'type1':[path1,path2], tyep2:[path3,path4]}
+        for _ in other_volumes:
+            for k, v in _.path.items():
+                if k not in type_paths:
+                    type_paths[k] = [v]
+                else:
+                    type_paths[k].append(v)
+        repeat_path = [v for k, v in self.path.items() if v in type_paths.get(k, [])]
+        if repeat_path:
+            raise DryccException("path {} is used by another volume".
+                                 format(','.join(repeat_path)))
+
     def _create_pvc(self):
         try:
             self._scheduler.pvc.get(self.app.id, self.name)
-            err = "Volume {} already exists in this namespace".format(self.name)  # noqa
+            err = "Volume {} already exists in this namespace".format(self.name)
             self.log(err, logging.INFO)
             raise AlreadyExists(err)
         except KubeException as e:

@@ -1,5 +1,7 @@
 import json
 import time
+import six
+import ssl
 import aiohttp
 import asyncio
 import collections
@@ -10,6 +12,7 @@ from asgiref.sync import sync_to_async
 from kubernetes.client import Configuration
 from kubernetes.client.api import core_v1_api
 from kubernetes.stream import stream
+from kubernetes.stream.ws_client import STDOUT_CHANNEL, STDERR_CHANNEL, ERROR_CHANNEL
 
 from channels.db import database_sync_to_async
 from channels.exceptions import DenyConnection
@@ -85,25 +88,27 @@ class AppPodExecConsumer(BaseAppConsumer):
         await super().connect()
         self.pod_id = self.scope["url_route"]["kwargs"]["pod_id"]
 
-    async def send(self, data):
+    async def send(self, data, channel=STDOUT_CHANNEL):
+        channel_prefix = chr(channel)
         if data is None:
             return
         elif isinstance(data, bytes):
-            await super().send(bytes_data=data)
+            channel_prefix = six.binary_type(channel_prefix, "ascii")
+            await super().send(bytes_data=channel_prefix+data)
         elif isinstance(data, str):
-            await super().send(text_data=data)
+            await super().send(text_data=channel_prefix+data)
 
     async def task(self):
         deadline = time.time() + settings.DRYCC_APP_POD_EXEC_TIMEOUT
         while self.stream.is_open() and self.conneted and time.time() < deadline:
-            await sync_to_async(self.stream.update)(0.1)
-            if self.stream.peek_stdout():
-                data = self.stream.read_stdout()
-            elif self.stream.peek_stderr():
-                data = self.stream.read_stderr()
-            else:
-                data = None
-            await self.send(data)
+            try:
+                await sync_to_async(self.stream.update)(0.1)
+                for channel in (ERROR_CHANNEL, STDOUT_CHANNEL, STDERR_CHANNEL):
+                    if channel in self.stream._channels:
+                        data = self.stream.read_channel(channel)
+                        await self.send(data, channel)
+            except ssl.SSLEOFError:
+                break
         await self.close(code=1000)
 
     async def disconnect(self, close_code):
@@ -115,14 +120,9 @@ class AppPodExecConsumer(BaseAppConsumer):
         if self.stream is None and text_data is not None:
             args = (self.kubernetes.connect_get_namespaced_pod_exec, self.pod_id, self.id)
             kwargs = json.loads(text_data)
-            kwargs.update({"stderr": True, "stdout": True})
-            if kwargs["stdin"]:
-                kwargs.update({"_preload_content": False})
-                self.stream = stream(*args, **kwargs)
-                asyncio.create_task(self.task())
-            else:
-                await self.send(stream(*args, **kwargs))
-                await self.close(code=1000)
+            kwargs.update({"stderr": True, "stdout": True, "_preload_content": False})
+            self.stream = stream(*args, **kwargs)
+            asyncio.create_task(self.task())
         elif self.stream is not None:
             data = text_data if text_data else bytes_data
             channel, data = ord(data[0]), data[1:]

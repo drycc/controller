@@ -186,8 +186,11 @@ class VolumeTest(DryccTransactionTestCase):
         url = '/v2/apps/{app_id}/volumes/myvolume1/path'.format(app_id=app_id)
         mount_path = {"path": {"web": "/data/web1"}}
         response = self.client.patch(url, data=mount_path)
-        expected = response.data['path']
-        self.assertEqual(mount_path['path'], expected)
+        expected = response.data['path']  # old data
+        self.assertEqual({}, expected)
+        url = '/v2/apps/{app_id}/volumes/myvolume1'.format(app_id=app_id)
+        response = self.client.get(url)
+        self.assertEqual(response.data["path"], mount_path["path"])
 
     def test_volume_unmount(self, mock_requests):
         # create
@@ -210,7 +213,7 @@ class VolumeTest(DryccTransactionTestCase):
         mount_path = {"path": {"web": "/data/web1"}}
         response = self.client.patch(url, data=mount_path)
         expected = response.data['path']
-        self.assertEqual(mount_path['path'], expected)
+        self.assertEqual({}, expected)
         # check mount
         url = '/v2/apps/{app_id}/volumes/myvolume1'.format(app_id=app_id)
         response = self.client.get(url)
@@ -221,7 +224,11 @@ class VolumeTest(DryccTransactionTestCase):
         mount_path = {"path": {"web": None}}
         response = self.client.patch(url, data=mount_path)
         expected = response.data['path']
-        self.assertEqual({}, expected)
+        self.assertEqual(mount_path["path"], {'web': None})
+        # check mount
+        url = '/v2/apps/{app_id}/volumes/myvolume1'.format(app_id=app_id)
+        response = self.client.get(url)
+        self.assertEqual(response.data["path"], {})
 
     def build_deploy(self, app_id):
         # post a new build with procfile
