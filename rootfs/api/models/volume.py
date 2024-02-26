@@ -30,7 +30,7 @@ class Volume(UuidAuditedModel):
         if self.type == "csi" and self.created == self.updated:
             self._create_pvc()
         # check path
-        self._check_path()
+        self.check_path()
         # Save to DB
         return super(Volume, self).save(*args, **kwargs)
 
@@ -99,7 +99,7 @@ class Volume(UuidAuditedModel):
             size = size.upper() + "i"
         return size
 
-    def _check_path(self):
+    def check_path(self, path=None):
         other_volumes = self.app.volume_set.exclude(name=self.name)
         type_paths = {}  # {'type1':[path1,path2], tyep2:[path3,path4]}
         for _ in other_volumes:
@@ -108,10 +108,12 @@ class Volume(UuidAuditedModel):
                     type_paths[k] = [v]
                 else:
                     type_paths[k].append(v)
-        repeat_path = [v for k, v in self.path.items() if v in type_paths.get(k, [])]
+        items = path.items() if path else self.path.items()
+        repeat_path = [v for k, v in items if v in type_paths.get(k, [])]
         if repeat_path:
-            raise DryccException("path {} is used by another volume".
-                                 format(','.join(repeat_path)))
+            msg = "path {} is used by another volume".format(','.join(repeat_path))
+            self.log(msg, logging.ERROR)
+            raise DryccException(msg)
 
     def _create_pvc(self):
         try:

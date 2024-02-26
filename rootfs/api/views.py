@@ -726,6 +726,7 @@ class AppVolumesViewSet(ReleasableViewSet):
                                  format(','.join(container_types)))
         if set(path.items()).issubset(set(volume.path.items())):
             raise DryccException("mount path not changed")
+        volume.check_path(path)
 
         app = self.get_app()
         mount_app.delay(app, self.request.user, volume, path)
