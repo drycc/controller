@@ -7,6 +7,8 @@ from api.models.app import App
 from api.models.domain import Domain
 from api.models.certificate import Certificate
 from api.models.service import Service
+from api.models.volume import Volume
+from api.models.gateway import Route, Gateway
 from api.exceptions import DryccException, AlreadyExists
 
 
@@ -63,11 +65,13 @@ class Command(BaseCommand):
             try:
                 app.save()
                 app.config_set.latest().save()
-                app.tls_set.latest().sync()
+                tls = app.tls_set.latest()
+                tls.refresh_issuer_to_k8s()
+                tls.refresh_certificate_to_k8s()
             except DryccException as error:
                 print('ERROR: Problem saving to model {} for {}'
                       'due to {}'.format(str(App.__name__), str(app), str(error)))
-        for model in (Key, Domain, Certificate, Service):
+        for model in (Volume, Route, Gateway, Key, Domain, Certificate, Service):
             for obj in model.objects.all():
                 try:
                     obj.save()
