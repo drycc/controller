@@ -90,7 +90,7 @@ class Gateway(AuditedModel):
 
     @property
     def addresses(self):
-        data = self._scheduler.gateways.get(self.app.id, self.name, ignore_exception=True)
+        data = self.scheduler().gateways.get(self.app.id, self.name, ignore_exception=True)
         if data.status_code != 200:
             return []
         addresses = data.json()["status"].get("addresses", [])
@@ -99,20 +99,20 @@ class Gateway(AuditedModel):
     def refresh_to_k8s(self):
         try:
             try:
-                data = self._scheduler.gateways.get(self.app.id, self.name).json()
+                data = self.scheduler().gateways.get(self.app.id, self.name).json()
                 if len(self.listeners) > 0:
-                    self._scheduler.gateways.patch(self.app.id, self.name, **{
+                    self.scheduler().gateways.patch(self.app.id, self.name, **{
                         "listeners": self.listeners,
                         "gateway_class": settings.GATEWAY_CLASS,
                         "version": data["metadata"]["resourceVersion"],
                     })
                 else:
                     logger.debug("delete k8s resource when listeners are empty")
-                    self._scheduler.gateways.delete(
+                    self.scheduler().gateways.delete(
                         self.app.id, self.name, ignore_exception=True)
             except KubeException:
                 if len(self.listeners) > 0:
-                    self._scheduler.gateways.create(self.app.id, self.name, **{
+                    self.scheduler().gateways.create(self.app.id, self.name, **{
                         "listeners": self.listeners,
                         "gateway_class": settings.GATEWAY_CLASS,
                     })
@@ -127,7 +127,7 @@ class Gateway(AuditedModel):
 
     def delete(self, *args, **kwargs):
         try:
-            self._scheduler.gateways.delete(self.app.id, self.name, ignore_exception=False)
+            self.scheduler().gateways.delete(self.app.id, self.name, ignore_exception=False)
         except KubeException:
             logger.log(
                 msg='Kubernetes gateway cannot be deleted: {}'.format(self.name),
@@ -221,13 +221,13 @@ class Route(AuditedModel):
                 self._https_enforced_to_k8s(http_parent_refs)
             elif self.kind == "HTTPRoute":
                 parent_refs.extend(http_parent_refs)
-                self._scheduler.httproute.delete(self.app.id, self._https_redirect_name)
+                self.scheduler().httproute.delete(self.app.id, self._https_redirect_name)
             else:
                 parent_refs.extend(http_parent_refs)
             self._refresh_to_k8s(self.current_rules, parent_refs)
         else:
-            self._scheduler.httproute.delete(self.app.id, self.name)
-            self._scheduler.httproute.delete(self.app.id, self._https_redirect_name)
+            self.scheduler().httproute.delete(self.app.id, self.name)
+            self.scheduler().httproute.delete(self.app.id, self._https_redirect_name)
 
     def attach(self, gateway_name, port):
         ok, msg = self._check_parent(gateway_name, port)
@@ -257,7 +257,7 @@ class Route(AuditedModel):
 
     def delete(self, *args, **kwargs):
         try:
-            k8s_route = getattr(self._scheduler, self.kind.lower())
+            k8s_route = getattr(self.scheduler(), self.kind.lower())
             k8s_route.delete(self.app.id, self.name, ignore_exception=False)
         except KubeException:
             logger.log(
@@ -292,7 +292,7 @@ class Route(AuditedModel):
 
     def _refresh_to_k8s(self, rules, parent_refs):
         try:
-            k8s_route = getattr(self._scheduler, self.kind.lower())
+            k8s_route = getattr(self.scheduler(), self.kind.lower())
             hostnames = [domain.domain for domain in self.app.domain_set.all()]
             try:
                 data = k8s_route.get(self.app.id, self.name).json()
@@ -321,15 +321,15 @@ class Route(AuditedModel):
         }
         try:
             try:
-                data = self._scheduler.httproute.get(
+                data = self.scheduler().httproute.get(
                     self.app.id, self._https_redirect_name).json()
-                self._scheduler.httproute.patch(self.app.id, self._https_redirect_name, **{
+                self.scheduler().httproute.patch(self.app.id, self._https_redirect_name, **{
                     "rules": rules,
                     "parent_refs": parent_refs,
                     "version": data["metadata"]["resourceVersion"],
                 })
             except KubeException:
-                self._scheduler.httproute.create(self.app.id, self._https_redirect_name, **{
+                self.scheduler().httproute.create(self.app.id, self._https_redirect_name, **{
                     "rules": rules,
                     "parent_refs": parent_refs,
                 })

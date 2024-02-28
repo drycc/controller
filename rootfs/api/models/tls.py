@@ -62,13 +62,13 @@ class TLS(UuidAuditedModel):
         secret_name = f"{self.app.id}-acme-external-account-binding-secret"
         try:
             try:
-                data = self._scheduler.secret.get(self.app.id, secret_name).json()
-                self._scheduler.secret.patch(self.app.id, secret_name, {
+                data = self.scheduler().secret.get(self.app.id, secret_name).json()
+                self.scheduler().secret.patch(self.app.id, secret_name, {
                     "secret": self.issuer["key_secret"],
                     "version": data["metadata"]["resourceVersion"],
                 })
             except KubeException:
-                self._scheduler.secret.create(self.app.id, secret_name, {
+                self.scheduler().secret.create(self.app.id, secret_name, {
                     "secret": self.issuer["key_secret"],
                 })
         except KubeException as e:
@@ -89,12 +89,12 @@ class TLS(UuidAuditedModel):
                 for gateway in self.app.gateway_set.all()
             ]
             try:
-                version = self._scheduler.issuer.get(
+                version = self.scheduler().issuer.get(
                     namespace, name, ignore_exception=False).json()["metadata"]["resourceVersion"]
                 data.update({"version": version})
-                self._scheduler.issuer.put(namespace, name, **data)
+                self.scheduler().issuer.put(namespace, name, **data)
             except KubeException:
-                self._scheduler.issuer.create(namespace, name, **data)
+                self.scheduler().issuer.create(namespace, name, **data)
         except KubeException as e:
             raise ServiceUnavailable('Kubernetes issuer could not be created') from e
 
@@ -103,15 +103,15 @@ class TLS(UuidAuditedModel):
         if self.certs_auto_enabled:
             hosts = [domain.domain for domain in self.app.domain_set.all()]
             try:
-                data = self._scheduler.certificate.get(namespace, name).json()
+                data = self.scheduler().certificate.get(namespace, name).json()
                 version = data["metadata"]["resourceVersion"]
-                self._scheduler.certificate.put(namespace, name, hosts, version)
+                self.scheduler().certificate.put(namespace, name, hosts, version)
             except KubeException:
                 logger.log(
                     msg="certificate {} does not exist".format(namespace), level=logging.INFO)
-                self._scheduler.certificate.create(namespace, name, hosts)
+                self.scheduler().certificate.create(namespace, name, hosts)
         else:
-            self._scheduler.certificate.delete(namespace, name, ignore_exception=True)
+            self.scheduler().certificate.delete(namespace, name, ignore_exception=True)
 
     @transaction.atomic
     def save(self, *args, **kwargs):

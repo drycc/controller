@@ -174,7 +174,7 @@ class ServiceTest(DryccTransactionTestCase):
         )
         self.assertEqual(response.status_code, 201, response.data)
         app = App.objects.get(id=app_id)
-        response = app._scheduler.svc.get(app_id)
+        response = app.scheduler().svc.get(app_id)
         self.assertEqual(response.status_code, 200)
         self.assertEqual(len(response.json()["items"]), 2)
         # Remove canaries to false
@@ -183,6 +183,6 @@ class ServiceTest(DryccTransactionTestCase):
             {'canaries': [procfile_type]}
         )
         self.assertEqual(response.status_code, 204, response.data)
-        response = app._scheduler.svc.get(app_id)
+        response = app.scheduler().svc.get(app_id)
         self.assertEqual(response.status_code, 200)
         self.assertEqual(len(response.json()["items"]), 1)

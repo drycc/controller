@@ -36,10 +36,10 @@ class Resource(UuidAuditedModel):
         # Save to DB
         return super(Resource, self).save(*args, **kwargs)
 
-    @property
-    def services(self):
+    @classmethod
+    def services(cls):
         services = []
-        for serviceclass in self._scheduler.svcat.get_serviceclasses().json()["items"]:
+        for serviceclass in cls.scheduler().svcat.get_serviceclasses().json()["items"]:
             services.append({
                 "id": serviceclass["spec"]["externalID"],
                 "name": serviceclass["spec"]["externalName"],
@@ -50,13 +50,13 @@ class Resource(UuidAuditedModel):
     @classmethod
     def plans(cls, serviceclass_name):
         serviceclass_id = None
-        for service in cls.services:
+        for service in cls.services():
             if service["name"] == serviceclass_name:
                 serviceclass_id = service["id"]
                 break
         plans = []
         if serviceclass_id is not None:
-            for serviceplan in cls._scheduler.svcat.get_serviceplans().json()["items"]:
+            for serviceplan in cls.scheduler().svcat.get_serviceplans().json()["items"]:
                 if serviceplan["spec"]["clusterServiceClassRef"]["name"] == serviceclass_id:
                     plans.append({
                         "id": serviceplan["spec"]["externalID"],
@@ -67,7 +67,7 @@ class Resource(UuidAuditedModel):
 
     def attach(self, *args, **kwargs):
         try:
-            self._scheduler.svcat.get_instance(self.app.id, self.name)
+            self.scheduler().svcat.get_instance(self.app.id, self.name)
             err = "Resource {} already exists in this namespace".format(self.name)  # noqa
             self.log(err, logging.INFO)
             raise AlreadyExists(err)
@@ -80,7 +80,7 @@ class Resource(UuidAuditedModel):
                     "instance_plan": ":".join(instance[1:]),
                     "parameters": self.options,
                 }
-                self._scheduler.svcat.create_instance(
+                self.scheduler().svcat.create_instance(
                     self.app.id, self.name, **kwargs
                 )
             except KubeException as e:
@@ -101,10 +101,10 @@ class Resource(UuidAuditedModel):
 
     def detach(self, *args, **kwargs):
         try:
-            resp = self._scheduler.svcat.get_instance(
+            resp = self.scheduler().svcat.get_instance(
                 self.app.id, self.name, ignore_exception=True)
             if resp.status_code != 404:
-                self._scheduler.svcat.delete_instance(self.app.id, self.name)
+                self.scheduler().svcat.delete_instance(self.app.id, self.name)
         except KubeException as e:
             raise ServiceUnavailable("Could not delete resource {} for application {}".format(self.name, self.app_id)) from e  # noqa
 
@@ -127,14 +127,14 @@ class Resource(UuidAuditedModel):
         self.binding = "Binding"
         self.save()
         try:
-            self._scheduler.svcat.get_binding(self.app.id, self.name)
+            self.scheduler().svcat.get_binding(self.app.id, self.name)
             err = "Resource {} is binding".format(self.name)
             self.log(err, logging.INFO)
             raise AlreadyExists(err)
         except KubeException as e:
             logger.info(e)
             try:
-                self._scheduler.svcat.create_binding(
+                self.scheduler().svcat.create_binding(
                     self.app.id, self.name, **kwargs)
             except KubeException as e:
                 msg = 'There was a problem binding the resource ' \
@@ -146,8 +146,8 @@ class Resource(UuidAuditedModel):
             raise DryccException("the resource instance is not binding")
         try:
             # We raise an exception when a resource doesn't exist
-            self._scheduler.svcat.get_binding(self.app.id, self.name)
-            self._scheduler.svcat.delete_binding(self.app.id, self.name)
+            self.scheduler().svcat.get_binding(self.app.id, self.name)
+            self.scheduler().svcat.delete_binding(self.app.id, self.name)
             self.binding = None
             self.data = {}
             self.save()
@@ -156,7 +156,7 @@ class Resource(UuidAuditedModel):
 
     def attach_update(self, *args, **kwargs):
         try:
-            data = self._scheduler.svcat.get_instance(
+            data = self.scheduler().svcat.get_instance(
                 self.app.id, self.name).json()
         except KubeException as e:
             logger.debug(e)
@@ -170,7 +170,7 @@ class Resource(UuidAuditedModel):
                 "parameters": self.options,
                 "external_id": data["spec"]["externalID"]
             }
-            self._scheduler.svcat.patch_instance(
+            self.scheduler().svcat.patch_instance(
                 self.app.id, self.name, version, **kwargs
             )
         except KubeException as e:
@@ -181,7 +181,7 @@ class Resource(UuidAuditedModel):
     @property
     def message(self):
         try:
-            resp = self._scheduler.svcat.get_instance(
+            resp = self.scheduler().svcat.get_instance(
                 self.app.id, self.name)
             if resp.status_code != 200:
                 message = ""
@@ -211,7 +211,7 @@ class Resource(UuidAuditedModel):
     def _retrieve_status(self):
         changed = False
         try:
-            response = self._scheduler.svcat.get_instance(
+            response = self.scheduler().svcat.get_instance(
                 self.app.id, self.name).json()
             status = response.get('status', {}).get('lastConditionState')
             options = response.get('spec', {}).get('parameters', {})
@@ -229,14 +229,14 @@ class Resource(UuidAuditedModel):
         changed = False
         try:
             # We raise an exception when a resource doesn't exist
-            response = self._scheduler.svcat.get_binding(self.app.id, self.name).json()
+            response = self.scheduler().svcat.get_binding(self.app.id, self.name).json()
             binding = response.get('status', {}).get('lastConditionState')
             secret_name = response.get('spec', {}).get('secretName')
             if self.binding != binding:
                 self.binding = binding
                 changed = True
             if secret_name:
-                response = self._scheduler.secret.get(self.app.id, secret_name).json()
+                response = self.scheduler().secret.get(self.app.id, secret_name).json()
                 data = response.get('data', {})
                 if self.data != data:
                     self.data = data

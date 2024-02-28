@@ -56,7 +56,7 @@ class Volume(UuidAuditedModel):
                     "size": self._format_size(self.size),
                     "storage_class": settings.DRYCC_APP_STORAGE_CLASS,
                 }
-                self._scheduler.pvc.patch(self.app.id, self.name, **kwargs)
+                self.scheduler().pvc.patch(self.app.id, self.name, **kwargs)
             except KubeException as e:
                 msg = 'There was a problem expand the volume ' \
                         '{} for {}'.format(self.name, self.app_id)
@@ -117,7 +117,7 @@ class Volume(UuidAuditedModel):
 
     def _create_pvc(self):
         try:
-            self._scheduler.pvc.get(self.app.id, self.name)
+            self.scheduler().pvc.get(self.app.id, self.name)
             err = "Volume {} already exists in this namespace".format(self.name)
             self.log(err, logging.INFO)
             raise AlreadyExists(err)
@@ -128,7 +128,7 @@ class Volume(UuidAuditedModel):
                     "size": self._format_size(self.size),
                     "storage_class": settings.DRYCC_APP_STORAGE_CLASS,
                 }
-                self._scheduler.pvc.create(self.app.id, self.name, **kwargs)
+                self.scheduler().pvc.create(self.app.id, self.name, **kwargs)
             except KubeException as e:
                 msg = 'There was a problem creating the volume ' \
                       '{} for {}'.format(self.name, self.app_id)
@@ -137,8 +137,8 @@ class Volume(UuidAuditedModel):
     def _delete_pvc(self):
         try:
             # We raise an exception when a volume doesn't exist
-            self._scheduler.pvc.get(self.app.id, self.name)
-            self._scheduler.pvc.delete(self.app.id, self.name)
+            self.scheduler().pvc.get(self.app.id, self.name)
+            self.scheduler().pvc.delete(self.app.id, self.name)
         except KubeException as e:
             raise ServiceUnavailable("Could not delete volume {} for application \
                 {}".format(self.name, self.app_id)) from e  # noqa

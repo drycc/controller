@@ -178,7 +178,7 @@ class Release(UuidAuditedModel):
         # Cleanup controllers
         labels = {'heritage': 'drycc'}
         replica_sets_removal = []
-        replica_sets = self._scheduler.rs.get(self.app.id, labels=labels).json()['items']
+        replica_sets = self.scheduler().rs.get(self.app.id, labels=labels).json()['items']
         if not replica_sets:
             replica_sets = []
         for replica_set in replica_sets:
@@ -206,11 +206,11 @@ class Release(UuidAuditedModel):
 
         # Remove stray pods
         labels = {'heritage': 'drycc'}
-        pods = self._scheduler.pod.get(self.app.id, labels=labels).json()['items']
+        pods = self.scheduler().pod.get(self.app.id, labels=labels).json()['items']
         if not pods:
             pods = []
         for pod in pods:
-            if self._scheduler.pod.deleted(pod):
+            if self.scheduler().pod.deleted(pod):
                 continue
 
             current_version = pod['metadata']['labels']['version']
@@ -219,7 +219,7 @@ class Release(UuidAuditedModel):
                 continue
 
             try:
-                self._scheduler.pod.delete(self.app.id, pod['metadata']['name'])
+                self.scheduler().pod.delete(self.app.id, pod['metadata']['name'])
             except KubeHTTPException as e:
                 # Sometimes k8s will manage to remove the pod from under us
                 if e.response.status_code == 404:
@@ -238,7 +238,7 @@ class Release(UuidAuditedModel):
         # Find all ReplicaSets
         versions = []
         labels = {'heritage': 'drycc', 'app': namespace}
-        replicasets = self._scheduler.rs.get(namespace, labels=labels).json()['items']
+        replicasets = self.scheduler().rs.get(namespace, labels=labels).json()['items']
         if not replicasets:
             replicasets = []
         for replicaset in replicasets:
@@ -259,11 +259,11 @@ class Release(UuidAuditedModel):
             'version__notin': versions
         }
         self.app.log('Cleaning up orphaned env var secrets for application {}'.format(namespace), level=logging.DEBUG)  # noqa
-        secrets = self._scheduler.secret.get(namespace, labels=labels).json()['items']
+        secrets = self.scheduler().secret.get(namespace, labels=labels).json()['items']
         if not secrets:
             secrets = []
         for secret in secrets:
-            self._scheduler.secret.delete(namespace, secret['metadata']['name'])
+            self.scheduler().secret.delete(namespace, secret['metadata']['name'])
 
     def _delete_release_in_scheduler(self, namespace, version):
         """
@@ -281,14 +281,14 @@ class Release(UuidAuditedModel):
         # see if the app config has deploy timeout preference, otherwise use global
         timeout = self.config.values.get('DRYCC_DEPLOY_TIMEOUT', settings.DRYCC_DEPLOY_TIMEOUT)
 
-        replica_sets = self._scheduler.rs.get(namespace, labels=labels).json()['items']
+        replica_sets = self.scheduler().rs.get(namespace, labels=labels).json()['items']
         if not replica_sets:
             replica_sets = []
         for replica_set in replica_sets:
             # Deployment takes care of this in the API, RS does not
             # Have the RS scale down pods and delete itself
-            self._scheduler.rs.scale(namespace, replica_set['metadata']['name'], 0, timeout)
-            self._scheduler.rs.delete(namespace, replica_set['metadata']['name'])
+            self.scheduler().rs.scale(namespace, replica_set['metadata']['name'], 0, timeout)
+            self.scheduler().rs.delete(namespace, replica_set['metadata']['name'])
 
     def save(self, *args, **kwargs):  # noqa
         if not self.summary:

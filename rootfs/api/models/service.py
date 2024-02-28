@@ -98,14 +98,14 @@ class Service(AuditedModel):
         self.log('creating service: {}'.format(svc_name), level=logging.DEBUG)
         try:
             try:
-                data = self._scheduler.svc.get(namespace, svc_name).json()
-                self._scheduler.svc.patch(namespace, svc_name, **{
+                data = self.scheduler().svc.get(namespace, svc_name).json()
+                self.scheduler().svc.patch(namespace, svc_name, **{
                     "ports": self.ports,
                     "version": data["metadata"]["resourceVersion"],
                     "procfile_type": self.procfile_type,
                 })
             except KubeException:
-                self._scheduler.svc.create(namespace, svc_name, **{
+                self.scheduler().svc.create(namespace, svc_name, **{
                     "ports": self.ports,
                     "procfile_type": self.procfile_type,
                 })
@@ -115,7 +115,7 @@ class Service(AuditedModel):
     def _delete_k8s_svc(self, svc_name):
         self.log('deleting Service: {}'.format(svc_name), level=logging.DEBUG)
         try:
-            self._scheduler.svc.delete(self._namespace(), svc_name)
+            self.scheduler().svc.delete(self._namespace(), svc_name)
         except KubeException:
             # swallow exception
             # raise ServiceUnavailable('Kubernetes service could not be deleted') from e

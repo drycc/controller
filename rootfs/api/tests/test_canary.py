@@ -48,7 +48,7 @@ class CanaryTest(DryccTransactionTestCase):
         self.assertEqual(response.data['image'], body['image'])
         # get deployments
         app = App.objects.get(id=app_id)
-        response = app._scheduler.deployments.get(app_id)
+        response = app.scheduler().deployments.get(app_id)
         self.assertEqual(len(response.json()["items"]), 1)
         # add canary
         self.client.post(
@@ -66,11 +66,11 @@ class CanaryTest(DryccTransactionTestCase):
     def test_release(self, mock_requests):
         app = self.pre_data()
         # get deployments
-        response = app._scheduler.deployments.get(app.id)
+        response = app.scheduler().deployments.get(app.id)
         self.assertEqual(len(response.json()["items"]), 2)
         response = self.client.post(f'/v2/apps/{app.id}/canary/release/')
         self.assertEqual(response.status_code, 201)
-        response = app._scheduler.deployments.get(app.id)
+        response = app.scheduler().deployments.get(app.id)
         self.assertEqual(len(response.json()["items"]), 1)
         self.assertEqual(
             response.json()["items"][0]["spec"]["template"]["spec"]["containers"][0]["image"],
@@ -79,11 +79,11 @@ class CanaryTest(DryccTransactionTestCase):
 
     def test_rollback(self, mock_requests):
         app = self.pre_data()
-        response = app._scheduler.deployments.get(app.id)
+        response = app.scheduler().deployments.get(app.id)
         self.assertEqual(len(response.json()["items"]), 2)
         response = self.client.post(f'/v2/apps/{app.id}/canary/rollback/')
         self.assertEqual(response.status_code, 201)
-        response = app._scheduler.deployments.get(app.id)
+        response = app.scheduler().deployments.get(app.id)
         self.assertEqual(len(response.json()["items"]), 1)
         self.assertEqual(
             response.json()["items"][0]["spec"]["template"]["spec"]["containers"][0]["image"],

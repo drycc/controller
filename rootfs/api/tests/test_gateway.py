@@ -318,14 +318,14 @@ class RouteTest(BaseGatewayTest):
         )
         self.assertEqual(response.status_code, 201, response.data)
         app = App.objects.get(id=app_id)
-        response = app._scheduler.httproute.get(app_id, route_name, ignore_exception=True)
+        response = app.scheduler().httproute.get(app_id, route_name, ignore_exception=True)
         self.assertEqual(response.status_code, 404)
         # Set routable to false
         response = self.client.post(
             f'/v2/apps/{app_id}/settings',
             {'routable': True}
         )
-        response = app._scheduler.httproute.get(app_id, route_name, ignore_exception=True)
+        response = app.scheduler().httproute.get(app_id, route_name, ignore_exception=True)
         self.assertEqual(response.status_code, 200)
 
     def test_route_delete(self):

@@ -740,7 +740,7 @@ class AppResourcesViewSet(AppResourceViewSet):
     serializer_class = serializers.ResourceSerializer
 
     def services(self, request, *args, **kwargs):
-        results = self.model.services
+        results = self.model.services()
         # fake out pagination for now
         pagination = {'results': results, 'count': len(results)}
         return Response(data=cache.get_or_set(
