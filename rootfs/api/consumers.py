@@ -7,9 +7,9 @@ import asyncio
 import collections
 from django.conf import settings
 
-from asgiref.sync import sync_to_async
+from asgiref.sync import sync_to_async, async_to_sync
 
-from kubernetes.client import Configuration
+from kubernetes.client import Configuration, exceptions
 from kubernetes.client.api import core_v1_api
 from kubernetes.stream import stream
 from kubernetes.stream.ws_client import STDOUT_CHANNEL, STDERR_CHANNEL, ERROR_CHANNEL
@@ -27,12 +27,16 @@ Request = collections.namedtuple("Request", ["user", "method"])
 
 class BaseAppConsumer(AsyncWebsocketConsumer):
 
-    async def has_perm(self):
+    @database_sync_to_async
+    def has_perm(self):
         if self.scope["user"] is None:
             return False, "user not login"
         request = Request(self.scope["user"], "POST")
-        app = await database_sync_to_async(App.objects.get)(id=self.id)
-        return await database_sync_to_async(has_app_permission)(request, app)
+        try:
+            app = App.objects.get(id=self.id)
+            return has_app_permission(request, app)
+        except App.DoesNotExist:
+            return False, "user not exists"
 
     async def connect(self):
         self.id = self.scope["url_route"]["kwargs"]["id"]
@@ -41,6 +45,21 @@ class BaseAppConsumer(AsyncWebsocketConsumer):
             await self.accept()
         else:
             raise DenyConnection(message)
+
+
+class BaseK8sConsumer(BaseAppConsumer):
+
+    @property
+    def kubernetes(self):
+        with open('/var/run/secrets/kubernetes.io/serviceaccount/token') as token_file:
+            token = token_file.read()
+        config = Configuration(host=settings.SCHEDULER_URL)
+        config.api_key = {"authorization": "Bearer " + token}
+        config.verify_ssl = settings.K8S_API_VERIFY_TLS
+        if config.verify_ssl:
+            config.ssl_ca_cert = "/var/run/secrets/kubernetes.io/serviceaccount/ca.crt"
+        Configuration.set_default(config)
+        return core_v1_api.CoreV1Api()
 
 
 class AppLogsConsumer(BaseAppConsumer):
@@ -68,19 +87,30 @@ class AppLogsConsumer(BaseAppConsumer):
             raise ValueError("text_data cannot be empty!")
 
 
-class AppPodExecConsumer(BaseAppConsumer):
+class AppPodLogsConsumer(BaseK8sConsumer):
 
-    @property
-    def kubernetes(self):
-        with open('/var/run/secrets/kubernetes.io/serviceaccount/token') as token_file:
-            token = token_file.read()
-        config = Configuration(host=settings.SCHEDULER_URL)
-        config.api_key = {"authorization": "Bearer " + token}
-        config.verify_ssl = settings.K8S_API_VERIFY_TLS
-        if config.verify_ssl:
-            config.ssl_ca_cert = "/var/run/secrets/kubernetes.io/serviceaccount/ca.crt"
-        Configuration.set_default(config)
-        return core_v1_api.CoreV1Api()
+    async def connect(self):
+        await super().connect()
+        self.pod_id = self.scope["url_route"]["kwargs"]["pod_id"]
+
+    @sync_to_async
+    def receive(self, text_data=None, bytes_data=None):
+        kwargs = json.loads(text_data)
+        try:
+            stream = self.kubernetes.read_namespaced_pod_log(self.pod_id, self.id, **{
+                "tail_lines": kwargs.get("lines", 100),
+                "follow": kwargs.get("follow", False),
+                "container": kwargs.get("container", ""),
+                "_preload_content": False,
+            }).stream()
+            for line in stream:
+                async_to_sync(self.send)(text_data=line)
+        except exceptions.ApiException as e:
+            async_to_sync(self.send)(text_data=str(e))
+        async_to_sync(self.close)(code=1000)
+
+
+class AppPodExecConsumer(BaseK8sConsumer):
 
     async def connect(self):
         self.stream = None
@@ -121,8 +151,13 @@ class AppPodExecConsumer(BaseAppConsumer):
             args = (self.kubernetes.connect_get_namespaced_pod_exec, self.pod_id, self.id)
             kwargs = json.loads(text_data)
             kwargs.update({"stderr": True, "stdout": True, "_preload_content": False})
-            self.stream = stream(*args, **kwargs)
-            asyncio.create_task(self.task())
+            try:
+                self.stream = stream(*args, **kwargs)
+            except exceptions.ApiException as e:
+                await self.send(str(e), STDERR_CHANNEL)
+                await self.close(code=1000)
+            else:
+                asyncio.create_task(self.task())
         elif self.stream is not None:
             data = text_data if text_data else bytes_data
             channel, data = ord(data[0]), data[1:]

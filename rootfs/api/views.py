@@ -28,6 +28,7 @@ from django.views.decorators.csrf import csrf_exempt
 from social_django.utils import psa
 from social_django.views import _do_login
 from social_core.utils import setting_name
+from api.admissions import JobsStatusHandler, DeploymentsScaleHandler
 from api.apps_extra.social_core.actions import do_auth, do_complete
 
 User = get_user_model()
@@ -150,20 +151,19 @@ class WorkflowManagerViewset(GenericViewSet):
 
 class AdmissionWebhookViewSet(GenericViewSet):
 
+    admission_classes = (JobsStatusHandler, DeploymentsScaleHandler)
     permission_classes = (AllowAny, )
 
-    def scale(self, request,  **kwargs):
+    def handle(self, request,  **kwargs):
         token = kwargs['token']
         data = json.loads(request.body.decode("utf8"))["request"]
         if settings.DRYCC_ADMISSION_WEBHOOK_TOKEN == token:
             allowed = True
-            app_id = data["object"]["metadata"]["namespace"]
-            app = models.app.App.objects.filter(id=app_id).first()
-            replicas = data["object"]["spec"].get("replicas", 0)
-            container_type = data["object"]["metadata"]["name"].replace(f"{app_id}-", "", 1)
-            if app and app.structure.get(container_type) != replicas:  # sync replicas
-                app.structure[container_type] = replicas
-                super(models.app.App, app).save(update_fields=["structure", ])
+            for admission_class in self.admission_classes:
+                admission = admission_class()
+                if admission.detect(data):
+                    allowed = admission.handle(data)
+                    break
         else:
             allowed = False
         return Response({
@@ -264,13 +264,18 @@ class AppViewSet(BaseDryccViewSet):
 
     def run(self, request, **kwargs):
         app = self.get_object()
-        if not request.data.get('command'):
-            raise DryccException("command is a required field")
+        command = request.data.get('command', ' '.join(app.get_command('run')))
+        timeout = int(request.data.get('timeout', 3600))
+        expires = int(request.data.get('expires', 3600))
+        if expires == 0 or expires > settings.KUBERNETES_JOB_MAX_TTL_SECONDS_AFTER_FINISHED:
+            expires = settings.KUBERNETES_JOB_MAX_TTL_SECONDS_AFTER_FINISHED
+        if not command:
+            raise DryccException('command is a required field, or it can be defined in Procfile')
         volumes = request.data.get('volumes', None)
         if volumes:
             volumes = serializers.VolumeSerializer().validate_path(volumes)
-        rc, output = app.run(self.request.user, request.data['command'], volumes)
-        return Response({'exit_code': rc, 'output': str(output)})
+        app.run(self.request.user, command, volumes, timeout, expires)
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
     def update(self, request, **kwargs):
         app = self.get_object()

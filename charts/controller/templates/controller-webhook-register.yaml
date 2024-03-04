@@ -6,9 +6,9 @@
 apiVersion: admissionregistration.k8s.io/v1
 kind: MutatingWebhookConfiguration
 metadata:
-  name: drycc-controller-webhook
+  name: {{ $altName2 }}
 webhooks:
-- name: "{{ $altName2 }}"
+- name: {{ $altName2 }}
   sideEffects: None
   admissionReviewVersions: ["v1"]
   clientConfig:
@@ -16,10 +16,17 @@ webhooks:
     service:
       name: drycc-controller-webhook
       namespace: "{{ .Release.Namespace }}"
-      path: "{{ printf "/v2/webhooks/scale/%s/" $token }}"
+      path: "{{ printf "/v2/webhooks/%s/" $token }}"
       port: 8443
   failurePolicy: Fail
+  objectSelector:
+    matchLabels:
+      heritage: drycc
   rules:
+  - operations: ["UPDATE"]
+    apiGroups: ["batch"]
+    apiVersions: ["*"]
+    resources: ["jobs/status"]
   - operations: ["UPDATE"]
     apiGroups: ["apps"]
     apiVersions: ["*"]

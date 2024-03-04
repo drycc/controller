@@ -1,0 +1,102 @@
+{
+    "kind": "AdmissionReview",
+    "apiVersion": "admission.k8s.io/v1",
+    "request": {
+        "uid": "2c7ac31e-fd85-4674-8a22-a720299ff0a9",
+        "kind": {
+            "group": "autoscaling",
+            "version": "v1",
+            "kind": "Scale"
+        },
+        "resource": {
+            "group": "apps",
+            "version": "v1",
+            "resource": "deployments"
+        },
+        "subResource": "scale",
+        "requestKind": {
+            "group": "autoscaling",
+            "version": "v1",
+            "kind": "Scale"
+        },
+        "requestResource": {
+            "group": "apps",
+            "version": "v1",
+            "resource": "deployments"
+        },
+        "requestSubResource": "scale",
+        "name": "myapp-web",
+        "namespace": "myapp",
+        "operation": "UPDATE",
+        "userInfo": {
+            "username": "system:admin",
+            "groups": ["system:masters", "system:authenticated"]
+        },
+        "object": {
+            "kind": "Scale",
+            "apiVersion": "autoscaling/v1",
+            "metadata": {
+                "name": "myapp-web",
+                "namespace": "myapp",
+                "uid": "302b2d9a-06b3-4d2b-af86-c6f8cc7c13cb",
+                "resourceVersion": "61988667",
+                "creationTimestamp": "2023-12-12T03:40:51Z",
+                "managedFields": [{
+                    "manager": "kubectl",
+                    "operation": "Update",
+                    "apiVersion": "autoscaling/v1",
+                    "time": "2024-03-04T04:47:33Z",
+                    "fieldsType": "FieldsV1",
+                    "fieldsV1": {
+                        "f:spec": {
+                            "f:replicas": {}
+                        }
+                    },
+                    "subresource": "scale"
+                }]
+            },
+            "spec": {
+                "replicas": 2
+            },
+            "status": {
+                "replicas": 3,
+                "selector": "app=myapp,heritage=drycc,type=web"
+            }
+        },
+        "oldObject": {
+            "kind": "Scale",
+            "apiVersion": "autoscaling/v1",
+            "metadata": {
+                "name": "myapp-web",
+                "namespace": "myapp",
+                "uid": "302b2d9a-06b3-4d2b-af86-c6f8cc7c13cb",
+                "resourceVersion": "61988667",
+                "creationTimestamp": "2023-12-12T03:40:51Z",
+                "managedFields": [{
+                    "manager": "kubectl",
+                    "operation": "Update",
+                    "apiVersion": "autoscaling/v1",
+                    "fieldsType": "FieldsV1",
+                    "fieldsV1": {
+                        "f:spec": {
+                            "f:replicas": {}
+                        }
+                    },
+                    "subresource": "scale"
+                }]
+            },
+            "spec": {
+                "replicas": 3
+            },
+            "status": {
+                "replicas": 3,
+                "selector": "app=myapp,heritage=drycc,type=web"
+            }
+        },
+        "dryRun": false,
+        "options": {
+            "kind": "UpdateOptions",
+            "apiVersion": "meta.k8s.io/v1"
+        }
+    }
+}

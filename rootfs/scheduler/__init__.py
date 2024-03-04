@@ -6,12 +6,10 @@ import requests
 import requests.exceptions
 from requests_toolbelt import user_agent
 import re
-import time
 from urllib.parse import urljoin
 
 from api import __version__ as drycc_version
-from scheduler.exceptions import KubeException, KubeHTTPException   # noqa
-from scheduler.states import PodState
+from scheduler.exceptions import KubeException, KubeHTTPException
 
 
 logger = logging.getLogger(__name__)
@@ -337,61 +335,6 @@ class KubeHTTPClient(object):
 
         # let the scale failure bubble up
         self.deployment.scale(namespace, name, **kwargs)
-
-    def run(self, namespace, name, image, entrypoint, command, **kwargs):
-        """Run a one-off command."""
-        self.log(namespace, 'run {}, img {}, entrypoint {}, cmd "{}"'.format(
-            name, image, entrypoint, command)
-        )
-
-        # run pods never restart
-        kwargs['restart_policy'] = 'Never'
-        kwargs['command'] = entrypoint
-        kwargs['args'] = command
-
-        self.pod.create(namespace, name, image, **kwargs)
-
-        try:
-            # give pod 20 minutes to execute (after it got into ready state)
-            # this is a fairly arbitrary limit but the gunicorn worker / LBs
-            # will make this timeout around 20 anyway.
-            # TODO: Revisit in the future so it can run longer
-            state = 'up'  # pod is still running
-            waited = 0
-            timeout = 1200  # 20 minutes
-            while (state == 'up' and waited < timeout):
-                pod = self.pod.get(namespace, name).json()
-                state = str(self.pod.state(pod))
-                # default data
-                exit_code = 0
-
-                waited += 1
-                time.sleep(1)
-
-            if state == 'down':  # run finished successfully
-                exit_code = 0  # successful run
-            elif state == 'crashed':  # run failed
-                pod_state = pod['status']['containerStatuses'][0]['state']
-                exit_code = pod_state['terminated']['exitCode']
-
-            # timed out!
-            if waited == timeout:
-                raise KubeException('Timed out (20 mins) while running')
-
-            # check if it is possible to get logs
-            state = self.pod.state(self.pod.get(namespace, name).json())
-            # States below up do not have logs
-            if not isinstance(state, PodState) or state < PodState.up:
-                return exit_code, 'Could not get logs. Pod is in state {}'.format(str(state))
-
-            # grab log information
-            log = self.pod.logs(namespace, name)
-            log.encoding = 'utf-8'  # defaults to "ISO-8859-1" otherwise...
-
-            return exit_code, log.text
-        finally:
-            # cleanup
-            self.pod.delete(namespace, name)
 
 
 SchedulerClient = KubeHTTPClient

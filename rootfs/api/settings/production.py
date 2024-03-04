@@ -400,6 +400,11 @@ KUBERNETES_POD_DEFAULT_ANNOTATIONS = os.environ.get(
         "kubernetes.io/ingress-bandwidth": "100M",
     })
 )
+
+KUBERNETES_JOB_MAX_TTL_SECONDS_AFTER_FINISHED = int(os.environ.get(
+    'KUBERNETES_NAMESPACE_DEFAULT_QUOTA_SPEC', '7200'
+))
+
 # Default quota spec for application namespace
 KUBERNETES_NAMESPACE_DEFAULT_QUOTA_SPEC = os.environ.get(
     'KUBERNETES_NAMESPACE_DEFAULT_QUOTA_SPEC', ''

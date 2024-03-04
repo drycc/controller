@@ -82,5 +82,8 @@ rules:
 - apiGroups: ["gateway.networking.k8s.io"]
   resources: ["gateways", "httproutes", "grocroutes", "tcproutes", "udproutes", "tlsroutes"]
   verbs: ["get", "patch", "list", "create", "update", "delete"]
+- apiGroups: ["batch"]
+  resources: ["jobs"]
+  verbs: ["create"]
 {{- end -}}
 

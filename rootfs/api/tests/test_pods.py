@@ -358,7 +358,7 @@ class PodTest(DryccTransactionTestCase):
         url = "/v2/apps/{app_id}/pods".format(**locals())
         response = self.client.get(url)
 
-        # verify that the app._get_command property got formatted
+        # verify that the app.get_command property got formatted
         self.assertEqual(response.status_code, 200, response.data)
         self.assertEqual(len(response.data['results']), 1)
 
@@ -370,7 +370,7 @@ class PodTest(DryccTransactionTestCase):
 
         # verify commands
         data = App.objects.get(id=app_id)
-        self.assertNotIn('{c_type}', data._get_command('web'))
+        self.assertNotIn('{c_type}', data.get_command('web'))
 
     def test_scale_errors(self, mock_requests):
         app_id = self.create_app()
@@ -516,33 +516,33 @@ class PodTest(DryccTransactionTestCase):
         )
 
         # use `start web` for backwards compatibility with buildpacks
-        self.assertEqual(app._get_command('web'), [])
-        self.assertEqual(app._get_command('worker'), [])
+        self.assertEqual(app.get_command('web'), [])
+        self.assertEqual(app.get_command('worker'), [])
 
         # switch to container image app
         build.sha = ''
         build.save()
-        self.assertEqual(app._get_command('web'), ['node', 'server.js'])
+        self.assertEqual(app.get_command('web'), ['node', 'server.js'])
 
         # switch to dockerfile app
         build.sha = 'european-swallow'
         build.dockerfile = 'dockerdockerdocker'
         build.save()
-        self.assertEqual(app._get_command('web'), ['node', 'server.js'])
-        self.assertEqual(app._get_command('cmd'), [])
+        self.assertEqual(app.get_command('web'), ['node', 'server.js'])
+        self.assertEqual(app.get_command('cmd'), [])
 
         # ensure we can override the cmd process type in a Procfile
         build.procfile['cmd'] = 'node server.js'
         build.save()
-        self.assertEqual(app._get_entrypoint('cmd'), [])
-        self.assertEqual(app._get_command('cmd'), ['node', 'server.js'])
-        self.assertEqual(app._get_entrypoint('worker'), [])
-        self.assertEqual(app._get_command('worker'), ['node', 'worker.js'])
+        self.assertEqual(app.get_entrypoint('cmd'), [])
+        self.assertEqual(app.get_command('cmd'), ['node', 'server.js'])
+        self.assertEqual(app.get_entrypoint('worker'), [])
+        self.assertEqual(app.get_command('worker'), ['node', 'worker.js'])
 
         # for backwards compatibility if no Procfile is supplied
         build.procfile = {}
         build.save()
-        self.assertEqual(app._get_command('worker'), [])
+        self.assertEqual(app.get_command('worker'), [])
 
     def test_run_command_good(self, mock_requests):
         """Test the run command for each container workflow"""
@@ -576,9 +576,9 @@ class PodTest(DryccTransactionTestCase):
         url = "/v2/apps/{app_id}/run".format(**locals())
         body = {'command': 'echo hi'}
         response = self.client.post(url, body)
-        self.assertEqual(response.status_code, 200, response.data)
+        self.assertEqual(response.status_code, 204, response.data)
         app = App.objects.get(id=app_id)
-        self.assertEqual(app._get_entrypoint('web'), [])
+        self.assertEqual(app.get_entrypoint('web'), [])
 
         # docker image workflow
         build.dockerfile = ''
@@ -587,10 +587,10 @@ class PodTest(DryccTransactionTestCase):
         url = "/v2/apps/{app_id}/run".format(**locals())
         body = {'command': 'echo hi'}
         response = self.client.post(url, body)
-        self.assertEqual(response.status_code, 200, response.data)
+        self.assertEqual(response.status_code, 204, response.data)
         app = App.objects.get(id=app_id)
-        self.assertEqual(app._get_entrypoint('cmd'), [])
-        self.assertEqual(app._get_entrypoint('run'), [])
+        self.assertEqual(app.get_entrypoint('cmd'), [])
+        self.assertEqual(app.get_entrypoint('run'), [])
 
         # procfile workflow
         build.sha = 'somereallylongsha'
@@ -598,9 +598,9 @@ class PodTest(DryccTransactionTestCase):
         url = "/v2/apps/{app_id}/run".format(**locals())
         body = {'command': 'echo hi'}
         response = self.client.post(url, body)
-        self.assertEqual(response.status_code, 200, response.data)
+        self.assertEqual(response.status_code, 204, response.data)
         app = App.objects.get(id=app_id)
-        self.assertEqual(app._get_entrypoint('web'), ['web'])
+        self.assertEqual(app.get_entrypoint('web'), ['web'])
 
     def test_run_not_fail_on_debug(self, mock_requests):
         """
@@ -637,9 +637,9 @@ class PodTest(DryccTransactionTestCase):
         url = "/v2/apps/{app_id}/run".format(**locals())
         body = {'command': 'echo hi'}
         response = self.client.post(url, body)
-        self.assertEqual(response.status_code, 200, response.data)
+        self.assertEqual(response.status_code, 204, response.data)
         app = App.objects.get(id=app_id)
-        self.assertEqual(app._get_entrypoint('web'), [])
+        self.assertEqual(app.get_entrypoint('web'), [])
 
     def test_scaling_does_not_add_run_proctypes_to_structure(self, mock_requests):
         """Test that app info doesn't show transient "run" proctypes."""
@@ -661,7 +661,7 @@ class PodTest(DryccTransactionTestCase):
         )
 
         # create an initial release
-        release = Release.objects.create(
+        Release.objects.create(
             version=2,
             owner=user,
             app=app,
@@ -673,7 +673,7 @@ class PodTest(DryccTransactionTestCase):
         url = "/v2/apps/{app_id}/run".format(**locals())
         body = {'command': 'echo hi'}
         response = self.client.post(url, body)
-        self.assertEqual(response.status_code, 200, response.data)
+        self.assertEqual(response.status_code, 204, response.data)
 
         # scale up
         url = "/v2/apps/{app_id}/scale".format(**locals())

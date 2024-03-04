@@ -157,3 +157,15 @@ class ResourceTest(DryccTransactionTestCase):
             self.client.post('/v2/apps/{}/resources'.format(app_id), data=_)
         out = self.call_command()
         self.assertIn(out, "done\n")
+
+    def test_services(self, *args, **kwargs):
+        # Get
+        url = '/v2/resources/services/'
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, 200, response.data)
+
+    def test_plans(self, *args, **kwargs):
+        # Get
+        url = '/v2/resources/services/mysql/plans/'
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, 200, response.data)

@@ -83,7 +83,7 @@ resources = [
     'horizontalpodautoscalers', 'scale', 'resourcequotas', 'ingresses',
     'persistentvolumeclaims', 'serviceinstances', 'servicebindings',
     'limitranges', 'gateways', 'httproutes', 'tcproutes', 'udproutes',
-    'issuers', 'certificates'
+    'issuers', 'certificates', 'jobs', 'clusterserviceclasses',
 ]
 
 
@@ -616,10 +616,6 @@ def fetch_all(request, context):
     filters = prepare_query_filters(url.query)
     cache_path = cache_key(request.path)
     data = filter_data(filters, cache_path)
-    # HACK(bacongobbler): in kubernetes v1.5, fetching a list of resources returns a NoneType
-    # instead of an empty list.
-    if not data:
-        data = None
     return {'items': data}
 
 

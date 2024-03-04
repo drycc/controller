@@ -222,8 +222,8 @@ app_urlpatterns = [
 
 webhook_urlpatterns = [
     re_path(
-        r'^webhooks/scale/(?P<token>.+)/?$',
-        views.AdmissionWebhookViewSet.as_view({'post': 'scale'})
+        r'^webhooks/(?P<token>.+)/?$',
+        views.AdmissionWebhookViewSet.as_view({'post': 'handle'})
     ),
 ]
 

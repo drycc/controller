@@ -256,14 +256,15 @@ class AppTest(DryccTestCase):
         url = '/v2/apps/{}/run'.format(app_id)
         response = self.client.post(url, {})
         self.assertEqual(response.status_code, 400, response.data)
-        self.assertEqual(response.data, {'detail': 'command is a required field'})
+        self.assertEqual(
+            response.data,
+            {'detail': 'command is a required field, or it can be defined in Procfile'}
+        )
 
         # run command
         body = {'command': 'ls -al'}
         response = self.client.post(url, body)
-        self.assertEqual(response.status_code, 200, response.data)
-        self.assertEqual(response.data['exit_code'], 0)
-        self.assertEqual(response.data['output'], 'mock')
+        self.assertEqual(response.status_code, 204, response.data)
 
     def test_run_failure(self, mock_requests):
         """Raise a KubeException via scheduler.run"""
@@ -275,7 +276,7 @@ class AppTest(DryccTestCase):
         response = self.client.post(url, body)
         self.assertEqual(response.status_code, 201, response.data)
 
-        with mock.patch('scheduler.KubeHTTPClient.run') as kube_run:
+        with mock.patch('scheduler.KubeHTTPClient.http_post') as kube_run:
             kube_run.side_effect = KubeException('boom!')
             # run command
             url = '/v2/apps/{}/run'.format(app_id)

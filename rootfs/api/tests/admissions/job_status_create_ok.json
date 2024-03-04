@@ -1,0 +1,854 @@
+{
+    "kind": "AdmissionReview",
+    "apiVersion": "admission.k8s.io/v1",
+    "request": {
+        "uid": "24ffe91b-b66f-4e7e-80ca-1501ebad53bb",
+        "kind": {
+            "group": "batch",
+            "version": "v1",
+            "kind": "Job"
+        },
+        "resource": {
+            "group": "batch",
+            "version": "v1",
+            "resource": "jobs"
+        },
+        "subResource": "status",
+        "requestKind": {
+            "group": "batch",
+            "version": "v1",
+            "kind": "Job"
+        },
+        "requestResource": {
+            "group": "batch",
+            "version": "v1",
+            "resource": "jobs"
+        },
+        "requestSubResource": "status",
+        "name": "myapp-run-5cp7y",
+        "namespace": "myapp",
+        "operation": "UPDATE",
+        "userInfo": {
+            "username": "system:serviceaccount:kube-system:job-controller",
+            "uid": "b119efc6-5e7b-41d6-91b5-38fa11b3971d",
+            "groups": ["system:serviceaccounts", "system:serviceaccounts:kube-system", "system:authenticated"]
+        },
+        "object": {
+            "kind": "Job",
+            "apiVersion": "batch/v1",
+            "metadata": {
+                "name": "myapp-run-5cp7y",
+                "namespace": "myapp",
+                "uid": "02a0d19d-ad83-4063-9124-b9d7d7d8d359",
+                "resourceVersion": "62050800",
+                "generation": 1,
+                "creationTimestamp": "2024-03-04T04:42:24Z",
+                "labels": {
+                    "app": "myapp",
+                    "heritage": "drycc",
+                    "type": "run"
+                },
+                "managedFields": [{
+                    "manager": "Drycc Controller",
+                    "operation": "Update",
+                    "apiVersion": "batch/v1",
+                    "time": "2024-03-04T04:42:24Z",
+                    "fieldsType": "FieldsV1",
+                    "fieldsV1": {
+                        "f:metadata": {
+                            "f:labels": {
+                                ".": {},
+                                "f:app": {},
+                                "f:heritage": {},
+                                "f:type": {}
+                            }
+                        },
+                        "f:spec": {
+                            "f:activeDeadlineSeconds": {},
+                            "f:backoffLimit": {},
+                            "f:completionMode": {},
+                            "f:completions": {},
+                            "f:parallelism": {},
+                            "f:suspend": {},
+                            "f:template": {
+                                "f:metadata": {
+                                    "f:annotations": {
+                                        ".": {},
+                                        "f:kubernetes.io/egress-bandwidth": {},
+                                        "f:kubernetes.io/ingress-bandwidth": {}
+                                    },
+                                    "f:labels": {
+                                        ".": {},
+                                        "f:app": {},
+                                        "f:heritage": {},
+                                        "f:type": {},
+                                        "f:version": {}
+                                    },
+                                    "f:name": {},
+                                    "f:namespace": {}
+                                },
+                                "f:spec": {
+                                    "f:affinity": {
+                                        ".": {},
+                                        "f:podAntiAffinity": {
+                                            ".": {},
+                                            "f:preferredDuringSchedulingIgnoredDuringExecution": {}
+                                        }
+                                    },
+                                    "f:containers": {
+                                        "k:{\"name\":\"myapp-run\"}": {
+                                            ".": {},
+                                            "f:args": {},
+                                            "f:env": {
+                                                ".": {},
+                                                "k:{\"name\":\"DEBUG\"}": {
+                                                    ".": {},
+                                                    "f:name": {},
+                                                    "f:valueFrom": {
+                                                        ".": {},
+                                                        "f:secretKeyRef": {}
+                                                    }
+                                                },
+                                                "k:{\"name\":\"DISABLE_COLLECTSTATIC\"}": {
+                                                    ".": {},
+                                                    "f:name": {},
+                                                    "f:valueFrom": {
+                                                        ".": {},
+                                                        "f:secretKeyRef": {}
+                                                    }
+                                                },
+                                                "k:{\"name\":\"DRYCC_APP\"}": {
+                                                    ".": {},
+                                                    "f:name": {},
+                                                    "f:valueFrom": {
+                                                        ".": {},
+                                                        "f:secretKeyRef": {}
+                                                    }
+                                                },
+                                                "k:{\"name\":\"DRYCC_DEBUG\"}": {
+                                                    ".": {},
+                                                    "f:name": {},
+                                                    "f:value": {}
+                                                },
+                                                "k:{\"name\":\"IMAGE_PULL_POLICY\"}": {
+                                                    ".": {},
+                                                    "f:name": {},
+                                                    "f:valueFrom": {
+                                                        ".": {},
+                                                        "f:secretKeyRef": {}
+                                                    }
+                                                },
+                                                "k:{\"name\":\"PIP_INDEX_URL\"}": {
+                                                    ".": {},
+                                                    "f:name": {},
+                                                    "f:valueFrom": {
+                                                        ".": {},
+                                                        "f:secretKeyRef": {}
+                                                    }
+                                                },
+                                                "k:{\"name\":\"PORT\"}": {
+                                                    ".": {},
+                                                    "f:name": {},
+                                                    "f:valueFrom": {
+                                                        ".": {},
+                                                        "f:secretKeyRef": {}
+                                                    }
+                                                },
+                                                "k:{\"name\":\"SOURCE_VERSION\"}": {
+                                                    ".": {},
+                                                    "f:name": {},
+                                                    "f:valueFrom": {
+                                                        ".": {},
+                                                        "f:secretKeyRef": {}
+                                                    }
+                                                },
+                                                "k:{\"name\":\"WORKFLOW_RELEASE\"}": {
+                                                    ".": {},
+                                                    "f:name": {},
+                                                    "f:valueFrom": {
+                                                        ".": {},
+                                                        "f:secretKeyRef": {}
+                                                    }
+                                                },
+                                                "k:{\"name\":\"WORKFLOW_RELEASE_CREATED_AT\"}": {
+                                                    ".": {},
+                                                    "f:name": {},
+                                                    "f:valueFrom": {
+                                                        ".": {},
+                                                        "f:secretKeyRef": {}
+                                                    }
+                                                },
+                                                "k:{\"name\":\"WORKFLOW_RELEASE_SUMMARY\"}": {
+                                                    ".": {},
+                                                    "f:name": {},
+                                                    "f:valueFrom": {
+                                                        ".": {},
+                                                        "f:secretKeyRef": {}
+                                                    }
+                                                },
+                                                "k:{\"name\":\"a\"}": {
+                                                    ".": {},
+                                                    "f:name": {},
+                                                    "f:valueFrom": {
+                                                        ".": {},
+                                                        "f:secretKeyRef": {}
+                                                    }
+                                                }
+                                            },
+                                            "f:image": {},
+                                            "f:imagePullPolicy": {},
+                                            "f:name": {},
+                                            "f:resources": {
+                                                ".": {},
+                                                "f:limits": {
+                                                    ".": {},
+                                                    "f:ephemeral-storage": {}
+                                                },
+                                                "f:requests": {
+                                                    ".": {},
+                                                    "f:ephemeral-storage": {}
+                                                }
+                                            },
+                                            "f:securityContext": {
+                                                ".": {},
+                                                "f:allowPrivilegeEscalation": {},
+                                                "f:capabilities": {
+                                                    ".": {},
+                                                    "f:add": {}
+                                                }
+                                            },
+                                            "f:terminationMessagePath": {},
+                                            "f:terminationMessagePolicy": {}
+                                        }
+                                    },
+                                    "f:dnsPolicy": {},
+                                    "f:imagePullSecrets": {
+                                        ".": {},
+                                        "k:{\"name\":\"private-registry\"}": {}
+                                    },
+                                    "f:restartPolicy": {},
+                                    "f:runtimeClassName": {},
+                                    "f:schedulerName": {},
+                                    "f:securityContext": {},
+                                    "f:terminationGracePeriodSeconds": {}
+                                }
+                            },
+                            "f:ttlSecondsAfterFinished": {}
+                        }
+                    }
+                }, {
+                    "manager": "k3s",
+                    "operation": "Update",
+                    "apiVersion": "batch/v1",
+                    "time": "2024-03-04T04:42:24Z",
+                    "fieldsType": "FieldsV1",
+                    "fieldsV1": {
+                        "f:status": {
+                            "f:active": {},
+                            "f:ready": {},
+                            "f:startTime": {},
+                            "f:uncountedTerminatedPods": {}
+                        }
+                    },
+                    "subresource": "status"
+                }]
+            },
+            "spec": {
+                "parallelism": 1,
+                "completions": 1,
+                "activeDeadlineSeconds": 3600,
+                "backoffLimit": 0,
+                "selector": {
+                    "matchLabels": {
+                        "batch.kubernetes.io/controller-uid": "02a0d19d-ad83-4063-9124-b9d7d7d8d359"
+                    }
+                },
+                "template": {
+                    "metadata": {
+                        "name": "myapp-run-5cp7y",
+                        "namespace": "myapp",
+                        "creationTimestamp": null,
+                        "labels": {
+                            "app": "myapp",
+                            "batch.kubernetes.io/controller-uid": "02a0d19d-ad83-4063-9124-b9d7d7d8d359",
+                            "batch.kubernetes.io/job-name": "myapp-run-5cp7y",
+                            "controller-uid": "02a0d19d-ad83-4063-9124-b9d7d7d8d359",
+                            "heritage": "drycc",
+                            "job-name": "myapp-run-5cp7y",
+                            "type": "run",
+                            "version": "v11"
+                        },
+                        "annotations": {
+                            "kubernetes.io/egress-bandwidth": "100M",
+                            "kubernetes.io/ingress-bandwidth": "100M"
+                        }
+                    },
+                    "spec": {
+                        "containers": [{
+                            "name": "myapp-run",
+                            "image": "registry.uucin.com/lijianguo/py3django3:vim",
+                            "args": ["sleep", "30s"],
+                            "env": [{
+                                "name": "DEBUG",
+                                "valueFrom": {
+                                    "secretKeyRef": {
+                                        "name": "myapp-v11-env",
+                                        "key": "debug"
+                                    }
+                                }
+                            }, {
+                                "name": "DISABLE_COLLECTSTATIC",
+                                "valueFrom": {
+                                    "secretKeyRef": {
+                                        "name": "myapp-v11-env",
+                                        "key": "disable-collectstatic"
+                                    }
+                                }
+                            }, {
+                                "name": "DRYCC_APP",
+                                "valueFrom": {
+                                    "secretKeyRef": {
+                                        "name": "myapp-v11-env",
+                                        "key": "drycc-app"
+                                    }
+                                }
+                            }, {
+                                "name": "DRYCC_DEBUG",
+                                "value": "1"
+                            }, {
+                                "name": "IMAGE_PULL_POLICY",
+                                "valueFrom": {
+                                    "secretKeyRef": {
+                                        "name": "myapp-v11-env",
+                                        "key": "image-pull-policy"
+                                    }
+                                }
+                            }, {
+                                "name": "PIP_INDEX_URL",
+                                "valueFrom": {
+                                    "secretKeyRef": {
+                                        "name": "myapp-v11-env",
+                                        "key": "pip-index-url"
+                                    }
+                                }
+                            }, {
+                                "name": "PORT",
+                                "valueFrom": {
+                                    "secretKeyRef": {
+                                        "name": "myapp-v11-env",
+                                        "key": "port"
+                                    }
+                                }
+                            }, {
+                                "name": "SOURCE_VERSION",
+                                "valueFrom": {
+                                    "secretKeyRef": {
+                                        "name": "myapp-v11-env",
+                                        "key": "source-version"
+                                    }
+                                }
+                            }, {
+                                "name": "WORKFLOW_RELEASE",
+                                "valueFrom": {
+                                    "secretKeyRef": {
+                                        "name": "myapp-v11-env",
+                                        "key": "workflow-release"
+                                    }
+                                }
+                            }, {
+                                "name": "WORKFLOW_RELEASE_CREATED_AT",
+                                "valueFrom": {
+                                    "secretKeyRef": {
+                                        "name": "myapp-v11-env",
+                                        "key": "workflow-release-created-at"
+                                    }
+                                }
+                            }, {
+                                "name": "WORKFLOW_RELEASE_SUMMARY",
+                                "valueFrom": {
+                                    "secretKeyRef": {
+                                        "name": "myapp-v11-env",
+                                        "key": "workflow-release-summary"
+                                    }
+                                }
+                            }, {
+                                "name": "a",
+                                "valueFrom": {
+                                    "secretKeyRef": {
+                                        "name": "myapp-v11-env",
+                                        "key": "a"
+                                    }
+                                }
+                            }],
+                            "resources": {
+                                "limits": {
+                                    "ephemeral-storage": "2Gi"
+                                },
+                                "requests": {
+                                    "ephemeral-storage": "1Gi"
+                                }
+                            },
+                            "terminationMessagePath": "/dev/termination-log",
+                            "terminationMessagePolicy": "File",
+                            "imagePullPolicy": "Always",
+                            "securityContext": {
+                                "capabilities": {
+                                    "add": ["SYS_ADMIN"]
+                                },
+                                "allowPrivilegeEscalation": true
+                            }
+                        }],
+                        "restartPolicy": "Never",
+                        "terminationGracePeriodSeconds": 30,
+                        "dnsPolicy": "ClusterFirst",
+                        "securityContext": {},
+                        "imagePullSecrets": [{
+                            "name": "private-registry"
+                        }],
+                        "affinity": {
+                            "podAntiAffinity": {
+                                "preferredDuringSchedulingIgnoredDuringExecution": [{
+                                    "weight": 100,
+                                    "podAffinityTerm": {
+                                        "labelSelector": {
+                                            "matchExpressions": [{
+                                                "key": "app",
+                                                "operator": "In",
+                                                "values": ["myapp-run-5cp7y"]
+                                            }]
+                                        },
+                                        "topologyKey": "topology.kubernetes.io/zone"
+                                    }
+                                }, {
+                                    "weight": 90,
+                                    "podAffinityTerm": {
+                                        "labelSelector": {
+                                            "matchExpressions": [{
+                                                "key": "app",
+                                                "operator": "In",
+                                                "values": ["myapp-run-5cp7y"]
+                                            }]
+                                        },
+                                        "topologyKey": "kubernetes.io/hostname"
+                                    }
+                                }]
+                            }
+                        },
+                        "schedulerName": "default-scheduler",
+                        "runtimeClassName": "runsc"
+                    }
+                },
+                "ttlSecondsAfterFinished": 86400,
+                "completionMode": "NonIndexed",
+                "suspend": false
+            },
+            "status": {
+                "startTime": "2024-03-04T04:42:24Z",
+                "active": 1,
+                "uncountedTerminatedPods": {},
+                "ready": 0
+            }
+        },
+        "oldObject": {
+            "kind": "Job",
+            "apiVersion": "batch/v1",
+            "metadata": {
+                "name": "myapp-run-5cp7y",
+                "namespace": "myapp",
+                "uid": "02a0d19d-ad83-4063-9124-b9d7d7d8d359",
+                "resourceVersion": "62050800",
+                "generation": 1,
+                "creationTimestamp": "2024-03-04T04:42:24Z",
+                "labels": {
+                    "app": "myapp",
+                    "heritage": "drycc",
+                    "type": "run"
+                },
+                "managedFields": [{
+                    "manager": "Drycc Controller",
+                    "operation": "Update",
+                    "apiVersion": "batch/v1",
+                    "time": "2024-03-04T04:42:24Z",
+                    "fieldsType": "FieldsV1",
+                    "fieldsV1": {
+                        "f:metadata": {
+                            "f:labels": {
+                                ".": {},
+                                "f:app": {},
+                                "f:heritage": {},
+                                "f:type": {}
+                            }
+                        },
+                        "f:spec": {
+                            "f:activeDeadlineSeconds": {},
+                            "f:backoffLimit": {},
+                            "f:completionMode": {},
+                            "f:completions": {},
+                            "f:parallelism": {},
+                            "f:suspend": {},
+                            "f:template": {
+                                "f:metadata": {
+                                    "f:annotations": {
+                                        ".": {},
+                                        "f:kubernetes.io/egress-bandwidth": {},
+                                        "f:kubernetes.io/ingress-bandwidth": {}
+                                    },
+                                    "f:labels": {
+                                        ".": {},
+                                        "f:app": {},
+                                        "f:heritage": {},
+                                        "f:type": {},
+                                        "f:version": {}
+                                    },
+                                    "f:name": {},
+                                    "f:namespace": {}
+                                },
+                                "f:spec": {
+                                    "f:affinity": {
+                                        ".": {},
+                                        "f:podAntiAffinity": {
+                                            ".": {},
+                                            "f:preferredDuringSchedulingIgnoredDuringExecution": {}
+                                        }
+                                    },
+                                    "f:containers": {
+                                        "k:{\"name\":\"myapp-run\"}": {
+                                            ".": {},
+                                            "f:args": {},
+                                            "f:env": {
+                                                ".": {},
+                                                "k:{\"name\":\"DEBUG\"}": {
+                                                    ".": {},
+                                                    "f:name": {},
+                                                    "f:valueFrom": {
+                                                        ".": {},
+                                                        "f:secretKeyRef": {}
+                                                    }
+                                                },
+                                                "k:{\"name\":\"DISABLE_COLLECTSTATIC\"}": {
+                                                    ".": {},
+                                                    "f:name": {},
+                                                    "f:valueFrom": {
+                                                        ".": {},
+                                                        "f:secretKeyRef": {}
+                                                    }
+                                                },
+                                                "k:{\"name\":\"DRYCC_APP\"}": {
+                                                    ".": {},
+                                                    "f:name": {},
+                                                    "f:valueFrom": {
+                                                        ".": {},
+                                                        "f:secretKeyRef": {}
+                                                    }
+                                                },
+                                                "k:{\"name\":\"DRYCC_DEBUG\"}": {
+                                                    ".": {},
+                                                    "f:name": {},
+                                                    "f:value": {}
+                                                },
+                                                "k:{\"name\":\"IMAGE_PULL_POLICY\"}": {
+                                                    ".": {},
+                                                    "f:name": {},
+                                                    "f:valueFrom": {
+                                                        ".": {},
+                                                        "f:secretKeyRef": {}
+                                                    }
+                                                },
+                                                "k:{\"name\":\"PIP_INDEX_URL\"}": {
+                                                    ".": {},
+                                                    "f:name": {},
+                                                    "f:valueFrom": {
+                                                        ".": {},
+                                                        "f:secretKeyRef": {}
+                                                    }
+                                                },
+                                                "k:{\"name\":\"PORT\"}": {
+                                                    ".": {},
+                                                    "f:name": {},
+                                                    "f:valueFrom": {
+                                                        ".": {},
+                                                        "f:secretKeyRef": {}
+                                                    }
+                                                },
+                                                "k:{\"name\":\"SOURCE_VERSION\"}": {
+                                                    ".": {},
+                                                    "f:name": {},
+                                                    "f:valueFrom": {
+                                                        ".": {},
+                                                        "f:secretKeyRef": {}
+                                                    }
+                                                },
+                                                "k:{\"name\":\"WORKFLOW_RELEASE\"}": {
+                                                    ".": {},
+                                                    "f:name": {},
+                                                    "f:valueFrom": {
+                                                        ".": {},
+                                                        "f:secretKeyRef": {}
+                                                    }
+                                                },
+                                                "k:{\"name\":\"WORKFLOW_RELEASE_CREATED_AT\"}": {
+                                                    ".": {},
+                                                    "f:name": {},
+                                                    "f:valueFrom": {
+                                                        ".": {},
+                                                        "f:secretKeyRef": {}
+                                                    }
+                                                },
+                                                "k:{\"name\":\"WORKFLOW_RELEASE_SUMMARY\"}": {
+                                                    ".": {},
+                                                    "f:name": {},
+                                                    "f:valueFrom": {
+                                                        ".": {},
+                                                        "f:secretKeyRef": {}
+                                                    }
+                                                },
+                                                "k:{\"name\":\"a\"}": {
+                                                    ".": {},
+                                                    "f:name": {},
+                                                    "f:valueFrom": {
+                                                        ".": {},
+                                                        "f:secretKeyRef": {}
+                                                    }
+                                                }
+                                            },
+                                            "f:image": {},
+                                            "f:imagePullPolicy": {},
+                                            "f:name": {},
+                                            "f:resources": {
+                                                ".": {},
+                                                "f:limits": {
+                                                    ".": {},
+                                                    "f:ephemeral-storage": {}
+                                                },
+                                                "f:requests": {
+                                                    ".": {},
+                                                    "f:ephemeral-storage": {}
+                                                }
+                                            },
+                                            "f:securityContext": {
+                                                ".": {},
+                                                "f:allowPrivilegeEscalation": {},
+                                                "f:capabilities": {
+                                                    ".": {},
+                                                    "f:add": {}
+                                                }
+                                            },
+                                            "f:terminationMessagePath": {},
+                                            "f:terminationMessagePolicy": {}
+                                        }
+                                    },
+                                    "f:dnsPolicy": {},
+                                    "f:imagePullSecrets": {
+                                        ".": {},
+                                        "k:{\"name\":\"private-registry\"}": {}
+                                    },
+                                    "f:restartPolicy": {},
+                                    "f:runtimeClassName": {},
+                                    "f:schedulerName": {},
+                                    "f:securityContext": {},
+                                    "f:terminationGracePeriodSeconds": {}
+                                }
+                            },
+                            "f:ttlSecondsAfterFinished": {}
+                        }
+                    }
+                }]
+            },
+            "spec": {
+                "parallelism": 1,
+                "completions": 1,
+                "activeDeadlineSeconds": 3600,
+                "backoffLimit": 0,
+                "selector": {
+                    "matchLabels": {
+                        "batch.kubernetes.io/controller-uid": "02a0d19d-ad83-4063-9124-b9d7d7d8d359"
+                    }
+                },
+                "template": {
+                    "metadata": {
+                        "name": "myapp-run-5cp7y",
+                        "namespace": "myapp",
+                        "creationTimestamp": null,
+                        "labels": {
+                            "app": "myapp",
+                            "batch.kubernetes.io/controller-uid": "02a0d19d-ad83-4063-9124-b9d7d7d8d359",
+                            "batch.kubernetes.io/job-name": "myapp-run-5cp7y",
+                            "controller-uid": "02a0d19d-ad83-4063-9124-b9d7d7d8d359",
+                            "heritage": "drycc",
+                            "job-name": "myapp-run-5cp7y",
+                            "type": "run",
+                            "version": "v11"
+                        },
+                        "annotations": {
+                            "kubernetes.io/egress-bandwidth": "100M",
+                            "kubernetes.io/ingress-bandwidth": "100M"
+                        }
+                    },
+                    "spec": {
+                        "containers": [{
+                            "name": "myapp-run",
+                            "image": "registry.uucin.com/lijianguo/py3django3:vim",
+                            "args": ["sleep", "30s"],
+                            "env": [{
+                                "name": "DEBUG",
+                                "valueFrom": {
+                                    "secretKeyRef": {
+                                        "name": "myapp-v11-env",
+                                        "key": "debug"
+                                    }
+                                }
+                            }, {
+                                "name": "DISABLE_COLLECTSTATIC",
+                                "valueFrom": {
+                                    "secretKeyRef": {
+                                        "name": "myapp-v11-env",
+                                        "key": "disable-collectstatic"
+                                    }
+                                }
+                            }, {
+                                "name": "DRYCC_APP",
+                                "valueFrom": {
+                                    "secretKeyRef": {
+                                        "name": "myapp-v11-env",
+                                        "key": "drycc-app"
+                                    }
+                                }
+                            }, {
+                                "name": "DRYCC_DEBUG",
+                                "value": "1"
+                            }, {
+                                "name": "IMAGE_PULL_POLICY",
+                                "valueFrom": {
+                                    "secretKeyRef": {
+                                        "name": "myapp-v11-env",
+                                        "key": "image-pull-policy"
+                                    }
+                                }
+                            }, {
+                                "name": "PIP_INDEX_URL",
+                                "valueFrom": {
+                                    "secretKeyRef": {
+                                        "name": "myapp-v11-env",
+                                        "key": "pip-index-url"
+                                    }
+                                }
+                            }, {
+                                "name": "PORT",
+                                "valueFrom": {
+                                    "secretKeyRef": {
+                                        "name": "myapp-v11-env",
+                                        "key": "port"
+                                    }
+                                }
+                            }, {
+                                "name": "SOURCE_VERSION",
+                                "valueFrom": {
+                                    "secretKeyRef": {
+                                        "name": "myapp-v11-env",
+                                        "key": "source-version"
+                                    }
+                                }
+                            }, {
+                                "name": "WORKFLOW_RELEASE",
+                                "valueFrom": {
+                                    "secretKeyRef": {
+                                        "name": "myapp-v11-env",
+                                        "key": "workflow-release"
+                                    }
+                                }
+                            }, {
+                                "name": "WORKFLOW_RELEASE_CREATED_AT",
+                                "valueFrom": {
+                                    "secretKeyRef": {
+                                        "name": "myapp-v11-env",
+                                        "key": "workflow-release-created-at"
+                                    }
+                                }
+                            }, {
+                                "name": "WORKFLOW_RELEASE_SUMMARY",
+                                "valueFrom": {
+                                    "secretKeyRef": {
+                                        "name": "myapp-v11-env",
+                                        "key": "workflow-release-summary"
+                                    }
+                                }
+                            }, {
+                                "name": "a",
+                                "valueFrom": {
+                                    "secretKeyRef": {
+                                        "name": "myapp-v11-env",
+                                        "key": "a"
+                                    }
+                                }
+                            }],
+                            "resources": {
+                                "limits": {
+                                    "ephemeral-storage": "2Gi"
+                                },
+                                "requests": {
+                                    "ephemeral-storage": "1Gi"
+                                }
+                            },
+                            "terminationMessagePath": "/dev/termination-log",
+                            "terminationMessagePolicy": "File",
+                            "imagePullPolicy": "Always",
+                            "securityContext": {
+                                "capabilities": {
+                                    "add": ["SYS_ADMIN"]
+                                },
+                                "allowPrivilegeEscalation": true
+                            }
+                        }],
+                        "restartPolicy": "Never",
+                        "terminationGracePeriodSeconds": 30,
+                        "dnsPolicy": "ClusterFirst",
+                        "securityContext": {},
+                        "imagePullSecrets": [{
+                            "name": "private-registry"
+                        }],
+                        "affinity": {
+                            "podAntiAffinity": {
+                                "preferredDuringSchedulingIgnoredDuringExecution": [{
+                                    "weight": 100,
+                                    "podAffinityTerm": {
+                                        "labelSelector": {
+                                            "matchExpressions": [{
+                                                "key": "app",
+                                                "operator": "In",
+                                                "values": ["myapp-run-5cp7y"]
+                                            }]
+                                        },
+                                        "topologyKey": "topology.kubernetes.io/zone"
+                                    }
+                                }, {
+                                    "weight": 90,
+                                    "podAffinityTerm": {
+                                        "labelSelector": {
+                                            "matchExpressions": [{
+                                                "key": "app",
+                                                "operator": "In",
+                                                "values": ["myapp-run-5cp7y"]
+                                            }]
+                                        },
+                                        "topologyKey": "kubernetes.io/hostname"
+                                    }
+                                }]
+                            }
+                        },
+                        "schedulerName": "default-scheduler",
+                        "runtimeClassName": "runsc"
+                    }
+                },
+                "ttlSecondsAfterFinished": 86400,
+                "completionMode": "NonIndexed",
+                "suspend": false
+            },
+            "status": {}
+        },
+        "dryRun": false,
+        "options": {
+            "kind": "UpdateOptions",
+            "apiVersion": "meta.k8s.io/v1"
+        }
+    }
+}

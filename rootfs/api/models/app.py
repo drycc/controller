@@ -250,9 +250,15 @@ class App(UuidAuditedModel):
             err = "warning, some pods failed to restart:\n{}".format(str(e))
             self.log(err, logging.WARNING)
 
-    def scale(self, user, structure):  # noqa
-        if self.release_set.filter(failed=False).latest().build is None:
-            raise DryccException('No build associated with this release')
+    def scale(self, user, structure):
+        err_msg = None
+        if 'run' in structure or self.release_set.filter(failed=False).latest().build is None:
+            if 'run' in structure:
+                err_msg = 'Cannot set scale for reserved types, procfile type is: run'
+            else:
+                err_msg = 'No build associated with this release'
+            self.log(err_msg, logging.WARNING)
+            raise DryccException(err_msg)
         release = self.release_set.filter(failed=False).latest()
         app_settings = self.appsettings_set.latest()
         if release.canary:
@@ -336,8 +342,8 @@ class App(UuidAuditedModel):
                     namespace=self.id,
                     name=self._get_job_id(scale_type, release.canary),
                     image=release.image,
-                    entrypoint=self._get_entrypoint(scale_type),
-                    command=self._get_command(scale_type),
+                    entrypoint=self.get_entrypoint(scale_type),
+                    command=self.get_command(scale_type),
                     **kwargs
                 ) for scale_type, kwargs in deploys.items()
             ]
@@ -438,7 +444,7 @@ class App(UuidAuditedModel):
         # cast content to string since it comes as bytes via the requests object
         return str(r.content.decode('utf-8'))
 
-    def run(self, user, command, volumes=None):
+    def run(self, user, command, volumes=None, timeout=3600, expires=3600):
         def pod_name(size=5, chars=string.ascii_lowercase + string.digits):
             return ''.join(random.choice(chars) for _ in range(size))
 
@@ -452,10 +458,13 @@ class App(UuidAuditedModel):
         if volumes:
             volume_objs = Volume.objects.filter(app=release.app, name__in=volumes.keys())
             for _ in volume_objs:
-                _.path["run"] = volumes.get(_.name, None)  # noqa
+                _.path["run"] = volumes.get(_.name, None)
                 volume_list.append(_)
-        data = self._gather_app_settings(release, app_settings, process_type='run', replicas=1, volumes=volume_list)  # noqa
-
+        data = self._gather_app_settings(
+            release, app_settings, process_type='run', replicas=1, volumes=volume_list)
+        data['restart_policy'] = 'Never'
+        data['active_deadline_seconds'] = timeout
+        data['ttl_seconds_after_finished'] = expires
         # create application config and build the pod manifest
         self.set_application_config(release)
 
@@ -464,16 +473,14 @@ class App(UuidAuditedModel):
         self.log("{} on {} runs '{}'".format(user.username, name, command))
 
         try:
-            exit_code, output = self.scheduler().run(
+            self.scheduler().job.create(
                 self.id,
                 name,
                 release.image,
-                self._get_entrypoint(scale_type),
-                [command],
+                self.get_entrypoint(scale_type),
+                command.split(),
                 **data
             )
-
-            return exit_code, output
         except Exception as e:
             err = '{} (run): {}'.format(name, e)
             raise ServiceUnavailable(err) from e
@@ -482,7 +489,6 @@ class App(UuidAuditedModel):
         """Used to list basic information about pods running for a given application"""
         try:
             labels = self._scheduler_filter(**kwargs)
-
             # in case a singular pod is requested
             if 'name' in kwargs:
                 pods = [self.scheduler().pod.get(self.id, kwargs['name']).json()]
@@ -493,34 +499,19 @@ class App(UuidAuditedModel):
 
             data = []
             for p in pods:
-                labels = p['metadata']['labels']
-                # specifically ignore run pods
-                if labels['type'] == 'run':
-                    continue
-
-                state = str(self.scheduler().pod.state(p))
-
-                # follows kubelete convention - these are hidden unless show-all is set
-                if state in ['down', 'crashed']:
-                    continue
-
-                # hide pod if it is passed the graceful termination period
-                if self.scheduler().pod.deleted(p):
-                    continue
-
                 item = {}
+                labels = p['metadata']['labels']
                 item['name'] = p['metadata']['name']
-                item['state'] = state
+                item['state'] = str(self.scheduler().pod.state(p))
                 item['release'] = labels['version']
                 item['type'] = labels['type']
+                # set start time
                 if 'startTime' in p['status']:
                     started = p['status']['startTime']
                 else:
                     started = str(datetime.utcnow().strftime(settings.DRYCC_DATETIME_FORMAT))
                 item['started'] = started
-
                 data.append(item)
-
             # sorting so latest start date is first
             data.sort(key=lambda x: x['started'], reverse=True)
             return data
@@ -535,6 +526,8 @@ class App(UuidAuditedModel):
         """
         Set autoscale rules for the application
         """
+        if proc_type == 'run':
+            raise DryccException('Cannot set autoscale for reserved types, procfile type is: run')
         name = '{}-{}'.format(self.id, proc_type)
         # basically fake out a Deployment object (only thing we use) to assign to the HPA
         target = {
@@ -588,6 +581,33 @@ class App(UuidAuditedModel):
                 )
 
         return name
+
+    def get_entrypoint(self, container_type):
+        """
+        Return the kubernetes "container command" to be sent off to the scheduler.
+        """
+        entrypoint = []
+        release = self.release_set.filter(failed=False).latest()
+        if self._get_stack(release) == "buildpack":
+            if container_type in release.build.procfile:
+                entrypoint = [container_type]
+            else:
+                entrypoint = ['launcher']
+        return entrypoint
+
+    def get_command(self, container_type):
+        """
+        Return the kubernetes "container arguments" to be sent off to the scheduler.
+        """
+        release = self.release_set.filter(failed=False).latest()
+        if release is not None and release.build is not None:
+            # dockerfile or container image
+            if release.build.dockerfile or not release.build.sha:
+                # has profile
+                if release.build.procfile and container_type in release.build.procfile:
+                    command = release.build.procfile[container_type]
+                    return command.split()
+        return []
 
     def set_application_config(self, release):
         """
@@ -650,20 +670,6 @@ class App(UuidAuditedModel):
             job_id = f"{job_id}-canary"
         return job_id
 
-    def _get_command(self, container_type):
-        """
-        Return the kubernetes "container arguments" to be sent off to the scheduler.
-        """
-        release = self.release_set.filter(failed=False).latest()
-        if release is not None and release.build is not None:
-            # dockerfile or container image
-            if release.build.dockerfile or not release.build.sha:
-                # has profile
-                if release.build.procfile and container_type in release.build.procfile:
-                    command = release.build.procfile[container_type]
-                    return command.split()
-        return []
-
     def _get_stack(self, release):
         stack = release.config.values.get("DRYCC_STACK", None)
         if stack is None:
@@ -674,19 +680,6 @@ class App(UuidAuditedModel):
             else:
                 stack = "container"
         return stack
-
-    def _get_entrypoint(self, container_type):
-        """
-        Return the kubernetes "container command" to be sent off to the scheduler.
-        """
-        entrypoint = []
-        release = self.release_set.filter(failed=False).latest()
-        if self._get_stack(release) == "buildpack":
-            if container_type in release.build.procfile:
-                entrypoint = [container_type]
-            else:
-                entrypoint = ['launcher']
-        return entrypoint
 
     def _clean_app_logs(self):
         """Delete application logs stored by the logger component"""
@@ -721,8 +714,8 @@ class App(UuidAuditedModel):
                         namespace=self.id,
                         name=self._get_job_id(scale_type, release.canary),
                         image=release.image,
-                        entrypoint=self._get_entrypoint(scale_type),
-                        command=self._get_command(scale_type),
+                        entrypoint=self.get_entrypoint(scale_type),
+                        command=self.get_command(scale_type),
                         spec_annotations=spec_annotations,
                         resource_version=deployment["metadata"]["resourceVersion"],
                         **data
@@ -797,8 +790,8 @@ class App(UuidAuditedModel):
                     namespace=self.id,
                     name=self._get_job_id(scale_type, release.canary),
                     image=release.image,
-                    entrypoint=self._get_entrypoint(scale_type),
-                    command=self._get_command(scale_type),
+                    entrypoint=self.get_entrypoint(scale_type),
+                    command=self.get_command(scale_type),
                     **data
                 )
             )
