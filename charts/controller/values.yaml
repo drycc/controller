@@ -2,7 +2,20 @@ imageOrg: "drycc"
 imagePullPolicy: "Always"
 imageTag: "canary"
 imageRegistry: "registry.drycc.cc"
-appImagePullPolicy: "Always"
+## Enable diagnostic mode
+##
+diagnosticMode:
+  ## @param diagnosticMode.enabled Enable diagnostic mode (all probes will be disabled and the command will be overridden)
+  ##
+  enabled: false
+  ## @param diagnosticMode.command Command to override all containers
+  ##
+  command:
+    - sleep
+  ## @param diagnosticMode.args Args to override all containers
+  ##
+  args:
+    - infinity
 # A comma-separated list of URLs to send app release information to
 # See https://www.drycc.cc/managing-workflow/deploy-hooks/
 deployHookUrls: ""
@@ -16,7 +29,8 @@ timezone: "UTC"
 registrationMode: "admin_only"
 # Option to disable ssl verification to connect to k8s api server
 k8sApiVerifyTls: "true"
-
+# Set app image pull policy
+appImagePullPolicy: "Always"
 # Set storageClassName. It is used for application.
 appStorageClass: "{{ .Values.storage.csi.storageClassName }}"
 # Set runtimeClassName. It is used for application.

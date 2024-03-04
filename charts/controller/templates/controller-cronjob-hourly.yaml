@@ -37,16 +37,26 @@ spec:
           - image: {{.Values.imageRegistry}}/{{.Values.imageOrg}}/controller:{{.Values.imageTag}}
             imagePullPolicy: {{.Values.pull_policy}}
             name: drycc-controller-measure-networks
+            {{- if .Values.diagnosticMode.enabled }}
+            command: {{- include "common.tplvalues.render" (dict "value" .Values.diagnosticMode.command "context" $) | nindent 14 }}
+            args: {{- include "common.tplvalues.render" (dict "value" .Values.diagnosticMode.args "context" $) | nindent 14 }}
+            {{- else }}
             args:
             - /bin/bash
             - -c
             - python -u /workspace/manage.py measure_networks
+            {{- end }}
             {{- include "controller.envs" . | indent 12 }}
           - image: {{.Values.imageRegistry}}/{{.Values.imageOrg}}/controller:{{.Values.imageTag}}
             imagePullPolicy: {{.Values.pull_policy}}
             name: drycc-controller-measure-loadbalancer
+            {{- if .Values.diagnosticMode.enabled }}
+            command: {{- include "common.tplvalues.render" (dict "value" .Values.diagnosticMode.command "context" $) | nindent 14 }}
+            args: {{- include "common.tplvalues.render" (dict "value" .Values.diagnosticMode.args "context" $) | nindent 14 }}
+            {{- else }}
             args:
             - /bin/bash
             - -c
             - python -u /workspace/manage.py measure_loadbalancers
+            {{- end }}
             {{- include "controller.envs" . | indent 12 }}

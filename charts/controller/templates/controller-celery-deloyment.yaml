@@ -43,10 +43,15 @@ spec:
       - name: drycc-controller-celery-{{$key}}
         image: {{$.Values.imageRegistry}}/{{$.Values.imageOrg}}/controller:{{$.Values.imageTag}}
         imagePullPolicy: {{$.Values.imagePullPolicy}}
+        {{- if .Values.diagnosticMode.enabled }}
+        command: {{- include "common.tplvalues.render" (dict "value" .Values.diagnosticMode.command "context" $) | nindent 10 }}
+        args: {{- include "common.tplvalues.render" (dict "value" .Values.diagnosticMode.args "context" $) | nindent 10 }}
+        {{- else }}
         args:
           - /bin/bash
           - -c
           - celery -A api worker -Q {{$key}} --autoscale=32,1 --loglevel=WARNING
+        {{- end }}
         {{- include "controller.limits" $ | indent 8 }}
         {{- include "controller.envs" $ | indent 8 }}
       {{- end }}
