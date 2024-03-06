@@ -57,14 +57,14 @@ spec:
             name: https
         {{- end }}
         volumeMounts:
-        - name: drycc-controller-webhook-cert
+        - name: controller-webhook-cert
           mountPath: /etc/controller/webhook/cert
         {{- include "controller.limits" . | indent 8 }}
         {{- include "controller.envs" . | indent 8 }}
       volumes:
-      - name: drycc-controller-webhook-cert                                                                                                                                                                                               
+      - name: controller-webhook-cert                                                                                                                                                                                               
         secret:                                                                                                                                                                                                                           
-          secretName: drycc-controller-webhook-cert                                                                                                                                                                                       
+          secretName: controller-webhook-cert                                                                                                                                                                                       
           items:  
           - key: token                                                                                                                                                                                                                  
             path: token                                                                                                                                                                                                                           

@@ -1,8 +1,13 @@
-{{- $token := randAlphaNum 128 | lower }}
-{{- $ca := genCA "controller-webhook-ca" 3650 }}
+
+{{- $token := (include "common.secrets.lookup" (dict "secret" "controller-webhook-cert" "key" "token" "defaultValue" (randAlphaNum 128 | lower) "context" $)) }}
 {{- $altName1 := printf "drycc-controller-webhook.%s" .Release.Namespace }}
 {{- $altName2 := printf "drycc-controller-webhook.%s.svc" .Release.Namespace }}
+{{- $ca := genCA "controller-webhook-ca" 3650 }}
 {{- $cert := genSignedCert "drycc-controller-webhook" nil (list $altName1 $altName2) 3650 $ca }}
+{{- $ca_crt := (include "common.secrets.lookup" (dict "secret" "controller-webhook-cert" "key" "ca.crt" "defaultValue" $ca.Cert "context" $)) }}
+{{- $ca_key := (include "common.secrets.lookup" (dict "secret" "controller-webhook-cert" "key" "ca.key" "defaultValue" $ca.Key "context" $)) }}
+{{- $tls_crt := (include "common.secrets.lookup" (dict "secret" "controller-webhook-cert" "key" "tls.crt" "defaultValue" $cert.Cert "context" $)) }}
+{{- $tls_key := (include "common.secrets.lookup" (dict "secret" "controller-webhook-cert" "key" "tls.key" "defaultValue" $cert.Key "context" $)) }}
 apiVersion: admissionregistration.k8s.io/v1
 kind: MutatingWebhookConfiguration
 metadata:
@@ -12,11 +17,11 @@ webhooks:
   sideEffects: None
   admissionReviewVersions: ["v1"]
   clientConfig:
-    caBundle: {{ b64enc $ca.Cert }}
+    caBundle: {{ $ca_crt }}
     service:
       name: drycc-controller-webhook
       namespace: "{{ .Release.Namespace }}"
-      path: "{{ printf "/v2/webhooks/%s/" $token }}"
+      path: "{{ printf "/v2/webhooks/%s/" ($token | b64dec) }}"
       port: 8443
   failurePolicy: Fail
   objectSelector:
@@ -36,12 +41,14 @@ webhooks:
 apiVersion: v1
 kind: Secret
 metadata:
-  name: drycc-controller-webhook-cert
+  name: controller-webhook-cert
   labels:
     release: "{{ .Release.Name }}"
     heritage: "{{ .Release.Service }}"
 type: Opaque
 data:
-  token: {{ b64enc $token }}
-  tls.crt: {{ b64enc $cert.Cert }}
-  tls.key: {{ b64enc $cert.Key }}
+  token: {{ $token }}
+  ca.crt: {{ $ca_crt }}
+  ca.key: {{ $ca_key }}
+  tls.crt: {{ $tls_crt }}
+  tls.key: {{ $tls_key }}
