@@ -1118,9 +1118,7 @@ class App(UuidAuditedModel):
         # https://www.drycc.cc/applications/managing-app-processes/#default-process-types
         routable = True if process_type == 'web' and app_settings.routable else False
 
-        healthcheck = config.get_healthcheck().get(process_type, {})
-        if not healthcheck and process_type == 'web':
-            healthcheck = config.get_healthcheck().get('web', {})
+        healthcheck = config.healthcheck.get(process_type, {})
         volumes, volume_mounts = self._get_volumes_and_mounts(process_type, volumes)
         return {
             'memory': memory,

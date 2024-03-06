@@ -5,7 +5,6 @@ from django.core.cache import cache
 from django.contrib.auth import get_user_model
 from rest_framework.authtoken.models import Token
 
-from api.models.app import App
 from api.tests import adapter, DryccTransactionTestCase
 
 User = get_user_model()
@@ -25,50 +24,6 @@ class TestHealthchecks(DryccTransactionTestCase):
     def tearDown(self):
         # make sure every test has a clean slate for k8s mocking
         cache.clear()
-
-    def test_healthchecks_validations(self, mock_requests):
-        """
-        Test that healthchecks validations work
-        """
-        app_id = self.create_app()
-
-        # Set one of the values that require a numeric value to a string
-        response = self.client.post(
-            '/v2/apps/{app_id}/config'.format(**locals()),
-            {'values': json.dumps({'HEALTHCHECK_INITIAL_DELAY': 'horse'})}
-        )
-        self.assertEqual(response.status_code, 400, response.data)
-
-        # test URL - Path is the only allowed thing
-        # Try setting various things such as query param
-
-        # query param
-        response = self.client.post(
-            '/v2/apps/{app_id}/config'.format(**locals()),
-            {'values': json.dumps({'HEALTHCHECK_URL': '/health?testing=0'})}
-        )
-        self.assertEqual(response.status_code, 400, response.data)
-
-        # fragment
-        response = self.client.post(
-            '/v2/apps/{app_id}/config'.format(**locals()),
-            {'values': json.dumps({'HEALTHCHECK_URL': '/health#db'})}
-        )
-        self.assertEqual(response.status_code, 400, response.data)
-
-        # netloc
-        response = self.client.post(
-            '/v2/apps/{app_id}/config'.format(**locals()),
-            {'values': json.dumps({'HEALTHCHECK_URL': 'http://someurl.com/health/'})}
-        )
-        self.assertEqual(response.status_code, 400, response.data)
-
-        # no path
-        response = self.client.post(
-            '/v2/apps/{app_id}/config'.format(**locals()),
-            {'values': json.dumps({'HEALTHCHECK_URL': 'http://someurl.com'})}
-        )
-        self.assertEqual(response.status_code, 400, response.data)
 
     def test_config_healthchecks(self, mock_requests):
         """
@@ -171,85 +126,3 @@ class TestHealthchecks(DryccTransactionTestCase):
                                         {'httpGet': {'path': '/'}, 'initialDelaySeconds': 1}}})}
         )
         self.assertEqual(response.status_code, 400, response.data)
-
-        # set liveness success threshold to a non-1 value
-        # Don't set one of the mandatory value
-        response = self.client.post(
-            '/v2/apps/{app_id}/config'.format(**locals()),
-            {'healthcheck': {'web': {'livenessProbe':
-                             {'httpGet': {'path': '/', 'port': 5000},
-                              'successThreshold': 5}}}}
-        )
-        self.assertEqual(response.status_code, 400, response.data)
-
-    def test_config_healthchecks_legacy(self, mock_requests):
-        """
-        Test that when a user uses `drycc config:set HEALTHCHECK_URL=/`, the config
-        object is rolled over to the `healthcheck` field.
-        """
-        app_id = self.create_app()
-        app = App.objects.get(id=app_id)
-
-        # Set healthcheck URL to get defaults set
-        response = self.client.post(
-            '/v2/apps/{app.id}/config'.format(**locals()),
-            {'values': json.dumps({'HEALTHCHECK_URL': '/health'})}
-        )
-        self.assertEqual(response.status_code, 201, response.data)
-        # this gets migrated to the new healtcheck format
-        self.assertNotIn('HEALTHCHECK_URL', response.data['values'])
-        # legacy defaults
-        expected = {'web': {
-            'livenessProbe': {
-                'initialDelaySeconds': 50,
-                'timeoutSeconds': 50,
-                'periodSeconds': 10,
-                'successThreshold': 1,
-                'failureThreshold': 3,
-                'httpGet': {
-                    'path': '/health'
-                }
-            },
-            'readinessProbe': {
-                'initialDelaySeconds': 50,
-                'timeoutSeconds': 50,
-                'periodSeconds': 10,
-                'successThreshold': 1,
-                'failureThreshold': 3,
-                'httpGet': {
-                    'path': '/health'
-                }
-            }
-            }
-        }
-        actual = app.config_set.latest().healthcheck
-        self.assertEqual(actual, expected)
-        # Now set all the envvars and check to make sure they are written properly
-        response = self.client.post(
-            '/v2/apps/{app.id}/config'.format(**locals()),
-            {
-                'values': json.dumps({
-                    'HEALTHCHECK_URL': '/health',
-                    'HEALTHCHECK_INITIAL_DELAY': '25',
-                    'HEALTHCHECK_TIMEOUT': '10',
-                    'HEALTHCHECK_PERIOD_SECONDS': '5',
-                    'HEALTHCHECK_SUCCESS_THRESHOLD': '2',
-                    'HEALTHCHECK_FAILURE_THRESHOLD': '2'})
-            }
-        )
-        self.assertEqual(response.status_code, 201, response.data)
-        # this gets migrated to the new healtcheck format
-        self.assertNotIn('HEALTHCHECK_INITIAL_DELAY', response.data['values'])
-        expected['web']['livenessProbe'] = {
-            'initialDelaySeconds': 25,
-            'timeoutSeconds': 10,
-            'periodSeconds': 5,
-            'successThreshold': 2,
-            'failureThreshold': 2,
-            'httpGet': {
-                'path': '/health'
-            }
-        }
-        expected['web']['readinessProbe'] = expected['web']['livenessProbe']
-        actual = app.config_set.latest().healthcheck
-        self.assertEqual(expected, actual)

@@ -4,11 +4,9 @@ Classes to serialize the RESTful representation of Drycc API models.
 import time
 import json
 import logging
-import jmespath
 import re
 import jsonschema
 import idna
-from urllib.parse import urlparse
 
 from django.conf import settings
 from django.contrib.auth import get_user_model
@@ -62,6 +60,8 @@ VOLUME_SIZE_MISMATCH_MSG = (
 ) % (settings.KUBERNETES_LIMITS_MAX_VOLUME, settings.KUBERNETES_LIMITS_MIN_VOLUME)
 VOLUME_PATH_MATCH = re.compile(r'^\/(\w+\/?)+$', re.IGNORECASE)
 METRIC_EVERY_MATCH = re.compile(r'^[1-9][0-9]*m$')
+HEALTHCHECK_MATCH = re.compile(r'^(livenessProbe|readinessProbe|startupProbe)$')
+HEALTHCHECK_MISMATCH_MSG = "Healthcheck pattern: %s" % HEALTHCHECK_MATCH.pattern
 
 
 class JSONFieldSerializer(serializers.JSONField):
@@ -211,31 +211,6 @@ class ConfigSerializer(serializers.ModelSerializer):
                     # check if hte port is between 1 and 65535. One extra added for range()
                     # http://kubernetes.io/docs/api-reference/v1/definitions/#_v1_serviceport
                     raise serializers.ValidationError('PORT needs to be between 1 and 65535')
-
-            # Validate HEALTHCHECK_*
-            if key == 'HEALTHCHECK_URL':
-                # Only Path information is supported, not query / anchor or anything else
-                # Path is the only thing Kubernetes supports right now
-                # See https://github.com/drycc/controller/issues/774
-                uri = urlparse(value)
-
-                if not uri.path:
-                    raise serializers.ValidationError(
-                        '{} is missing a URI path (such as /healthz). '
-                        'Without it no health check can be done'.format(key)
-                    )
-
-                # Disallow everything but path
-                # https://docs.python.org/3/library/urllib.parse.html
-                if uri.query or uri.fragment or uri.netloc:
-                    raise serializers.ValidationError(
-                        '{} can only be a URI path (such as /healthz) that does not contain '
-                        'other things such as query params'.format(key)
-                    )
-            elif key.startswith('HEALTHCHECK_') and not str(value).isnumeric():
-                # all other healthchecks are integers
-                raise serializers.ValidationError('{} can only be a numeric value'.format(key))
-
         return data
 
     @staticmethod
@@ -345,30 +320,19 @@ class ConfigSerializer(serializers.ModelSerializer):
 
     @staticmethod
     def validate_healthcheck(data):
-        for procType, healthcheck in data.items():
+        for _, healthcheck in data.items():
             if healthcheck is None:
                 continue
             for key, value in healthcheck.items():
                 if value is None:
                     continue
-                if key not in ['livenessProbe', 'readinessProbe']:
-                    raise serializers.ValidationError(
-                        "Healthcheck keys must be either livenessProbe or readinessProbe")
+                if not re.match(HEALTHCHECK_MATCH, key):
+                    raise serializers.ValidationError(HEALTHCHECK_MISMATCH_MSG)
                 try:
                     jsonschema.validate(value, HEALTHCHECK_SCHEMA)
                 except jsonschema.ValidationError as e:
                     raise serializers.ValidationError(
                         "could not validate {}: {}".format(value, e.message))
-
-            # http://kubernetes.io/docs/api-reference/v1/definitions/#_v1_probe
-            # liveness only supports successThreshold=1, no other value
-            # This is not in the schema since readiness supports other values
-            threshold = jmespath.search('livenessProbe.successThreshold', healthcheck)
-            if threshold is not None and threshold != 1:
-                raise serializers.ValidationError(
-                    'livenessProbe successThreshold can only be 1'
-                )
-
         return data
 
 

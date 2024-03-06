@@ -295,8 +295,6 @@ class Pod(Resource):
     def _set_health_checks(self, container, env, **kwargs):
         healthchecks = kwargs.get('healthcheck', None)
         if healthchecks:
-            # check if a port is present. if not, auto-populate it
-            # TODO: rip this out when we stop supporting drycc config:set HEALTHCHECK_URL
             if (
                 healthchecks.get('livenessProbe') is not None and
                 healthchecks['livenessProbe'].get('httpGet') is not None and
@@ -348,7 +346,6 @@ class Pod(Resource):
         """
         readinessprobe = {
             'readinessProbe': {
-                # an exec probe
                 'tcpSocket': {
                     "port": int(port)
                 },

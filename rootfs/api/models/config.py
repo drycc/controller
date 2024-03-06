@@ -40,55 +40,6 @@ class Config(UuidAuditedModel):
     def __str__(self):
         return "{}-{}".format(self.app.id, str(self.uuid)[:7])
 
-    def _migrate_legacy_healthcheck(self):
-        """
-        Get all healthchecks options together for use in scheduler
-        """
-        # return if no legacy healthcheck is found
-        if 'HEALTHCHECK_URL' not in self.values.keys():
-            return
-
-        path = self.values.get('HEALTHCHECK_URL', '/')
-        timeout = int(self.values.get('HEALTHCHECK_TIMEOUT', 50))
-        delay = int(self.values.get('HEALTHCHECK_INITIAL_DELAY', 50))
-        period_seconds = int(self.values.get('HEALTHCHECK_PERIOD_SECONDS', 10))
-        success_threshold = int(self.values.get('HEALTHCHECK_SUCCESS_THRESHOLD', 1))
-        failure_threshold = int(self.values.get('HEALTHCHECK_FAILURE_THRESHOLD', 3))
-
-        self.healthcheck['web'] = {}
-        self.healthcheck['web']['livenessProbe'] = {
-            'initialDelaySeconds': delay,
-            'timeoutSeconds': timeout,
-            'periodSeconds': period_seconds,
-            'successThreshold': success_threshold,
-            'failureThreshold': failure_threshold,
-            'httpGet': {
-                'path': path,
-            }
-        }
-
-        self.healthcheck['web']['readinessProbe'] = {
-            'initialDelaySeconds': delay,
-            'timeoutSeconds': timeout,
-            'periodSeconds': period_seconds,
-            'successThreshold': success_threshold,
-            'failureThreshold': failure_threshold,
-            'httpGet': {
-                'path': path,
-            }
-        }
-
-        # Unset all the old values
-        self.values = {k: v for k, v in self.values.items() if not k.startswith('HEALTHCHECK_')}
-
-    def get_healthcheck(self):
-        if (
-            'livenessProbe' in self.healthcheck.keys() or
-            'readinessProbe' in self.healthcheck.keys()
-        ):
-            return {'web': self.healthcheck}
-        return self.healthcheck
-
     def _set_cpu_memory(self):
         """
         According to settings.KUBERNETES_CPU_MEMORY_RATIO corrects cpu and memory
@@ -200,15 +151,6 @@ class Config(UuidAuditedModel):
     def set_healthcheck(self, previous_config):
         data = getattr(previous_config, 'healthcheck', {}).copy()
         new_data = getattr(self, 'healthcheck', {}).copy()
-        # update the config data for healthcheck if they are not
-        # present for per proctype
-        # TODO: This is required for backward compatibility and can be
-        # removed in next major version change.
-        if 'livenessProbe' in data.keys() or 'readinessProbe' in data.keys():
-            data = {'web': data.copy()}
-        if 'livenessProbe' in new_data.keys() or 'readinessProbe' in new_data.keys():  # noqa
-            new_data = {'web': new_data.copy()}
-
         # remove config keys if a null value is provided
         for key, value in new_data.items():
             if value is None:
@@ -258,7 +200,6 @@ class Config(UuidAuditedModel):
                 setattr(self, attr, data)
             self._set_cpu_memory()
             self.set_healthcheck(previous_config)
-            self._migrate_legacy_healthcheck()
             self.set_registry()
             self.set_tags(previous_config)
         except Config.DoesNotExist:
