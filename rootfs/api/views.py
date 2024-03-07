@@ -452,14 +452,10 @@ class ServiceViewSet(AppResourceViewSet):
         procfile_type = self.get_serializer().validate_procfile_type(
             request.data.get('procfile_type'))
         service = get_object_or_404(self.get_queryset(**kwargs), procfile_type=procfile_type)
-        ports = []
-        for item in service.ports:
-            if item["port"] != port or item["protocol"] != protocol:
-                ports.append(item)
-        if len(ports) == 0:
+        removed = service.remove_port(port, protocol)
+        if len(service.ports) == 0:
             service.delete()
-        elif len(ports) < len(service.ports):
-            service.ports = ports
+        elif removed:
             service.save()
         return Response(status=status.HTTP_204_NO_CONTENT)
 

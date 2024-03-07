@@ -43,6 +43,12 @@ class Service(AuditedModel):
     def port_name(self, port, protocol):
         return "-".join([self.app.id, self.procfile_type, protocol, str(port)]).lower()
 
+    def get_port(self, port, protocol):
+        for port in self.ports:
+            if port["port"] == port and port["protocol"] == protocol:
+                return port
+        return None
+
     def add_port(self, port, protocol, target_port):
         self.ports.append({
             "name": self.port_name(port, protocol),
@@ -50,6 +56,25 @@ class Service(AuditedModel):
             "protocol": protocol,
             "targetPort": target_port,
         })
+
+    def update_port(self, port, protocol, target_port):
+        port = self.get_port(port, "TCP")
+        if not port or port["targetPort"] != target_port:
+            if port and port["targetPort"] != target_port:
+                self.remove_port(port, "TCP")
+            self.add_port(port, "TCP", target_port)
+            return True
+        return False
+
+    def remove_port(self, port, protocol):
+        ports = []
+        for item in self.ports:
+            if item["port"] != port or item["protocol"] != protocol:
+                ports.append(item)
+        if len(self.ports) > len(ports):
+            self.ports = ports
+            return True
+        return False
 
     def refresh_k8s_svc(self):
         if self.canary:

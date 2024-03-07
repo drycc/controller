@@ -825,6 +825,9 @@ class App(UuidAuditedModel):
             service = Service(owner=self.owner, app=self, procfile_type=procfile_type)
             service.add_port(port, "TCP", target_port)
             service.save()
+        else:
+            if service.update_port(port, "TCP", target_port):
+                service.save()
         # create default gateway
         try:
             gateway = self.gateway_set.filter(name=self.id).latest()
