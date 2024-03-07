@@ -123,7 +123,7 @@ class Certificate(Resource):
             data["metadata"]["resourceVersion"] = version
         return data
 
-    def get(self, namespace, name=None, **kwargs):
+    def get(self, namespace, name=None, ignore_exception=True, **kwargs):
         """
         Fetch a single certificate or a list of certificates
         """
@@ -134,7 +134,7 @@ class Certificate(Resource):
             url = self.api('/namespaces/{}/certificates', namespace)
             message = 'get certificates'
         response = self.http_get(url)
-        if self.unhealthy(response.status_code):
+        if not ignore_exception and self.unhealthy(response.status_code):
             raise KubeHTTPException(response, message)
 
         return response

@@ -19,6 +19,7 @@ from api.schemas.rules import SCHEMA as RULES_SCHEMA
 from api.schemas.volumes import SCHEMA as VOLUMES_SCHEMA
 from api.schemas.autoscale import SCHEMA as AUTOSCALE_SCHEMA
 from api.schemas.healthcheck import SCHEMA as HEALTHCHECK_SCHEMA
+from scheduler.resources.pod import DEFAULT_CONTAINER_PORT
 
 
 User = get_user_model()
@@ -424,9 +425,9 @@ class ServiceSerializer(serializers.ModelSerializer):
 
     app = serializers.SlugRelatedField(slug_field='id', queryset=models.app.App.objects.all())
     owner = serializers.ReadOnlyField(source='owner.username')
-    port = serializers.IntegerField(default=5000)
-    protocol = serializers.CharField(default="TCP")
-    target_port = serializers.IntegerField(default=5000)
+    port = serializers.IntegerField(required=True)
+    protocol = serializers.CharField(required=True)
+    target_port = serializers.IntegerField(default=DEFAULT_CONTAINER_PORT)
     procfile_type = serializers.CharField(required=True)
 
     class Meta:

@@ -6,6 +6,7 @@ from django.contrib.auth import get_user_model
 from api.utils import dict_diff
 from api.exceptions import DryccException, AlreadyExists
 from scheduler import KubeHTTPException
+from scheduler.resources.pod import DEFAULT_CONTAINER_PORT
 from .base import UuidAuditedModel
 
 User = get_user_model()
@@ -68,8 +69,9 @@ class Release(UuidAuditedModel):
             creds = self.get_registry_auth()
 
             if self.build.type == "buildpack":
-                self.app.log('buildpack type detected. Defaulting to $PORT 5000')
-                return 5000
+                self.app.log(
+                    'buildpack type detected. Defaulting to $PORT %s' % DEFAULT_CONTAINER_PORT)
+                return DEFAULT_CONTAINER_PORT
 
             # application has registry auth - $PORT is required
             if (creds is not None) or (settings.REGISTRY_LOCATION != 'on-cluster'):
@@ -85,7 +87,7 @@ class Release(UuidAuditedModel):
                 return int(envs.get('PORT'))
 
             # If the user provides PORT
-            return int(envs.get('PORT', 5000))
+            return int(envs.get('PORT', DEFAULT_CONTAINER_PORT))
 
         except Exception as e:
             raise DryccException(str(e)) from e

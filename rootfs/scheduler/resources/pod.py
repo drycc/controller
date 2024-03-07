@@ -8,6 +8,8 @@ from scheduler.exceptions import KubeException, KubeHTTPException
 from scheduler.resources import Resource
 from scheduler.states import PodState
 
+DEFAULT_CONTAINER_PORT = 5000
+
 
 class Pod(Resource):
     short_name = 'po'
@@ -295,15 +297,19 @@ class Pod(Resource):
     def _set_health_checks(self, container, env, **kwargs):
         healthchecks = kwargs.get('healthcheck', None)
         if healthchecks:
+            # If the port is empty, set the default port
             if (
                 healthchecks.get('livenessProbe') is not None and
                 healthchecks['livenessProbe'].get('httpGet') is not None and
                 healthchecks['livenessProbe']['httpGet'].get('port') is None
             ):
-                healthchecks['livenessProbe']['httpGet']['port'] = env['PORT']
+                healthchecks['livenessProbe']['httpGet']['port'] = env.get(
+                    'PORT', DEFAULT_CONTAINER_PORT)
             container.update(healthchecks)
         elif kwargs.get('routable', False):
-            container.update(self._default_container_readiness_probe(env.get('PORT', 5000)))
+            # If routable, set the default probe
+            container.update(
+                self._default_container_readiness_probe(env.get('PORT', DEFAULT_CONTAINER_PORT)))
 
     @staticmethod
     def _set_lifecycle_hooks(container, env, **kwargs):

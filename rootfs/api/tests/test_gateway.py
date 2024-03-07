@@ -79,17 +79,23 @@ class GatewayTest(BaseGatewayTest):
 
     def test_add_listener(self):
         app_id = self.create_app()
-        self.create_gateway(app_id, 'bing-gateway', 8000, "HTTP")
+        gateway_name = 'bing-gateway'
+        self.create_gateway(app_id, gateway_name, 8000, "HTTP")
         response = self.client.post(
             '/v2/apps/{}/gateways/'.format(app_id),
-            {'name': 'bing-gateway', 'port': 443, 'protocol': "HTTP"}
+            {'name': gateway_name, 'port': 443, 'protocol': "HTTP"}
         )
         self.assertEqual(response.status_code, 201)
         response = self.client.get('/v2/apps/{}/gateways/'.format(app_id))
-        results = [{
+        actual = None
+        for result in response.data["results"]:
+            if result["name"] == gateway_name:
+                actual = json.loads(json.dumps(result))
+                break
+        expect = {
             "app": app_id,
             "owner": "autotest",
-            "name": "bing-gateway",
+            "name": gateway_name,
             "listeners": [
                 {
                     "name": "tcp-8000-%s" % 0,
@@ -102,16 +108,17 @@ class GatewayTest(BaseGatewayTest):
                     "port": 443,
                     "protocol": "HTTP",
                     "allowedRoutes": {"namespaces": {"from": "All"}}
-                }],
+                }
+            ],
             "addresses": [{
                 "type": "IPAddress",
                 "value": "172.22.108.207"
             }]
-        }]
-        self.assertEqual(results, json.loads(json.dumps(response.data["results"])))
+        }
+        self.assertEqual(expect, actual)
 
     def add_tls_listener(self, name, protocol):
-        app_id = self.create_app()
+        app_id = self.create_app(name)
         domain, secret_name = self.create_tls_domain(app_id)
         response = self.client.post(
             '/v2/apps/{}/gateways/'.format(app_id),
@@ -127,27 +134,17 @@ class GatewayTest(BaseGatewayTest):
             "app": app_id,
             "owner": "autotest",
             "name": name,
-            "listeners": [{
-                "tls": {
-                    "certificateRefs": [{
-                        "kind": "Secret",
-                        "name": secret_name
-                    }]
-                },
-                "name": listener_name,
-                "port": 443,
-                "hostname": domain,
-                "protocol": protocol,
-                "allowedRoutes": {
-                    "namespaces": {
-                        "from": "All"
-                    }
+            "listeners": [
+                {
+                    "tls": {"certificateRefs": [{"kind": "Secret", "name": secret_name}]},
+                    "name": listener_name,
+                    "port": 443,
+                    "hostname": domain,
+                    "protocol": protocol,
+                    "allowedRoutes": {"namespaces": {"from": "All"}}
                 }
-            }],
-            "addresses": [{
-                "type": "IPAddress",
-                "value": "172.22.108.207"
-            }]
+            ],
+            "addresses": [{"type": "IPAddress", "value": "172.22.108.207"}]
         }]
         self.assertEqual(results, json.loads(json.dumps(response.data["results"])))
         return app_id, domain, secret_name
@@ -176,7 +173,6 @@ class GatewayTest(BaseGatewayTest):
             '{}/{}/domain/{}/'.format('/v2/certs', secret_name, domain)
         )
         self.assertEqual(response.status_code, 204)
-
         response = self.client.get('/v2/apps/{}/gateways/'.format(app_id))
         self.assertEqual(response.data["results"][0]["listeners"], [])
         return app_id

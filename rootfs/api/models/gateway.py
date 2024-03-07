@@ -12,6 +12,8 @@ from .base import AuditedModel
 
 User = get_user_model()
 logger = logging.getLogger(__name__)
+DEFAULT_HTTP_PORT = 80
+DEFAULT_HTTPS_PORT = 443
 
 
 class Gateway(AuditedModel):
@@ -69,8 +71,10 @@ class Gateway(AuditedModel):
             port, protocol = item["port"], item["protocol"]
             if item["protocol"] in ("TLS", "HTTPS"):
                 for domain in domains:
-                    secret_name = (f"{self.app.id}-auto-tls" if
-                                   auto_tls else domain.certificate.name)
+                    secret_name = f"{self.app.id}-auto-tls" if auto_tls else (
+                        domain.certificate.name if domain.certificate else None)
+                    if secret_name is None:
+                        continue
                     listeners.append({
                         "allowedRoutes": {"namespaces": {"from": "All"}},
                         "name": self._get_listener_name(port, protocol, domains.index(domain)),
@@ -316,7 +320,9 @@ class Route(AuditedModel):
         rules = {
             "filters": [{
                 "type": "RequestRedirect",
-                "requestRedirect": {"port": 443, "scheme": "https", "statusCode": 301}
+                "requestRedirect": {
+                    "port": DEFAULT_HTTPS_PORT, "scheme": "https", "statusCode": 301
+                }
             }]
         }
         try:
@@ -356,7 +362,7 @@ class Route(AuditedModel):
                         "name": gateway_name,
                         "sectionName": listener["name"],
                     }
-                    if listener["protocol"] == "HTTP" and listener["port"] == 80:
+                    if listener["protocol"] == "HTTP" and listener["port"] == DEFAULT_HTTP_PORT:
                         http_parent_refs.append(parent_ref)
                     else:
                         parent_refs.append(parent_ref)

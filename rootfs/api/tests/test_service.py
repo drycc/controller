@@ -157,7 +157,7 @@ class ServiceTest(DryccTransactionTestCase):
         )
         self.assertEqual(response.status_code, 204, response.data)
         response = self.client.get('/v2/apps/{}/services'.format(app_id))
-        self.assertEqual(response.data["services"], [])
+        self.assertEqual(len(response.data["services"]), 0)
         # delete non-existing (1st again)
         response = self.client.delete(
             '/v2/apps/{}/services'.format(app_id),

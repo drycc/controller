@@ -102,14 +102,18 @@ class TLS(UuidAuditedModel):
         namespace = name = self.app.id
         if self.certs_auto_enabled:
             hosts = [domain.domain for domain in self.app.domain_set.all()]
-            try:
-                data = self.scheduler().certificate.get(namespace, name).json()
-                version = data["metadata"]["resourceVersion"]
-                self.scheduler().certificate.put(namespace, name, hosts, version)
-            except KubeException:
-                logger.log(
-                    msg="certificate {} does not exist".format(namespace), level=logging.INFO)
-                self.scheduler().certificate.create(namespace, name, hosts)
+            if len(hosts) > 0:
+                response = self.scheduler().certificate.get(namespace, name)
+                if response.status_code == 200:
+                    data = response.json()
+                    version = data["metadata"]["resourceVersion"]
+                    self.scheduler().certificate.put(namespace, name, hosts, version)
+                else:
+                    logger.log(
+                        msg="certificate {} does not exist".format(namespace), level=logging.INFO)
+                    self.scheduler().certificate.create(namespace, name, hosts)
+            else:
+                self.app.log("skip creating certificate, no domain name set", logging.WARNING)
         else:
             self.scheduler().certificate.delete(namespace, name, ignore_exception=True)
 

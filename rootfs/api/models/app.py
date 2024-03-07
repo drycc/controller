@@ -26,7 +26,8 @@ from api.utils import get_session
 from api.exceptions import AlreadyExists, DryccException, ServiceUnavailable
 from api.utils import generate_app_name, apply_tasks, unit_to_bytes, unit_to_millicpu
 from scheduler import KubeHTTPException, KubeException
-from .gateway import Gateway, Route
+from scheduler.resources.pod import DEFAULT_CONTAINER_PORT
+from .gateway import Gateway, Route, DEFAULT_HTTP_PORT, DEFAULT_HTTPS_PORT
 from .config import Config
 from .service import Service
 from .release import Release
@@ -37,6 +38,7 @@ from .base import UuidAuditedModel
 
 User = get_user_model()
 logger = logging.getLogger(__name__)
+DEFAULT_PROCFILE_TYPE = "web"
 
 
 # http://kubernetes.io/v1.1/docs/design/identifiers.html
@@ -297,7 +299,7 @@ class App(UuidAuditedModel):
                     structure = self.structure.copy()
                     # zero out canonical pod counts
                     for proctype in structure.keys():
-                        if proctype == "web":
+                        if proctype == DEFAULT_PROCFILE_TYPE:
                             structure[proctype] = 0
                     # update with the default process type.
                     structure.update(self._default_structure(release))
@@ -371,15 +373,15 @@ class App(UuidAuditedModel):
             self.log(err, logging.ERROR)
             raise ServiceUnavailable(err) from e
         for procfile_type, value in deploys.items():
-            if procfile_type == "web":  # http
-                target_port = int(value.get('envs', {}).get('PORT', 5000))
-                self._create_default_ingress(procfile_type, target_port)
+            if procfile_type == DEFAULT_PROCFILE_TYPE:  # http
+                target_port = int(value.get('envs', {}).get('PORT', DEFAULT_CONTAINER_PORT))
+                self._create_default_ingress(target_port)
             service = self.service_set.filter(procfile_type=procfile_type).first()
             if not service:
                 continue
             if prev_release and prev_release.build:
                 continue
-            if procfile_type == "web":
+            if procfile_type == DEFAULT_PROCFILE_TYPE:
                 self._verify_http_health(service, **deploys[procfile_type])
             else:
                 self._verify_tcp_health(service, **deploys[procfile_type])
@@ -816,35 +818,36 @@ class App(UuidAuditedModel):
         config.memory = new_memory
         config.save()
 
-    def _create_default_ingress(self, procfile_type, target_port):
-        port = 80
+    def _create_default_ingress(self, target_port):
         # create default service
         try:
-            service = self.service_set.filter(procfile_type=procfile_type).latest()
+            service = self.service_set.filter(procfile_type=DEFAULT_PROCFILE_TYPE).latest()
         except Service.DoesNotExist:
-            service = Service(owner=self.owner, app=self, procfile_type=procfile_type)
-            service.add_port(port, "TCP", target_port)
+            service = Service(owner=self.owner, app=self, procfile_type=DEFAULT_PROCFILE_TYPE)
+            service.add_port(DEFAULT_HTTP_PORT, "TCP", target_port)
             service.save()
         else:
-            if service.update_port(port, "TCP", target_port):
+            if service.update_port(DEFAULT_HTTP_PORT, "TCP", target_port):
                 service.save()
         # create default gateway
         try:
             gateway = self.gateway_set.filter(name=self.id).latest()
         except Gateway.DoesNotExist:
             gateway = Gateway(app=self, owner=self.owner, name=self.id)
-            added, msg = gateway.add(port, "HTTP")
-            if not added:
-                raise DryccException(msg)
+        modified = gateway.add(DEFAULT_HTTP_PORT, "HTTP")
+        if self.tls_set.latest().certs_auto_enabled or self.domain_set.filter(
+                models.Q(certificate__isnull=False)).exists():
+            modified = gateway.add(DEFAULT_HTTPS_PORT, "HTTPS") if not modified else True
+        if modified:
             gateway.save()
         # create default route
         try:
             self.route_set.filter(name=self.id).latest()
         except Route.DoesNotExist:
             route = Route(app=self, owner=self.owner, kind="HTTPRoute", name=self.id,
-                          port=port, procfile_type=service.procfile_type)
+                          port=DEFAULT_HTTP_PORT, procfile_type=service.procfile_type)
             route.rules = route.default_rules
-            attached, msg = route.attach(gateway.name, port)
+            attached, msg = route.attach(gateway.name, DEFAULT_HTTP_PORT)
             if not attached:
                 raise DryccException(msg)
             route.save()
@@ -943,11 +946,11 @@ class App(UuidAuditedModel):
     def _default_structure(release):
         """Scale to default structure based on release type"""
         if release.build.sha and not release.build.dockerfile and \
-                (release.build.procfile and 'web' not in release.build.procfile):
+                (release.build.procfile and DEFAULT_PROCFILE_TYPE not in release.build.procfile):
             structure = {}
         # default to heroku workflow
         else:
-            structure = {'web': 1}
+            structure = {DEFAULT_PROCFILE_TYPE: 1}
         return structure
 
     def _scheduler_filter(self, **kwargs):
@@ -1119,7 +1122,8 @@ class App(UuidAuditedModel):
 
         # only web is routable
         # https://www.drycc.cc/applications/managing-app-processes/#default-process-types
-        routable = True if process_type == 'web' and app_settings.routable else False
+        routable = True if (
+            process_type == DEFAULT_PROCFILE_TYPE and app_settings.routable) else False
 
         healthcheck = config.healthcheck.get(process_type, {})
         volumes, volume_mounts = self._get_volumes_and_mounts(process_type, volumes)
