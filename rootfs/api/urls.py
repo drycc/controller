@@ -16,6 +16,16 @@ app_urlpatterns = [
     re_path(r'^', include(router.urls)),
     re_path(r'auth/login/?$', views.AuthLoginView.as_view({"post": "login"})),
     re_path(r'auth/token/(?P<key>[-_\w]+)/?$', views.AuthTokenView.as_view({"get": "token"})),
+    # limits
+    re_path(
+        r'^limits/specs/?$',
+        views.LimitSpecViewSet.as_view({'get': 'list'})),
+    re_path(
+        r'^limits/plans/?$',
+        views.LimitPlanViewSet.as_view({'get': 'list'})),
+    re_path(
+        r'^limits/plans/(?P<id>[-.\w]+)/?$',
+        views.LimitPlanViewSet.as_view({'get': 'retrieve'})),
     # application release components
     re_path(
         r"^apps/(?P<id>{})/config/?$".format(settings.APP_URL_REGEX),

@@ -264,6 +264,14 @@ class BuildTest(DryccTransactionTestCase):
         }
         response = self.client.post(url, body)
         self.assertEqual(response.status_code, 201, response.data)
+        # verify web
+        url = "/v2/apps/{app_id}/pods/web".format(**locals())
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, 200, response.data)
+        self.assertEqual(len(response.data['results']), 1)
+        container = response.data['results'][0]
+        self.assertEqual(container['type'], 'web')
+        self.assertEqual(container['release'], 'v2')
 
         # scale worker
         url = "/v2/apps/{app_id}/scale".format(**locals())
@@ -304,7 +312,7 @@ class BuildTest(DryccTransactionTestCase):
         url = "/v2/apps/{app_id}".format(**locals())
         response = self.client.get(url)
         self.assertEqual(response.status_code, 200, response.data)
-        self.assertEqual(response.json()['structure'], {'web': 1, 'worker': 0})
+        self.assertEqual(response.json()['structure'], {'web': 1})
 
     @override_settings(DRYCC_DEPLOY_PROCFILE_MISSING_REMOVE=False)
     def test_build_no_remove_process(self, mock_requests):

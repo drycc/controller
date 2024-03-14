@@ -9,7 +9,7 @@ from rest_framework.authtoken.models import Token
 
 from api.models.app import App
 from api.tests import TEST_ROOT, DryccTransactionTestCase
-from api.schemas.rules import SCHEMA as RULES_SCHEMA
+from api.serializers.schemas.rules import SCHEMA as RULES_SCHEMA
 
 User = get_user_model()
 

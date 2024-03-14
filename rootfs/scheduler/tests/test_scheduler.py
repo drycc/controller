@@ -88,9 +88,9 @@ class SchedulerTest(TestCase):
         data = {}
         self.scheduler.pod._set_container(
             'foo', 'bar', data, app_type='fake',
-            cpu={'fake': '500M'}, memory={'fake': '1024m'}
+            resources={"limits": {"cpu": "1", "memory": "64G"}},
         )
         # make sure CPU gets lower cased
-        self.assertEqual(data['resources']['limits']['cpu'], '500m', 'CPU should be lower cased')
+        self.assertEqual(data['resources']['limits']['cpu'], '1')
         # make sure first char of Memory is upper cased
-        self.assertEqual(data['resources']['limits']['memory'], '1024Mi', 'Memory should be upper cased')  # noqa
+        self.assertEqual(data['resources']['limits']['memory'], '64G')

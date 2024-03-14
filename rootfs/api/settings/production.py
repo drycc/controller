@@ -5,7 +5,6 @@ from distutils.util import strtobool
 import sys
 import os.path
 import tempfile
-import json
 import dj_database_url
 
 
@@ -343,76 +342,14 @@ KUBERNETES_DEPLOYMENTS_REVISION_HISTORY_LIMIT = os.environ.get(
 # How long k8s waits for a pod to finish work after a SIGTERM before sending SIGKILL
 KUBERNETES_POD_TERMINATION_GRACE_PERIOD_SECONDS = int(os.environ.get(
     'KUBERNETES_POD_TERMINATION_GRACE_PERIOD_SECONDS', 30))
-
-# min and max memory for a CPU
-KUBERNETES_CPU_MEMORY_RATIO = tuple(map(lambda x: x.strip(), os.environ.get(
-    'DRYCC_CPU_MEMORY_DISTRIBUTION_RATIO', '1G,4G').split(",")))
-# CPU request ratio
-KUBERNETES_REQUEST_CPU_RATIO = int(os.environ.get('KUBERNETES_REQUEST_CPU_RATIO', '2'))
-# Memory request ratio
-KUBERNETES_REQUEST_MEMORY_RATIO = int(os.environ.get('KUBERNETES_REQUEST_MEMORY_RATIO', '2'))
-
-# Minimum CPU limit, units are represented in the millicpu of CPUs
-KUBERNETES_LIMITS_MIN_CPU = int(os.environ.get('KUBERNETES_LIMITS_MIN_CPU', '125'))
-# Max CPU limit, units are represented in the millicpu of CPUs
-KUBERNETES_LIMITS_MAX_CPU = int(os.environ.get('KUBERNETES_LIMITS_MAX_CPU', 32 * 1000))
-# Minimum Memory limit, units are represented in Megabytes(M)
-KUBERNETES_LIMITS_MIN_MEMORY = int(os.environ.get('KUBERNETES_LIMITS_MIN_MEMORY', '128'))
-# Max Memory limit, units are represented in Megabytes(M)
-KUBERNETES_LIMITS_MAX_MEMORY = int(os.environ.get('KUBERNETES_LIMITS_MAX_MEMORY', 128 * 1024))
 # Minimum Stroage Volume limit, units are represented in Gigabytes(G)
 KUBERNETES_LIMITS_MIN_VOLUME = int(os.environ.get('KUBERNETES_LIMITS_MIN_VOLUME', 1))
 # Max Stroage Volume limit, units are represented in Gigabytes(G)
 KUBERNETES_LIMITS_MAX_VOLUME = int(os.environ.get('KUBERNETES_LIMITS_MAX_VOLUME', 1024 * 16))
-# Default pod spec volumes for application.
-KUBERNETES_POD_DEFAULT_VOLUMES = os.environ.get('KUBERNETES_POD_DEFAULT_VOLUMES', '[]')
-# Default pod spec volume mounts for application.
-KUBERNETES_POD_DEFAULT_VOLUME_MOUNTS = os.environ.get('KUBERNETES_POD_DEFAULT_VOLUME_MOUNTS', '[]')
-# Default pod spec security context for application.
-KUBERNETES_POD_DEFAULT_SECURITY_CONTEXT = os.environ.get(
-    'KUBERNETES_POD_DEFAULT_SECURITY_CONTEXT',
-    json.dumps({
-        'capabilities': {
-            'add': ['SYS_ADMIN']
-        },
-        'allowPrivilegeEscalation': True,
-    })
-)
-
-# Default pod spec resources for application.
-KUBERNETES_POD_DEFAULT_RESOURCES = os.environ.get(
-    'KUBERNETES_POD_DEFAULT_RESOURCES',
-    json.dumps({
-        "requests": {
-            "ephemeral-storage": "1Gi",
-        },
-        "limits": {
-            "ephemeral-storage": "2Gi",
-        }
-    })
-)
-
-# Default pod annotations for application.
-KUBERNETES_POD_DEFAULT_ANNOTATIONS = os.environ.get(
-    'KUBERNETES_POD_DEFAULT_ANNOTATIONS',
-    json.dumps({
-        "kubernetes.io/egress-bandwidth": "100M",
-        "kubernetes.io/ingress-bandwidth": "100M",
-    })
-)
 
 KUBERNETES_JOB_MAX_TTL_SECONDS_AFTER_FINISHED = int(os.environ.get(
-    'KUBERNETES_NAMESPACE_DEFAULT_QUOTA_SPEC', '7200'
+    'KUBERNETES_JOB_MAX_TTL_SECONDS_AFTER_FINISHED', '7200'
 ))
-
-# Default quota spec for application namespace
-KUBERNETES_NAMESPACE_DEFAULT_QUOTA_SPEC = os.environ.get(
-    'KUBERNETES_NAMESPACE_DEFAULT_QUOTA_SPEC', ''
-)
-# Default limit range spec for application namespace
-KUBERNETES_NAMESPACE_DEFAULT_LIMIT_RANGES_SPEC = os.environ.get(
-    'KUBERNETES_NAMESPACE_DEFAULT_LIMIT_RANGES_SPEC', ''
-)
 
 # registry settings
 REGISTRY_LOCATION = os.environ.get('DRYCC_REGISTRY_LOCATION', 'on-cluster')

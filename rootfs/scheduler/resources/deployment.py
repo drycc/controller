@@ -56,7 +56,9 @@ class Deployment(Resource):
                 'replicas': replicas,
                 'selector': {
                     'matchLabels': labels
-                }
+                },
+                'nodeSelector': kwargs.get('node_selector', {}),
+                'securityContext': kwargs.get('pod_security_context', {}),
             }
         }
 
@@ -75,7 +77,6 @@ class Deployment(Resource):
             manifest['spec']['rollbackTo'] = {'revision': str(revision)}
 
         # Add deployment strategy
-
         # see if application or global deploy batches are defined
         maxSurge = self._get_deploy_steps(batches, tags)
         # if replicas are higher than maxSurge then the old deployment is never scaled down

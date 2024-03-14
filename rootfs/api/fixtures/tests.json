@@ -88,5 +88,243 @@
         "email": "autotest4@drycc.cc",
         "date_joined": "2013-05-10T16:08:09.357Z"
     }
+},
+{
+  "model": "api.limitspec",
+  "pk": "std1",
+  "fields": {
+    "cpu": {
+      "name": "Unknown CPU",
+      "cores": 32,
+      "clock": "3100MHZ",
+      "boost": "3700MHZ",
+      "threads": 64
+    },
+    "memory": {
+      "size": "64GB",
+      "type": "DDR4-ECC"
+    },
+    "features": {
+      "gpu": {
+        "name": "Unknown Integrated GPU",
+        "tmus": 1,
+        "rops": 1,
+        "cores": 128,
+        "memory": {
+          "size": "shared",
+          "type": "shared"
+        }
+      },
+      "network": "10G"
+    },
+    "keywords": ["amd", "intel", "unknown"],
+    "disabled": false,
+    "created": "2024-03-13T10:49:49.773Z",
+    "updated": "2024-03-13T10:49:49.773Z"
+  }
+},
+{
+  "model": "api.limitplan",
+  "pk": "std1.large.c1m1",
+  "fields": {
+    "spec_id": "std1",
+    "cpu": 1,
+    "memory": 1,
+    "features": {
+      "gpu": 1,
+      "network": 1
+    },
+    "disabled": false,
+    "priority": 100,
+    "limits": {
+      "cpu": 1,
+      "memory": "1Gi",
+      "ephemeral-storage": "2Gi"
+    },
+    "requests": {
+      "cpu": 0.5,
+      "memory": "0.5Gi",
+      "ephemeral-storage": "2Gi"
+    },
+    "annotations": {
+      "kubernetes.io/egress-bandwidth": "10M",
+      "kubernetes.io/ingress-bandwidth": "10M"
+    },
+    "node_selector": {},
+    "pod_security_context": {},
+    "container_security_context": {},
+    "created": "2024-03-13T11:08:07.681Z",
+    "updated": "2024-03-13T11:08:07.681Z"
+  }
+},
+{
+  "model": "api.limitplan",
+  "pk": "std1.large.c1m2",
+  "fields": {
+    "spec_id": "std1",
+    "cpu": 1,
+    "memory": 2,
+    "features": {
+      "gpu": 1,
+      "network": 1
+    },
+    "disabled": false,
+    "priority": 101,
+    "limits": {
+      "cpu": 1,
+      "memory": "2Gi",
+      "ephemeral-storage": "2Gi"
+    },
+    "requests": {
+      "cpu": 0.5,
+      "memory": "1Gi",
+      "ephemeral-storage": "2Gi"
+    },
+    "annotations": {
+      "kubernetes.io/egress-bandwidth": "10M",
+      "kubernetes.io/ingress-bandwidth": "10M"
+    },
+    "node_selector": {},
+    "pod_security_context": {},
+    "container_security_context": {},
+    "created": "2024-03-13T11:08:07.681Z",
+    "updated": "2024-03-13T11:08:07.681Z"
+  }
+},
+{
+  "model": "api.limitplan",
+  "pk": "std1.large.c1m4",
+  "fields": {
+    "spec_id": "std1",
+    "cpu": 1,
+    "memory": 4,
+    "features": {
+      "gpu": 1,
+      "network": 1
+    },
+    "disabled": false,
+    "priority": 102,
+    "limits": {
+      "cpu": 1,
+      "memory": "4Gi",
+      "ephemeral-storage": "2Gi"
+    },
+    "requests": {
+      "cpu": 0.5,
+      "memory": "2Gi",
+      "ephemeral-storage": "2Gi"
+    },
+    "annotations": {
+      "kubernetes.io/egress-bandwidth": "20M",
+      "kubernetes.io/ingress-bandwidth": "20M"
+    },
+    "node_selector": {},
+    "pod_security_context": {},
+    "container_security_context": {},
+    "created": "2024-03-13T11:08:07.681Z",
+    "updated": "2024-03-13T11:08:07.681Z"
+  }
+},
+{
+  "model": "api.limitplan",
+  "pk": "std1.large.c2m2",
+  "fields": {
+    "spec_id": "std1",
+    "cpu": 2,
+    "memory": 2,
+    "features": {
+      "gpu": 1,
+      "network": 1
+    },
+    "disabled": false,
+    "priority": 103,
+    "limits": {
+      "cpu": 2,
+      "memory": "2Gi",
+      "ephemeral-storage": "2Gi"
+    },
+    "requests": {
+      "cpu": 1,
+      "memory": "1Gi",
+      "ephemeral-storage": "2Gi"
+    },
+    "annotations": {
+      "kubernetes.io/egress-bandwidth": "20M",
+      "kubernetes.io/ingress-bandwidth": "20M"
+    },
+    "node_selector": {},
+    "pod_security_context": {},
+    "container_security_context": {},
+    "created": "2024-03-13T11:08:07.681Z",
+    "updated": "2024-03-13T11:08:07.681Z"
+  }
+},
+{
+  "model": "api.limitplan",
+  "pk": "std1.large.c2m4",
+  "fields": {
+    "spec_id": "std1",
+    "cpu": 2,
+    "memory": 4,
+    "features": {
+      "gpu": 1,
+      "network": 1
+    },
+    "disabled": false,
+    "priority": 104,
+    "limits": {
+      "cpu": 2,
+      "memory": "4Gi",
+      "ephemeral-storage": "2Gi"
+    },
+    "requests": {
+      "cpu": 1,
+      "memory": "2Gi",
+      "ephemeral-storage": "2Gi"
+    },
+    "annotations": {
+      "kubernetes.io/egress-bandwidth": "30M",
+      "kubernetes.io/ingress-bandwidth": "30M"
+    },
+    "node_selector": {},
+    "pod_security_context": {},
+    "container_security_context": {},
+    "created": "2024-03-13T11:08:07.681Z",
+    "updated": "2024-03-13T11:08:07.681Z"
+  }
+},
+{
+  "model": "api.limitplan",
+  "pk": "std1.large.c2m8",
+  "fields": {
+    "spec_id": "std1",
+    "cpu": 2,
+    "memory": 8,
+    "features": {
+      "gpu": 1,
+      "network": 1
+    },
+    "disabled": false,
+    "priority": 105,
+    "limits": {
+      "cpu": 2,
+      "memory": "8Gi",
+      "ephemeral-storage": "2Gi"
+    },
+    "requests": {
+      "cpu": 1,
+      "memory": "4Gi",
+      "ephemeral-storage": "2Gi"
+    },
+    "annotations": {
+      "kubernetes.io/egress-bandwidth": "30M",
+      "kubernetes.io/ingress-bandwidth": "30M"
+    },
+    "node_selector": {},
+    "pod_security_context": {},
+    "container_security_context": {},
+    "created": "2024-03-13T11:08:07.681Z",
+    "updated": "2024-03-13T11:08:07.681Z"
+  }
 }
 ]

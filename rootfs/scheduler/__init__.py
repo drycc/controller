@@ -258,7 +258,7 @@ class KubeHTTPClient(object):
 
         return response
 
-    def deploy(self, namespace, name, image, entrypoint, command, **kwargs):  # noqa
+    def deploy(self, namespace, name, image, entrypoint, command, **kwargs):
         """Deploy Deployment depending on what's requested"""
         app_type = kwargs.get('app_type')
         version = kwargs.get('version')

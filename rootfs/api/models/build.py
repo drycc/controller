@@ -116,7 +116,7 @@ class Build(UuidAuditedModel):
         if remove_procs and previous_release.build is not None:
             removed = {}
             for proc in previous_release.build.procfile:
-                if proc not in self.procfile:
+                if proc not in self.procfile and self.app.structure.get(proc, 0) > 0:
                     # Scale proc type down to 0
                     removed[proc] = 0
 

@@ -15,11 +15,11 @@ from rest_framework import serializers
 
 from api import models
 from api.exceptions import DryccException
-from api.schemas.rules import SCHEMA as RULES_SCHEMA
-from api.schemas.volumes import SCHEMA as VOLUMES_SCHEMA
-from api.schemas.autoscale import SCHEMA as AUTOSCALE_SCHEMA
-from api.schemas.healthcheck import SCHEMA as HEALTHCHECK_SCHEMA
 from scheduler.resources.pod import DEFAULT_CONTAINER_PORT
+from .schemas.rules import SCHEMA as RULES_SCHEMA
+from .schemas.volumes import SCHEMA as VOLUMES_SCHEMA
+from .schemas.autoscale import SCHEMA as AUTOSCALE_SCHEMA
+from .schemas.healthcheck import SCHEMA as HEALTHCHECK_SCHEMA
 
 
 User = get_user_model()
@@ -48,6 +48,7 @@ CONFIGKEY_MISMATCH_MSG = (
     "Config keys must start with a letter or underscore and "
     "only contain [A-z0-9_]"
 )
+CONFIG_LIMITS_MISMATCH_MSG = "The limit plan {} does not exist"
 
 TERMINATION_GRACE_PERIOD_MATCH = re.compile(r'^[0-9]*$')
 TERMINATION_GRACE_PERIOD_MISMATCH_MSG = (
@@ -141,12 +142,11 @@ class AppSerializer(serializers.ModelSerializer):
 
     owner = serializers.ReadOnlyField(source='owner.username')
     structure = serializers.JSONField(required=False)
-    procfile_structure = serializers.JSONField(required=False)
 
     class Meta:
         """Metadata options for a :class:`AppSerializer`."""
         model = models.app.App
-        fields = ['uuid', 'id', 'owner', 'structure', 'procfile_structure', 'created', 'updated']
+        fields = ['uuid', 'id', 'owner', 'structure', 'created', 'updated']
 
 
 class BuildSerializer(serializers.ModelSerializer):
@@ -174,16 +174,42 @@ class BuildSerializer(serializers.ModelSerializer):
         return data
 
 
+class LimitSpecSerializer(serializers.ModelSerializer):
+    id = serializers.CharField(required=True)
+    cpu = serializers.JSONField(required=True)
+    memory = serializers.JSONField(required=True)
+    features = serializers.JSONField(required=True)
+    disabled = serializers.BooleanField(required=True)
+
+    class Meta:
+        """Metadata options for a :class:`LimitSpecSerializer`."""
+        model = models.limit.LimitSpec
+        fields = ['id', 'cpu', 'memory', 'features', 'disabled']
+
+
+class LimitPlanSerializer(serializers.ModelSerializer):
+    id = serializers.CharField(required=True)
+    spec = LimitSpecSerializer(required=True)
+    cpu = serializers.IntegerField(required=True)
+    memory = serializers.IntegerField(required=True)
+    features = serializers.JSONField(required=True)
+    disabled = serializers.BooleanField(required=True)
+
+    class Meta:
+        """Metadata options for a :class:`LimitPlanSerializer`."""
+        model = models.limit.LimitSpec
+        fields = ['id', 'spec', 'cpu', 'memory', 'features', 'disabled']
+
+
 class ConfigSerializer(serializers.ModelSerializer):
     """Serialize a :class:`~api.models.config.Config` model."""
 
     app = serializers.SlugRelatedField(slug_field='id', queryset=models.app.App.objects.all())
     owner = serializers.ReadOnlyField(source='owner.username')
     values = JSONFieldSerializer(required=False, binary=True)
-    memory = JSONFieldSerializer(required=False, binary=True)
+    limits = JSONFieldSerializer(required=False, binary=True)
     lifecycle_post_start = JSONFieldSerializer(required=False, binary=True)
     lifecycle_pre_stop = JSONFieldSerializer(required=False, binary=True)
-    cpu = JSONFieldSerializer(required=False, binary=True)
     tags = JSONFieldSerializer(required=False, binary=True)
     registry = JSONFieldSerializer(required=False, binary=True)
     healthcheck = JSONFieldSerializer(convert_to_str=False, required=False, binary=True)
@@ -215,46 +241,16 @@ class ConfigSerializer(serializers.ModelSerializer):
         return data
 
     @staticmethod
-    def validate_memory(data):
-        max_memory = settings.KUBERNETES_LIMITS_MAX_MEMORY
-        # The minimum limit memory is equal to the memory allocated by default
-        min_memory = settings.KUBERNETES_LIMITS_MIN_MEMORY
-        for key, value in data.items():
-            if value is None:  # use NoneType to unset an item
-                continue
-
-            if not re.match(PROCTYPE_MATCH, key):
-                raise serializers.ValidationError(PROCTYPE_MISMATCH_MSG)
-
-            if not re.match(MEMLIMIT_MATCH, str(value)):
-                raise serializers.ValidationError(MEMLIMIT_MISMATCH_MSG)
-            range_error = "Memory setting is not in allowed range: %sM~%sM" % (
-                min_memory, max_memory)
-            memory_size = int(value[:-1]) * 1024 if value.endswith("G") else int(value[:-1])
-            if memory_size < min_memory or memory_size > max_memory:
-                raise serializers.ValidationError(range_error)
-        return data
-
-    @staticmethod
-    def validate_cpu(data):
-        max_cpu = settings.KUBERNETES_LIMITS_MAX_CPU
-        # The minimum CPU limit is equal to the CPU allocated by default
-        min_cpu = settings.KUBERNETES_LIMITS_MIN_CPU
-        for key, value in data.items():
-            if value is None:  # use NoneType to unset an item
-                continue
-
-            if not re.match(PROCTYPE_MATCH, key):
-                raise serializers.ValidationError(PROCTYPE_MISMATCH_MSG)
-
-            shares = re.match(CPUSHARE_MATCH, str(value))
-            if not shares:
-                raise serializers.ValidationError(CPUSHARE_MISMATCH_MSG)
-            range_error = "CPU setting is not in allowed range: %sm~%sm" % (
-                min_cpu, max_cpu)
-            cpu_size = int(value) * 1000 if value.isdigit() else int(value[:-1])
-            if cpu_size < min_cpu or cpu_size > max_cpu:
-                raise serializers.ValidationError(range_error)
+    def validate_limits(data):
+        req_plan_ids = []
+        for plan_id in data.values():
+            if plan_id is not None:
+                req_plan_ids.append(plan_id)
+        plan_ids = [plan.id for plan in models.limit.LimitPlan.objects.filter(
+            disabled=False, id__in=req_plan_ids)]
+        for req_plan_id in req_plan_ids:
+            if req_plan_id not in plan_ids:
+                raise serializers.ValidationError(CONFIG_LIMITS_MISMATCH_MSG.format(req_plan_id))
         return data
 
     @staticmethod

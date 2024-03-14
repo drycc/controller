@@ -202,15 +202,16 @@ class Pod(Resource):
         data['name'] = container_name
         # set the image to use
         data['image'] = kwargs.get('image')
+        # set resources to use
+        data["resources"] = kwargs.get("resources", {})
         # set the image pull policy for the above image
         data['imagePullPolicy'] = kwargs.get('image_pull_policy')
         # add in any volumes that need to be mounted into the container
         data['volumeMounts'] = kwargs.get('volume_mounts', [])
         # set the security context to use
-        data["securityContext"] = kwargs.get('security_context', {})
+        data["securityContext"] = kwargs.get('container_security_context', {})
         # create env list if missing
-        if 'env' not in data:
-            data['env'] = []
+        data['env'] = data.get('env', [])
 
         if env:
             # map application configuration (env secret) to env vars
@@ -243,36 +244,8 @@ class Pod(Resource):
 
         # list sorted by dict key name
         data['env'].sort(key=operator.itemgetter('name'))
-
-        self._set_resources(data, kwargs)
-
         self._set_health_checks(data, env, **kwargs)
-
         self._set_lifecycle_hooks(data, env, **kwargs)
-
-    def _set_resources(self, container, kwargs):
-        """ Set CPU/memory resource management manifest """
-        app_type = kwargs.get("app_type")
-        mem = kwargs.get("memory", {}).get(app_type)
-        cpu = kwargs.get("cpu", {}).get(app_type)
-        resources = kwargs.get("resources", defaultdict(dict))
-        if mem or cpu:
-            if mem:
-                if "/" in mem:
-                    parts = mem.split("/")
-                    resources["requests"]["memory"] = self._get_memory(parts[0])
-                    resources["limits"]["memory"] = self._get_memory(parts[1])
-                else:
-                    resources["limits"]["memory"] = self._get_memory(mem)
-            if cpu:
-                # CPU needs to be defined as lower case
-                if "/" in cpu:
-                    parts = cpu.split("/")
-                    resources["requests"]["cpu"] = parts[0].lower()
-                    resources["limits"]["cpu"] = parts[1].lower()
-                else:
-                    resources["limits"]["cpu"] = cpu.lower()
-        container["resources"] = dict(resources)
 
     @staticmethod
     def _get_termination_grace_period(kwargs):

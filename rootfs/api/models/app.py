@@ -1,6 +1,5 @@
 import backoff
 import base64
-import math
 from collections import OrderedDict
 from datetime import datetime
 from docker import auth as docker_auth
@@ -14,7 +13,6 @@ import string
 import time
 import socket
 from contextlib import closing
-from itertools import groupby
 from urllib.parse import urljoin
 
 from django.conf import settings
@@ -28,6 +26,7 @@ from api.utils import generate_app_name, apply_tasks, unit_to_bytes, unit_to_mil
 from scheduler import KubeHTTPException, KubeException
 from scheduler.resources.pod import DEFAULT_CONTAINER_PORT
 from .gateway import Gateway, Route, DEFAULT_HTTP_PORT, DEFAULT_HTTPS_PORT
+from .limit import LimitPlan
 from .config import Config
 from .service import Service
 from .release import Release
@@ -38,7 +37,8 @@ from .base import UuidAuditedModel
 
 User = get_user_model()
 logger = logging.getLogger(__name__)
-DEFAULT_PROCFILE_TYPE = "web"
+PROCFILE_TYPE_WEB = "web"
+PROCFILE_TYPE_RUN = "run"
 
 
 # http://kubernetes.io/v1.1/docs/design/identifiers.html
@@ -78,8 +78,6 @@ class App(UuidAuditedModel):
                                       validate_reserved_names])
     structure = models.JSONField(
         default=dict, blank=True, validators=[validate_app_structure])
-    procfile_structure = models.JSONField(
-        default=dict, blank=True, validators=[validate_app_structure])
 
     class Meta:
         verbose_name = 'Application'
@@ -115,7 +113,7 @@ class App(UuidAuditedModel):
 
     @property
     def types(self):
-        return list(self.procfile_structure.keys())
+        return list(self.structure.keys())
 
     def log(self, message, level=logging.INFO):
         """Logs a message in the context of this application.
@@ -133,11 +131,7 @@ class App(UuidAuditedModel):
         Create a application with an initial config, settings, release, domain
         and k8s resource if needed
         """
-        try:
-            cfg = self.config_set.latest()
-        except Config.DoesNotExist:
-            cfg = Config.objects.create(owner=self.owner, app=self)
-
+        cfg = self._set_default_config()
         # Only create if no release can be found
         try:
             self.release_set.latest()
@@ -148,43 +142,16 @@ class App(UuidAuditedModel):
             )
 
         # create required minimum resources in k8s for the application
-        namespace = limits_name = quota_name = self.id
+        namespace = self.id
+        self.log('creating Namespace {} and services'.format(namespace), level=logging.DEBUG)
+        # Create essential resources
         try:
-            self.log('creating Namespace {} and services'.format(namespace), level=logging.DEBUG)
-            # Create essential resources
+            self.scheduler().ns.get(namespace)
+        except KubeException:
             try:
-                self.scheduler().ns.get(namespace)
-            except KubeException:
-                try:
-                    self.scheduler().ns.create(namespace)
-                except KubeException as e:
-                    raise ServiceUnavailable('Could not create the Namespace in Kubernetes') from e
-
-            if settings.KUBERNETES_NAMESPACE_DEFAULT_QUOTA_SPEC != '':
-                quota_spec = json.loads(settings.KUBERNETES_NAMESPACE_DEFAULT_QUOTA_SPEC)
-                self.log('creating Quota {} for namespace {}'.format(quota_name, namespace),
-                         level=logging.DEBUG)
-                try:
-                    self.scheduler().quota.get(namespace, quota_name)
-                except KubeException:
-                    self.scheduler().quota.create(namespace, quota_name, spec=quota_spec)
-            if settings.KUBERNETES_NAMESPACE_DEFAULT_LIMIT_RANGES_SPEC != '':
-                limits_spec = json.loads(settings.KUBERNETES_NAMESPACE_DEFAULT_LIMIT_RANGES_SPEC)
-                self.log('creating LimitRanges {} for namespace {}'.format(limits_name, namespace),
-                         level=logging.DEBUG)
-                try:
-                    self.scheduler().limits.get(namespace, limits_name)
-                except KubeException:
-                    self.scheduler().limits.create(namespace, limits_name, spec=limits_spec)
-        except KubeException as e:
-            # Blow it all away only if something horrible happens
-            try:
-                self.scheduler().ns.delete(namespace)
+                self.scheduler().ns.create(namespace)
             except KubeException as e:
-                # Just feed into the item below
-                raise ServiceUnavailable('Could not delete the Namespace in Kubernetes') from e
-
-            raise ServiceUnavailable('Kubernetes resources could not be created') from e
+                raise ServiceUnavailable('Could not create the Namespace in Kubernetes') from e
         try:
             self.appsettings_set.latest()
         except AppSettings.DoesNotExist:
@@ -254,8 +221,9 @@ class App(UuidAuditedModel):
 
     def scale(self, user, structure):
         err_msg = None
-        if 'run' in structure or self.release_set.filter(failed=False).latest().build is None:
-            if 'run' in structure:
+        if (PROCFILE_TYPE_RUN in structure or
+                self.release_set.filter(failed=False).latest().build is None):
+            if PROCFILE_TYPE_RUN in structure:
                 err_msg = 'Cannot set scale for reserved types, procfile type is: run'
             else:
                 err_msg = 'No build associated with this release'
@@ -286,38 +254,16 @@ class App(UuidAuditedModel):
         # Previous release
         prev_release = release.previous()
 
-        # set processes structure to default if app is new.
-        if self.structure == {}:
-            self.structure = self._default_structure(release)
-            self.procfile_structure = self._default_structure(release)
+        default_structure = self._default_structure(release)
+        if (self.structure == {} and self.structure != default_structure) or (
+            prev_release and prev_release.build and prev_release.build.type != release.build.type
+        ):
+            # structure {} or build type change, merge old structure if exists
+            for ptype, value in self.structure.items():
+                if ptype in default_structure and value > 0:
+                    default_structure[ptype] = value
+            self.structure = default_structure
             self.save()
-        # reset canonical process types if build type has changed.
-        else:
-            # find the previous release's build type
-            if prev_release and prev_release.build:
-                if prev_release.build.type != release.build.type:
-                    structure = self.structure.copy()
-                    # zero out canonical pod counts
-                    for proctype in structure.keys():
-                        if proctype == DEFAULT_PROCFILE_TYPE:
-                            structure[proctype] = 0
-                    # update with the default process type.
-                    structure.update(self._default_structure(release))
-                    self.structure = structure
-                    # if procfile structure exists then we use it
-                    if release.build.procfile and \
-                            release.build.sha and not \
-                            release.build.dockerfile:
-                        self.procfile_structure = release.build.procfile
-                    self.save()
-
-        # always set the procfile structure for any new release
-        if release.build.procfile:
-            self.procfile_structure = release.build.procfile
-            self.save()
-
-        # always set default config
-        self._set_default_config()
         # deploy application to k8s. Also handles initial scaling
         app_settings = self.appsettings_set.latest()
         volumes = self.volume_set.all()
@@ -373,7 +319,7 @@ class App(UuidAuditedModel):
             self.log(err, logging.ERROR)
             raise ServiceUnavailable(err) from e
         for procfile_type, value in deploys.items():
-            if procfile_type == DEFAULT_PROCFILE_TYPE:  # http
+            if procfile_type == PROCFILE_TYPE_WEB:  # http
                 target_port = int(value.get('envs', {}).get('PORT', DEFAULT_CONTAINER_PORT))
                 self._create_default_ingress(target_port)
             service = self.service_set.filter(procfile_type=procfile_type).first()
@@ -381,7 +327,7 @@ class App(UuidAuditedModel):
                 continue
             if prev_release and prev_release.build:
                 continue
-            if procfile_type == DEFAULT_PROCFILE_TYPE:
+            if procfile_type == PROCFILE_TYPE_WEB:
                 self._verify_http_health(service, **deploys[procfile_type])
             else:
                 self._verify_tcp_health(service, **deploys[procfile_type])
@@ -460,17 +406,18 @@ class App(UuidAuditedModel):
         if volumes:
             volume_objs = Volume.objects.filter(app=release.app, name__in=volumes.keys())
             for _ in volume_objs:
-                _.path["run"] = volumes.get(_.name, None)
+                _.path[PROCFILE_TYPE_RUN] = volumes.get(_.name, None)
                 volume_list.append(_)
         data = self._gather_app_settings(
-            release, app_settings, process_type='run', replicas=1, volumes=volume_list)
+            release, app_settings, process_type=PROCFILE_TYPE_RUN,
+            replicas=1, volumes=volume_list)
         data['restart_policy'] = 'Never'
         data['active_deadline_seconds'] = timeout
         data['ttl_seconds_after_finished'] = expires
         # create application config and build the pod manifest
         self.set_application_config(release)
 
-        scale_type = 'run'
+        scale_type = PROCFILE_TYPE_RUN
         name = self._get_job_id(scale_type, release.canary) + '-' + pod_name()
         self.log("{} on {} runs '{}'".format(user.username, name, command))
 
@@ -484,7 +431,7 @@ class App(UuidAuditedModel):
                 **data
             )
         except Exception as e:
-            err = '{} (run): {}'.format(name, e)
+            err = '{} ({}): {}'.format(name, PROCFILE_TYPE_RUN, e)
             raise ServiceUnavailable(err) from e
 
     def list_pods(self, *args, **kwargs):
@@ -498,7 +445,6 @@ class App(UuidAuditedModel):
                 pods = self.scheduler().pod.get(self.id, labels=labels).json()['items']
                 if not pods:
                     pods = []
-
             data = []
             for p in pods:
                 item = {}
@@ -528,7 +474,7 @@ class App(UuidAuditedModel):
         """
         Set autoscale rules for the application
         """
-        if proc_type == 'run':
+        if proc_type == PROCFILE_TYPE_RUN:
             raise DryccException('Cannot set autoscale for reserved types, procfile type is: run')
         name = '{}-{}'.format(self.id, proc_type)
         # basically fake out a Deployment object (only thing we use) to assign to the HPA
@@ -759,7 +705,6 @@ class App(UuidAuditedModel):
         old_structure = self.structure
         new_structure = old_structure.copy()
         new_structure.update(structure)
-
         if new_structure != self.structure:
             try:
                 self._scale_pods(structure, release, app_settings)
@@ -769,14 +714,11 @@ class App(UuidAuditedModel):
                 raise
             # save new structure to the database
             self.structure = new_structure
-            self.procfile_structure = release.build.procfile
             self.save()
             msg = '{} scaled pods '.format(user.username) + ' '.join(
                 "{}={}".format(k, v) for k, v in list(structure.items()))
             self.log(msg)
-
             return True
-
         return False
 
     def _scale_pods(self, scale_types, release, app_settings):
@@ -784,7 +726,8 @@ class App(UuidAuditedModel):
         tasks = []
         for scale_type, replicas in scale_types.items():
             scale_type_volumes = [_ for _ in volumes if scale_type in _.path.keys()]
-            data = self._gather_app_settings(release, app_settings, scale_type, replicas, volumes=scale_type_volumes)  # noqa
+            data = self._gather_app_settings(
+                release, app_settings, scale_type, replicas, volumes=scale_type_volumes)
             # gather all proc types to be deployed
             tasks.append(
                 functools.partial(
@@ -806,24 +749,27 @@ class App(UuidAuditedModel):
             self.log(err, logging.ERROR)
             raise ServiceUnavailable(err) from e
 
-    def _set_default_config(self):
-        default_cpu = "{}m".format(settings.KUBERNETES_LIMITS_MIN_CPU)
-        default_memory = "{}M".format(settings.KUBERNETES_LIMITS_MIN_MEMORY)
-        config = self.config_set.latest()
-        new_cpu, new_memory = {}, {}
-        for _type in self.types:
-            new_cpu[_type] = config.cpu.get(_type, default_cpu)
-            new_memory[_type] = config.memory.get(_type, default_memory)
-        config.cpu = new_cpu
-        config.memory = new_memory
-        config.save()
+    def _set_default_config(self, config=None, procfile_types=None):
+        procfile_types = self.types if procfile_types is None else procfile_types
+        plan = LimitPlan.get_default()
+        limits = {PROCFILE_TYPE_WEB: plan.id, PROCFILE_TYPE_RUN: plan.id}
+        try:
+            config = self.config_set.latest() if config is None else config
+            for ptype in procfile_types:
+                limits[ptype] = config.limits.get(ptype, plan.id)
+            if limits != config.limits:
+                config.limits = limits
+                config.save(update_fields=['limits'])
+        except Config.DoesNotExist:
+            config = Config.objects.create(owner=self.owner, app=self, limits=limits)
+        return config
 
     def _create_default_ingress(self, target_port):
         # create default service
         try:
-            service = self.service_set.filter(procfile_type=DEFAULT_PROCFILE_TYPE).latest()
+            service = self.service_set.filter(procfile_type=PROCFILE_TYPE_WEB).latest()
         except Service.DoesNotExist:
-            service = Service(owner=self.owner, app=self, procfile_type=DEFAULT_PROCFILE_TYPE)
+            service = Service(owner=self.owner, app=self, procfile_type=PROCFILE_TYPE_WEB)
             service.add_port(DEFAULT_HTTP_PORT, "TCP", target_port)
             service.save()
         else:
@@ -945,12 +891,17 @@ class App(UuidAuditedModel):
     @staticmethod
     def _default_structure(release):
         """Scale to default structure based on release type"""
-        if release.build.sha and not release.build.dockerfile and \
-                (release.build.procfile and DEFAULT_PROCFILE_TYPE not in release.build.procfile):
-            structure = {}
-        # default to heroku workflow
-        else:
-            structure = {DEFAULT_PROCFILE_TYPE: 1}
+        structure = {PROCFILE_TYPE_WEB: 1}
+        if release.build.procfile:
+            for ptype in release.build.procfile.keys():
+                if ptype == PROCFILE_TYPE_WEB:
+                    structure[ptype] = 1
+                else:
+                    structure[ptype] = 0
+        if PROCFILE_TYPE_WEB in structure:
+            if release.build.sha and not release.build.dockerfile and \
+                    (release.build.procfile and PROCFILE_TYPE_WEB not in release.build.procfile):
+                del structure[PROCFILE_TYPE_WEB]
         return structure
 
     def _scheduler_filter(self, **kwargs):
@@ -1035,41 +986,6 @@ class App(UuidAuditedModel):
         })
         return docker_config, name, True
 
-    @staticmethod
-    def _get_request_cpu(size):
-        cpu_request_ratio = settings.KUBERNETES_REQUEST_CPU_RATIO
-        if size.isdigit():
-            unit = 'm'
-            num = (int(size) * 1000) / cpu_request_ratio
-        else:
-            num, unit = (
-                ''.join(item[1]) for item in groupby(
-                    size, key=lambda x: x.isdigit()
-                )
-            )
-            if unit not in ["m", "M"]:
-                raise DryccException("Units are represented in the number or milli of CPUs")
-            else:
-                num = int(num) / cpu_request_ratio
-        return "{num}{unit}".format(num=math.ceil(num), unit=unit)
-
-    @staticmethod
-    def _get_request_memory(size):
-        memory_request_ratio = settings.KUBERNETES_REQUEST_MEMORY_RATIO
-        num, unit = (
-            ''.join(item[1]) for item in groupby(
-                size, key=lambda x: x.isdigit()
-            )
-        )
-        if unit in ['G', 'g']:
-            unit = 'M'
-            num = (int(num) * 1024) / memory_request_ratio
-        elif unit in ['M', 'm']:
-            num = int(num) / memory_request_ratio
-        else:
-            raise DryccException('Units are represented in Megabytes(M), or Gigabytes (G)')
-        return "{num}{unit}".format(num=math.ceil(num), unit=unit)
-
     def _get_volumes_and_mounts(self, process_type, volumes):
         k8s_volumes, k8s_volume_mounts = [], []
         if volumes:
@@ -1082,8 +998,6 @@ class App(UuidAuditedModel):
                 k8s_volumes.append(k8s_volume)
                 k8s_volume_mounts.append(
                     {"name": volume.name, "mountPath": volume.path.get(process_type)})
-        k8s_volumes.extend(json.loads(settings.KUBERNETES_POD_DEFAULT_VOLUMES))
-        k8s_volume_mounts.extend(json.loads(settings.KUBERNETES_POD_DEFAULT_VOLUME_MOUNTS))
         return k8s_volumes, k8s_volume_mounts
 
     def _gather_app_settings(self, release, app_settings, process_type, replicas, volumes=None):
@@ -1093,26 +1007,29 @@ class App(UuidAuditedModel):
 
         Any global setting that can also be set per app goes here
         """
+
         envs = self._build_env_vars(release)
         config = release.config
-        cpu, memory = {}, {}
-        for key, value in config.cpu.items():
-            cpu[key] = "%s/%s" % (self._get_request_cpu(value), value)
-        for key, value in config.memory.items():
-            memory[key] = "%s/%s" % (self._get_request_memory(value), value)
+        # Obtain a limit plan that must exist, if raise error here, it must be a bug
+        self._set_default_config(config, procfile_types=[process_type])
+        limit_plan = LimitPlan.objects.get(id=config.limits.get(process_type))
+
         # see if the app config has deploy batch preference, otherwise use global
-        batches = int(config.values.get('DRYCC_DEPLOY_BATCHES', settings.DRYCC_DEPLOY_BATCHES))  # noqa
+        batches = int(config.values.get('DRYCC_DEPLOY_BATCHES', settings.DRYCC_DEPLOY_BATCHES))
 
         # see if the app config has deploy timeout preference, otherwise use global
-        deploy_timeout = int(config.values.get('DRYCC_DEPLOY_TIMEOUT', settings.DRYCC_DEPLOY_TIMEOUT))  # noqa
+        deploy_timeout = int(
+            config.values.get('DRYCC_DEPLOY_TIMEOUT', settings.DRYCC_DEPLOY_TIMEOUT))
 
         # configures how many ReplicaSets to keep beside the latest version
-        deployment_history = config.values.get('KUBERNETES_DEPLOYMENTS_REVISION_HISTORY_LIMIT',
-                                               settings.KUBERNETES_DEPLOYMENTS_REVISION_HISTORY_LIMIT)  # noqa
+        deployment_history = config.values.get(
+            'KUBERNETES_DEPLOYMENTS_REVISION_HISTORY_LIMIT',
+            settings.KUBERNETES_DEPLOYMENTS_REVISION_HISTORY_LIMIT)
 
         # get application level pod termination grace period
         pod_termination_grace_period_seconds = int(config.values.get(
-            'KUBERNETES_POD_TERMINATION_GRACE_PERIOD_SECONDS', settings.KUBERNETES_POD_TERMINATION_GRACE_PERIOD_SECONDS))  # noqa
+            'KUBERNETES_POD_TERMINATION_GRACE_PERIOD_SECONDS',
+            settings.KUBERNETES_POD_TERMINATION_GRACE_PERIOD_SECONDS))
 
         # set the image pull policy that is associated with the application container
         image_pull_policy = config.values.get('IMAGE_PULL_POLICY', settings.IMAGE_PULL_POLICY)
@@ -1123,22 +1040,20 @@ class App(UuidAuditedModel):
         # only web is routable
         # https://www.drycc.cc/applications/managing-app-processes/#default-process-types
         routable = True if (
-            process_type == DEFAULT_PROCFILE_TYPE and app_settings.routable) else False
+            process_type == PROCFILE_TYPE_WEB and app_settings.routable) else False
 
         healthcheck = config.healthcheck.get(process_type, {})
         volumes, volume_mounts = self._get_volumes_and_mounts(process_type, volumes)
         return {
-            'memory': memory,
-            'cpu': cpu,
             'tags': config.tags,
             'envs': envs,
             'registry': config.registry,
             'replicas': replicas,
             'version': 'v{}'.format(release.version),
             'app_type': process_type,
-            'resources': json.loads(settings.KUBERNETES_POD_DEFAULT_RESOURCES),
+            'resources': {"limits": limit_plan.limits, "requests": limit_plan.requests},
             'build_type': release.build.type,
-            'annotations': json.loads(settings.KUBERNETES_POD_DEFAULT_ANNOTATIONS),
+            'annotations': limit_plan.annotations,
             'healthcheck': healthcheck,
             'runtime_class_name': settings.DRYCC_APP_RUNTIME_CLASS,
             'dns_policy': settings.DRYCC_APP_DNS_POLICY,
@@ -1156,5 +1071,7 @@ class App(UuidAuditedModel):
             'image_pull_policy': image_pull_policy,
             'volumes': volumes,
             'volume_mounts': volume_mounts,
-            'security_context': json.loads(settings.KUBERNETES_POD_DEFAULT_SECURITY_CONTEXT),
+            'node_selector': limit_plan.node_selector,
+            'pod_security_context': limit_plan.pod_security_context,
+            'container_security_context': limit_plan.container_security_context,
         }

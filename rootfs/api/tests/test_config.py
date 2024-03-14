@@ -5,15 +5,20 @@ Unit tests for the Drycc api app.
 Run the tests with "./manage.py test api"
 """
 import json
-
+from io import StringIO
 from django.contrib.auth import get_user_model
 from django.core.cache import cache
 from django.conf import settings
+from django.core.management import call_command
+
 from unittest import mock
 from rest_framework.authtoken.models import Token
 
-from api.models.app import App
+from api.models.app import App, PROCFILE_TYPE_RUN, PROCFILE_TYPE_WEB
 from api.models.config import Config
+from api.serializers import CONFIG_LIMITS_MISMATCH_MSG
+from api.models.build import Build
+from api.models.release import Release
 
 from api.tests import adapter, DryccTransactionTestCase
 import requests_mock
@@ -128,14 +133,15 @@ class ConfigTest(DryccTransactionTestCase):
         settings.DRYCC_DEFAULT_CONFIG_TAGS = '{"ssd": "true"}'
         app_id = self.create_app()
         url = "/v2/apps/{app_id}/config".format(**locals())
-
         response = self.client.get(url)
         expected = {
             'owner': self.user.username,
             'app': app_id,
             'values': {},
-            'memory': {},
-            'cpu': {},
+            'limits': {
+                  PROCFILE_TYPE_RUN: 'std1.large.c1m1',
+                  PROCFILE_TYPE_WEB: 'std1.large.c1m1'
+            },
             'tags': {'ssd': 'true'},
             'registry': {}
         }
@@ -148,8 +154,10 @@ class ConfigTest(DryccTransactionTestCase):
             'owner': self.user.username,
             'app': app_id,
             'values': {'PORT': '5001'},
-            'memory': {},
-            'cpu': {},
+            'limits': {
+                PROCFILE_TYPE_RUN: 'std1.large.c1m1',
+                PROCFILE_TYPE_WEB: 'std1.large.c1m1'
+            },
             'tags': {'ssd': 'true'},
             'registry': {}
         }
@@ -165,15 +173,17 @@ class ConfigTest(DryccTransactionTestCase):
         body = {'values': json.dumps({'PORT': '5000'})}
         response = self.client.post(url, body)
         for key in response.data:
-            self.assertIn(key, ['uuid', 'owner', 'created', 'updated', 'app', 'values', 'memory',
-                                'cpu', 'tags', 'registry', 'healthcheck', 'lifecycle_post_start',
+            self.assertIn(key, ['uuid', 'owner', 'created', 'updated', 'app', 'values', 'limits',
+                                'tags', 'registry', 'healthcheck', 'lifecycle_post_start',
                                 'lifecycle_pre_stop', 'termination_grace_period'])
         expected = {
             'owner': self.user.username,
             'app': app_id,
             'values': {'PORT': '5000'},
-            'memory': {},
-            'cpu': {},
+            'limits': {
+                PROCFILE_TYPE_RUN: 'std1.large.c1m1',
+                PROCFILE_TYPE_WEB: 'std1.large.c1m1'
+            },
             'tags': {},
             'registry': {}
         }
@@ -185,30 +195,38 @@ class ConfigTest(DryccTransactionTestCase):
 
         url = "/v2/apps/{app_id}/config".format(**locals())
 
-        body = {'values': json.dumps({'PORT': 5000}), 'cpu': json.dumps({'web': '1000m'})}
+        body = {
+            'values': json.dumps({'PORT': 5000}),
+            'limits': {
+                PROCFILE_TYPE_WEB: 'std1.large.c1m2',
+            }
+        }
         response = self.client.post(url, body)
         self.assertEqual(response.status_code, 201, response.data)
         for key in response.data:
-            self.assertIn(key, ['uuid', 'owner', 'created', 'updated', 'app', 'values', 'memory',
-                                'cpu', 'tags', 'registry', 'healthcheck', 'lifecycle_post_start',
+            self.assertIn(key, ['uuid', 'owner', 'created', 'updated', 'app', 'values', 'limits',
+                                'tags', 'registry', 'healthcheck', 'lifecycle_post_start',
                                 'lifecycle_pre_stop', 'termination_grace_period'])
         expected = {
             'owner': self.user.username,
             'app': app_id,
             'values': {'PORT': '5000'},
-            'memory': {'web': '1G'},
-            'cpu': {'web': "1000m"},
+            'limits': {
+                PROCFILE_TYPE_RUN: 'std1.large.c1m1',
+                PROCFILE_TYPE_WEB: 'std1.large.c1m2'
+            },
             'tags': {},
             'registry': {}
         }
         self.assertDictContainsSubset(expected, response.data)
 
-        body = {'cpu': json.dumps({'web': 'this will fail'})}
+        body = {'limits': {PROCFILE_TYPE_WEB: "not-exist"}}
         response = self.client.post(url, body)
         self.assertEqual(response.status_code, 400, response.data)
-        self.assertIn(
-            'CPU limit format: <value>, where value must be a numeric',
-            response.data['cpu'])
+        self.assertEqual(
+            str(response.data["limits"][0]),
+            CONFIG_LIMITS_MISMATCH_MSG.format("not-exist")
+        )
 
     def test_config_set_same_key(self, mock_requests):
         """
@@ -409,9 +427,97 @@ class ConfigTest(DryccTransactionTestCase):
         self.assertEqual(app.release_set.latest().config, success_config)
         self.assertEqual(app.config_set.count(), 3)
 
+    def test_unset_limits(self, mock_requests):
+        app_id = self.create_app()
+        url = f"/v2/apps/{app_id}/config"
+        body = {
+            'values': json.dumps({'PORT': 5000}),
+            'limits': {
+                "task": 'std1.large.c2m4',
+                PROCFILE_TYPE_RUN: 'std1.large.c2m4',
+                PROCFILE_TYPE_WEB: 'std1.large.c2m4',
+            },
+        }
+        response = self.client.post(url, body)
+        self.assertEqual(response.status_code, 201)
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data["limits"], body["limits"])
+        # unset ok
+        body = {
+            'limits': {
+                  "task": None,
+            },
+        }
+        response = self.client.post(url, body)
+        self.assertEqual(response.status_code, 201)
+        response = self.client.get(url)
+        self.assertEqual(
+            response.data["limits"],
+            {PROCFILE_TYPE_RUN: 'std1.large.c2m4', PROCFILE_TYPE_WEB: 'std1.large.c2m4'},
+        )
+
+    def test_unset_limits_error(self, mock_requests):
+        app_id = self.create_app()
+        url = f"/v2/apps/{app_id}/config"
+        body = {
+            'values': json.dumps({'PORT': 5000}),
+            'limits': {
+                "task": 'std1.large.c2m4',
+                PROCFILE_TYPE_RUN: 'std1.large.c2m4',
+                PROCFILE_TYPE_WEB: 'std1.large.c2m4',
+            },
+        }
+        response = self.client.post(url, body)
+        self.assertEqual(response.status_code, 201)
+        # dockerfile + procfile worflow
+        app = App.objects.get(id=app_id)
+        user = User.objects.get(username='autotest')
+        build = Build.objects.create(owner=user, app=app, image="qwerty")
+        build = Build.objects.create(
+            owner=user,
+            app=app,
+            image="qwerty",
+            procfile={
+                'web': 'node server.js',
+                'worker': 'node worker.js'
+            },
+            dockerfile='foo',
+            sha='somereallylongsha'
+        )
+        # create an initial release
+        Release.objects.create(
+            version=3,
+            owner=user,
+            app=app,
+            config=app.config_set.latest(),
+            build=build
+        )
+        # unset error
+        body = {
+            'limits': {
+                  "no-exists": None,
+            },
+        }
+        response = self.client.post(url, body)
+        self.assertEqual(response.status_code, 422)
+        self.assertEqual(str(response.data["detail"]), "no-exists does not exist under limits")
+        # scale up
+        body = {'web': 3}
+        response = self.client.post(f"/v2/apps/{app_id}/scale", body)
+        self.assertEqual(response.status_code, 204, response.data)
+
+        body = {
+            'limits': {
+                  PROCFILE_TYPE_WEB: None,
+            },
+        }
+        response = self.client.post(url, body)
+        self.assertEqual(response.status_code, 422)
+        self.assertEqual(
+            str(response.data["detail"]), "the web has already been used and cannot be deleted")
+
     def call_command(self, *args, **kwargs):
-        from io import StringIO
-        from django.core.management import call_command
         out = StringIO()
         call_command(
             "measure_apps",
@@ -426,7 +532,14 @@ class ConfigTest(DryccTransactionTestCase):
         # create
         app_id = self.create_app()
         url = f"/v2/apps/{app_id}/config"
-        body = {'values': json.dumps({'PORT': 5000}), 'cpu': json.dumps({'web': '1000m'})}
-        self.client.post(url, body)
+        body = {
+            'values': json.dumps({'PORT': 5000}),
+            'limits': {
+                  PROCFILE_TYPE_RUN: 'std1.large.c2m4',
+                  PROCFILE_TYPE_WEB: 'std1.large.c2m4',
+            },
+        }
+        response = self.client.post(url, body)
         out = self.call_command()
         self.assertIn(out, "done\n")
+        self.assertEqual(response.status_code, 201)

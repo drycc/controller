@@ -1,0 +1,2210 @@
+---
+# Source: controller/templates/controller-service-account.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: drycc-controller
+  labels:
+    heritage: drycc
+---
+# Source: controller/templates/controller-secret-creds.yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: controller-creds
+  labels:
+    heritage: drycc
+data:
+  django-secret-key: M1AkdENiZzNTYW43aD9qX0dNaCQoT3srTis3NlZsT2cxWTVBSU4vfllmbmNyUCA1Vio8eUwkN28vNypLVihKIA==
+  deploy-hook-secret-key: Xl5ERGUsLWB3IUZpRzthKjlsbTV3L1paMmxfUzk5d357LWVoZ0UmVGFpUidhT3JmRlYsL3JMRHNTaFRtNUVPLw==
+---
+# Source: controller/templates/controller-webhook-register.yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: controller-webhook-cert
+  labels:
+    release: "release-name"
+    heritage: "Helm"
+type: Opaque
+data:
+  token: cWppeTZzb3l4cmtva2VvajFtb2RkY3V4d3A4azFoNWpybWRrYnp6d3lsb25qYnBmeWdvbmR1ZG9qam14cm8xNm1hYzZrYXZmcHhiZmQyaGNzYXNnYXRidDJqbGhncWlweW9ycXVuYnI2b2Nzbmx1dnpnNzZ5ZTU4ZmN4d21iMHk=
+  ca.crt: LS0tLS1CRUdJTiBDRVJUSUZJQ0FURS0tLS0tCk1JSURMRENDQWhTZ0F3SUJBZ0lSQUlHVDB5SmhCVURZcVdrakxPQUJCTEV3RFFZSktvWklodmNOQVFFTEJRQXcKSURFZU1Cd0dBMVVFQXhNVlkyOXVkSEp2Ykd4bGNpMTNaV0pvYjI5ckxXTmhNQjRYRFRJME1ETXhNekF6TURndwpOMW9YRFRNME1ETXhNVEF6TURnd04xb3dJREVlTUJ3R0ExVUVBeE1WWTI5dWRISnZiR3hsY2kxM1pXSm9iMjlyCkxXTmhNSUlCSWpBTkJna3Foa2lHOXcwQkFRRUZBQU9DQVE4QU1JSUJDZ0tDQVFFQTRsOFdLdzVMSGZpNjV4WVMKMVdtMmxzUTAycDlUQ2w0MGVLOU9PTEhnUk5jckllRHEzcmxFU1l6cFp1aDQ5eUwyQnVObWNESFNLMUhoSkRVSQp5Tzg2Tnpqa040Y2ZNNEtyQ2lDYVVHWEk1UlhZQWJoUlhIcDdkUlk3cmdwS3llM3p3akh6OUQvcHlvNWE4ZkR0CmNvSm9CWVlqVDF2NjcyTVZUV0dnQ1dqVDIrdWRiRHh4UWkvakZFdGdzekpkVGkxMEFVL2VtMlNSVmpYUUZ1SloKZHh6dGZTd0RuOTlhZE1ra0hDd0VjNjlJdTRkL0ppeURwU01Ta3ZuOThyaTIzelIwNUgzT2pLQklDWWhLWGM3Tgp6cXErcTRtQ0UycDdzZFJKZFMvR3RraXovbVRlM09xck5UKzJZS203Y0MweU50OThKQ2tuQXFtVUJSWXV2UzBFCi9EdDRUd0lEQVFBQm8yRXdYekFPQmdOVkhROEJBZjhFQkFNQ0FxUXdIUVlEVlIwbEJCWXdGQVlJS3dZQkJRVUgKQXdFR0NDc0dBUVVGQndNQ01BOEdBMVVkRXdFQi93UUZNQU1CQWY4d0hRWURWUjBPQkJZRUZLSkJGV1QwZDQ5bAo3RFk0Mld3Z09DU1RvSFpQTUEwR0NTcUdTSWIzRFFFQkN3VUFBNElCQVFEYVIxLzMyMnBrMDUwM3dhMU1xTkxlCmNuenVvendzcitBclB5Z0ovN2VhYnV1eERtZWpSY1RjaVhKd3lOMFZBWWdWWFFhUmZkUXd5NExmZ2FuTThHeTMKWWNlVWI3NUc0L0k0QWRqZ3B0dkgvZUhuS2VSUjYwcktnTExPTTEzelFNZHVpeUdzcTdHdlM5ZTJ2eVVtUFlBNApvWDBYOXhnWTBQaE1RdTRJTWtXN1ZpMFBHNDFya2hrRWZyVEExeTJNdWxJbU8yZjBSL2FzRUhYSGpTaHAvYVZPCmg0Z1BnTlVqdTU1RG5nV0tXZkxjNUNZSmhNQTFkVElnY1R0eTMvczZZcUVkTXQ5cDVDSDF0czB0NkpaekdiS0IKUXoycm9sRlFWbUhjeURGWnMxdkhMQ1F3V3dKdzFwVWpSbXcwa2tMblV6YVE3TTIxSEpIeXBWSUhmZW1oWTc0dgotLS0tLUVORCBDRVJUSUZJQ0FURS0tLS0tCg==
+  ca.key: LS0tLS1CRUdJTiBSU0EgUFJJVkFURSBLRVktLS0tLQpNSUlFcEFJQkFBS0NBUUVBNGw4V0t3NUxIZmk2NXhZUzFXbTJsc1EwMnA5VENsNDBlSzlPT0xIZ1JOY3JJZURxCjNybEVTWXpwWnVoNDl5TDJCdU5tY0RIU0sxSGhKRFVJeU84Nk56amtONGNmTTRLckNpQ2FVR1hJNVJYWUFiaFIKWEhwN2RSWTdyZ3BLeWUzendqSHo5RC9weW81YThmRHRjb0pvQllZalQxdjY3Mk1WVFdHZ0NXalQyK3VkYkR4eApRaS9qRkV0Z3N6SmRUaTEwQVUvZW0yU1JWalhRRnVKWmR4enRmU3dEbjk5YWRNa2tIQ3dFYzY5SXU0ZC9KaXlECnBTTVNrdm45OHJpMjN6UjA1SDNPaktCSUNZaEtYYzdOenFxK3E0bUNFMnA3c2RSSmRTL0d0a2l6L21UZTNPcXIKTlQrMllLbTdjQzB5TnQ5OEpDa25BcW1VQlJZdXZTMEUvRHQ0VHdJREFRQUJBb0lCQUFWYmVMdldIOEw2MHZtTApGVEVGeW5OdyswczlRQXJieGVRaFNmbWZoQTQ5QldGTTRHSWJBbG0zUXdMVGQ2RnBxMmJvVk5GTTdJdG42YXNnCnNpK0hNZHFDdHl2MVA3REpZK0RlZXFoeWNEbXp0YVA4eDdnbmtlcG9kMHNjSlQ3NEthK3IzUGtuMWhHY0l0emMKOWRHaThuRkhCbWpuWlYzcSsyTVViMlFwbmZIemF5TnhYcVJwUHVzRmE4QXdFNWFkUzE3TjdRVUQyOFBKcWlMdgpjRGVEayt1OFBqcjBFOHRNdzFsc3VuZ0NUYUFCVWF3bGJ3b2U5VXU5SVFkdVNGTHVveUtxVTVvYnpSUXRadXZGCnhHVU54UCtHdm9ZNFF6WFZJREJXeko1OHEzTERHaVdwWGxXVUYwUG1hbDc1YWpuWVFmMzZ6Yzl5K1k3NFBmYW8Kb0hEUEF1a0NnWUVBKzhGSDI4Q3Nqemw0Z3g4ZW9YMkxWK211OXZVWVB0U0xwdW4yanIxanAxK085bjU2dzJ0aApOaFl4Y2VtaFVneE53MEd5OHVrSEcwdjU3QVZ6U0dsWFhCNUgwRzVCazk5MTJRb3E2dFhkN0hDZEd5aWI5dXhDClJoT1RvMXM1U2htYmVCVUorR2NvZThzVTMyUHFrUWFDNFhCV1dKVk9ISUQrMzdNWWtYQVNzSHNDZ1lFQTVqQTgKWG1udHU4dVZMRFdIZVZsUlpvUUZTWWx2QlNkNVVTOU5VRzJBbHB4Wk9DMWtJdkRpeWRocExUMHRPQ2tMa21NTgo2MElpVlpMYStKVEFHNUZFNTdQNmgxOVZ3b2NWWmI1N2E2cXp1V3hSUGYxVCtod3JMamdFbit6QmhMbnlXWjJKCjRWdjN1cXNYWDRoQWMyMEZwYmpQQzNTbnVJNkZ2YzY2VUtZcDBUMENnWUVBanNjZktkSXNDMDVjdW9CN3JycTAKdkRjYnM1TnRITFVPUHF1UjJZSXZjazBQbDF4RDQzQ1N3VW4wNE5YUFYra0NjU3BoZ3NJRjljVXhDRnBPOTFKRwo2VWVERXdKMHpwaDlEWXBtcktoK0pBbjZEOTBJRnhJR3hCZDJNNzhZenAyWFBwTXdCR0Q4NUxoWUxobE1mdE5pCmh0aGZILzROUHIwcHoxU1RLbWlWTU9FQ2dZQVFQcDAwQ0lPM2VoR0g4aXNpWERSTGFNdTZ1ZEUwNnVrNzJudTUKVGxFQnovelg0eFFyQnhicUtiU2FkYlBJUDlWS09tVlVFZkc4V2tYTHZ5dWpobWYzZGhNYkZKWkh5U0t3Y0hYagpUa09xdFVNeWZiczhibHA1dzRoSUJQeFBNcFF3ME5aWEtoZGNmQkNGTkdkZi9mU2xFbHJDTXpSVzZPLzFTaTZKCjNJQWMvUUtCZ1FER3hZdWRXNDZhYi9YM1czeWF3dmFxWmtlWENuV0gxRFExTGhUdWtxMUZlTy91Qk9oNEtXNXIKNFA4Z1JqTzJmVVh0Z3BzVm0yMkNyeC9OQksyMFNiRnZidG1WNjNManBZZGdkTFV2VmxsTUxFeGt0bHV6bnhSOQpUWU00SGZOa25WK0hBQjRseDBFY0J3QzJ6eHFXZ3lPRjNFTkZuYXREZkpHMFZSYnRCdXZCOFE9PQotLS0tLUVORCBSU0EgUFJJVkFURSBLRVktLS0tLQo=
+  tls.crt: LS0tLS1CRUdJTiBDRVJUSUZJQ0FURS0tLS0tCk1JSURnekNDQW11Z0F3SUJBZ0lSQU0ydlAyWHhrdSsySG50dG1ZNko1bkF3RFFZSktvWklodmNOQVFFTEJRQXcKSURFZU1Cd0dBMVVFQXhNVlkyOXVkSEp2Ykd4bGNpMTNaV0pvYjI5ckxXTmhNQjRYRFRJME1ETXhNekF6TURndwpOMW9YRFRNME1ETXhNVEF6TURnd04xb3dJekVoTUI4R0ExVUVBeE1ZWkhKNVkyTXRZMjl1ZEhKdmJHeGxjaTEzClpXSm9iMjlyTUlJQklqQU5CZ2txaGtpRzl3MEJBUUVGQUFPQ0FROEFNSUlCQ2dLQ0FRRUEzcWRwb0RQUUNaR3YKeHM5aGl2aTdkRk5mK2tOVmU0aUYrdDd1Ym0wL2pVekp6YzhYMGFGbG1YQ2cxb1U5eXlIZCswYTJib3RtVC9kago4MXpwZHFHL0p1a1NtNFI2OEVDemFVSUxmNkRFZUZiaitaL2tXL0pGRlpDUnQyTnRqMTBDTGFYeCt3S213aFk3CnJrMko5WkhvemlGK004ZlFPQUozdWtUelY5amo5UjFxbXF1QUVBdm1wQWRrUnlET3lKamNWMjFFaWVsZ3dVMmMKUkxFZ2JsVWhmbjNFQUJjcm1TWDBsOEQ4Rk4yY1pmT1BYaGVzU0YzeUZrakN5Y1V6Z3ZzNzVTRUJNSmRuN1dZRgpobGtmNTBDOWlyTnpHSzBiMEVYT2dOZDJ3Nk43ZmFucFhmakpsdXp6N0UydDlxcno0WTlZd05NZmJoVjUzUFBxCnk2RFVtQ3FWOFFJREFRQUJvNEcwTUlHeE1BNEdBMVVkRHdFQi93UUVBd0lGb0RBZEJnTlZIU1VFRmpBVUJnZ3IKQmdFRkJRY0RBUVlJS3dZQkJRVUhBd0l3REFZRFZSMFRBUUgvQkFJd0FEQWZCZ05WSFNNRUdEQVdnQlNpUVJWawo5SGVQWmV3Mk9ObHNJRGdrazZCMlR6QlJCZ05WSFJFRVNqQklnaUJrY25sall5MWpiMjUwY205c2JHVnlMWGRsClltaHZiMnN1WkdWbVlYVnNkSUlrWkhKNVkyTXRZMjl1ZEhKdmJHeGxjaTEzWldKb2IyOXJMbVJsWm1GMWJIUXUKYzNaak1BMEdDU3FHU0liM0RRRUJDd1VBQTRJQkFRQ1QxRFJ0SDVGNDJ3UmFVN21jUWZDeWFQRGlBYTkvc2NXbgo0WVVBYjFYNE1jZldqcjVmbW1NQmlYdit5V3k1SlJhTFozNnhNRkRkSlEvWXdCSmVjN1QwUjdPYWZENkFZS0tBCjFBR0xUemZMbWJYcU5yeVlWNkJxb3lrMEdJcTFLR0p4enYrcE4ramExN2VhcndDL3ZJOG1JRmFUSTdJaXQ5ZG0KZkpQN3JHSWxmLzR6ZVBlZVFwc0ZQMURzcUE2MzEvZkNHcTJnVE5zd2E5d2krekFqUjkwVFJucHVJQnFqMDFJaApDS3JwdXdqakxjb1d2VzVUVWJKTDQwK3hxU0xOcVJyTzlEM0NaWUNsa2M4Z1h0NlJUTDI5MmJmRVBJd0xjQlNMCldJdEVDOHpHNjkzbm9zclJRZjZLV2JCQWRzdlJWVDM4YnVEU0dKTHdLbW5uMU9HU21NcGEKLS0tLS1FTkQgQ0VSVElGSUNBVEUtLS0tLQo=
+  tls.key: LS0tLS1CRUdJTiBSU0EgUFJJVkFURSBLRVktLS0tLQpNSUlFcFFJQkFBS0NBUUVBM3FkcG9EUFFDWkd2eHM5aGl2aTdkRk5mK2tOVmU0aUYrdDd1Ym0wL2pVekp6YzhYCjBhRmxtWENnMW9VOXl5SGQrMGEyYm90bVQvZGo4MXpwZHFHL0p1a1NtNFI2OEVDemFVSUxmNkRFZUZiaitaL2sKVy9KRkZaQ1J0Mk50ajEwQ0xhWHgrd0ttd2hZN3JrMko5WkhvemlGK004ZlFPQUozdWtUelY5amo5UjFxbXF1QQpFQXZtcEFka1J5RE95SmpjVjIxRWllbGd3VTJjUkxFZ2JsVWhmbjNFQUJjcm1TWDBsOEQ4Rk4yY1pmT1BYaGVzClNGM3lGa2pDeWNVemd2czc1U0VCTUpkbjdXWUZobGtmNTBDOWlyTnpHSzBiMEVYT2dOZDJ3Nk43ZmFucFhmakoKbHV6ejdFMnQ5cXJ6NFk5WXdOTWZiaFY1M1BQcXk2RFVtQ3FWOFFJREFRQUJBb0lCQVFEQXhHaXFqckU2MTZzNwprU2grVFVMZVA2RUU1MjhHK1BnbWJ3UTNEdGJLMndTTTd4Tk1KMVB6T0pQSHBxd05SbEVOei9iNlZpNUtaWUZmCm5iMXpQQzVtM2J1Q2NYeU9yVFdubDhxa3dPZlkyRUdnU1ZKSVdNUi9HeDlOaXdPNzcyYUhadmpOdlVuckY1eXMKRisydGNwb0FmUGJxbGNBci9kYnlxZWVVMHU3cHN1UzdjUFJuNjZ4MDkxMjN3ZDVTRjhXVHA5S0xNL3FCR3ZTRgpzK3FBRkU0bFQ0elE5NEZibWJrd3BTa1BLSHJmUHNIakJZdDFlUG0xMTEyQzFhQ1c2eUpwMndvNHQrc1YydmxHClBscWhYR0grSHhFQm4yaXloRVF0K2pDTW5xc0xub3dGaGYySHdUMmxHUkdSR2hQN3k3NEZwQmZ3NGx2dXhWaGsKWTYzZjdKZ0JBb0dCQU90NUc5U2UrNUhiK0RzenVIcW5mR0VNSW80ZXBDT0lHRFU4d2d6TnUxc3RsMzlzNkRHNgowcTluUlk1ZXVVdkM2a1JHazZScGIxeUVBNEpSODJ4dmJaZ0p6RnU1eU5wVE1ueUM5RzdOeW9nZlA5eEhRbllpCmhwWXlTdHQyeGwrdWRhQXJ5d0NDS3BYZEI0MTZYaG84N3hsRmlxSFQzVHhwVzZuTjhIK0UvZjVoQW9HQkFQSVEKT203czRyQWlPVmUvK2g5ekc4TGZQSnVXVWQxUXlpMHZ4N3VYekl5dkZKRkYrZHBBOVNIZzJONlQwNzR6N2lDTAo1NmlJSDNFYWJwbllsN1JKYUUvNEFFc1JEQUU5c3kvdE53ZENHOHVCM0lVSjFKTHYzaDlvMmZhM0FNVi9TSzVRCmVKaDBOM09ZOWtxK0RFRVUwNnlrbnExVk81ZllWQ0VjbW5lSFl5R1JBb0dCQU5CTmo1QVVuK2tWRlUrUjNsVXEKaW4zelZUSXg2dk8vdGVLS2dBTUJrQWNGbXVwUGRreGZ2M2NKUFYvSGJkV1dkTlMzTm02UUVzSmR5aGpqMUJvTgpySDU5MUhra0xZanRabEQ5SzZ4RmdpL09yUmg1TlZMNkVlTVdWR0EyZnlBdlhjQzJYTnR6U3FiT0k1dEZMNis0ClRhOG1kSS9ac3ZGNUpteGRVSzRPQVA2aEFvR0FlM1hQZDlnV1hxTjEvODJJc3hXd3FSblcvYndUa1ArdHZwSksKR3VIM2tDR1VLZXc0M1JxWWJHa1Q4NklPTTBxbFA3QmJ2VmVBUWQyclg0aGJCN2NSSHdoc2pkenA5SkFWbm5Jcwp5T1RzN0VVVnhqMFhVTUpLMWxaU0pVVjlmVDNJUWpBRThpMEVRMDlXL3hRamgrWXBlRHFXTyszbThUR0M1MGlCCmVFbHpSQ0VDZ1lFQXBzcDZMMFhuSk84dytOT2MvZnRkTDlKU01yQkozcWQ5cUlpVW00d1RESTFaUlZaNEMxV3QKeTd1TkhOWkp5UjhpY0xVaVNGRHN0UXY0VlpaSGVsTXRqTjFVZWtZWVNJeDZHZy9kU1NHWWdzRVE5RkJaSE5WYgp3b3lDeDc1VFVGanRpR1BSd3VCMjBvWGRCOGF6cU4wdzZyV09QWGdJSGpRZndVVVpCZDNRc1lvPQotLS0tLUVORCBSU0EgUFJJVkFURSBLRVktLS0tLQo=
+---
+# Source: controller/templates/controller-configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: controller-config
+  labels:
+    heritage: drycc
+data:
+  limit-specs.json: |
+    [{
+      "model": "api.limitspec",
+      "pk": "std1",
+      "fields": {
+        "cpu": {
+          "name": "Unknown CPU",
+          "cores": 32,
+          "clock": "3100MHZ",
+          "boost": "3700MHZ",
+          "threads": 64
+        },
+        "memory": {
+          "size": "64GB",
+          "type": "DDR4-ECC"
+        },
+        "features": {
+          "gpu": {
+            "name": "Unknown Integrated GPU",
+            "tmus": 1,
+            "rops": 1,
+            "cores": 128,
+            "memory": {
+              "size": "shared",
+              "type": "shared"
+            }
+          },
+          "network": "10G"
+        },
+        "keywords": ["unknown"],
+        "disabled": false,
+        "created": "2024-03-13T11:08:07.681Z",
+        "updated": "2024-03-13T11:08:07.681Z"
+      }
+    }]
+  # Given a name SPEC.NETWORK.PLAN(eg: std1.xlarge.c1m1), increment the:
+  # * SPEC different specification families can be selected based on business and usage scenarios.
+  # * NETWORK 
+  # * PLAN Specific CPU configuration, such as c1m1 representing one CPU and 1GB of memory.
+  limit-plans.json: |
+    [
+    {
+      "model": "api.limitplan",
+      "pk": "std1.large.c1m1",
+      "fields": {
+        "spec_id": "std1",
+        "cpu": 1,
+        "memory": 1,
+        "disabled": false,
+        "priority": 100,
+        "limits": {
+          "cpu": 1,
+          "memory": "1Gi",
+          "ephemeral-storage": "2Gi"
+        },
+        "requests": {
+          "cpu": 0.5,
+          "memory": "0.5Gi",
+          "ephemeral-storage": "2Gi"
+        },
+        "annotations": {
+          "kubernetes.io/egress-bandwidth": "10M",
+          "kubernetes.io/ingress-bandwidth": "10M"
+        },
+        "node_selector": {},
+        "pod_security_context": {},
+        "container_security_context": {},
+        "created": "2024-03-13T11:08:07.681Z",
+        "updated": "2024-03-13T11:08:07.681Z"
+      }
+    },
+    {
+      "model": "api.limitplan",
+      "pk": "std1.large.c1m2",
+      "fields": {
+        "spec_id": "std1",
+        "cpu": 1,
+        "memory": 2,
+        "disabled": false,
+        "priority": 101,
+        "limits": {
+          "cpu": 1,
+          "memory": "2Gi",
+          "ephemeral-storage": "2Gi"
+        },
+        "requests": {
+          "cpu": 0.5,
+          "memory": "1Gi",
+          "ephemeral-storage": "2Gi"
+        },
+        "annotations": {
+          "kubernetes.io/egress-bandwidth": "10M",
+          "kubernetes.io/ingress-bandwidth": "10M"
+        },
+        "node_selector": {},
+        "pod_security_context": {},
+        "container_security_context": {},
+        "created": "2024-03-13T11:08:07.681Z",
+        "updated": "2024-03-13T11:08:07.681Z"
+      }
+    },
+    {
+      "model": "api.limitplan",
+      "pk": "std1.large.c1m4",
+      "fields": {
+        "spec_id": "std1",
+        "cpu": 1,
+        "memory": 4,
+        "disabled": false,
+        "priority": 102,
+        "limits": {
+          "cpu": 1,
+          "memory": "4Gi",
+          "ephemeral-storage": "2Gi"
+        },
+        "requests": {
+          "cpu": 0.5,
+          "memory": "2Gi",
+          "ephemeral-storage": "2Gi"
+        },
+        "annotations": {
+          "kubernetes.io/egress-bandwidth": "20M",
+          "kubernetes.io/ingress-bandwidth": "20M"
+        },
+        "node_selector": {},
+        "pod_security_context": {},
+        "container_security_context": {},
+        "created": "2024-03-13T11:08:07.681Z",
+        "updated": "2024-03-13T11:08:07.681Z"
+      }
+    },
+    {
+      "model": "api.limitplan",
+      "pk": "std1.large.c2m2",
+      "fields": {
+        "spec_id": "std1",
+        "cpu": 2,
+        "memory": 2,
+        "disabled": false,
+        "priority": 103,
+        "limits": {
+          "cpu": 2,
+          "memory": "2Gi",
+          "ephemeral-storage": "2Gi"
+        },
+        "requests": {
+          "cpu": 1,
+          "memory": "1Gi",
+          "ephemeral-storage": "2Gi"
+        },
+        "annotations": {
+          "kubernetes.io/egress-bandwidth": "20M",
+          "kubernetes.io/ingress-bandwidth": "20M"
+        },
+        "node_selector": {},
+        "pod_security_context": {},
+        "container_security_context": {},
+        "created": "2024-03-13T11:08:07.681Z",
+        "updated": "2024-03-13T11:08:07.681Z"
+      }
+    },
+    {
+      "model": "api.limitplan",
+      "pk": "std1.large.c2m4",
+      "fields": {
+        "spec_id": "std1",
+        "cpu": 2,
+        "memory": 4,
+        "disabled": false,
+        "priority": 104,
+        "limits": {
+          "cpu": 2,
+          "memory": "4Gi",
+          "ephemeral-storage": "2Gi"
+        },
+        "requests": {
+          "cpu": 1,
+          "memory": "2Gi",
+          "ephemeral-storage": "2Gi"
+        },
+        "annotations": {
+          "kubernetes.io/egress-bandwidth": "30M",
+          "kubernetes.io/ingress-bandwidth": "30M"
+        },
+        "node_selector": {},
+        "pod_security_context": {},
+        "container_security_context": {},
+        "created": "2024-03-13T11:08:07.681Z",
+        "updated": "2024-03-13T11:08:07.681Z"
+      }
+    },
+    {
+      "model": "api.limitplan",
+      "pk": "std1.large.c2m8",
+      "fields": {
+        "spec_id": "std1",
+        "cpu": 2,
+        "memory": 8,
+        "disabled": false,
+        "priority": 105,
+        "limits": {
+          "cpu": 2,
+          "memory": "8Gi",
+          "ephemeral-storage": "2Gi"
+        },
+        "requests": {
+          "cpu": 1,
+          "memory": "4Gi",
+          "ephemeral-storage": "2Gi"
+        },
+        "annotations": {
+          "kubernetes.io/egress-bandwidth": "30M",
+          "kubernetes.io/ingress-bandwidth": "30M"
+        },
+        "node_selector": {},
+        "pod_security_context": {},
+        "container_security_context": {},
+        "created": "2024-03-13T11:08:07.681Z",
+        "updated": "2024-03-13T11:08:07.681Z"
+      }
+    }
+    ]
+---
+# Source: controller/templates/controller-api-service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: drycc-controller-api
+  annotations:
+  labels:
+    heritage: drycc
+spec:
+  ports:
+    - name: http
+      port: 80
+      targetPort: 8000
+  selector:
+    app: drycc-controller-api
+---
+# Source: controller/templates/controller-webhook-service.yaml
+kind: Service
+apiVersion: v1
+metadata:
+  name: drycc-controller-webhook
+spec:
+  selector:
+    component: drycc-controller-webhook
+  ports:
+  - name: https
+    port: 8443
+    targetPort: 8443
+---
+# Source: controller/templates/controller-api-deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: drycc-controller
+  labels:
+    heritage: drycc
+  annotations:
+    component.drycc.cc/version: canary
+spec:
+  replicas: 1
+  strategy:
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+    type: RollingUpdate
+  selector:
+    matchLabels:
+      app: drycc-controller-api
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: controller
+        helm.sh/chart: controller-v1.1.0
+        app.kubernetes.io/instance: release-name
+        app.kubernetes.io/managed-by: Helm
+        app: drycc-controller-api
+    spec:
+      affinity:
+        podAffinity:
+          
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - podAffinityTerm:
+                labelSelector:
+                  matchLabels:
+                    app.kubernetes.io/instance: release-name
+                    app.kubernetes.io/name: controller
+                    app: "drycc-controller-api"
+                topologyKey: kubernetes.io/hostname
+              weight: 1
+        nodeAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - preference:
+                matchExpressions:
+                  - key: drycc.cc/node
+                    operator: In
+                    values:
+                      - "true"
+              weight: 1
+      serviceAccount: drycc-controller
+      initContainers:
+      - name: drycc-controller-init
+        image: registry.drycc.cc/drycc/python-dev:latest
+        imagePullPolicy: Always
+        args:
+        - netcat
+        - -v
+        - -u
+        - $(DRYCC_DATABASE_URL),$(DRYCC_DATABASE_REPLICA_URL),$(DRYCC_RABBITMQ_URL)
+        - -a
+        - $(DRYCC_REDIS_ADDRS)        
+        env:
+        - name: REGISTRATION_MODE
+          value: admin_only
+        # Environmental variable value for $GATEWAY_CLASS
+        - name: "DRYCC_GATEWAY_CLASS"
+          value: ""
+        - name: "K8S_API_VERIFY_TLS"
+          value: "true"
+        - name: "DRYCC_REGISTRY_LOCATION"
+          value: "on-cluster"
+        - name: "DRYCC_REGISTRY_SECRET_PREFIX"
+          value: "private-registry"
+        - name: "IMAGE_PULL_POLICY"
+          value: "Always"
+        - name: "KUBERNETES_CLUSTER_DOMAIN"
+          value: "cluster.local"
+        - name: "DRYCC_APP_STORAGE_CLASS"
+          value: "drycc-storage"
+        - name: "DRYCC_APP_POD_EXEC_TIMEOUT"
+          value: "3600"
+        - name: "TZ"
+          value: "UTC"
+        - name: "DJANGO_SETTINGS_MODULE"
+          value: "api.settings.production"
+        - name: DRYCC_SECRET_KEY
+          valueFrom:
+            secretKeyRef:
+              name: controller-creds
+              key: django-secret-key
+        - name: DRYCC_BUILDER_KEY
+          valueFrom:
+            secretKeyRef:
+              name: builder-key-auth
+              key: builder-key
+        - name: DRYCC_PG_USER
+          valueFrom:
+            secretKeyRef:
+              name: database-creds
+              key: user
+        - name: DRYCC_PG_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: database-creds
+              key: password
+        - name: DRYCC_DATABASE_URL
+          value: "postgres://$(DRYCC_PG_USER):$(DRYCC_PG_PASSWORD)@drycc-database.default.svc.cluster.local:5432/controller"
+        - name: DRYCC_DATABASE_REPLICA_URL
+          value: "postgres://$(DRYCC_PG_USER):$(DRYCC_PG_PASSWORD)@drycc-database-replica.default.svc.cluster.local:5432/controller"
+        - name: WORKFLOW_NAMESPACE
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.namespace
+        - name: DRYCC_REDIS_ADDRS
+          valueFrom:
+            secretKeyRef:
+              name: redis-creds
+              key: addrs
+        - name: DRYCC_REDIS_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: redis-creds
+              key: password
+        - name: "DRYCC_PROMETHEUS_USERNAME"
+          valueFrom:
+            secretKeyRef:
+              name: prometheus-creds
+              key: username
+        - name: "DRYCC_PROMETHEUS_PASSWORD"
+          valueFrom:
+            secretKeyRef:
+              name: prometheus-creds
+              key: password
+        - name: "DRYCC_PROMETHEUS_URL"
+          value: "http://$(DRYCC_PROMETHEUS_USERNAME):$(DRYCC_PROMETHEUS_PASSWORD)@drycc-prometheus.default.svc.cluster.local:9090"
+        - name: "DRYCC_PASSPORT_URL"
+          value: https://drycc-passport.
+        - name: DRYCC_PASSPORT_KEY
+          valueFrom:
+            secretKeyRef:
+              name: passport-creds
+              key: drycc-passport-controller-key
+        - name: DRYCC_PASSPORT_SECRET
+          valueFrom:
+            secretKeyRef:
+              name: passport-creds
+              key: drycc-passport-controller-secret
+        - name: RESERVED_NAMES
+          value: "drycc, drycc-builder, drycc-monitor-grafana, drycc-passport, drycc-helmbroker, drycc-manager"
+      containers:
+      - name: drycc-controller
+        image: registry.drycc.cc/drycc/controller:canary
+        imagePullPolicy: Always
+        startupProbe:
+          tcpSocket:
+            port: 8000
+          initialDelaySeconds: 30
+          periodSeconds: 60
+          timeoutSeconds: 1
+          successThreshold: 1
+          failureThreshold: 10
+        livenessProbe:
+          httpGet:
+            path: /healthz
+            port: 8000
+          initialDelaySeconds: 30
+          timeoutSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /readiness
+            port: 8000
+          initialDelaySeconds: 30
+          timeoutSeconds: 10
+          periodSeconds: 5
+        ports:
+          - containerPort: 8000
+            name: http                
+        env:
+        - name: REGISTRATION_MODE
+          value: admin_only
+        # Environmental variable value for $GATEWAY_CLASS
+        - name: "DRYCC_GATEWAY_CLASS"
+          value: ""
+        - name: "K8S_API_VERIFY_TLS"
+          value: "true"
+        - name: "DRYCC_REGISTRY_LOCATION"
+          value: "on-cluster"
+        - name: "DRYCC_REGISTRY_SECRET_PREFIX"
+          value: "private-registry"
+        - name: "IMAGE_PULL_POLICY"
+          value: "Always"
+        - name: "KUBERNETES_CLUSTER_DOMAIN"
+          value: "cluster.local"
+        - name: "DRYCC_APP_STORAGE_CLASS"
+          value: "drycc-storage"
+        - name: "DRYCC_APP_POD_EXEC_TIMEOUT"
+          value: "3600"
+        - name: "TZ"
+          value: "UTC"
+        - name: "DJANGO_SETTINGS_MODULE"
+          value: "api.settings.production"
+        - name: DRYCC_SECRET_KEY
+          valueFrom:
+            secretKeyRef:
+              name: controller-creds
+              key: django-secret-key
+        - name: DRYCC_BUILDER_KEY
+          valueFrom:
+            secretKeyRef:
+              name: builder-key-auth
+              key: builder-key
+        - name: DRYCC_PG_USER
+          valueFrom:
+            secretKeyRef:
+              name: database-creds
+              key: user
+        - name: DRYCC_PG_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: database-creds
+              key: password
+        - name: DRYCC_DATABASE_URL
+          value: "postgres://$(DRYCC_PG_USER):$(DRYCC_PG_PASSWORD)@drycc-database.default.svc.cluster.local:5432/controller"
+        - name: DRYCC_DATABASE_REPLICA_URL
+          value: "postgres://$(DRYCC_PG_USER):$(DRYCC_PG_PASSWORD)@drycc-database-replica.default.svc.cluster.local:5432/controller"
+        - name: WORKFLOW_NAMESPACE
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.namespace
+        - name: DRYCC_REDIS_ADDRS
+          valueFrom:
+            secretKeyRef:
+              name: redis-creds
+              key: addrs
+        - name: DRYCC_REDIS_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: redis-creds
+              key: password
+        - name: "DRYCC_PROMETHEUS_USERNAME"
+          valueFrom:
+            secretKeyRef:
+              name: prometheus-creds
+              key: username
+        - name: "DRYCC_PROMETHEUS_PASSWORD"
+          valueFrom:
+            secretKeyRef:
+              name: prometheus-creds
+              key: password
+        - name: "DRYCC_PROMETHEUS_URL"
+          value: "http://$(DRYCC_PROMETHEUS_USERNAME):$(DRYCC_PROMETHEUS_PASSWORD)@drycc-prometheus.default.svc.cluster.local:9090"
+        - name: "DRYCC_PASSPORT_URL"
+          value: https://drycc-passport.
+        - name: DRYCC_PASSPORT_KEY
+          valueFrom:
+            secretKeyRef:
+              name: passport-creds
+              key: drycc-passport-controller-key
+        - name: DRYCC_PASSPORT_SECRET
+          valueFrom:
+            secretKeyRef:
+              name: passport-creds
+              key: drycc-passport-controller-secret
+        - name: RESERVED_NAMES
+          value: "drycc, drycc-builder, drycc-monitor-grafana, drycc-passport, drycc-helmbroker, drycc-manager"
+---
+# Source: controller/templates/controller-celery-deloyment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: drycc-controller-celery
+  labels:
+    heritage: drycc
+  annotations:
+    component.drycc.cc/version: canary
+spec:
+  replicas: 1
+  strategy:
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+    type: RollingUpdate
+  selector:
+    matchLabels:
+      app: drycc-controller-celery
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: controller
+        helm.sh/chart: controller-v1.1.0
+        app.kubernetes.io/instance: release-name
+        app.kubernetes.io/managed-by: Helm
+        app: drycc-controller-celery
+    spec:
+      affinity:
+        podAffinity:
+          
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - podAffinityTerm:
+                labelSelector:
+                  matchLabels:
+                    app.kubernetes.io/instance: release-name
+                    app.kubernetes.io/name: controller
+                    app: "drycc-controller-celery"
+                topologyKey: kubernetes.io/hostname
+              weight: 1
+        nodeAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - preference:
+                matchExpressions:
+                  - key: drycc.cc/node
+                    operator: In
+                    values:
+                      - "true"
+              weight: 1
+      serviceAccount: drycc-controller
+      initContainers:
+      - name: drycc-controller-init
+        image: registry.drycc.cc/drycc/python-dev:latest
+        imagePullPolicy: Always
+        args:
+          - netcat
+          - -v
+          - -u
+          - $(DRYCC_DATABASE_URL),$(DRYCC_DATABASE_REPLICA_URL),$(DRYCC_RABBITMQ_URL)
+          - -a
+          - $(DRYCC_REDIS_ADDRS),$(DRYCC_CONTROLLER_API_SERVICE_HOST):$(DRYCC_CONTROLLER_API_SERVICE_PORT)        
+        env:
+        - name: REGISTRATION_MODE
+          value: admin_only
+        # Environmental variable value for $GATEWAY_CLASS
+        - name: "DRYCC_GATEWAY_CLASS"
+          value: ""
+        - name: "K8S_API_VERIFY_TLS"
+          value: "true"
+        - name: "DRYCC_REGISTRY_LOCATION"
+          value: "on-cluster"
+        - name: "DRYCC_REGISTRY_SECRET_PREFIX"
+          value: "private-registry"
+        - name: "IMAGE_PULL_POLICY"
+          value: "Always"
+        - name: "KUBERNETES_CLUSTER_DOMAIN"
+          value: "cluster.local"
+        - name: "DRYCC_APP_STORAGE_CLASS"
+          value: "drycc-storage"
+        - name: "DRYCC_APP_POD_EXEC_TIMEOUT"
+          value: "3600"
+        - name: "TZ"
+          value: "UTC"
+        - name: "DJANGO_SETTINGS_MODULE"
+          value: "api.settings.production"
+        - name: DRYCC_SECRET_KEY
+          valueFrom:
+            secretKeyRef:
+              name: controller-creds
+              key: django-secret-key
+        - name: DRYCC_BUILDER_KEY
+          valueFrom:
+            secretKeyRef:
+              name: builder-key-auth
+              key: builder-key
+        - name: DRYCC_PG_USER
+          valueFrom:
+            secretKeyRef:
+              name: database-creds
+              key: user
+        - name: DRYCC_PG_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: database-creds
+              key: password
+        - name: DRYCC_DATABASE_URL
+          value: "postgres://$(DRYCC_PG_USER):$(DRYCC_PG_PASSWORD)@drycc-database.default.svc.cluster.local:5432/controller"
+        - name: DRYCC_DATABASE_REPLICA_URL
+          value: "postgres://$(DRYCC_PG_USER):$(DRYCC_PG_PASSWORD)@drycc-database-replica.default.svc.cluster.local:5432/controller"
+        - name: WORKFLOW_NAMESPACE
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.namespace
+        - name: DRYCC_REDIS_ADDRS
+          valueFrom:
+            secretKeyRef:
+              name: redis-creds
+              key: addrs
+        - name: DRYCC_REDIS_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: redis-creds
+              key: password
+        - name: "DRYCC_PROMETHEUS_USERNAME"
+          valueFrom:
+            secretKeyRef:
+              name: prometheus-creds
+              key: username
+        - name: "DRYCC_PROMETHEUS_PASSWORD"
+          valueFrom:
+            secretKeyRef:
+              name: prometheus-creds
+              key: password
+        - name: "DRYCC_PROMETHEUS_URL"
+          value: "http://$(DRYCC_PROMETHEUS_USERNAME):$(DRYCC_PROMETHEUS_PASSWORD)@drycc-prometheus.default.svc.cluster.local:9090"
+        - name: "DRYCC_PASSPORT_URL"
+          value: https://drycc-passport.
+        - name: DRYCC_PASSPORT_KEY
+          valueFrom:
+            secretKeyRef:
+              name: passport-creds
+              key: drycc-passport-controller-key
+        - name: DRYCC_PASSPORT_SECRET
+          valueFrom:
+            secretKeyRef:
+              name: passport-creds
+              key: drycc-passport-controller-secret
+        - name: RESERVED_NAMES
+          value: "drycc, drycc-builder, drycc-monitor-grafana, drycc-passport, drycc-helmbroker, drycc-manager"
+      containers:
+      - name: drycc-controller-celery-low
+        image: registry.drycc.cc/drycc/controller:canary
+        imagePullPolicy: Always
+        args:
+          - /bin/bash
+          - -c
+          - celery -A api worker -Q low --autoscale=32,1 --loglevel=WARNING                
+        env:
+        - name: REGISTRATION_MODE
+          value: admin_only
+        # Environmental variable value for $GATEWAY_CLASS
+        - name: "DRYCC_GATEWAY_CLASS"
+          value: ""
+        - name: "K8S_API_VERIFY_TLS"
+          value: "true"
+        - name: "DRYCC_REGISTRY_LOCATION"
+          value: "on-cluster"
+        - name: "DRYCC_REGISTRY_SECRET_PREFIX"
+          value: "private-registry"
+        - name: "IMAGE_PULL_POLICY"
+          value: "Always"
+        - name: "KUBERNETES_CLUSTER_DOMAIN"
+          value: "cluster.local"
+        - name: "DRYCC_APP_STORAGE_CLASS"
+          value: "drycc-storage"
+        - name: "DRYCC_APP_POD_EXEC_TIMEOUT"
+          value: "3600"
+        - name: "TZ"
+          value: "UTC"
+        - name: "DJANGO_SETTINGS_MODULE"
+          value: "api.settings.production"
+        - name: DRYCC_SECRET_KEY
+          valueFrom:
+            secretKeyRef:
+              name: controller-creds
+              key: django-secret-key
+        - name: DRYCC_BUILDER_KEY
+          valueFrom:
+            secretKeyRef:
+              name: builder-key-auth
+              key: builder-key
+        - name: DRYCC_PG_USER
+          valueFrom:
+            secretKeyRef:
+              name: database-creds
+              key: user
+        - name: DRYCC_PG_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: database-creds
+              key: password
+        - name: DRYCC_DATABASE_URL
+          value: "postgres://$(DRYCC_PG_USER):$(DRYCC_PG_PASSWORD)@drycc-database.default.svc.cluster.local:5432/controller"
+        - name: DRYCC_DATABASE_REPLICA_URL
+          value: "postgres://$(DRYCC_PG_USER):$(DRYCC_PG_PASSWORD)@drycc-database-replica.default.svc.cluster.local:5432/controller"
+        - name: WORKFLOW_NAMESPACE
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.namespace
+        - name: DRYCC_REDIS_ADDRS
+          valueFrom:
+            secretKeyRef:
+              name: redis-creds
+              key: addrs
+        - name: DRYCC_REDIS_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: redis-creds
+              key: password
+        - name: "DRYCC_PROMETHEUS_USERNAME"
+          valueFrom:
+            secretKeyRef:
+              name: prometheus-creds
+              key: username
+        - name: "DRYCC_PROMETHEUS_PASSWORD"
+          valueFrom:
+            secretKeyRef:
+              name: prometheus-creds
+              key: password
+        - name: "DRYCC_PROMETHEUS_URL"
+          value: "http://$(DRYCC_PROMETHEUS_USERNAME):$(DRYCC_PROMETHEUS_PASSWORD)@drycc-prometheus.default.svc.cluster.local:9090"
+        - name: "DRYCC_PASSPORT_URL"
+          value: https://drycc-passport.
+        - name: DRYCC_PASSPORT_KEY
+          valueFrom:
+            secretKeyRef:
+              name: passport-creds
+              key: drycc-passport-controller-key
+        - name: DRYCC_PASSPORT_SECRET
+          valueFrom:
+            secretKeyRef:
+              name: passport-creds
+              key: drycc-passport-controller-secret
+        - name: RESERVED_NAMES
+          value: "drycc, drycc-builder, drycc-monitor-grafana, drycc-passport, drycc-helmbroker, drycc-manager"
+      - name: drycc-controller-celery-middle
+        image: registry.drycc.cc/drycc/controller:canary
+        imagePullPolicy: Always
+        args:
+          - /bin/bash
+          - -c
+          - celery -A api worker -Q middle --autoscale=32,1 --loglevel=WARNING                
+        env:
+        - name: REGISTRATION_MODE
+          value: admin_only
+        # Environmental variable value for $GATEWAY_CLASS
+        - name: "DRYCC_GATEWAY_CLASS"
+          value: ""
+        - name: "K8S_API_VERIFY_TLS"
+          value: "true"
+        - name: "DRYCC_REGISTRY_LOCATION"
+          value: "on-cluster"
+        - name: "DRYCC_REGISTRY_SECRET_PREFIX"
+          value: "private-registry"
+        - name: "IMAGE_PULL_POLICY"
+          value: "Always"
+        - name: "KUBERNETES_CLUSTER_DOMAIN"
+          value: "cluster.local"
+        - name: "DRYCC_APP_STORAGE_CLASS"
+          value: "drycc-storage"
+        - name: "DRYCC_APP_POD_EXEC_TIMEOUT"
+          value: "3600"
+        - name: "TZ"
+          value: "UTC"
+        - name: "DJANGO_SETTINGS_MODULE"
+          value: "api.settings.production"
+        - name: DRYCC_SECRET_KEY
+          valueFrom:
+            secretKeyRef:
+              name: controller-creds
+              key: django-secret-key
+        - name: DRYCC_BUILDER_KEY
+          valueFrom:
+            secretKeyRef:
+              name: builder-key-auth
+              key: builder-key
+        - name: DRYCC_PG_USER
+          valueFrom:
+            secretKeyRef:
+              name: database-creds
+              key: user
+        - name: DRYCC_PG_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: database-creds
+              key: password
+        - name: DRYCC_DATABASE_URL
+          value: "postgres://$(DRYCC_PG_USER):$(DRYCC_PG_PASSWORD)@drycc-database.default.svc.cluster.local:5432/controller"
+        - name: DRYCC_DATABASE_REPLICA_URL
+          value: "postgres://$(DRYCC_PG_USER):$(DRYCC_PG_PASSWORD)@drycc-database-replica.default.svc.cluster.local:5432/controller"
+        - name: WORKFLOW_NAMESPACE
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.namespace
+        - name: DRYCC_REDIS_ADDRS
+          valueFrom:
+            secretKeyRef:
+              name: redis-creds
+              key: addrs
+        - name: DRYCC_REDIS_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: redis-creds
+              key: password
+        - name: "DRYCC_PROMETHEUS_USERNAME"
+          valueFrom:
+            secretKeyRef:
+              name: prometheus-creds
+              key: username
+        - name: "DRYCC_PROMETHEUS_PASSWORD"
+          valueFrom:
+            secretKeyRef:
+              name: prometheus-creds
+              key: password
+        - name: "DRYCC_PROMETHEUS_URL"
+          value: "http://$(DRYCC_PROMETHEUS_USERNAME):$(DRYCC_PROMETHEUS_PASSWORD)@drycc-prometheus.default.svc.cluster.local:9090"
+        - name: "DRYCC_PASSPORT_URL"
+          value: https://drycc-passport.
+        - name: DRYCC_PASSPORT_KEY
+          valueFrom:
+            secretKeyRef:
+              name: passport-creds
+              key: drycc-passport-controller-key
+        - name: DRYCC_PASSPORT_SECRET
+          valueFrom:
+            secretKeyRef:
+              name: passport-creds
+              key: drycc-passport-controller-secret
+        - name: RESERVED_NAMES
+          value: "drycc, drycc-builder, drycc-monitor-grafana, drycc-passport, drycc-helmbroker, drycc-manager"
+      - name: drycc-controller-celery-high
+        image: registry.drycc.cc/drycc/controller:canary
+        imagePullPolicy: Always
+        args:
+          - /bin/bash
+          - -c
+          - celery -A api worker -Q high --autoscale=32,1 --loglevel=WARNING                
+        env:
+        - name: REGISTRATION_MODE
+          value: admin_only
+        # Environmental variable value for $GATEWAY_CLASS
+        - name: "DRYCC_GATEWAY_CLASS"
+          value: ""
+        - name: "K8S_API_VERIFY_TLS"
+          value: "true"
+        - name: "DRYCC_REGISTRY_LOCATION"
+          value: "on-cluster"
+        - name: "DRYCC_REGISTRY_SECRET_PREFIX"
+          value: "private-registry"
+        - name: "IMAGE_PULL_POLICY"
+          value: "Always"
+        - name: "KUBERNETES_CLUSTER_DOMAIN"
+          value: "cluster.local"
+        - name: "DRYCC_APP_STORAGE_CLASS"
+          value: "drycc-storage"
+        - name: "DRYCC_APP_POD_EXEC_TIMEOUT"
+          value: "3600"
+        - name: "TZ"
+          value: "UTC"
+        - name: "DJANGO_SETTINGS_MODULE"
+          value: "api.settings.production"
+        - name: DRYCC_SECRET_KEY
+          valueFrom:
+            secretKeyRef:
+              name: controller-creds
+              key: django-secret-key
+        - name: DRYCC_BUILDER_KEY
+          valueFrom:
+            secretKeyRef:
+              name: builder-key-auth
+              key: builder-key
+        - name: DRYCC_PG_USER
+          valueFrom:
+            secretKeyRef:
+              name: database-creds
+              key: user
+        - name: DRYCC_PG_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: database-creds
+              key: password
+        - name: DRYCC_DATABASE_URL
+          value: "postgres://$(DRYCC_PG_USER):$(DRYCC_PG_PASSWORD)@drycc-database.default.svc.cluster.local:5432/controller"
+        - name: DRYCC_DATABASE_REPLICA_URL
+          value: "postgres://$(DRYCC_PG_USER):$(DRYCC_PG_PASSWORD)@drycc-database-replica.default.svc.cluster.local:5432/controller"
+        - name: WORKFLOW_NAMESPACE
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.namespace
+        - name: DRYCC_REDIS_ADDRS
+          valueFrom:
+            secretKeyRef:
+              name: redis-creds
+              key: addrs
+        - name: DRYCC_REDIS_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: redis-creds
+              key: password
+        - name: "DRYCC_PROMETHEUS_USERNAME"
+          valueFrom:
+            secretKeyRef:
+              name: prometheus-creds
+              key: username
+        - name: "DRYCC_PROMETHEUS_PASSWORD"
+          valueFrom:
+            secretKeyRef:
+              name: prometheus-creds
+              key: password
+        - name: "DRYCC_PROMETHEUS_URL"
+          value: "http://$(DRYCC_PROMETHEUS_USERNAME):$(DRYCC_PROMETHEUS_PASSWORD)@drycc-prometheus.default.svc.cluster.local:9090"
+        - name: "DRYCC_PASSPORT_URL"
+          value: https://drycc-passport.
+        - name: DRYCC_PASSPORT_KEY
+          valueFrom:
+            secretKeyRef:
+              name: passport-creds
+              key: drycc-passport-controller-key
+        - name: DRYCC_PASSPORT_SECRET
+          valueFrom:
+            secretKeyRef:
+              name: passport-creds
+              key: drycc-passport-controller-secret
+        - name: RESERVED_NAMES
+          value: "drycc, drycc-builder, drycc-monitor-grafana, drycc-passport, drycc-helmbroker, drycc-manager"
+---
+# Source: controller/templates/controller-webhook-deloyment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: drycc-controller-webhook
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      component: drycc-controller-webhook
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: controller
+        helm.sh/chart: controller-v1.1.0
+        app.kubernetes.io/instance: release-name
+        app.kubernetes.io/managed-by: Helm
+        component: drycc-controller-webhook
+    spec:
+      affinity:
+        podAffinity:
+          
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - podAffinityTerm:
+                labelSelector:
+                  matchLabels:
+                    app.kubernetes.io/instance: release-name
+                    app.kubernetes.io/name: controller
+                    component: "drycc-controller-webhook"
+                topologyKey: kubernetes.io/hostname
+              weight: 1
+        nodeAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - preference:
+                matchExpressions:
+                  - key: drycc.cc/node
+                    operator: In
+                    values:
+                      - "true"
+              weight: 1
+      initContainers:
+      - name: drycc-controller-init
+        image: registry.drycc.cc/drycc/python-dev:latest
+        imagePullPolicy: Always
+        args:
+        - netcat
+        - -v
+        - -u
+        - $(DRYCC_DATABASE_URL),$(DRYCC_DATABASE_REPLICA_URL),$(DRYCC_RABBITMQ_URL)
+        - -a
+        - $(DRYCC_REDIS_ADDRS),$(DRYCC_CONTROLLER_API_SERVICE_HOST):$(DRYCC_CONTROLLER_API_SERVICE_PORT)        
+        env:
+        - name: REGISTRATION_MODE
+          value: admin_only
+        # Environmental variable value for $GATEWAY_CLASS
+        - name: "DRYCC_GATEWAY_CLASS"
+          value: ""
+        - name: "K8S_API_VERIFY_TLS"
+          value: "true"
+        - name: "DRYCC_REGISTRY_LOCATION"
+          value: "on-cluster"
+        - name: "DRYCC_REGISTRY_SECRET_PREFIX"
+          value: "private-registry"
+        - name: "IMAGE_PULL_POLICY"
+          value: "Always"
+        - name: "KUBERNETES_CLUSTER_DOMAIN"
+          value: "cluster.local"
+        - name: "DRYCC_APP_STORAGE_CLASS"
+          value: "drycc-storage"
+        - name: "DRYCC_APP_POD_EXEC_TIMEOUT"
+          value: "3600"
+        - name: "TZ"
+          value: "UTC"
+        - name: "DJANGO_SETTINGS_MODULE"
+          value: "api.settings.production"
+        - name: DRYCC_SECRET_KEY
+          valueFrom:
+            secretKeyRef:
+              name: controller-creds
+              key: django-secret-key
+        - name: DRYCC_BUILDER_KEY
+          valueFrom:
+            secretKeyRef:
+              name: builder-key-auth
+              key: builder-key
+        - name: DRYCC_PG_USER
+          valueFrom:
+            secretKeyRef:
+              name: database-creds
+              key: user
+        - name: DRYCC_PG_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: database-creds
+              key: password
+        - name: DRYCC_DATABASE_URL
+          value: "postgres://$(DRYCC_PG_USER):$(DRYCC_PG_PASSWORD)@drycc-database.default.svc.cluster.local:5432/controller"
+        - name: DRYCC_DATABASE_REPLICA_URL
+          value: "postgres://$(DRYCC_PG_USER):$(DRYCC_PG_PASSWORD)@drycc-database-replica.default.svc.cluster.local:5432/controller"
+        - name: WORKFLOW_NAMESPACE
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.namespace
+        - name: DRYCC_REDIS_ADDRS
+          valueFrom:
+            secretKeyRef:
+              name: redis-creds
+              key: addrs
+        - name: DRYCC_REDIS_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: redis-creds
+              key: password
+        - name: "DRYCC_PROMETHEUS_USERNAME"
+          valueFrom:
+            secretKeyRef:
+              name: prometheus-creds
+              key: username
+        - name: "DRYCC_PROMETHEUS_PASSWORD"
+          valueFrom:
+            secretKeyRef:
+              name: prometheus-creds
+              key: password
+        - name: "DRYCC_PROMETHEUS_URL"
+          value: "http://$(DRYCC_PROMETHEUS_USERNAME):$(DRYCC_PROMETHEUS_PASSWORD)@drycc-prometheus.default.svc.cluster.local:9090"
+        - name: "DRYCC_PASSPORT_URL"
+          value: https://drycc-passport.
+        - name: DRYCC_PASSPORT_KEY
+          valueFrom:
+            secretKeyRef:
+              name: passport-creds
+              key: drycc-passport-controller-key
+        - name: DRYCC_PASSPORT_SECRET
+          valueFrom:
+            secretKeyRef:
+              name: passport-creds
+              key: drycc-passport-controller-secret
+        - name: RESERVED_NAMES
+          value: "drycc, drycc-builder, drycc-monitor-grafana, drycc-passport, drycc-helmbroker, drycc-manager"
+      containers:
+      - name: drycc-controller
+        image: registry.drycc.cc/drycc/controller:canary
+        imagePullPolicy: Always
+        livenessProbe:
+          httpGet:
+            path: /healthz
+            port: 8443
+            scheme: HTTPS
+          initialDelaySeconds: 30
+          timeoutSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /readiness
+            port: 8443
+            scheme: HTTPS
+          initialDelaySeconds: 30
+          timeoutSeconds: 10
+          periodSeconds: 5
+        ports:
+          - containerPort: 8443
+            name: https
+        volumeMounts:
+        - name: controller-webhook-cert
+          mountPath: /etc/controller/webhook/cert                
+        env:
+        - name: REGISTRATION_MODE
+          value: admin_only
+        # Environmental variable value for $GATEWAY_CLASS
+        - name: "DRYCC_GATEWAY_CLASS"
+          value: ""
+        - name: "K8S_API_VERIFY_TLS"
+          value: "true"
+        - name: "DRYCC_REGISTRY_LOCATION"
+          value: "on-cluster"
+        - name: "DRYCC_REGISTRY_SECRET_PREFIX"
+          value: "private-registry"
+        - name: "IMAGE_PULL_POLICY"
+          value: "Always"
+        - name: "KUBERNETES_CLUSTER_DOMAIN"
+          value: "cluster.local"
+        - name: "DRYCC_APP_STORAGE_CLASS"
+          value: "drycc-storage"
+        - name: "DRYCC_APP_POD_EXEC_TIMEOUT"
+          value: "3600"
+        - name: "TZ"
+          value: "UTC"
+        - name: "DJANGO_SETTINGS_MODULE"
+          value: "api.settings.production"
+        - name: DRYCC_SECRET_KEY
+          valueFrom:
+            secretKeyRef:
+              name: controller-creds
+              key: django-secret-key
+        - name: DRYCC_BUILDER_KEY
+          valueFrom:
+            secretKeyRef:
+              name: builder-key-auth
+              key: builder-key
+        - name: DRYCC_PG_USER
+          valueFrom:
+            secretKeyRef:
+              name: database-creds
+              key: user
+        - name: DRYCC_PG_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: database-creds
+              key: password
+        - name: DRYCC_DATABASE_URL
+          value: "postgres://$(DRYCC_PG_USER):$(DRYCC_PG_PASSWORD)@drycc-database.default.svc.cluster.local:5432/controller"
+        - name: DRYCC_DATABASE_REPLICA_URL
+          value: "postgres://$(DRYCC_PG_USER):$(DRYCC_PG_PASSWORD)@drycc-database-replica.default.svc.cluster.local:5432/controller"
+        - name: WORKFLOW_NAMESPACE
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.namespace
+        - name: DRYCC_REDIS_ADDRS
+          valueFrom:
+            secretKeyRef:
+              name: redis-creds
+              key: addrs
+        - name: DRYCC_REDIS_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: redis-creds
+              key: password
+        - name: "DRYCC_PROMETHEUS_USERNAME"
+          valueFrom:
+            secretKeyRef:
+              name: prometheus-creds
+              key: username
+        - name: "DRYCC_PROMETHEUS_PASSWORD"
+          valueFrom:
+            secretKeyRef:
+              name: prometheus-creds
+              key: password
+        - name: "DRYCC_PROMETHEUS_URL"
+          value: "http://$(DRYCC_PROMETHEUS_USERNAME):$(DRYCC_PROMETHEUS_PASSWORD)@drycc-prometheus.default.svc.cluster.local:9090"
+        - name: "DRYCC_PASSPORT_URL"
+          value: https://drycc-passport.
+        - name: DRYCC_PASSPORT_KEY
+          valueFrom:
+            secretKeyRef:
+              name: passport-creds
+              key: drycc-passport-controller-key
+        - name: DRYCC_PASSPORT_SECRET
+          valueFrom:
+            secretKeyRef:
+              name: passport-creds
+              key: drycc-passport-controller-secret
+        - name: RESERVED_NAMES
+          value: "drycc, drycc-builder, drycc-monitor-grafana, drycc-passport, drycc-helmbroker, drycc-manager"
+      volumes:
+      - name: controller-webhook-cert                                                                                                                                                                                               
+        secret:                                                                                                                                                                                                                           
+          secretName: controller-webhook-cert                                                                                                                                                                                       
+          items:  
+          - key: token                                                                                                                                                                                                                  
+            path: token                                                                                                                                                                                                                           
+          - key: tls.crt                                                                                                                                                                                                                  
+            path: tls.crt                                                                                                                                                                                                                 
+          - key: tls.key                                                                                                                                                                                                                  
+            path: tls.key
+---
+# Source: controller/templates/controller-cronjob-daily.yaml
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: drycc-controller-cronjob-daily
+  labels:
+    heritage: drycc
+  annotations:
+    component.drycc.cc/version: canary
+spec:
+  timeZone: "Etc/UTC"
+  schedule: "0 1 * * *"
+  concurrencyPolicy: Replace
+  successfulJobsHistoryLimit: 1
+  failedJobsHistoryLimit: 1
+  jobTemplate:
+    spec:
+      template:
+        metadata:
+          labels:
+            app: drycc-controller-conjob
+        spec:
+          restartPolicy: OnFailure
+          serviceAccount: drycc-controller
+          initContainers:
+          - name: drycc-controller-cronjob-daily-init
+            image: registry.drycc.cc/drycc/python-dev:latest
+            imagePullPolicy: Always
+            args:
+              - netcat
+              - -v
+              - -u
+              - $(DRYCC_DATABASE_URL),$(DRYCC_DATABASE_REPLICA_URL),$(DRYCC_RABBITMQ_URL)
+              - -a
+              - $(DRYCC_REDIS_ADDRS),$(DRYCC_CONTROLLER_API_SERVICE_HOST):$(DRYCC_CONTROLLER_API_SERVICE_PORT)            
+            env:
+            - name: REGISTRATION_MODE
+              value: admin_only
+            # Environmental variable value for $GATEWAY_CLASS
+            - name: "DRYCC_GATEWAY_CLASS"
+              value: ""
+            - name: "K8S_API_VERIFY_TLS"
+              value: "true"
+            - name: "DRYCC_REGISTRY_LOCATION"
+              value: "on-cluster"
+            - name: "DRYCC_REGISTRY_SECRET_PREFIX"
+              value: "private-registry"
+            - name: "IMAGE_PULL_POLICY"
+              value: "Always"
+            - name: "KUBERNETES_CLUSTER_DOMAIN"
+              value: "cluster.local"
+            - name: "DRYCC_APP_STORAGE_CLASS"
+              value: "drycc-storage"
+            - name: "DRYCC_APP_POD_EXEC_TIMEOUT"
+              value: "3600"
+            - name: "TZ"
+              value: "UTC"
+            - name: "DJANGO_SETTINGS_MODULE"
+              value: "api.settings.production"
+            - name: DRYCC_SECRET_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: controller-creds
+                  key: django-secret-key
+            - name: DRYCC_BUILDER_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: builder-key-auth
+                  key: builder-key
+            - name: DRYCC_PG_USER
+              valueFrom:
+                secretKeyRef:
+                  name: database-creds
+                  key: user
+            - name: DRYCC_PG_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: database-creds
+                  key: password
+            - name: DRYCC_DATABASE_URL
+              value: "postgres://$(DRYCC_PG_USER):$(DRYCC_PG_PASSWORD)@drycc-database.default.svc.cluster.local:5432/controller"
+            - name: DRYCC_DATABASE_REPLICA_URL
+              value: "postgres://$(DRYCC_PG_USER):$(DRYCC_PG_PASSWORD)@drycc-database-replica.default.svc.cluster.local:5432/controller"
+            - name: WORKFLOW_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            - name: DRYCC_REDIS_ADDRS
+              valueFrom:
+                secretKeyRef:
+                  name: redis-creds
+                  key: addrs
+            - name: DRYCC_REDIS_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: redis-creds
+                  key: password
+            - name: "DRYCC_PROMETHEUS_USERNAME"
+              valueFrom:
+                secretKeyRef:
+                  name: prometheus-creds
+                  key: username
+            - name: "DRYCC_PROMETHEUS_PASSWORD"
+              valueFrom:
+                secretKeyRef:
+                  name: prometheus-creds
+                  key: password
+            - name: "DRYCC_PROMETHEUS_URL"
+              value: "http://$(DRYCC_PROMETHEUS_USERNAME):$(DRYCC_PROMETHEUS_PASSWORD)@drycc-prometheus.default.svc.cluster.local:9090"
+            - name: "DRYCC_PASSPORT_URL"
+              value: https://drycc-passport.
+            - name: DRYCC_PASSPORT_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: passport-creds
+                  key: drycc-passport-controller-key
+            - name: DRYCC_PASSPORT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: passport-creds
+                  key: drycc-passport-controller-secret
+            - name: RESERVED_NAMES
+              value: "drycc, drycc-builder, drycc-monitor-grafana, drycc-passport, drycc-helmbroker, drycc-manager"
+          containers:
+          - image: registry.drycc.cc/drycc/controller:canary
+            imagePullPolicy: 
+            name: drycc-controller-clearsocial
+            args:
+            - /bin/bash
+            - -c
+            - python -u /workspace/manage.py clearsocial            
+            env:
+            - name: REGISTRATION_MODE
+              value: admin_only
+            # Environmental variable value for $GATEWAY_CLASS
+            - name: "DRYCC_GATEWAY_CLASS"
+              value: ""
+            - name: "K8S_API_VERIFY_TLS"
+              value: "true"
+            - name: "DRYCC_REGISTRY_LOCATION"
+              value: "on-cluster"
+            - name: "DRYCC_REGISTRY_SECRET_PREFIX"
+              value: "private-registry"
+            - name: "IMAGE_PULL_POLICY"
+              value: "Always"
+            - name: "KUBERNETES_CLUSTER_DOMAIN"
+              value: "cluster.local"
+            - name: "DRYCC_APP_STORAGE_CLASS"
+              value: "drycc-storage"
+            - name: "DRYCC_APP_POD_EXEC_TIMEOUT"
+              value: "3600"
+            - name: "TZ"
+              value: "UTC"
+            - name: "DJANGO_SETTINGS_MODULE"
+              value: "api.settings.production"
+            - name: DRYCC_SECRET_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: controller-creds
+                  key: django-secret-key
+            - name: DRYCC_BUILDER_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: builder-key-auth
+                  key: builder-key
+            - name: DRYCC_PG_USER
+              valueFrom:
+                secretKeyRef:
+                  name: database-creds
+                  key: user
+            - name: DRYCC_PG_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: database-creds
+                  key: password
+            - name: DRYCC_DATABASE_URL
+              value: "postgres://$(DRYCC_PG_USER):$(DRYCC_PG_PASSWORD)@drycc-database.default.svc.cluster.local:5432/controller"
+            - name: DRYCC_DATABASE_REPLICA_URL
+              value: "postgres://$(DRYCC_PG_USER):$(DRYCC_PG_PASSWORD)@drycc-database-replica.default.svc.cluster.local:5432/controller"
+            - name: WORKFLOW_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            - name: DRYCC_REDIS_ADDRS
+              valueFrom:
+                secretKeyRef:
+                  name: redis-creds
+                  key: addrs
+            - name: DRYCC_REDIS_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: redis-creds
+                  key: password
+            - name: "DRYCC_PROMETHEUS_USERNAME"
+              valueFrom:
+                secretKeyRef:
+                  name: prometheus-creds
+                  key: username
+            - name: "DRYCC_PROMETHEUS_PASSWORD"
+              valueFrom:
+                secretKeyRef:
+                  name: prometheus-creds
+                  key: password
+            - name: "DRYCC_PROMETHEUS_URL"
+              value: "http://$(DRYCC_PROMETHEUS_USERNAME):$(DRYCC_PROMETHEUS_PASSWORD)@drycc-prometheus.default.svc.cluster.local:9090"
+            - name: "DRYCC_PASSPORT_URL"
+              value: https://drycc-passport.
+            - name: DRYCC_PASSPORT_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: passport-creds
+                  key: drycc-passport-controller-key
+            - name: DRYCC_PASSPORT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: passport-creds
+                  key: drycc-passport-controller-secret
+            - name: RESERVED_NAMES
+              value: "drycc, drycc-builder, drycc-monitor-grafana, drycc-passport, drycc-helmbroker, drycc-manager"
+          - image: registry.drycc.cc/drycc/controller:canary
+            imagePullPolicy: Always
+            name: drycc-controller-load-db-state-to-k8s
+            args:
+              - /bin/bash
+              - -c
+              - python /workspace/manage.py load_db_state_to_k8s            
+            env:
+            - name: REGISTRATION_MODE
+              value: admin_only
+            # Environmental variable value for $GATEWAY_CLASS
+            - name: "DRYCC_GATEWAY_CLASS"
+              value: ""
+            - name: "K8S_API_VERIFY_TLS"
+              value: "true"
+            - name: "DRYCC_REGISTRY_LOCATION"
+              value: "on-cluster"
+            - name: "DRYCC_REGISTRY_SECRET_PREFIX"
+              value: "private-registry"
+            - name: "IMAGE_PULL_POLICY"
+              value: "Always"
+            - name: "KUBERNETES_CLUSTER_DOMAIN"
+              value: "cluster.local"
+            - name: "DRYCC_APP_STORAGE_CLASS"
+              value: "drycc-storage"
+            - name: "DRYCC_APP_POD_EXEC_TIMEOUT"
+              value: "3600"
+            - name: "TZ"
+              value: "UTC"
+            - name: "DJANGO_SETTINGS_MODULE"
+              value: "api.settings.production"
+            - name: DRYCC_SECRET_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: controller-creds
+                  key: django-secret-key
+            - name: DRYCC_BUILDER_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: builder-key-auth
+                  key: builder-key
+            - name: DRYCC_PG_USER
+              valueFrom:
+                secretKeyRef:
+                  name: database-creds
+                  key: user
+            - name: DRYCC_PG_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: database-creds
+                  key: password
+            - name: DRYCC_DATABASE_URL
+              value: "postgres://$(DRYCC_PG_USER):$(DRYCC_PG_PASSWORD)@drycc-database.default.svc.cluster.local:5432/controller"
+            - name: DRYCC_DATABASE_REPLICA_URL
+              value: "postgres://$(DRYCC_PG_USER):$(DRYCC_PG_PASSWORD)@drycc-database-replica.default.svc.cluster.local:5432/controller"
+            - name: WORKFLOW_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            - name: DRYCC_REDIS_ADDRS
+              valueFrom:
+                secretKeyRef:
+                  name: redis-creds
+                  key: addrs
+            - name: DRYCC_REDIS_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: redis-creds
+                  key: password
+            - name: "DRYCC_PROMETHEUS_USERNAME"
+              valueFrom:
+                secretKeyRef:
+                  name: prometheus-creds
+                  key: username
+            - name: "DRYCC_PROMETHEUS_PASSWORD"
+              valueFrom:
+                secretKeyRef:
+                  name: prometheus-creds
+                  key: password
+            - name: "DRYCC_PROMETHEUS_URL"
+              value: "http://$(DRYCC_PROMETHEUS_USERNAME):$(DRYCC_PROMETHEUS_PASSWORD)@drycc-prometheus.default.svc.cluster.local:9090"
+            - name: "DRYCC_PASSPORT_URL"
+              value: https://drycc-passport.
+            - name: DRYCC_PASSPORT_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: passport-creds
+                  key: drycc-passport-controller-key
+            - name: DRYCC_PASSPORT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: passport-creds
+                  key: drycc-passport-controller-secret
+            - name: RESERVED_NAMES
+              value: "drycc, drycc-builder, drycc-monitor-grafana, drycc-passport, drycc-helmbroker, drycc-manager"
+          - image: registry.drycc.cc/drycc/controller:canary
+            imagePullPolicy: 
+            name: drycc-controller-measure-apps
+            args:
+              - /bin/bash
+              - -c
+              - python -u /workspace/manage.py measure_apps            
+            env:
+            - name: REGISTRATION_MODE
+              value: admin_only
+            # Environmental variable value for $GATEWAY_CLASS
+            - name: "DRYCC_GATEWAY_CLASS"
+              value: ""
+            - name: "K8S_API_VERIFY_TLS"
+              value: "true"
+            - name: "DRYCC_REGISTRY_LOCATION"
+              value: "on-cluster"
+            - name: "DRYCC_REGISTRY_SECRET_PREFIX"
+              value: "private-registry"
+            - name: "IMAGE_PULL_POLICY"
+              value: "Always"
+            - name: "KUBERNETES_CLUSTER_DOMAIN"
+              value: "cluster.local"
+            - name: "DRYCC_APP_STORAGE_CLASS"
+              value: "drycc-storage"
+            - name: "DRYCC_APP_POD_EXEC_TIMEOUT"
+              value: "3600"
+            - name: "TZ"
+              value: "UTC"
+            - name: "DJANGO_SETTINGS_MODULE"
+              value: "api.settings.production"
+            - name: DRYCC_SECRET_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: controller-creds
+                  key: django-secret-key
+            - name: DRYCC_BUILDER_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: builder-key-auth
+                  key: builder-key
+            - name: DRYCC_PG_USER
+              valueFrom:
+                secretKeyRef:
+                  name: database-creds
+                  key: user
+            - name: DRYCC_PG_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: database-creds
+                  key: password
+            - name: DRYCC_DATABASE_URL
+              value: "postgres://$(DRYCC_PG_USER):$(DRYCC_PG_PASSWORD)@drycc-database.default.svc.cluster.local:5432/controller"
+            - name: DRYCC_DATABASE_REPLICA_URL
+              value: "postgres://$(DRYCC_PG_USER):$(DRYCC_PG_PASSWORD)@drycc-database-replica.default.svc.cluster.local:5432/controller"
+            - name: WORKFLOW_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            - name: DRYCC_REDIS_ADDRS
+              valueFrom:
+                secretKeyRef:
+                  name: redis-creds
+                  key: addrs
+            - name: DRYCC_REDIS_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: redis-creds
+                  key: password
+            - name: "DRYCC_PROMETHEUS_USERNAME"
+              valueFrom:
+                secretKeyRef:
+                  name: prometheus-creds
+                  key: username
+            - name: "DRYCC_PROMETHEUS_PASSWORD"
+              valueFrom:
+                secretKeyRef:
+                  name: prometheus-creds
+                  key: password
+            - name: "DRYCC_PROMETHEUS_URL"
+              value: "http://$(DRYCC_PROMETHEUS_USERNAME):$(DRYCC_PROMETHEUS_PASSWORD)@drycc-prometheus.default.svc.cluster.local:9090"
+            - name: "DRYCC_PASSPORT_URL"
+              value: https://drycc-passport.
+            - name: DRYCC_PASSPORT_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: passport-creds
+                  key: drycc-passport-controller-key
+            - name: DRYCC_PASSPORT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: passport-creds
+                  key: drycc-passport-controller-secret
+            - name: RESERVED_NAMES
+              value: "drycc, drycc-builder, drycc-monitor-grafana, drycc-passport, drycc-helmbroker, drycc-manager"
+          - image: registry.drycc.cc/drycc/controller:canary
+            imagePullPolicy: 
+            name: drycc-controller-measure-resources
+            args:
+            - /bin/bash
+            - -c
+            - python -u /workspace/manage.py measure_resources            
+            env:
+            - name: REGISTRATION_MODE
+              value: admin_only
+            # Environmental variable value for $GATEWAY_CLASS
+            - name: "DRYCC_GATEWAY_CLASS"
+              value: ""
+            - name: "K8S_API_VERIFY_TLS"
+              value: "true"
+            - name: "DRYCC_REGISTRY_LOCATION"
+              value: "on-cluster"
+            - name: "DRYCC_REGISTRY_SECRET_PREFIX"
+              value: "private-registry"
+            - name: "IMAGE_PULL_POLICY"
+              value: "Always"
+            - name: "KUBERNETES_CLUSTER_DOMAIN"
+              value: "cluster.local"
+            - name: "DRYCC_APP_STORAGE_CLASS"
+              value: "drycc-storage"
+            - name: "DRYCC_APP_POD_EXEC_TIMEOUT"
+              value: "3600"
+            - name: "TZ"
+              value: "UTC"
+            - name: "DJANGO_SETTINGS_MODULE"
+              value: "api.settings.production"
+            - name: DRYCC_SECRET_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: controller-creds
+                  key: django-secret-key
+            - name: DRYCC_BUILDER_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: builder-key-auth
+                  key: builder-key
+            - name: DRYCC_PG_USER
+              valueFrom:
+                secretKeyRef:
+                  name: database-creds
+                  key: user
+            - name: DRYCC_PG_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: database-creds
+                  key: password
+            - name: DRYCC_DATABASE_URL
+              value: "postgres://$(DRYCC_PG_USER):$(DRYCC_PG_PASSWORD)@drycc-database.default.svc.cluster.local:5432/controller"
+            - name: DRYCC_DATABASE_REPLICA_URL
+              value: "postgres://$(DRYCC_PG_USER):$(DRYCC_PG_PASSWORD)@drycc-database-replica.default.svc.cluster.local:5432/controller"
+            - name: WORKFLOW_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            - name: DRYCC_REDIS_ADDRS
+              valueFrom:
+                secretKeyRef:
+                  name: redis-creds
+                  key: addrs
+            - name: DRYCC_REDIS_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: redis-creds
+                  key: password
+            - name: "DRYCC_PROMETHEUS_USERNAME"
+              valueFrom:
+                secretKeyRef:
+                  name: prometheus-creds
+                  key: username
+            - name: "DRYCC_PROMETHEUS_PASSWORD"
+              valueFrom:
+                secretKeyRef:
+                  name: prometheus-creds
+                  key: password
+            - name: "DRYCC_PROMETHEUS_URL"
+              value: "http://$(DRYCC_PROMETHEUS_USERNAME):$(DRYCC_PROMETHEUS_PASSWORD)@drycc-prometheus.default.svc.cluster.local:9090"
+            - name: "DRYCC_PASSPORT_URL"
+              value: https://drycc-passport.
+            - name: DRYCC_PASSPORT_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: passport-creds
+                  key: drycc-passport-controller-key
+            - name: DRYCC_PASSPORT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: passport-creds
+                  key: drycc-passport-controller-secret
+            - name: RESERVED_NAMES
+              value: "drycc, drycc-builder, drycc-monitor-grafana, drycc-passport, drycc-helmbroker, drycc-manager"
+          - image: registry.drycc.cc/drycc/controller:canary
+            imagePullPolicy: 
+            name: drycc-controller-measure-volumes
+            args:
+            - /bin/bash
+            - -c
+            - python -u /workspace/manage.py measure_volumes            
+            env:
+            - name: REGISTRATION_MODE
+              value: admin_only
+            # Environmental variable value for $GATEWAY_CLASS
+            - name: "DRYCC_GATEWAY_CLASS"
+              value: ""
+            - name: "K8S_API_VERIFY_TLS"
+              value: "true"
+            - name: "DRYCC_REGISTRY_LOCATION"
+              value: "on-cluster"
+            - name: "DRYCC_REGISTRY_SECRET_PREFIX"
+              value: "private-registry"
+            - name: "IMAGE_PULL_POLICY"
+              value: "Always"
+            - name: "KUBERNETES_CLUSTER_DOMAIN"
+              value: "cluster.local"
+            - name: "DRYCC_APP_STORAGE_CLASS"
+              value: "drycc-storage"
+            - name: "DRYCC_APP_POD_EXEC_TIMEOUT"
+              value: "3600"
+            - name: "TZ"
+              value: "UTC"
+            - name: "DJANGO_SETTINGS_MODULE"
+              value: "api.settings.production"
+            - name: DRYCC_SECRET_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: controller-creds
+                  key: django-secret-key
+            - name: DRYCC_BUILDER_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: builder-key-auth
+                  key: builder-key
+            - name: DRYCC_PG_USER
+              valueFrom:
+                secretKeyRef:
+                  name: database-creds
+                  key: user
+            - name: DRYCC_PG_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: database-creds
+                  key: password
+            - name: DRYCC_DATABASE_URL
+              value: "postgres://$(DRYCC_PG_USER):$(DRYCC_PG_PASSWORD)@drycc-database.default.svc.cluster.local:5432/controller"
+            - name: DRYCC_DATABASE_REPLICA_URL
+              value: "postgres://$(DRYCC_PG_USER):$(DRYCC_PG_PASSWORD)@drycc-database-replica.default.svc.cluster.local:5432/controller"
+            - name: WORKFLOW_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            - name: DRYCC_REDIS_ADDRS
+              valueFrom:
+                secretKeyRef:
+                  name: redis-creds
+                  key: addrs
+            - name: DRYCC_REDIS_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: redis-creds
+                  key: password
+            - name: "DRYCC_PROMETHEUS_USERNAME"
+              valueFrom:
+                secretKeyRef:
+                  name: prometheus-creds
+                  key: username
+            - name: "DRYCC_PROMETHEUS_PASSWORD"
+              valueFrom:
+                secretKeyRef:
+                  name: prometheus-creds
+                  key: password
+            - name: "DRYCC_PROMETHEUS_URL"
+              value: "http://$(DRYCC_PROMETHEUS_USERNAME):$(DRYCC_PROMETHEUS_PASSWORD)@drycc-prometheus.default.svc.cluster.local:9090"
+            - name: "DRYCC_PASSPORT_URL"
+              value: https://drycc-passport.
+            - name: DRYCC_PASSPORT_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: passport-creds
+                  key: drycc-passport-controller-key
+            - name: DRYCC_PASSPORT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: passport-creds
+                  key: drycc-passport-controller-secret
+            - name: RESERVED_NAMES
+              value: "drycc, drycc-builder, drycc-monitor-grafana, drycc-passport, drycc-helmbroker, drycc-manager"
+---
+# Source: controller/templates/controller-cronjob-hourly.yaml
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: drycc-controller-cronjob-hourly
+  labels:
+    heritage: drycc
+  annotations:
+    component.drycc.cc/version: canary
+spec:
+  timeZone: "Etc/UTC"
+  schedule: "0 */1 * * *"
+  concurrencyPolicy: Replace
+  successfulJobsHistoryLimit: 1
+  failedJobsHistoryLimit: 1
+  jobTemplate:
+    spec:
+      template:
+        metadata:
+          labels:
+            app: drycc-controller-conjob
+        spec:
+          restartPolicy: OnFailure
+          serviceAccount: drycc-controller
+          initContainers:
+          - name: drycc-controller-init
+            image: registry.drycc.cc/drycc/python-dev:latest
+            imagePullPolicy: Always
+            args:
+              - netcat
+              - -v
+              - -u
+              - $(DRYCC_DATABASE_URL),$(DRYCC_DATABASE_REPLICA_URL),$(DRYCC_RABBITMQ_URL)
+              - -a
+              - $(DRYCC_REDIS_ADDRS),$(DRYCC_CONTROLLER_API_SERVICE_HOST):$(DRYCC_CONTROLLER_API_SERVICE_PORT)            
+            env:
+            - name: REGISTRATION_MODE
+              value: admin_only
+            # Environmental variable value for $GATEWAY_CLASS
+            - name: "DRYCC_GATEWAY_CLASS"
+              value: ""
+            - name: "K8S_API_VERIFY_TLS"
+              value: "true"
+            - name: "DRYCC_REGISTRY_LOCATION"
+              value: "on-cluster"
+            - name: "DRYCC_REGISTRY_SECRET_PREFIX"
+              value: "private-registry"
+            - name: "IMAGE_PULL_POLICY"
+              value: "Always"
+            - name: "KUBERNETES_CLUSTER_DOMAIN"
+              value: "cluster.local"
+            - name: "DRYCC_APP_STORAGE_CLASS"
+              value: "drycc-storage"
+            - name: "DRYCC_APP_POD_EXEC_TIMEOUT"
+              value: "3600"
+            - name: "TZ"
+              value: "UTC"
+            - name: "DJANGO_SETTINGS_MODULE"
+              value: "api.settings.production"
+            - name: DRYCC_SECRET_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: controller-creds
+                  key: django-secret-key
+            - name: DRYCC_BUILDER_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: builder-key-auth
+                  key: builder-key
+            - name: DRYCC_PG_USER
+              valueFrom:
+                secretKeyRef:
+                  name: database-creds
+                  key: user
+            - name: DRYCC_PG_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: database-creds
+                  key: password
+            - name: DRYCC_DATABASE_URL
+              value: "postgres://$(DRYCC_PG_USER):$(DRYCC_PG_PASSWORD)@drycc-database.default.svc.cluster.local:5432/controller"
+            - name: DRYCC_DATABASE_REPLICA_URL
+              value: "postgres://$(DRYCC_PG_USER):$(DRYCC_PG_PASSWORD)@drycc-database-replica.default.svc.cluster.local:5432/controller"
+            - name: WORKFLOW_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            - name: DRYCC_REDIS_ADDRS
+              valueFrom:
+                secretKeyRef:
+                  name: redis-creds
+                  key: addrs
+            - name: DRYCC_REDIS_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: redis-creds
+                  key: password
+            - name: "DRYCC_PROMETHEUS_USERNAME"
+              valueFrom:
+                secretKeyRef:
+                  name: prometheus-creds
+                  key: username
+            - name: "DRYCC_PROMETHEUS_PASSWORD"
+              valueFrom:
+                secretKeyRef:
+                  name: prometheus-creds
+                  key: password
+            - name: "DRYCC_PROMETHEUS_URL"
+              value: "http://$(DRYCC_PROMETHEUS_USERNAME):$(DRYCC_PROMETHEUS_PASSWORD)@drycc-prometheus.default.svc.cluster.local:9090"
+            - name: "DRYCC_PASSPORT_URL"
+              value: https://drycc-passport.
+            - name: DRYCC_PASSPORT_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: passport-creds
+                  key: drycc-passport-controller-key
+            - name: DRYCC_PASSPORT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: passport-creds
+                  key: drycc-passport-controller-secret
+            - name: RESERVED_NAMES
+              value: "drycc, drycc-builder, drycc-monitor-grafana, drycc-passport, drycc-helmbroker, drycc-manager"
+          containers:
+          - image: registry.drycc.cc/drycc/controller:canary
+            imagePullPolicy: 
+            name: drycc-controller-measure-networks
+            args:
+            - /bin/bash
+            - -c
+            - python -u /workspace/manage.py measure_networks            
+            env:
+            - name: REGISTRATION_MODE
+              value: admin_only
+            # Environmental variable value for $GATEWAY_CLASS
+            - name: "DRYCC_GATEWAY_CLASS"
+              value: ""
+            - name: "K8S_API_VERIFY_TLS"
+              value: "true"
+            - name: "DRYCC_REGISTRY_LOCATION"
+              value: "on-cluster"
+            - name: "DRYCC_REGISTRY_SECRET_PREFIX"
+              value: "private-registry"
+            - name: "IMAGE_PULL_POLICY"
+              value: "Always"
+            - name: "KUBERNETES_CLUSTER_DOMAIN"
+              value: "cluster.local"
+            - name: "DRYCC_APP_STORAGE_CLASS"
+              value: "drycc-storage"
+            - name: "DRYCC_APP_POD_EXEC_TIMEOUT"
+              value: "3600"
+            - name: "TZ"
+              value: "UTC"
+            - name: "DJANGO_SETTINGS_MODULE"
+              value: "api.settings.production"
+            - name: DRYCC_SECRET_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: controller-creds
+                  key: django-secret-key
+            - name: DRYCC_BUILDER_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: builder-key-auth
+                  key: builder-key
+            - name: DRYCC_PG_USER
+              valueFrom:
+                secretKeyRef:
+                  name: database-creds
+                  key: user
+            - name: DRYCC_PG_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: database-creds
+                  key: password
+            - name: DRYCC_DATABASE_URL
+              value: "postgres://$(DRYCC_PG_USER):$(DRYCC_PG_PASSWORD)@drycc-database.default.svc.cluster.local:5432/controller"
+            - name: DRYCC_DATABASE_REPLICA_URL
+              value: "postgres://$(DRYCC_PG_USER):$(DRYCC_PG_PASSWORD)@drycc-database-replica.default.svc.cluster.local:5432/controller"
+            - name: WORKFLOW_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            - name: DRYCC_REDIS_ADDRS
+              valueFrom:
+                secretKeyRef:
+                  name: redis-creds
+                  key: addrs
+            - name: DRYCC_REDIS_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: redis-creds
+                  key: password
+            - name: "DRYCC_PROMETHEUS_USERNAME"
+              valueFrom:
+                secretKeyRef:
+                  name: prometheus-creds
+                  key: username
+            - name: "DRYCC_PROMETHEUS_PASSWORD"
+              valueFrom:
+                secretKeyRef:
+                  name: prometheus-creds
+                  key: password
+            - name: "DRYCC_PROMETHEUS_URL"
+              value: "http://$(DRYCC_PROMETHEUS_USERNAME):$(DRYCC_PROMETHEUS_PASSWORD)@drycc-prometheus.default.svc.cluster.local:9090"
+            - name: "DRYCC_PASSPORT_URL"
+              value: https://drycc-passport.
+            - name: DRYCC_PASSPORT_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: passport-creds
+                  key: drycc-passport-controller-key
+            - name: DRYCC_PASSPORT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: passport-creds
+                  key: drycc-passport-controller-secret
+            - name: RESERVED_NAMES
+              value: "drycc, drycc-builder, drycc-monitor-grafana, drycc-passport, drycc-helmbroker, drycc-manager"
+          - image: registry.drycc.cc/drycc/controller:canary
+            imagePullPolicy: 
+            name: drycc-controller-measure-loadbalancer
+            args:
+            - /bin/bash
+            - -c
+            - python -u /workspace/manage.py measure_loadbalancers            
+            env:
+            - name: REGISTRATION_MODE
+              value: admin_only
+            # Environmental variable value for $GATEWAY_CLASS
+            - name: "DRYCC_GATEWAY_CLASS"
+              value: ""
+            - name: "K8S_API_VERIFY_TLS"
+              value: "true"
+            - name: "DRYCC_REGISTRY_LOCATION"
+              value: "on-cluster"
+            - name: "DRYCC_REGISTRY_SECRET_PREFIX"
+              value: "private-registry"
+            - name: "IMAGE_PULL_POLICY"
+              value: "Always"
+            - name: "KUBERNETES_CLUSTER_DOMAIN"
+              value: "cluster.local"
+            - name: "DRYCC_APP_STORAGE_CLASS"
+              value: "drycc-storage"
+            - name: "DRYCC_APP_POD_EXEC_TIMEOUT"
+              value: "3600"
+            - name: "TZ"
+              value: "UTC"
+            - name: "DJANGO_SETTINGS_MODULE"
+              value: "api.settings.production"
+            - name: DRYCC_SECRET_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: controller-creds
+                  key: django-secret-key
+            - name: DRYCC_BUILDER_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: builder-key-auth
+                  key: builder-key
+            - name: DRYCC_PG_USER
+              valueFrom:
+                secretKeyRef:
+                  name: database-creds
+                  key: user
+            - name: DRYCC_PG_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: database-creds
+                  key: password
+            - name: DRYCC_DATABASE_URL
+              value: "postgres://$(DRYCC_PG_USER):$(DRYCC_PG_PASSWORD)@drycc-database.default.svc.cluster.local:5432/controller"
+            - name: DRYCC_DATABASE_REPLICA_URL
+              value: "postgres://$(DRYCC_PG_USER):$(DRYCC_PG_PASSWORD)@drycc-database-replica.default.svc.cluster.local:5432/controller"
+            - name: WORKFLOW_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            - name: DRYCC_REDIS_ADDRS
+              valueFrom:
+                secretKeyRef:
+                  name: redis-creds
+                  key: addrs
+            - name: DRYCC_REDIS_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: redis-creds
+                  key: password
+            - name: "DRYCC_PROMETHEUS_USERNAME"
+              valueFrom:
+                secretKeyRef:
+                  name: prometheus-creds
+                  key: username
+            - name: "DRYCC_PROMETHEUS_PASSWORD"
+              valueFrom:
+                secretKeyRef:
+                  name: prometheus-creds
+                  key: password
+            - name: "DRYCC_PROMETHEUS_URL"
+              value: "http://$(DRYCC_PROMETHEUS_USERNAME):$(DRYCC_PROMETHEUS_PASSWORD)@drycc-prometheus.default.svc.cluster.local:9090"
+            - name: "DRYCC_PASSPORT_URL"
+              value: https://drycc-passport.
+            - name: DRYCC_PASSPORT_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: passport-creds
+                  key: drycc-passport-controller-key
+            - name: DRYCC_PASSPORT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: passport-creds
+                  key: drycc-passport-controller-secret
+            - name: RESERVED_NAMES
+              value: "drycc, drycc-builder, drycc-monitor-grafana, drycc-passport, drycc-helmbroker, drycc-manager"
+---
+# Source: controller/templates/controller-webhook-register.yaml
+apiVersion: admissionregistration.k8s.io/v1
+kind: MutatingWebhookConfiguration
+metadata:
+  name: drycc-controller-webhook.default.svc
+webhooks:
+- name: drycc-controller-webhook.default.svc
+  sideEffects: None
+  admissionReviewVersions: ["v1"]
+  clientConfig:
+    caBundle: LS0tLS1CRUdJTiBDRVJUSUZJQ0FURS0tLS0tCk1JSURMRENDQWhTZ0F3SUJBZ0lSQUlHVDB5SmhCVURZcVdrakxPQUJCTEV3RFFZSktvWklodmNOQVFFTEJRQXcKSURFZU1Cd0dBMVVFQXhNVlkyOXVkSEp2Ykd4bGNpMTNaV0pvYjI5ckxXTmhNQjRYRFRJME1ETXhNekF6TURndwpOMW9YRFRNME1ETXhNVEF6TURnd04xb3dJREVlTUJ3R0ExVUVBeE1WWTI5dWRISnZiR3hsY2kxM1pXSm9iMjlyCkxXTmhNSUlCSWpBTkJna3Foa2lHOXcwQkFRRUZBQU9DQVE4QU1JSUJDZ0tDQVFFQTRsOFdLdzVMSGZpNjV4WVMKMVdtMmxzUTAycDlUQ2w0MGVLOU9PTEhnUk5jckllRHEzcmxFU1l6cFp1aDQ5eUwyQnVObWNESFNLMUhoSkRVSQp5Tzg2Tnpqa040Y2ZNNEtyQ2lDYVVHWEk1UlhZQWJoUlhIcDdkUlk3cmdwS3llM3p3akh6OUQvcHlvNWE4ZkR0CmNvSm9CWVlqVDF2NjcyTVZUV0dnQ1dqVDIrdWRiRHh4UWkvakZFdGdzekpkVGkxMEFVL2VtMlNSVmpYUUZ1SloKZHh6dGZTd0RuOTlhZE1ra0hDd0VjNjlJdTRkL0ppeURwU01Ta3ZuOThyaTIzelIwNUgzT2pLQklDWWhLWGM3Tgp6cXErcTRtQ0UycDdzZFJKZFMvR3RraXovbVRlM09xck5UKzJZS203Y0MweU50OThKQ2tuQXFtVUJSWXV2UzBFCi9EdDRUd0lEQVFBQm8yRXdYekFPQmdOVkhROEJBZjhFQkFNQ0FxUXdIUVlEVlIwbEJCWXdGQVlJS3dZQkJRVUgKQXdFR0NDc0dBUVVGQndNQ01BOEdBMVVkRXdFQi93UUZNQU1CQWY4d0hRWURWUjBPQkJZRUZLSkJGV1QwZDQ5bAo3RFk0Mld3Z09DU1RvSFpQTUEwR0NTcUdTSWIzRFFFQkN3VUFBNElCQVFEYVIxLzMyMnBrMDUwM3dhMU1xTkxlCmNuenVvendzcitBclB5Z0ovN2VhYnV1eERtZWpSY1RjaVhKd3lOMFZBWWdWWFFhUmZkUXd5NExmZ2FuTThHeTMKWWNlVWI3NUc0L0k0QWRqZ3B0dkgvZUhuS2VSUjYwcktnTExPTTEzelFNZHVpeUdzcTdHdlM5ZTJ2eVVtUFlBNApvWDBYOXhnWTBQaE1RdTRJTWtXN1ZpMFBHNDFya2hrRWZyVEExeTJNdWxJbU8yZjBSL2FzRUhYSGpTaHAvYVZPCmg0Z1BnTlVqdTU1RG5nV0tXZkxjNUNZSmhNQTFkVElnY1R0eTMvczZZcUVkTXQ5cDVDSDF0czB0NkpaekdiS0IKUXoycm9sRlFWbUhjeURGWnMxdkhMQ1F3V3dKdzFwVWpSbXcwa2tMblV6YVE3TTIxSEpIeXBWSUhmZW1oWTc0dgotLS0tLUVORCBDRVJUSUZJQ0FURS0tLS0tCg==
+    service:
+      name: drycc-controller-webhook
+      namespace: "default"
+      path: "/v2/webhooks/qjiy6soyxrkokeoj1moddcuxwp8k1h5jrmdkbzzwylonjbpfygondudojjmxro16mac6kavfpxbfd2hcsasgatbt2jlhgqipyorqunbr6ocsnluvzg76ye58fcxwmb0y/"
+      port: 8443
+  failurePolicy: Fail
+  objectSelector:
+    matchLabels:
+      heritage: drycc
+  rules:
+  - operations: ["UPDATE"]
+    apiGroups: ["batch"]
+    apiVersions: ["*"]
+    resources: ["jobs/status"]
+  - operations: ["UPDATE"]
+    apiGroups: ["apps"]
+    apiVersions: ["*"]
+    resources: ["deployments/scale"]
+  timeoutSeconds: 30

@@ -328,7 +328,7 @@ class ReleaseTest(DryccTransactionTestCase):
 
         # check that updating config rolls a new release
         url = '/v2/apps/{app_id}/config'.format(**locals())
-        body = {'cpu': json.dumps({'cmd': None})}
+        body = {'limits': json.dumps({'cmd': None})}
         response = self.client.post(url, body)
         self.assertEqual(response.status_code, 422, response.data)
 
