@@ -5,18 +5,18 @@ metadata:
 spec:
   template:
     spec:
-    initContainers:
-    - name: drycc-controller-job-init
-      image: {{.Values.imageRegistry}}/{{.Values.imageOrg}}/python-dev:latest
-      imagePullPolicy: {{.Values.imagePullPolicy}}
-      args:
+      initContainers:
+      - name: drycc-controller-job-init
+        image: {{.Values.imageRegistry}}/{{.Values.imageOrg}}/python-dev:latest
+        imagePullPolicy: {{.Values.imagePullPolicy}}
+        args:
         - netcat
         - -v
         - -u
         - $(DRYCC_DATABASE_URL),$(DRYCC_DATABASE_REPLICA_URL),$(DRYCC_RABBITMQ_URL)
         - -a
         - $(DRYCC_REDIS_ADDRS),$(DRYCC_CONTROLLER_API_SERVICE_HOST):$(DRYCC_CONTROLLER_API_SERVICE_PORT)
-      {{- include "controller.envs" . | indent 8 }}
+        {{- include "controller.envs" . | indent 6 }}
       containers:
       - name: drycc-controller-job-init
         image: {{.Values.imageRegistry}}/{{.Values.imageOrg}}/controller:{{.Values.imageTag}}

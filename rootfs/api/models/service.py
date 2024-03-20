@@ -1,20 +1,48 @@
 import logging
-
+import jsonschema
+from functools import partial
 from django.db import models
 from django.conf import settings
 from django.contrib.auth import get_user_model
+from rest_framework.exceptions import ValidationError
 from api.exceptions import ServiceUnavailable
 from scheduler import KubeException
 from .base import AuditedModel
 
+
 User = get_user_model()
 logger = logging.getLogger(__name__)
+service_ports_schema = {
+    "$schema": "http://json-schema.org/schema#",
+    "type": "array",
+    "minItems": 1,
+    "items": {
+        "type": "object",
+        "properties": {
+            "name": {"type": "string"},
+            "port": {"type": "integer"},
+            "protocol": {"type": "string"},
+            "targetPort": {"type": "integer"},
+        },
+        "required": ["name", "port", "protocol", "targetPort"],
+    }
+}
+
+
+def validate_json(value, schema):
+    if value is not None:
+        try:
+            jsonschema.validate(value, schema)
+        except jsonschema.ValidationError as e:
+            raise ValidationError(e.message)
+    return value
 
 
 class Service(AuditedModel):
     owner = models.ForeignKey(User, on_delete=models.PROTECT)
     app = models.ForeignKey('App', on_delete=models.CASCADE)
-    ports = models.JSONField(default=list)
+    ports = models.JSONField(
+        default=list, validators=[partial(validate_json, schema=service_ports_schema)])
     canary = models.BooleanField(default=False)
     procfile_type = models.TextField()
 
@@ -58,11 +86,11 @@ class Service(AuditedModel):
         })
 
     def update_port(self, port, protocol, target_port):
-        port = self.get_port(port, "TCP")
-        if not port or port["targetPort"] != target_port:
-            if port and port["targetPort"] != target_port:
-                self.remove_port(port, "TCP")
-            self.add_port(port, "TCP", target_port)
+        item = self.get_port(port, protocol)
+        if not item or item["targetPort"] != target_port:
+            if item and item["targetPort"] != target_port:
+                self.remove_port(port, protocol)
+            self.add_port(port, protocol, target_port)
             return True
         return False
 
