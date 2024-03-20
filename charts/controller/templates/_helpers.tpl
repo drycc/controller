@@ -1,6 +1,8 @@
 {{/* Generate controller deployment envs */}}
 {{- define "controller.envs" }}
 env:
+- name: VERSION
+  value: {{ .Chart.appVersion }}
 - name: REGISTRATION_MODE
   value: {{ .Values.registrationMode }}
 # Environmental variable value for $GATEWAY_CLASS

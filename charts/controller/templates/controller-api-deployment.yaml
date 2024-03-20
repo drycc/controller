@@ -38,6 +38,16 @@ spec:
         - -a
         - $(DRYCC_REDIS_ADDRS)
         {{- include "controller.envs" . | indent 8 }}
+      - name: drycc-controller-waitting
+        image: {{.Values.imageRegistry}}/{{.Values.imageOrg}}/controller:{{.Values.imageTag}}
+        imagePullPolicy: {{.Values.imagePullPolicy}}
+        args:
+        - /usr/bin/env
+        - bash
+        - -ec
+        - |
+          python -u /workspace/manage.py cluster_lock waitting
+        {{- include "controller.envs" . | indent 8 }}
       containers:
       - name: drycc-controller
         image: {{.Values.imageRegistry}}/{{.Values.imageOrg}}/controller:{{.Values.imageTag}}
@@ -74,3 +84,11 @@ spec:
             name: http
         {{- include "controller.limits" . | indent 8 }}
         {{- include "controller.envs" . | indent 8 }}
+        volumeMounts:
+        - name: controller-config
+          readOnly: false
+          mountPath: /etc/controller
+      volumes:
+      - name: controller-config
+        configMap:
+          name: controller-config

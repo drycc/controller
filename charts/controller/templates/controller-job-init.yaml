@@ -1,0 +1,42 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: drycc-controller-job-init
+spec:
+  template:
+    spec:
+    initContainers:
+    - name: drycc-controller-job-init
+      image: {{.Values.imageRegistry}}/{{.Values.imageOrg}}/python-dev:latest
+      imagePullPolicy: {{.Values.imagePullPolicy}}
+      args:
+        - netcat
+        - -v
+        - -u
+        - $(DRYCC_DATABASE_URL),$(DRYCC_DATABASE_REPLICA_URL),$(DRYCC_RABBITMQ_URL)
+        - -a
+        - $(DRYCC_REDIS_ADDRS),$(DRYCC_CONTROLLER_API_SERVICE_HOST):$(DRYCC_CONTROLLER_API_SERVICE_PORT)
+      {{- include "controller.envs" . | indent 8 }}
+      containers:
+      - name: drycc-controller-job-init
+        image: {{.Values.imageRegistry}}/{{.Values.imageOrg}}/controller:{{.Values.imageTag}}
+        imagePullPolicy: {{.Values.imagePullPolicy}}
+        {{- if .Values.diagnosticMode.enabled }}
+        command: {{- include "common.tplvalues.render" (dict "value" .Values.diagnosticMode.command "context" $) | nindent 8 }}
+        args: {{- include "common.tplvalues.render" (dict "value" .Values.diagnosticMode.args "context" $) | nindent 8 }}
+        {{- else }}
+        args:
+        - /usr/bin/env
+        - bash
+        - -ec
+        - |
+          python -u /workspace/manage.py cluster_lock lock
+          python -u /workspace/manage.py migrate --noinput
+          python -u /workspace/manage.py loaddata /etc/controller/limit-specs.json
+          python -u /workspace/manage.py loaddata /etc/controller/limit-plans.json
+          python -u /workspace/manage.py cluster_lock unlock
+        {{- end }}
+        {{- include "controller.envs" . | indent 8 }}
+      restartPolicy: Never
+  backoffLimit: 0
+  ttlSecondsAfterFinished: 3600

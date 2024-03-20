@@ -3,6 +3,7 @@ Django settings for the Drycc project.
 """
 from distutils.util import strtobool
 import sys
+import uuid
 import os.path
 import tempfile
 import dj_database_url
@@ -10,6 +11,10 @@ import dj_database_url
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, os.path.join(BASE_DIR, 'apps_extra'))
+
+# drycc controller app version.
+VERSION = os.environ.get('VERSION', uuid.uuid1().hex[:8])
+
 # A boolean that turns on/off debug mode.
 # https://docs.djangoproject.com/en/1.11/ref/settings/#debug
 DEBUG = bool(strtobool(os.environ.get('DRYCC_DEBUG', 'false')))
