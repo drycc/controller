@@ -74,7 +74,7 @@ class VolumeTest(DryccTransactionTestCase):
             'name': 'myvolume',
             'size': '500G'
         }
-        self.assertDictContainsSubset(expected, response.data)
+        self.assertEqual(response.data, expected | response.data)
 
     def test_volume_list_unmount(self, mock_requests):
         """
@@ -122,7 +122,7 @@ class VolumeTest(DryccTransactionTestCase):
             'size': '1024G'
         }
         assert len(response.data["results"]) == 1
-        self.assertDictContainsSubset(expected, response.data["results"][0])
+        self.assertEqual(response.data["results"][0], expected | response.data["results"][0])
         # nfs expand
         response = self.client.post(
             '/v2/apps/{}/volumes'.format(app_id),

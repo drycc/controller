@@ -213,13 +213,11 @@ class DeploymentsTest(TestCase):
         self.assertEqual(data['apiVersion'], 'apps/v1')
         self.assertEqual(data['kind'], 'Deployment')
         self.assertEqual(data['metadata']['name'], name)
-        self.assertDictContainsSubset(
-            {
-                'app': self.namespace,
-                'heritage': 'drycc'
-            },
-            data['metadata']['labels']
-        )
+        labels = {
+            'app': self.namespace,
+            'heritage': 'drycc'
+        }
+        self.assertEqual(data['metadata']['labels'], data['metadata']['labels'] | labels)
 
     def test_scale(self):
         name = self.scale()
@@ -288,14 +286,11 @@ class DeploymentsTest(TestCase):
         self.assertEqual(data['apiVersion'], 'apps/v1', data)
         self.assertEqual(data['kind'], 'ReplicaSet', data)
         self.assertEqual(data['metadata']['name'], replica_name, data)
-        self.assertDictContainsSubset(
-            {
-                'app': self.namespace,
-                'heritage': 'drycc'
-            },
-            data['metadata']['labels'],
-            data
-        )
+        labels = {
+            'app': self.namespace,
+            'heritage': 'drycc'
+        }
+        self.assertEqual(data['metadata']['labels'], data['metadata']['labels'] | labels, data)
 
     def test_get_deployment_annotations(self):
         """
@@ -307,12 +302,12 @@ class DeploymentsTest(TestCase):
         }
         deployment = self.create(**kwargs)
         data = self.scheduler.deployment.get(self.namespace, deployment).json()
-
-        self.assertDictContainsSubset(
-            {
-                'iam.amazonaws.com/role': 'role-arn'
-            },
-            data['spec']['template']['metadata']['annotations']
+        annotations = {
+            'iam.amazonaws.com/role': 'role-arn'
+        }
+        self.assertEqual(
+            data['spec']['template']['metadata']['annotations'],
+            data['spec']['template']['metadata']['annotations'] | annotations,
         )
 
     def test_get_pod_annotations(self):

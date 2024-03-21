@@ -1,12 +1,19 @@
 apiVersion: batch/v1
 kind: Job
 metadata:
-  name: drycc-controller-job-init
+  name: drycc-controller-job-upgrade
+  labels:
+    heritage: drycc
+  annotations:
+    component.drycc.cc/version: {{ .Values.imageTag }}
 spec:
   template:
+    metadata:
+      labels: {{- include "common.labels.standard" . | nindent 8 }}
+        app: drycc-controller-job-upgrade
     spec:
       initContainers:
-      - name: drycc-controller-job-init
+      - name: drycc-controller-job-upgrade-init
         image: {{.Values.imageRegistry}}/{{.Values.imageOrg}}/python-dev:latest
         imagePullPolicy: {{.Values.imagePullPolicy}}
         args:
@@ -15,10 +22,10 @@ spec:
         - -u
         - $(DRYCC_DATABASE_URL),$(DRYCC_DATABASE_REPLICA_URL),$(DRYCC_RABBITMQ_URL)
         - -a
-        - $(DRYCC_REDIS_ADDRS),$(DRYCC_CONTROLLER_API_SERVICE_HOST):$(DRYCC_CONTROLLER_API_SERVICE_PORT)
-        {{- include "controller.envs" . | indent 6 }}
+        - $(DRYCC_REDIS_ADDRS)
+        {{- include "controller.envs" . | indent 8 }}
       containers:
-      - name: drycc-controller-job-init
+      - name: drycc-controller-job-upgrade
         image: {{.Values.imageRegistry}}/{{.Values.imageOrg}}/controller:{{.Values.imageTag}}
         imagePullPolicy: {{.Values.imagePullPolicy}}
         {{- if .Values.diagnosticMode.enabled }}
@@ -37,6 +44,14 @@ spec:
           python -u /workspace/manage.py cluster_lock unlock
         {{- end }}
         {{- include "controller.envs" . | indent 8 }}
+        volumeMounts:
+        - name: controller-config
+          readOnly: false
+          mountPath: /etc/controller
+      volumes:
+      - name: controller-config
+        configMap:
+          name: controller-config
       restartPolicy: Never
   backoffLimit: 0
   ttlSecondsAfterFinished: 3600

@@ -132,7 +132,7 @@ class Service(AuditedModel):
         as "belonging" to the application instead of the controller and will be handled
         accordingly.
         """
-        logger.log(level, "[{}]: {}".format(self.id, message))
+        logger.log(level, "[{}]: {}".format(self.app.id, message))
 
     def _namespace(self):
         return self.app.id

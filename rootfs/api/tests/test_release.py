@@ -124,7 +124,7 @@ class ReleaseTest(DryccTransactionTestCase):
             'summary': '{} added NEW_URL'.format(self.user.username),
             'version': 2
         }
-        self.assertDictContainsSubset(expected, response.data)
+        self.assertEqual(response.data, response.data | expected)
 
     def test_release_rollback(self, mock_requests):
         app_id = self.create_app()
@@ -402,7 +402,7 @@ class ReleaseTest(DryccTransactionTestCase):
         self.create_app(app_id)
         # check app logs
         exp_msg = "[{app_id}]: Sent deploy hook to http://drycc.rocks".format(**locals())
-        mock_logger.log.has_calls(logging.INFO, exp_msg)
+        mock_logger.log.assert_any_call(logging.INFO, exp_msg)
         self.assertTrue(mr_rocks.called)
         self.assertEqual(mr_rocks.call_count, 1)
 
@@ -417,11 +417,11 @@ class ReleaseTest(DryccTransactionTestCase):
 
             # check app logs
             exp_msg = "[{app_id}]: Sent deploy hook to http://drycc.ninja".format(**locals())
-            mock_logger.log.has_calls(logging.INFO, exp_msg)
+            mock_logger.log.assert_any_call(logging.INFO, exp_msg)
             self.assertTrue(mr_ninja.called)
             self.assertEqual(mr_ninja.call_count, 1)
             exp_msg = "[{app_id}]: Sent deploy hook to http://cat.dog".format(**locals())
-            mock_logger.log.has_calls(logging.INFO, exp_msg)
+            mock_logger.log.assert_any_call(logging.INFO, exp_msg)
             self.assertTrue(mr_catdog.called)
             self.assertEqual(mr_catdog.call_count, 1)
         sha = '2345678'
@@ -437,11 +437,11 @@ class ReleaseTest(DryccTransactionTestCase):
 
             # check app logs
             exp_msg = "[{app_id}]: An error occurred while sending the deploy hook to http://cat.ninja: poop".format(**locals())  # noqa
-            mock_logger.log.has_calls(logging.ERROR, exp_msg)
+            mock_logger.log.assert_any_call(logging.ERROR, exp_msg)
             self.assertTrue(mr_ninja.called)
             self.assertEqual(mr_ninja.call_count, 1)
             exp_msg = "[{app_id}]: Sent deploy hook to http://drycc.dog".format(**locals())
-            mock_logger.log.has_calls(logging.INFO, exp_msg)
+            mock_logger.log.assert_any_call(logging.INFO, exp_msg)
             self.assertTrue(mr_catdog.called)
             self.assertEqual(mr_catdog.call_count, 1)
 
@@ -477,7 +477,7 @@ class ReleaseTest(DryccTransactionTestCase):
 
             # check app logs
             exp_msg = "[{app_id}]: Sent deploy hook to {hook_url}".format(**locals())
-            mock_logger.log.has_calls(logging.INFO, exp_msg)
+            mock_logger.log.assert_any_call(logging.INFO, exp_msg)
             self.assertTrue(mr_terminator.called)
             self.assertEqual(mr_terminator.call_count, 1)
 

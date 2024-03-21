@@ -1,13 +1,13 @@
 # test module
 # test
 # Run "make test-unit" for the % of code exercised during tests
-coverage==7.2.5
+coverage==7.4.4
 
 # Run "make test-style" to check python syntax and style
-flake8==6.0.0
+flake8==7.0.0
 
 # code coverage report at https://codecov.io/github/drycc/controller
 codecov==2.1.13
 
 # mock out python-requests, mostly k8s
-requests-mock==1.10.0
+requests-mock==1.11.0

@@ -34,4 +34,5 @@ class NodesTest(TestCase):
         self.assertEqual(data['apiVersion'], 'v1')
         self.assertEqual(data['kind'], 'Node')
         self.assertEqual(data['metadata']['name'], name)
-        self.assertDictContainsSubset({'ssd': 'true'}, data['metadata']['labels'])
+        labels = {'ssd': 'true'}
+        self.assertEqual(data['metadata']['labels'], data['metadata']['labels'] | labels)

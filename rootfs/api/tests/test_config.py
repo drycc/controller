@@ -145,7 +145,7 @@ class ConfigTest(DryccTransactionTestCase):
             'tags': {'ssd': 'true'},
             'registry': {}
         }
-        self.assertDictContainsSubset(expected, response.data)
+        self.assertEqual(response.data, expected | response.data)
 
         # make sure changes not drop tags
         body = {'values': json.dumps({'PORT': '5001'})}
@@ -161,7 +161,7 @@ class ConfigTest(DryccTransactionTestCase):
             'tags': {'ssd': 'true'},
             'registry': {}
         }
-        self.assertDictContainsSubset(expected, response.data)
+        self.assertEqual(response.data, response.data | expected)
 
     def test_response_data(self, mock_requests):
         """Test that the serialized response contains only relevant data."""
@@ -187,7 +187,7 @@ class ConfigTest(DryccTransactionTestCase):
             'tags': {},
             'registry': {}
         }
-        self.assertDictContainsSubset(expected, response.data)
+        self.assertEqual(response.data, response.data | expected)
 
     def test_response_data_types_converted(self, mock_requests):
         """Test that config data is converted into the correct type."""
@@ -218,7 +218,7 @@ class ConfigTest(DryccTransactionTestCase):
             'tags': {},
             'registry': {}
         }
-        self.assertDictContainsSubset(expected, response.data)
+        self.assertEqual(response.data, expected | response.data)
 
         body = {'limits': {PROCFILE_TYPE_WEB: "not-exist"}}
         response = self.client.post(url, body)

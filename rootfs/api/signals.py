@@ -40,7 +40,9 @@ def _log_instance_created(**kwargs):
     if kwargs.get('created'):
         instance = kwargs['instance']
         message = '{} {} created'.format(instance.__class__.__name__.lower(), instance)
-        if hasattr(instance, 'app'):
+        if hasattr(instance, 'log'):
+            instance.log(message)
+        elif hasattr(instance, 'app'):
             instance.app.log(message)
         else:
             logger.info(message)
@@ -50,7 +52,9 @@ def _log_instance_added(**kwargs):
     if kwargs.get('created'):
         instance = kwargs['instance']
         message = '{} {} added'.format(instance.__class__.__name__.lower(), instance)
-        if hasattr(instance, 'app'):
+        if hasattr(instance, 'log'):
+            instance.log(message)
+        elif hasattr(instance, 'app'):
             instance.app.log(message)
         else:
             logger.info(message)
@@ -59,7 +63,9 @@ def _log_instance_added(**kwargs):
 def _log_instance_updated(**kwargs):
     instance = kwargs['instance']
     message = '{} {} updated'.format(instance.__class__.__name__.lower(), instance)
-    if hasattr(instance, 'app'):
+    if hasattr(instance, 'log'):
+        instance.log(message)
+    elif hasattr(instance, 'app'):
         instance.app.log(message)
     else:
         logger.info(message)
@@ -68,7 +74,9 @@ def _log_instance_updated(**kwargs):
 def _log_instance_removed(**kwargs):
     instance = kwargs['instance']
     message = '{} {} removed'.format(instance.__class__.__name__.lower(), instance)
-    if hasattr(instance, 'app'):
+    if hasattr(instance, 'log'):
+        instance.log(message)
+    elif hasattr(instance, 'app'):
         instance.app.log(message)
     else:
         logger.info(message)
@@ -79,7 +87,7 @@ def _hook_release_created(**kwargs):
     if kwargs.get('created'):
         release = kwargs['instance']
         # append release lifecycle logs to the app
-        release.app.log(release.summary)
+        release.log(release.summary)
 
         for deploy_hook in settings.DRYCC_DEPLOY_HOOK_URLS:
             url = deploy_hook
@@ -108,9 +116,9 @@ def _hook_release_created(**kwargs):
             try:
                 get_session().post(url, headers=headers)
                 # just notify with the base URL, disregard the added URL query
-                release.app.log('Deploy hook sent to {}'.format(deploy_hook))
+                release.log('Sent deploy hook to {}'.format(deploy_hook))
             except requests.RequestException as e:
-                release.app.log('An error occurred while sending the deploy hook to {}: {}'.format(
+                release.log('An error occurred while sending the deploy hook to {}: {}'.format(
                     deploy_hook, e), logging.ERROR)
 
 

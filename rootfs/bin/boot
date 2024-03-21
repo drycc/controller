@@ -23,10 +23,6 @@ echo ""
 echo "Health Checks:"
 python /workspace/manage.py healthchecks
 
-echo ""
-echo "Waiting for init"
-python /workspace/manage.py cluster_lock waitting
-
 # spawn a gunicorn server in the background
 echo ""
 echo "Starting up Gunicorn"

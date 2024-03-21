@@ -51,7 +51,7 @@ class DomainTest(DryccTestCase):
             'app': app_id,
             'domain': 'test-domain.example.com'
         }
-        self.assertDictContainsSubset(expected, response.data)
+        self.assertEqual(response.data, expected | response.data)
 
     def test_strip_dot(self):
         """Test that a dot on the right side of the domain gets stripped"""

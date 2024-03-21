@@ -20,16 +20,16 @@ class Command(BaseCommand):
         )
 
     def lock(self):
-        cache.set(lock_key, settings.VERSION)
+        cache.delete(lock_key)
         print("lock completed!")
 
     def unlock(self):
-        cache.delete(lock_key)
+        cache.set(lock_key, settings.VERSION)
         print("unlock completed!")
 
     def waitting(self):
         while True:
-            version = cache.get("drycc:controller:version")
+            version = cache.get(lock_key, None)
             if version != settings.VERSION:
                 print(waitting_init_msg % (version, settings.VERSION))
             else:

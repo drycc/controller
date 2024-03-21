@@ -49,7 +49,7 @@ class CacheLock(object):
         return wrapped
 
     def __enter__(self):
-        if not type(self.key) == str and self.key == '':
+        if type(self.key) is not str and self.key == '':
             raise RuntimeError("Key not specified!")
 
         if not self.acquire(self.block):

@@ -36,15 +36,13 @@ class NamespacesTest(TestCase):
         self.assertEqual(response.status_code, 200, data)
         self.assertEqual(data['apiVersion'], 'v1')
         self.assertEqual(data['kind'], 'Namespace')
-        self.assertDictContainsSubset(
-            {
-                'name': self.namespace,
-                'labels': {
-                    'heritage': 'drycc'
-                }
-            },
-            data['metadata']
-        )
+        metadata = {
+            'name': self.namespace,
+            'labels': {
+                'heritage': 'drycc'
+            }
+        }
+        self.assertEqual(data['metadata'], data['metadata'] | metadata)
 
     def test_delete_failure(self):
         # test failure

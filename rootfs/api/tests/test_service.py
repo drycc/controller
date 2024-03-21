@@ -62,7 +62,7 @@ class ServiceTest(DryccTransactionTestCase):
             }],
             "procfile_type": "test"
         }
-        self.assertDictContainsSubset(expected0, response.data['services'][0])
+        self.assertEqual(response.data['services'][0], expected0 | response.data['services'][0])
         # port is occupied
         response = self.client.post(
             '/v2/apps/{}/services'.format(app_id),
@@ -107,7 +107,8 @@ class ServiceTest(DryccTransactionTestCase):
         self.assertEqual(response.status_code, 204, response.data)
         response = self.client.get('/v2/apps/{}/services'.format(app_id))
         self.assertEqual(response.status_code, 200, response.data)
-        self.assertDictContainsSubset(expected1, response.data['services'][0])
+        self.assertEqual(
+            response.data['services'][0], expected1 | response.data['services'][0])
 
         # create 2nd service
         response = self.client.post(
@@ -135,15 +136,15 @@ class ServiceTest(DryccTransactionTestCase):
             }],
             "procfile_type": "test2"
         }
-        self.assertDictContainsSubset(expected2, response.data['services'][0])
-        self.assertDictContainsSubset(expected1, response.data['services'][1])
+        self.assertEqual(response.data['services'][0], expected2 | response.data['services'][0])
+        self.assertEqual(response.data['services'][1], expected1 | response.data['services'][1])
         # delete port
         response = self.client.delete(
             '/v2/apps/{}/services'.format(app_id),
             {'procfile_type': 'test', "protocol": "TCP", "port": 6000}
         )
         response = self.client.get('/v2/apps/{}/services'.format(app_id))
-        self.assertDictContainsSubset(expected0, response.data['services'][1])
+        self.assertEqual(response.data['services'][1], expected0 | response.data['services'][1])
         # delete 1st
         response = self.client.delete(
             '/v2/apps/{}/services'.format(app_id),

@@ -43,6 +43,17 @@ class Release(UuidAuditedModel):
     def image(self):
         return self.build.image
 
+    def log(self, message, level=logging.INFO):
+        """Logs a message in the context of this application.
+
+        This prefixes log messages with an application "tag" that the customized
+        drycc-logspout will be on the lookout for.  When it's seen, the message-- usually
+        an application event of some sort like releasing or scaling, will be considered
+        as "belonging" to the application instead of the controller and will be handled
+        accordingly.
+        """
+        logger.log(level, "[{}]: {}".format(self.app.id, message))
+
     def new(self, user, config, build, summary=None, canary=False):
         """
         Create a new application release using the provided Build and Config
@@ -69,7 +80,7 @@ class Release(UuidAuditedModel):
             creds = self.get_registry_auth()
 
             if self.build.type == "buildpack":
-                self.app.log(
+                self.log(
                     'buildpack type detected. Defaulting to $PORT %s' % DEFAULT_CONTAINER_PORT)
                 return DEFAULT_CONTAINER_PORT
 
@@ -172,7 +183,7 @@ class Release(UuidAuditedModel):
         Stray pods no longer relevant to the latest release
         """
         latest_version = 'v{}'.format(self.version)
-        self.app.log(
+        self.log(
             'Cleaning up RSs for releases older than {} (latest)'.format(latest_version),
             level=logging.DEBUG
         )
@@ -194,7 +205,7 @@ class Release(UuidAuditedModel):
                 replica_sets_removal.append(current_version)
 
         if replica_sets_removal:
-            self.app.log(
+            self.log(
                 'Found the following versions to cleanup: {}'.format(', '.join(replica_sets_removal)),  # noqa
                 level=logging.DEBUG
             )
@@ -260,7 +271,7 @@ class Release(UuidAuditedModel):
             # http://kubernetes.io/docs/user-guide/labels/#set-based-requirement
             'version__notin': versions
         }
-        self.app.log('Cleaning up orphaned env var secrets for application {}'.format(namespace), level=logging.DEBUG)  # noqa
+        self.log('Cleaning up orphaned env var secrets for application {}'.format(namespace), level=logging.DEBUG)  # noqa
         secrets = self.scheduler().secret.get(namespace, labels=labels).json()['items']
         if not secrets:
             secrets = []

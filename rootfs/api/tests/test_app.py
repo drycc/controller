@@ -96,7 +96,7 @@ class AppTest(DryccTestCase):
             'owner': self.user.username,
             'structure': {}
         }
-        self.assertDictContainsSubset(expected, response.data)
+        self.assertEqual(response.data, expected | response.data)
 
     def test_app_override_id(self, mock_requests):
         app_id = self.create_app()
@@ -107,19 +107,20 @@ class AppTest(DryccTestCase):
     @mock.patch('api.models.app.logger')
     def test_app_release_notes_in_logs(self, mock_requests, mock_logger):
         """Verifies that an app's release summary is dumped into the logs."""
-        app_id = self.create_app()
-        app = App.objects.get(id=app_id)
-
-        # check app logs
-        exp_msg = "[{app_id}]: {self.user.username} created initial release".format(**locals())
-        mock_logger.log.has_calls(logging.INFO, exp_msg)
-        app.log('hello world')
-        exp_msg = "[{app_id}]: hello world".format(**locals())
-        mock_logger.log.has_calls(logging.INFO, exp_msg)
-        app.log('goodbye world', logging.WARNING)
-        # assert logging with a different log level
-        exp_msg = "[{app_id}]: goodbye world".format(**locals())
-        mock_logger.log.has_calls(logging.WARNING, exp_msg)
+        with mock.patch('api.models.release.logger') as release_logger:
+            app_id = self.create_app()
+            app = App.objects.get(id=app_id)
+            # check release logs
+            exp_msg = "[{app_id}]: {self.user.username} created initial release".format(
+                **locals())
+            release_logger.log.assert_any_call(logging.INFO, exp_msg)
+            app.log('hello world')
+            exp_msg = "[{app_id}]: hello world".format(**locals())
+            mock_logger.log.assert_any_call(logging.INFO, exp_msg)
+            app.log('goodbye world', logging.WARNING)
+            # assert logging with a different log level
+            exp_msg = "[{app_id}]: goodbye world".format(**locals())
+            mock_logger.log.assert_any_call(logging.WARNING, exp_msg)
 
     def test_app_errors(self, mock_requests):
         response = self.client.post('/v2/apps', {'id': 'camelCase'})
@@ -182,12 +183,13 @@ class AppTest(DryccTestCase):
         self.assertIn('structure', response.data)
         self.assertEqual(response.data['structure'], {"web": 1})
 
-    @mock.patch('api.models.app.logger')
+    @mock.patch('api.models.release.logger')
     def test_admin_can_manage_other_apps(self, mock_requests, mock_logger):
         """Administrators of Drycc should be able to manage all applications.
         """
         # log in as non-admin user and create an app
-        user = User.objects.get(username='autotest2')
+        username = 'autotest2'
+        user = User.objects.get(username=username)
         token = Token.objects.get(user=user).key
         self.client.credentials(HTTP_AUTHORIZATION='Token ' + token)
         app_id = self.create_app()
@@ -198,10 +200,8 @@ class AppTest(DryccTestCase):
         response = self.client.get(url)
         self.assertEqual(response.status_code, 200, response.data)
         # check app logs
-        exp_msg = "autotest2 created initial release"
-        exp_log_call = mock.call(logging.INFO, exp_msg)
-        mock_logger.log.has_calls(exp_log_call)
-
+        exp_msg = "[%s]: %s created initial release" % (app_id, username)
+        mock_logger.log.assert_any_call(logging.INFO, exp_msg)
         # TODO: test run needs an initial build
         # delete the app
         url = '/v2/apps/{}'.format(app_id)

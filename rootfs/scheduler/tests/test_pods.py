@@ -86,13 +86,11 @@ class PodsTest(TestCase):
         self.assertEqual(response.status_code, 200, data)
         self.assertEqual(data['kind'], 'Pod')
         self.assertEqual(data['metadata']['name'], name)
-        self.assertDictContainsSubset(
-            {
-                'app': self.namespace,
-                'heritage': 'drycc'
-            },
-            data['metadata']['labels']
-        )
+        labels = {
+            'app': self.namespace,
+            'heritage': 'drycc'
+        }
+        self.assertEqual(data['metadata']['labels'], data['metadata']['labels'] | labels)
 
     def test_liveness_status(self):
         # Missing Ready type means pod has passed liveness check

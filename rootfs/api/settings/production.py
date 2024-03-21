@@ -1,7 +1,6 @@
 """
 Django settings for the Drycc project.
 """
-from distutils.util import strtobool
 import sys
 import uuid
 import os.path
@@ -17,7 +16,7 @@ VERSION = os.environ.get('VERSION', uuid.uuid1().hex[:8])
 
 # A boolean that turns on/off debug mode.
 # https://docs.djangoproject.com/en/1.11/ref/settings/#debug
-DEBUG = bool(strtobool(os.environ.get('DRYCC_DEBUG', 'false')))
+DEBUG = os.environ.get('DRYCC_DEBUG', 'false').lower() == "true"
 
 # If set to True, Django's normal exception handling of view functions
 # will be suppressed, and exceptions will propagate upwards
@@ -148,8 +147,8 @@ CSRF_COOKIE_HTTPONLY = False
 CSRF_COOKIE_SAMESITE = None
 SECURE_CONTENT_TYPE_NOSNIFF = True
 SECURE_BROWSER_XSS_FILTER = True
-SESSION_COOKIE_SECURE = bool(strtobool(os.environ.get('SESSION_COOKIE_SECURE', 'false')))
-CSRF_COOKIE_SECURE = bool(strtobool(os.environ.get('CSRF_COOKIE_SECURE', 'false')))
+SESSION_COOKIE_SECURE = os.environ.get('SESSION_COOKIE_SECURE', 'false').lower() == "true"
+CSRF_COOKIE_SECURE = os.environ.get('CSRF_COOKIE_SECURE', 'false').lower() == "true"
 
 
 # Honor HTTPS from a trusted proxy
@@ -272,7 +271,7 @@ SCHEDULER_URL = "https://{}:{}".format(
     os.environ.get('KUBERNETES_SERVICE_PORT', '443')
 )
 
-K8S_API_VERIFY_TLS = bool(strtobool(os.environ.get('K8S_API_VERIFY_TLS', 'true')))
+K8S_API_VERIFY_TLS = os.environ.get('K8S_API_VERIFY_TLS', 'true').lower() == "true"
 # drycc prometheus url
 DRYCC_PROMETHEUS_URL = os.environ.get('DRYCC_PROMETHEUS_URL', '')
 
@@ -288,7 +287,6 @@ IMAGE_PULL_POLICY = os.environ.get('IMAGE_PULL_POLICY', "IfNotPresent")
 
 # True, true, yes, y and more evaluate to True
 # False, false, no, n and more evaluate to False
-# https://docs.python.org/3/distutils/apiref.html?highlight=distutils.util#distutils.util.strtobool
 # see the above for all available options
 #
 # If a user deploys one build with a Procfile but then forgets to in the next one
@@ -297,19 +295,18 @@ IMAGE_PULL_POLICY = os.environ.get('IMAGE_PULL_POLICY', "IfNotPresent")
 # If the user has a Procfile in both deploys then processes are scaled up / down as per usual
 #
 # By default the process types are scaled down unless this setting is turned on
-DRYCC_DEPLOY_PROCFILE_MISSING_REMOVE = bool(strtobool(os.environ.get(
-    'DRYCC_DEPLOY_PROCFILE_MISSING_REMOVE', 'true')))
+DRYCC_DEPLOY_PROCFILE_MISSING_REMOVE = os.environ.get(
+    'DRYCC_DEPLOY_PROCFILE_MISSING_REMOVE', 'true').lower() == "true"
 
 # True, true, yes, y and more evaluate to True
 # False, false, no, n and more evaluate to False
-# https://docs.python.org/3/distutils/apiref.html?highlight=distutils.util#distutils.util.strtobool
 # see the above for all available options
 #
 # If a previous deploy had a Procfile but then the following deploy has no Procfile then it will
 # result in a 406 - Not Acceptable
 # Has priority over DRYCC_DEPLOY_PROCFILE_MISSING_REMOVE
-DRYCC_DEPLOY_REJECT_IF_PROCFILE_MISSING = bool(strtobool(os.environ.get(
-    'DRYCC_DEPLOY_REJECT_IF_PROCFILE_MISSING', 'false')))
+DRYCC_DEPLOY_REJECT_IF_PROCFILE_MISSING = os.environ.get(
+    'DRYCC_DEPLOY_REJECT_IF_PROCFILE_MISSING', 'false').lower() == "true"
 
 # Define a global default on how many pods to bring up and then
 # take down sequentially during a deploy

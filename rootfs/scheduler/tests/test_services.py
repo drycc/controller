@@ -128,14 +128,12 @@ class ServicesTest(TestCase):
         self.assertEqual(response.status_code, 200, data)
         self.assertEqual(data['apiVersion'], 'v1')
         self.assertEqual(data['kind'], 'Service')
-        self.assertDictContainsSubset(
-            {
-                'name': name,
-                'labels': {
-                    'app': self.namespace,
-                    'heritage': 'drycc'
-                }
-            },
-            data['metadata']
-        )
+        metadata = {
+            'name': name,
+            'labels': {
+                'app': self.namespace,
+                'heritage': 'drycc'
+            }
+        }
+        self.assertEqual(data['metadata'], data['metadata'] | metadata)
         self.assertEqual(data['spec']['ports'][0]['targetPort'], 5000)

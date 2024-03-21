@@ -102,7 +102,7 @@ class BuildTest(DryccTransactionTestCase):
             'procfile': {},
             'sha': ''
         }
-        self.assertDictContainsSubset(expected, response.data)
+        self.assertEqual(response.data, expected | response.data)
 
     def test_build_default_containers(self, mock_requests):
         app_id = self.create_app()

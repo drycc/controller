@@ -117,7 +117,7 @@ class Resource(UuidAuditedModel):
         as "belonging" to the application instead of the controller and will be handled
         accordingly.
         """
-        logger.log(level, "[{}]: {}".format(self.uuid, message))
+        logger.log(level, "[{}]: {}".format(self.app.id, message))
 
     def bind(self, *args, **kwargs):
         if self.status != "Ready":

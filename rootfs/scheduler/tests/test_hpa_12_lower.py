@@ -215,10 +215,8 @@ class HorizontalPodAutoscalersTest(TestCase):
         self.assertEqual(data['apiVersion'], 'autoscaling/v1')
         self.assertEqual(data['kind'], 'HorizontalPodAutoscaler')
         self.assertEqual(data['metadata']['name'], name)
-        self.assertDictContainsSubset(
-            {
-                'app': self.namespace,
-                'heritage': 'drycc'
-            },
-            data['metadata']['labels']
-        )
+        labels = {
+            'app': self.namespace,
+            'heritage': 'drycc'
+        }
+        self.assertEqual(data['metadata']['labels'], labels | data['metadata']['labels'])

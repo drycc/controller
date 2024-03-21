@@ -54,7 +54,7 @@ class ResourceTest(DryccTransactionTestCase):
             'name': 'mysql',
             'plan': 'mysql:5.6'
         }
-        self.assertDictContainsSubset(expected, response.data)
+        self.assertEqual(response.data, expected | response.data)
 
     def test_resources_list(self, mock_requests):
         """

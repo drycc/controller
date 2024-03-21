@@ -9,6 +9,7 @@ from api.exceptions import DryccException, AlreadyExists, UnprocessableEntity
 from .base import UuidAuditedModel
 
 User = get_user_model()
+logger = logging.getLogger(__name__)
 
 
 class AppSettings(UuidAuditedModel):
@@ -34,6 +35,17 @@ class AppSettings(UuidAuditedModel):
 
     def __str__(self):
         return "{}-{}".format(self.app.id, str(self.uuid)[:7])
+
+    def log(self, message, level=logging.INFO):
+        """Logs a message in the context of this application.
+
+        This prefixes log messages with an application "tag" that the customized
+        drycc-logspout will be on the lookout for.  When it's seen, the message-- usually
+        an application event of some sort like releasing or scaling, will be considered
+        as "belonging" to the application instead of the controller and will be handled
+        accordingly.
+        """
+        logger.log(level, "[{}]: {}".format(self.app.id, message))
 
     def previous(self):
         """
@@ -167,7 +179,7 @@ class AppSettings(UuidAuditedModel):
             self.delete()
             raise AlreadyExists("{} changed nothing".format(self.owner))
         summary = ' '.join(self.summary)
-        self.app.log('summary of app setting changes: {}'.format(summary), logging.DEBUG)
+        self.log('summary of app setting changes: {}'.format(summary), logging.DEBUG)
 
     def diff_canaries(self):
         prev_app_settings = self.previous()

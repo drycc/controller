@@ -16,7 +16,7 @@ spec:
     spec:
       template:
         metadata:
-          labels:
+          labels: {{- include "common.labels.standard" . | nindent 12 }}
             app: drycc-controller-conjob
         spec:
           restartPolicy: OnFailure

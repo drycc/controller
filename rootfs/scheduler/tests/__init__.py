@@ -24,14 +24,12 @@ class TestCase(DjangoTestCase):
         data = response.json()
         self.assertEqual(data['apiVersion'], 'v1')
         self.assertEqual(data['kind'], 'Namespace')
-        self.assertDictContainsSubset(
-            {
-                'name': namespace,
-                'labels': {
-                    'heritage': 'drycc'
-                }
-            },
-            data['metadata']
-        )
+        metadata = {
+            'name': namespace,
+            'labels': {
+                'heritage': 'drycc'
+            }
+        }
+        self.assertEqual(data['metadata'], metadata | data['metadata'])
 
         return namespace
