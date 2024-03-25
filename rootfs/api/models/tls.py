@@ -90,7 +90,7 @@ class TLS(UuidAuditedModel):
         try:
             if self.issuer["key_id"] and self.issuer["key_secret"]:
                 self._refresh_secret_to_k8s()
-            data = copy.copy(self.issuer)
+            data = copy.deepcopy(self.issuer)
             data["parent_refs"] = [
                 {
                     "group": "gateway.networking.k8s.io",
