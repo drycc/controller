@@ -1,0 +1,326 @@
+{
+	"kind": "AdmissionReview",
+	"apiVersion": "admission.k8s.io/v1",
+	"request": {
+		"uid": "19f316cc-3bec-4457-bf3a-f98153f7b2d3",
+		"kind": {
+			"group": "servicecatalog.k8s.io",
+			"version": "v1beta1",
+			"kind": "ServiceBinding"
+		},
+		"resource": {
+			"group": "servicecatalog.k8s.io",
+			"version": "v1beta1",
+			"resource": "servicebindings"
+		},
+		"subResource": "status",
+		"requestKind": {
+			"group": "servicecatalog.k8s.io",
+			"version": "v1beta1",
+			"kind": "ServiceBinding"
+		},
+		"requestResource": {
+			"group": "servicecatalog.k8s.io",
+			"version": "v1beta1",
+			"resource": "servicebindings"
+		},
+		"requestSubResource": "status",
+		"name": "redis-t2",
+		"namespace": "myapp",
+		"operation": "UPDATE",
+		"userInfo": {
+			"username": "system:serviceaccount:catalog:service-catalog-controller-manager",
+			"uid": "b06a6359-7a1e-4638-9eb0-c93dfeff7171",
+			"groups": [
+				"system:serviceaccounts",
+				"system:serviceaccounts:catalog",
+				"system:authenticated"
+			],
+			"extra": {
+				"authentication.kubernetes.io/pod-name": [
+					"catalog-catalog-controller-manager-f7f8c8c4-v5pbs"
+				],
+				"authentication.kubernetes.io/pod-uid": [
+					"dd51f5be-c83f-452e-99c1-475275dbcbc8"
+				]
+			}
+		},
+		"object": {
+			"apiVersion": "servicecatalog.k8s.io/v1beta1",
+			"kind": "ServiceBinding",
+			"metadata": {
+				"creationTimestamp": "2024-03-25T01:48:21Z",
+				"finalizers": [
+					"kubernetes-incubator/service-catalog"
+				],
+				"generation": 1,
+				"labels": {
+					"heritage": "drycc"
+				},
+				"managedFields": [
+					{
+						"apiVersion": "servicecatalog.k8s.io/v1beta1",
+						"fieldsType": "FieldsV1",
+						"fieldsV1": {
+							"f:metadata": {
+								"f:labels": {
+									".": {},
+									"f:heritage": {}
+								}
+							},
+							"f:spec": {
+								".": {},
+								"f:instanceRef": {
+									".": {},
+									"f:name": {}
+								}
+							}
+						},
+						"manager": "Drycc Controller",
+						"operation": "Update",
+						"time": "2024-03-25T01:48:21Z"
+					},
+					{
+						"apiVersion": "servicecatalog.k8s.io/v1beta1",
+						"fieldsType": "FieldsV1",
+						"fieldsV1": {
+							"f:status": {
+								".": {},
+								"f:asyncOpInProgress": {},
+								"f:conditions": {},
+								"f:externalProperties": {
+									".": {},
+									"f:userInfo": {
+										".": {},
+										"f:extra": {
+											".": {},
+											"f:authentication.kubernetes.io/pod-name": {},
+											"f:authentication.kubernetes.io/pod-uid": {}
+										},
+										"f:groups": {},
+										"f:uid": {},
+										"f:username": {}
+									}
+								},
+								"f:lastConditionState": {},
+								"f:orphanMitigationInProgress": {},
+								"f:reconciledGeneration": {},
+								"f:unbindStatus": {}
+							}
+						},
+						"manager": "service-catalog",
+						"operation": "Update",
+						"subresource": "status",
+						"time": "2024-03-25T01:48:22Z"
+					}
+				],
+				"name": "redis-t2",
+				"namespace": "myapp",
+				"resourceVersion": "74043278",
+				"uid": "292b0ef5-947f-42a8-adfb-909e99d26906"
+			},
+			"spec": {
+				"externalID": "57414c7d-0931-4310-8ed6-d8368ac0d3de",
+				"instanceRef": {
+					"name": "redis-t2"
+				},
+				"secretName": "redis-t2",
+				"userInfo": {
+					"extra": {
+						"authentication.kubernetes.io/pod-name": [
+							"drycc-controller-6b95d76b68-cx78l"
+						],
+						"authentication.kubernetes.io/pod-uid": [
+							"10c4fe5b-fea5-47d9-a49e-10ff94ba8e08"
+						]
+					},
+					"groups": [
+						"system:serviceaccounts",
+						"system:serviceaccounts:drycc",
+						"system:authenticated"
+					],
+					"uid": "13ad2917-0e39-4f88-8b2e-4d77e5797ea6",
+					"username": "system:serviceaccount:drycc:drycc-controller"
+				}
+			},
+			"status": {
+				"asyncOpInProgress": false,
+				"conditions": [
+					{
+						"lastTransitionTime": "2024-03-25T01:48:22Z",
+						"message": "Injected bind result",
+						"reason": "InjectedBindResult",
+						"status": "True",
+						"type": "Ready"
+					}
+				],
+				"externalProperties": {
+					"userInfo": {
+						"extra": {
+							"authentication.kubernetes.io/pod-name": [
+								"drycc-controller-6b95d76b68-cx78l"
+							],
+							"authentication.kubernetes.io/pod-uid": [
+								"10c4fe5b-fea5-47d9-a49e-10ff94ba8e08"
+							]
+						},
+						"groups": [
+							"system:serviceaccounts",
+							"system:serviceaccounts:drycc",
+							"system:authenticated"
+						],
+						"uid": "13ad2917-0e39-4f88-8b2e-4d77e5797ea6",
+						"username": "system:serviceaccount:drycc:drycc-controller"
+					}
+				},
+				"lastConditionState": "Ready",
+				"orphanMitigationInProgress": false,
+				"reconciledGeneration": 1,
+				"unbindStatus": "Required"
+			}
+		},
+		"oldObject": {
+			"apiVersion": "servicecatalog.k8s.io/v1beta1",
+			"kind": "ServiceBinding",
+			"metadata": {
+				"creationTimestamp": "2024-03-25T01:48:21Z",
+				"finalizers": [
+					"kubernetes-incubator/service-catalog"
+				],
+				"generation": 1,
+				"labels": {
+					"heritage": "drycc"
+				},
+				"managedFields": [
+					{
+						"apiVersion": "servicecatalog.k8s.io/v1beta1",
+						"fieldsType": "FieldsV1",
+						"fieldsV1": {
+							"f:metadata": {
+								"f:labels": {
+									".": {},
+									"f:heritage": {}
+								}
+							},
+							"f:spec": {
+								".": {},
+								"f:instanceRef": {
+									".": {},
+									"f:name": {}
+								}
+							}
+						},
+						"manager": "Drycc Controller",
+						"operation": "Update",
+						"time": "2024-03-25T01:48:21Z"
+					},
+					{
+						"apiVersion": "servicecatalog.k8s.io/v1beta1",
+						"fieldsType": "FieldsV1",
+						"fieldsV1": {
+							"f:status": {
+								".": {},
+								"f:asyncOpInProgress": {},
+								"f:conditions": {},
+								"f:currentOperation": {},
+								"f:inProgressProperties": {
+									".": {},
+									"f:userInfo": {
+										".": {},
+										"f:extra": {
+											".": {},
+											"f:authentication.kubernetes.io/pod-name": {},
+											"f:authentication.kubernetes.io/pod-uid": {}
+										},
+										"f:groups": {},
+										"f:uid": {},
+										"f:username": {}
+									}
+								},
+								"f:lastConditionState": {},
+								"f:operationStartTime": {},
+								"f:orphanMitigationInProgress": {},
+								"f:reconciledGeneration": {},
+								"f:unbindStatus": {}
+							}
+						},
+						"manager": "service-catalog",
+						"operation": "Update",
+						"subresource": "status",
+						"time": "2024-03-25T01:48:21Z"
+					}
+				],
+				"name": "redis-t2",
+				"namespace": "myapp",
+				"resourceVersion": "74043278",
+				"uid": "292b0ef5-947f-42a8-adfb-909e99d26906"
+			},
+			"spec": {
+				"externalID": "57414c7d-0931-4310-8ed6-d8368ac0d3de",
+				"instanceRef": {
+					"name": "redis-t2"
+				},
+				"secretName": "redis-t2",
+				"userInfo": {
+					"extra": {
+						"authentication.kubernetes.io/pod-name": [
+							"drycc-controller-6b95d76b68-cx78l"
+						],
+						"authentication.kubernetes.io/pod-uid": [
+							"10c4fe5b-fea5-47d9-a49e-10ff94ba8e08"
+						]
+					},
+					"groups": [
+						"system:serviceaccounts",
+						"system:serviceaccounts:drycc",
+						"system:authenticated"
+					],
+					"uid": "13ad2917-0e39-4f88-8b2e-4d77e5797ea6",
+					"username": "system:serviceaccount:drycc:drycc-controller"
+				}
+			},
+			"status": {
+				"asyncOpInProgress": false,
+				"conditions": [
+					{
+						"lastTransitionTime": "2024-03-25T01:48:21Z",
+						"message": "Binding request for ServiceBinding in-flight to Broker",
+						"reason": "BindingRequestInFlight",
+						"status": "False",
+						"type": "Ready"
+					}
+				],
+				"currentOperation": "Bind",
+				"inProgressProperties": {
+					"userInfo": {
+						"extra": {
+							"authentication.kubernetes.io/pod-name": [
+								"drycc-controller-6b95d76b68-cx78l"
+							],
+							"authentication.kubernetes.io/pod-uid": [
+								"10c4fe5b-fea5-47d9-a49e-10ff94ba8e08"
+							]
+						},
+						"groups": [
+							"system:serviceaccounts",
+							"system:serviceaccounts:drycc",
+							"system:authenticated"
+						],
+						"uid": "13ad2917-0e39-4f88-8b2e-4d77e5797ea6",
+						"username": "system:serviceaccount:drycc:drycc-controller"
+					}
+				},
+				"lastConditionState": "BindingRequestInFlight",
+				"operationStartTime": "2024-03-25T01:48:21Z",
+				"orphanMitigationInProgress": false,
+				"reconciledGeneration": 0,
+				"unbindStatus": "Required"
+			}
+		},
+		"dryRun": false,
+		"options": {
+			"kind": "UpdateOptions",
+			"apiVersion": "meta.k8s.io/v1"
+		}
+	}
+}

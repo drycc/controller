@@ -79,10 +79,13 @@ class Volume(UuidAuditedModel):
         return [{
             "app_id": str(self.app_id),
             "owner": self.owner_id,
-            "name": self.name,
+            "name": self.type,
             "type": "volume",
             "unit": "bytes",
-            "usage": unit_to_bytes(self.size) if self.type == "csi" else 0,
+            "usage": unit_to_bytes(self.size),
+            "kwargs": {
+                "name": self.name,
+            },
             "timestamp": int(timestamp)
         }]
 

@@ -1,6 +1,7 @@
 import uuid
 import time
 import logging
+import ipaddress
 from django.utils import timezone
 from django.core.management.base import BaseCommand
 from django.conf import settings
@@ -14,21 +15,31 @@ logger = logging.getLogger(__name__)
 class Command(BaseCommand):
     """Management command for push data to manager"""
 
+    def _get_measure_name(self, ip):
+        address = ipaddress.ip_address(ip)
+        prefix = "intranet" if address.is_private else "internet"
+        return f"{prefix}:{address.version}"
+
     def _measure_loadbalancers(self, app_map, timestamp):
         stop = timestamp - (timestamp % 3600)
         start = stop - 3600
         loadbalancers = []
         for item in monitor.query_loadbalancer(app_map.keys(), start, stop):
-            name = item["ip"]
+            ip = item["ip"]
             namespace = item["namespace"]
             owner_id = app_map[namespace].owner_id
             loadbalancers.append({
                 "app_id":  str(app_map[namespace].uuid),
                 "owner": owner_id,
-                "name": name,
+                "name": self._get_measure_name(ip),
                 "type": "loadbalancer",
                 "unit": "number",
                 "usage": 1,
+                "kwargs": {
+                    "ip": ip,
+                    "service": item["service"],
+                    "hostname": item["hostname"],
+                },
                 "timestamp": start
             })
         send_measurements.delay(loadbalancers)

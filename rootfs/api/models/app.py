@@ -22,7 +22,7 @@ from rest_framework.exceptions import ValidationError, NotFound
 
 from api.utils import get_session
 from api.exceptions import AlreadyExists, DryccException, ServiceUnavailable
-from api.utils import generate_app_name, apply_tasks, unit_to_bytes, unit_to_millicpu
+from api.utils import generate_app_name, apply_tasks
 from scheduler import KubeHTTPException, KubeException
 from scheduler.resources.pod import DEFAULT_CONTAINER_PORT
 from .gateway import Gateway, Route, DEFAULT_HTTP_PORT, DEFAULT_HTTPS_PORT
@@ -589,23 +589,18 @@ class App(UuidAuditedModel):
         measurements = []
         config = self.config_set.latest()
         for container_type, scale in self.structure.items():
+            plan = config.limits.get(container_type)
             measurements.append({
                 "app_id": str(self.uuid),
                 "owner": self.owner_id,
-                "name": container_type,
-                "type": "cpu",
-                "unit": "milli",
-                "usage": unit_to_millicpu(config.cpu.get(container_type)) * scale,
-                "timestamp": int(timestamp)
-            })
-            measurements.append({
-                "app_id": str(self.uuid),
-                "owner": self.owner_id,
-                "name": container_type,
-                "type": "memory",
-                "unit": "bytes",
-                "usage": unit_to_bytes(config.memory.get(container_type)) * scale,
-                "timestamp": int(timestamp)
+                "name": plan,
+                "type": "limits",
+                "unit": "number",
+                "usage": scale,
+                "kwargs": {
+                    "ptype": container_type,
+                },
+                "timestamp": int(timestamp),
             })
         return measurements
 

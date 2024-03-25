@@ -201,10 +201,13 @@ class Resource(UuidAuditedModel):
         return [{
             "app_id": str(self.app_id),
             "owner": self.owner_id,
-            "name": self.name,
-            "type": self.plan,
+            "name": self.plan,
+            "type": "resource",
             "unit": "number",
             "usage": 1,
+            "kwargs": {
+                "name": self.name,
+            },
             "timestamp": int(timestamp)
         }]
 

@@ -36,6 +36,10 @@ webhooks:
     apiGroups: ["apps"]
     apiVersions: ["*"]
     resources: ["deployments/scale"]
+  - operations: ["UPDATE"]
+    apiGroups: ["servicecatalog.k8s.io"]
+    apiVersions: ["*"]
+    resources: ["serviceinstances/status", "servicebindings/status"]
   timeoutSeconds: 30
 ---
 apiVersion: v1

@@ -81,3 +81,51 @@ class DeploymentsScaleHandler(BaseHandler):
                     )
                 )
         return True
+
+
+class ServiceInstancesStatusHandler(BaseHandler):
+
+    def detect(self, request: Request) -> bool:
+        group = request.get("resource", {}).get("group", None)
+        resource = "/".join([
+            request.get("resource", {}).get("resource", None),
+            request.get("subResource", ""),
+        ])
+        if (group, resource) == ("servicecatalog.k8s.io", "serviceinstances/status"):
+            return True
+        return False
+
+    def handle(self, request: Request) -> bool:
+        app_id = request["object"]["metadata"]["namespace"]
+        name = request["object"]["metadata"]["name"]
+        status = request["object"]["status"]["lastConditionState"]
+        resource = models.resource.Resource.objects.filter(
+            app__id=app_id, name=name).first()
+        if resource and resource.status != status:
+            resource.status = status
+            resource.save(update_fields=["status"])
+        return True
+
+
+class ServicebindingsStatusHandler(BaseHandler):
+
+    def detect(self, request: Request) -> bool:
+        group = request.get("resource", {}).get("group", None)
+        resource = "/".join([
+            request.get("resource", {}).get("resource", None),
+            request.get("subResource", ""),
+        ])
+        if (group, resource) == ("servicecatalog.k8s.io", "servicebindings/status"):
+            return True
+        return False
+
+    def handle(self, request: Request) -> bool:
+        app_id = request["object"]["metadata"]["namespace"]
+        name = request["object"]["metadata"]["name"]
+        binding = request["object"]["status"]["lastConditionState"]
+        resource = models.resource.Resource.objects.filter(
+            app__id=app_id, name=name).first()
+        if resource and resource.binding != binding:
+            resource.binding = binding
+            resource.save(update_fields=["binding"])
+        return True

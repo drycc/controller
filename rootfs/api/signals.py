@@ -9,15 +9,13 @@ import hmac
 import logging
 import urllib.parse
 import requests
-from datetime import timedelta
 from django.conf import settings
 from django.db.models.signals import post_delete, post_save
-from django.utils.timezone import now
 from django.dispatch import receiver
 from django.contrib.auth import get_user_model
 from rest_framework.authtoken.models import Token
 from api.utils import get_session
-from api.tasks import retrieve_resource, send_measurements
+from api.tasks import send_measurements
 from api.models.app import App
 from api.models.service import Service
 from api.models.gateway import Gateway, DEFAULT_HTTPS_PORT
@@ -252,13 +250,6 @@ def volume_changed_handle(sender, instance: Volume, created=False, update_fields
 @receiver(post_save, sender=Resource)
 def resource_changed_handle(
         sender, instance: Resource, created=False, update_fields=None, **kwargs):
-    # retrieve_resource
-    if created or instance.binding == "Binding" or (
-            update_fields is not None and "plan" in update_fields):
-        retrieve_resource.apply_async(
-            args=(instance, ),
-            eta=now() + timedelta(seconds=30)
-        )
     # measure resources to workflow manager
     if settings.WORKFLOW_MANAGER_URL and (
         created or (

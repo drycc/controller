@@ -186,16 +186,6 @@ def unit_to_bytes(size):
     return round(_)
 
 
-def unit_to_millicpu(cpu):
-    cpu = cpu.lower()
-    if cpu.endswith("m") and cpu[:-1].isdigit():
-        return int(cpu[:-1])
-    elif cpu.isdigit():
-        return int(cpu) * 1000
-    else:
-        raise ValueError("Unrecognized CPU unit: %s" % cpu)
-
-
 if __name__ == "__main__":
     import doctest
     doctest.testmod()

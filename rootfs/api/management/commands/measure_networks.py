@@ -21,15 +21,18 @@ class Command(BaseCommand):
         for namespace, pod_name, rx_bytes, tx_bytes in monitor.query_network_flow(
                 app_map.keys(), start, stop):
             owner_id = app_map[namespace].owner_id
-            networks.append({
+            base_measure = {
                 "app_id":  str(app_map[namespace].uuid),
                 "owner": owner_id,
-                "name": pod_name,
                 "type": "network",
                 "unit": "bytes",
-                "usage": rx_bytes + tx_bytes,
+                "kwargs": {
+                    "pod": pod_name,
+                },
                 "timestamp": start
-            })
+            }
+            networks.append(base_measure | {"name": "rx", "usage": rx_bytes})
+            networks.append(base_measure | {"name": "tx", "usage": tx_bytes})
         send_measurements.delay(networks)
 
     def handle(self, *args, **options):

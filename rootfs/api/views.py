@@ -30,7 +30,7 @@ from django.views.decorators.csrf import csrf_exempt
 from social_django.utils import psa
 from social_django.views import _do_login
 from social_core.utils import setting_name
-from api.admissions import JobsStatusHandler, DeploymentsScaleHandler
+from api import admissions
 from api.apps_extra.social_core.actions import do_auth, do_complete
 
 User = get_user_model()
@@ -153,7 +153,12 @@ class WorkflowManagerViewset(GenericViewSet):
 
 class AdmissionWebhookViewSet(GenericViewSet):
 
-    admission_classes = (JobsStatusHandler, DeploymentsScaleHandler)
+    admission_classes = (
+        admissions.JobsStatusHandler,
+        admissions.DeploymentsScaleHandler,
+        admissions.ServiceInstancesStatusHandler,
+        admissions.ServicebindingsStatusHandler,
+    )
     permission_classes = (AllowAny, )
 
     def handle(self, request,  **kwargs):
