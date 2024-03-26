@@ -6,84 +6,14 @@ metadata:
     heritage: drycc
 data:
   limit-specs.json: |
-    [{
-      "model": "api.limitspec",
-      "pk": "std1",
-      "fields": {
-        "cpu": {
-          "name": "Unknown CPU",
-          "cores": 32,
-          "clock": "3100MHZ",
-          "boost": "3700MHZ",
-          "threads": 64
-        },
-        "memory": {
-          "size": "64GB",
-          "type": "DDR4-ECC"
-        },
-        "features": {
-          "gpu": {
-            "name": "Unknown Integrated GPU",
-            "tmus": 1,
-            "rops": 1,
-            "cores": 128,
-            "memory": {
-              "size": "shared",
-              "type": "shared"
-            }
-          },
-          "network": "10G"
-        },
-        "keywords": ["unknown"],
-        "disabled": false,
-        "created": "{{ now | date "2006-01-02T15:04:05.000Z" }}",
-        "updated": "{{ now | date "2006-01-02T15:04:05.000Z" }}"
-      }
-    }]
-  # Given a name SPEC.NETWORK.PLAN(eg: std1.xlarge.c1m1), increment the:
-  # * SPEC different specification families can be selected based on business and usage scenarios.
-  # * NETWORK 
-  # * PLAN Specific CPU configuration, such as c1m1 representing one CPU and 1GB of memory.
-  limit-plans.json: |
-    [
-    {{- $items := tuple "1/1/10" "1/2/10" "1/4/20" "2/2/20" "2/4/30" "2/8/30" }}
-    {{- range $index, $item := $items }}
-    {{- $cpu := index (splitList "/" $item) 0 }}
-    {{- $memory := index (splitList "/" $item) 1 }}
-    {{- $network := index (splitList "/" $item) 2 }}
-    {
-      "model": "api.limitplan",
-      "pk": "std1.large.c{{ $cpu }}m{{ $memory }}",
-      "fields": {
-        "spec_id": "std1",
-        "cpu": {{ $cpu }},
-        "memory": {{ $memory }},
-        "features": {
-          "gpu": 1,
-          "network": 1
-        },
-        "disabled": false,
-        "priority": {{ add 100 $index }},
-        "limits": {
-          "cpu": {{ $cpu }},
-          "memory": "{{ $memory }}Gi",
-          "ephemeral-storage": "2Gi"
-        },
-        "requests": {
-          "cpu": {{ divf $cpu 2 }},
-          "memory": "{{ divf $memory 2 }}Gi",
-          "ephemeral-storage": "2Gi"
-        },
-        "annotations": {
-          "kubernetes.io/egress-bandwidth": "{{ $network }}M",
-          "kubernetes.io/ingress-bandwidth": "{{ $network }}M"
-        },
-        "node_selector": {},
-        "pod_security_context": {},
-        "container_security_context": {},
-        "created": "{{ now | date "2006-01-02T15:04:05.000Z" }}",
-        "updated": "{{ now | date "2006-01-02T15:04:05.000Z" }}"
-      }
-    }{{ if not (eq $item ($items|last)) }},{{ end }}
+    {{- if .Values.config.limitSpecs }}
+    {{- (tpl .Values.config.limitSpecs $)  | nindent 4 }}
+    {{- else}}
+    {{- include "controller.config.defaultLimitSpecs" . | fromYamlArray | toPrettyJson | nindent 4 }}
     {{- end }}
-    ]
+  limit-plans.json: |
+    {{- if .Values.config.limitPlans }}
+    {{- (tpl .Values.config.limitPlans $)  | nindent 4 }}
+    {{- else}}
+    {{- include "controller.config.defaultLimitPlans" . | fromYamlArray | toPrettyJson | nindent 4 }}
+    {{- end }}

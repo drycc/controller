@@ -65,10 +65,17 @@ workflowManagerSecretKey: ""
 
 # Configuring this will no longer use the built-in rabbitmq component
 rabbitmqUrl: ""
+
+# limit specs, plans config
+config:
+  limitSpecs: ""
+  limitPlans: ""
+
 # Service
 service:
   # Provide any additional service annotations
   annotations: {}
+
 # Any custom controller environment variables
 # can be specified as key-value pairs under environment
 # this is usually a non required setting.

@@ -221,3 +221,74 @@ resources:
 {{- end }}
 {{- end }}
 {{- end }}
+
+{{/* Generate controller config default limit specs */}}
+{{ define "controller.config.defaultLimitSpecs" }}
+- model: api.limitspec
+  pk: std1
+  fields:
+    cpu:
+      name: Unknown CPU
+      cores: 32
+      clock: 3100MHZ
+      boost: 3700MHZ
+      threads: 64
+    memory:
+      size: 64GB
+      type: DDR4-ECC
+    features:
+      gpu:
+        name: Unknown Integrated GPU
+        tmus: 1
+        rops: 1
+        cores: 128
+        memory:
+          size: shared
+          type: shared
+      network: 10G
+    keywords:
+    - unknown
+    disabled: false
+    created: {{ now | date "2006-01-02T15:04:05.000Z" }}
+    updated: {{ now | date "2006-01-02T15:04:05.000Z" }}
+{{- end }}
+
+{{/* Generate controller config default limit plans */}}
+{{ define "controller.config.defaultLimitPlans" }}
+{{- $index := 0 }}
+{{- $cpus := tuple 1 2 4 8 16 32 }}
+{{- $scales := tuple 1 2 4 8 }}
+{{- range $cpu := $cpus }}
+{{- range $scale := $scales }}
+{{- $memory := mul $cpu $scale }}
+- model: api.limitplan
+  pk: std1.large.c{{ $cpu }}m{{ $memory }}
+  fields:
+    spec_id: std1
+    cpu: {{ $cpu }}
+    memory: {{ $memory }}
+    features:
+      gpu: 1
+      network: 1
+    disabled: false
+    priority: {{ add 10000 (mul (add1 $index) 100) }}
+    limits:
+      cpu: {{ $cpu }}
+      memory: {{ $memory }}Gi
+      ephemeral-storage: 2Gi
+    requests:
+      cpu: {{ divf $cpu 4 }}
+      memory: {{ divf $memory 2 }}Gi
+      ephemeral-storage: 2Gi
+    annotations:
+      kubernetes.io/egress-bandwidth: 100M
+      kubernetes.io/ingress-bandwidth: 100M
+    node_selector: {}
+    pod_security_context: {}
+    container_security_context: {}
+    created: {{ now | date "2006-01-02T15:04:05.000Z" }}
+    updated: {{ now | date "2006-01-02T15:04:05.000Z" }}
+{{- $index = (add1 $index) }}
+{{- end }}
+{{- end }}
+{{- end }}
