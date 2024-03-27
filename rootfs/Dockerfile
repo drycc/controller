@@ -12,7 +12,7 @@ RUN groupadd drycc --gid ${DRYCC_GID} \
 COPY requirements.txt ${DRYCC_HOME_DIR}/requirements.txt
 
 RUN buildDeps='gcc libffi-dev libpq-dev rustc cargo'; \
-    install-packages ${buildDeps} \
+    install-packages inotify-tools ${buildDeps} \
   && install-stack python $PYTHON_VERSION && . init-stack \
   && python3 -m venv ${DRYCC_HOME_DIR}/.venv \
   && source ${DRYCC_HOME_DIR}/.venv/bin/activate \

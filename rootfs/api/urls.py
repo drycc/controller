@@ -230,15 +230,15 @@ app_urlpatterns = [
     re_path('', include('social_django.urls', namespace='social')),
 ]
 
-webhook_urlpatterns = [
+mutate_urlpatterns = [
     re_path(
-        r'^webhooks/(?P<token>.+)/?$',
+        r'^mutate/(?P<key>.+)/?$',
         views.AdmissionWebhookViewSet.as_view({'post': 'handle'})
     ),
 ]
 
-# If there is a mutating admission webhook configuration, use webhook url
-if settings.DRYCC_ADMISSION_WEBHOOK_TOKEN:
-    urlpatterns = webhook_urlpatterns
+# If there is a mutating admission mutate configuration, use mutate url
+if settings.MUTATE_KEY:
+    urlpatterns = mutate_urlpatterns
 else:
     urlpatterns = app_urlpatterns

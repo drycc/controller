@@ -1,11 +1,11 @@
 kind: Service
 apiVersion: v1
 metadata:
-  name: drycc-controller-webhook
+  name: drycc-controller-mutate
 spec:
   selector:
-    component: drycc-controller-webhook
+    component: drycc-controller-mutate
   ports:
   - name: https
-    port: 8443
+    port: 443
     targetPort: 8443

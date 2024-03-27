@@ -1,14 +1,23 @@
 import os
-from os.path import dirname, realpath
+from os.path import dirname, realpath, exists
 
 import faulthandler
 faulthandler.enable()
 
-# If there is a mutating admission webhook configuration, start webhook
-if os.path.exists("/etc/controller/webhook/cert"):
+bind = '0.0.0.0:8000'
+
+# If there is a mutating admission mutate configuration, start mutate
+MUTATE_KEY_PATH = os.environ.get(
+    'DRYCC_MUTATE_KEY_PATH', '/etc/controller/mutate/cert/key')
+MUTATE_TLS_KEY_PATH = os.environ.get(
+    'DRYCC_MUTATE_TLS_KEY_PATH', '/etc/controller/mutate/cert/tls.key')
+MUTATE_TLS_CRT_PATH = os.environ.get(
+    'DRYCC_MUTATE_TLS_CRT_PATH', '/etc/controller/mutate/cert/tls.crt')
+if exists(MUTATE_KEY_PATH) and exists(MUTATE_TLS_KEY_PATH) and exists(MUTATE_TLS_CRT_PATH):
     bind = '0.0.0.0:8443'
-    keyfile = "/etc/controller/webhook/cert/tls.key"
-    certfile = "/etc/controller/webhook/cert/tls.crt"
+    keyfile = MUTATE_TLS_KEY_PATH
+    certfile = MUTATE_TLS_CRT_PATH
+    reload_extra_files = [MUTATE_KEY_PATH, MUTATE_TLS_KEY_PATH, MUTATE_TLS_CRT_PATH]
 else:
     bind = '0.0.0.0:8000'
 

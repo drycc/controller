@@ -44,8 +44,8 @@ appPodExecTimeout: 3600
 apiReplicas: 1
 # Set celery replicas
 celeryReplicas: 1
-# Set webhook replicas
-webhookReplicas: 1
+# Set mutate replicas
+mutateReplicas: 1
 # Set cronjob concurrencyPolicy
 # Allow (default): The cron job allows concurrently running jobs
 # Forbid: The cron job does not allow concurrent runs; if it is time for a new job run and the previous job run hasn't finished yet, the cron job skips the new job run
@@ -112,7 +112,7 @@ celery:
     extraMatchLabels:
       app: "drycc-controller-celery"
 
-webhook:
+mutate:
   nodeAffinityPreset:
     key: "drycc.cc/node"
     type: "soft"
@@ -125,7 +125,7 @@ webhook:
   podAntiAffinityPreset:
     type: "soft"
     extraMatchLabels:
-      component: "drycc-controller-webhook"
+      component: "drycc-controller-mutate"
 
 redis:
   replicas: 1

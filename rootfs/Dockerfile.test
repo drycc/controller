@@ -14,7 +14,7 @@ ENV PGDATA="/opt/drycc/postgresql/data" \
   GOSU_VERSION="1.17"
 
 RUN buildDeps='gcc rustc cargo  libffi-dev musl-dev openssl'; \
-  install-packages mercurial ca-certificates git $buildDeps \
+  install-packages mercurial ca-certificates git inotify-tools $buildDeps \
   && install-stack python $PYTHON_VERSION \
   && install-stack redis $REDIS_VERSION \
   && install-stack rabbitmq $RABBITMQ_VERSION \

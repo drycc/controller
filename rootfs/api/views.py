@@ -162,9 +162,9 @@ class AdmissionWebhookViewSet(GenericViewSet):
     permission_classes = (AllowAny, )
 
     def handle(self, request,  **kwargs):
-        token = kwargs['token']
+        key = kwargs['key']
         data = json.loads(request.body.decode("utf8"))["request"]
-        if settings.DRYCC_ADMISSION_WEBHOOK_TOKEN == token:
+        if settings.MUTATE_KEY == key:
             allowed = True
             for admission_class in self.admission_classes:
                 admission = admission_class()

@@ -1,0 +1,50 @@
+{{- $key := randAlphaNum 128 | lower }}
+{{- $ca := genCA "controller-mutate-ca" 3650 }}
+{{- $altName1 := printf "drycc-controller-mutate.%s" .Release.Namespace }}
+{{- $altName2 := printf "drycc-controller-mutate.%s.svc" .Release.Namespace }}
+{{- $cert := genSignedCert "drycc-controller-mutate" nil (list $altName1 $altName2) 3650 $ca }}
+apiVersion: admissionregistration.k8s.io/v1
+kind: MutatingWebhookConfiguration
+metadata:
+  name: {{ .Release.Namespace }}-controller-mutate
+webhooks:
+- name: mutate.drycc.cc
+  sideEffects: None
+  admissionReviewVersions: ["v1"]
+  clientConfig:
+    caBundle: {{ b64enc $ca.Cert }}
+    service:
+      name: drycc-controller-mutate
+      namespace: "{{ .Release.Namespace }}"
+      path: "{{ printf "/v2/mutate/%s/" $key }}"
+  failurePolicy: Fail
+  objectSelector:
+    matchLabels:
+      heritage: drycc
+  rules:
+  - operations: ["UPDATE"]
+    apiGroups: ["batch"]
+    apiVersions: ["*"]
+    resources: ["jobs/status"]
+  - operations: ["UPDATE"]
+    apiGroups: ["apps"]
+    apiVersions: ["*"]
+    resources: ["deployments/scale"]
+  - operations: ["UPDATE"]
+    apiGroups: ["servicecatalog.k8s.io"]
+    apiVersions: ["*"]
+    resources: ["serviceinstances/status", "servicebindings/status"]
+  timeoutSeconds: 30
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: controller-mutate-cert
+  labels:
+    release: "{{ .Release.Name }}"
+    heritage: "{{ .Release.Service }}"
+type: Opaque
+data:
+  key: {{ b64enc $key }}
+  tls.crt: {{ b64enc $cert.Cert }}
+  tls.key: {{ b64enc $cert.Key }}

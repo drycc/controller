@@ -1,7 +1,7 @@
 apiVersion: batch/v1
 kind: Job
 metadata:
-  name: drycc-controller-job-upgrade
+  name: drycc-controller-job-upgrade-{{ now | date "20060102150405" }}
   labels:
     heritage: drycc
   annotations:

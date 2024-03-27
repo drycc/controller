@@ -280,6 +280,14 @@ random_secret = 'CHANGEME_sapm$s%upvsw5l_zuy_&29rkywd^78ff(qi*#@&*^'
 SECRET_KEY = os.environ.get('DRYCC_SECRET_KEY', random_secret)
 BUILDER_KEY = os.environ.get('DRYCC_BUILDER_KEY', random_secret)
 
+# Drycc admission mutate key
+MUTATE_KEY_PATH = os.environ.get('DRYCC_MUTATE_KEY_PATH', '/etc/controller/mutate/cert/key')
+if os.path.exists(MUTATE_KEY_PATH):
+    with open(MUTATE_KEY_PATH) as f:
+        MUTATE_KEY = f.read()
+else:
+    MUTATE_KEY = None
+
 # gateway class name
 GATEWAY_CLASS = os.environ.get('DRYCC_GATEWAY_CLASS', '')
 
@@ -462,10 +470,3 @@ CACHES = {
 WORKFLOW_MANAGER_URL = os.environ.get('WORKFLOW_MANAGER_URL', None)
 WORKFLOW_MANAGER_ACCESS_KEY = os.environ.get('WORKFLOW_MANAGER_ACCESS_KEY', None)
 WORKFLOW_MANAGER_SECRET_KEY = os.environ.get('WORKFLOW_MANAGER_SECRET_KEY', None)
-
-# Drycc admission webhook token
-if os.path.exists("/etc/controller/webhook/cert"):
-    with open("/etc/controller/webhook/cert/token") as f:
-        DRYCC_ADMISSION_WEBHOOK_TOKEN = f.read()
-else:
-    DRYCC_ADMISSION_WEBHOOK_TOKEN = None
