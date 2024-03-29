@@ -228,9 +228,7 @@ def appsettings_changed_handle(
 def config_changed_handle(sender, instance: Config, created=False, update_fields=None, **kwargs):
     # measure limits to workflow manager
     if settings.WORKFLOW_MANAGER_URL and (
-        created or (
-            update_fields is not None and (
-                "cpu" in update_fields or "memory" in update_fields))):
+            created or (update_fields is not None and "limits" in update_fields)):
         timestamp = time.time()
         send_measurements.apply_async(
             args=[instance.app.to_measurements(timestamp), ],
