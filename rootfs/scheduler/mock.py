@@ -1,5 +1,5 @@
 import copy
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 import json
 import random
 import re
@@ -219,7 +219,7 @@ def pod_state_transitions(pod_url=None):
     pods = cache.get('pods_states', {})
     # Is there a new pod?
     if pod_url:
-        state_time = datetime.utcnow() + timedelta(seconds=jit())
+        state_time = datetime.now(timezone.utc) + timedelta(seconds=jit())
         pods[pod_url] = state_time
 
         # Initial state is Pending
@@ -230,7 +230,7 @@ def pod_state_transitions(pod_url=None):
 
     # Loops through all the pods to see if next phase needs to be done
     for pod_url, state_time in pods.items():
-        if datetime.utcnow() < state_time:
+        if datetime.now(timezone.utc) < state_time:
             # it is not time yet!
             continue
 
@@ -271,7 +271,7 @@ def cleanup_pods():
     """Can be called during any sort of access, it will cleanup pods as needed"""
     pods = cache.get('cleanup_pods', {})
     for pod, timestamp in pods.copy().items():
-        if timestamp > datetime.utcnow():
+        if timestamp > datetime.now(timezone.utc):
             continue
 
         del pods[pod]
@@ -288,13 +288,13 @@ def add_cleanup_pod(url):
 
     # save
     pods = cache.get('cleanup_pods', {})
-    pods[url] = (datetime.utcnow() + timedelta(seconds=grace))
+    pods[url] = (datetime.now(timezone.utc) + timedelta(seconds=grace))
     cache.set('cleanup_pods', pods)
 
     # add grace period timestamp
     pod = cache.get(url)
     grace = settings.KUBERNETES_POD_TERMINATION_GRACE_PERIOD_SECONDS
-    pd = datetime.utcnow() + timedelta(seconds=grace)
+    pd = datetime.now(timezone.utc) + timedelta(seconds=grace)
     timestamp = str(pd.strftime(MockSchedulerClient.DATETIME_FORMAT))
     pod['metadata']['deletionTimestamp'] = timestamp
     cache.set(url, pod)
@@ -350,7 +350,7 @@ def create_pods(url, labels, base, new_pods):
     for _ in range(new_pods):
         data = base.copy()
         # creation time
-        timestamp = str(datetime.utcnow().strftime(MockSchedulerClient.DATETIME_FORMAT))
+        timestamp = str(datetime.now(timezone.utc).strftime(MockSchedulerClient.DATETIME_FORMAT))
         data['metadata']['creationTimestamp'] = timestamp
         data['metadata']['uid'] = str(uuid.uuid4())
 
@@ -358,7 +358,7 @@ def create_pods(url, labels, base, new_pods):
         if 'generateName' in data['metadata']:
             data['metadata']['name'] = data['metadata']['generateName'] + pod_name()
 
-        timestamp = str(datetime.utcnow().strftime(MockSchedulerClient.DATETIME_FORMAT))
+        timestamp = str(datetime.now(timezone.utc).strftime(MockSchedulerClient.DATETIME_FORMAT))
         data['status'] = {
             'startTime': timestamp,
             'conditions': [
@@ -384,9 +384,7 @@ def create_pods(url, labels, base, new_pods):
         pod_key = url
         if cache_key(data['metadata']['name']) not in url:
             pod_key = cache_key(url + '_' + data['metadata']['name'])
-
         add_cache_item(pod_key, 'pods', data)
-
         # set up a fake log for the pod
         log = "I did stuff today"
         pod_log_key = pod_key + '_log'
@@ -687,7 +685,7 @@ def post(request, context):
         return {}
 
     # fill in generic data
-    timestamp = str(datetime.utcnow().strftime(MockSchedulerClient.DATETIME_FORMAT))
+    timestamp = str(datetime.now(timezone.utc).strftime(MockSchedulerClient.DATETIME_FORMAT))
     data['metadata']['creationTimestamp'] = timestamp
     data['metadata']['resourceVersion'] = 1
     data['metadata']['uid'] = str(uuid.uuid4())
@@ -724,18 +722,29 @@ def post(request, context):
 
         if resource_type in ['replicationcontrollers', 'replicasets']:
             upsert_pods(data, url)
-        elif resource_type == 'deployments':
+        elif resource_type in 'deployments':
             manage_replicasets(data, url)
 
     # drycc run is the only thing that creates pods directly
     if resource_type == 'pods':
         create_pods(url, data['metadata']['labels'], data, 1)
+    elif resource_type == 'jobs':
+        create_jobs(url, resource_type, data)
     else:
         add_cache_item(url, resource_type, data)
 
     context.status_code = 201
     context.reason = 'Created'
     return data
+
+
+def create_jobs(url, resource_type, data):
+    add_cache_item(url, resource_type, data)
+    randstr = ''.join(random.choices(string.ascii_lowercase, k=5))
+    namespace = data['metadata']['namespace']
+    pod_data = data['spec']['template']
+    pod_url = f"api_v1_namespaces_{namespace}_pods_{namespace}_run_{int(time.time())}_{randstr}"
+    create_pods(pod_url, pod_data['metadata']['labels'], pod_data, 1)
 
 
 def put(request, context):

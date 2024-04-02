@@ -88,10 +88,10 @@ class Service(Resource):
 
         return response
 
-    def delete(self, namespace, name):
+    def delete(self, namespace, name, ignore_exception=False):
         url = self.api("/namespaces/{}/services/{}", namespace, name)
         response = self.http_delete(url)
-        if self.unhealthy(response.status_code):
+        if not ignore_exception and self.unhealthy(response.status_code):
             raise KubeHTTPException(
                 response,
                 'delete Service "{}" in Namespace "{}"', name, namespace

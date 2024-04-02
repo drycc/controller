@@ -3,6 +3,7 @@ from django.conf import settings
 from django.db import models
 from django.contrib.auth import get_user_model
 from api.exceptions import DryccException, Conflict
+from api.tasks import run_pipeline
 from .base import UuidAuditedModel
 
 User = get_user_model()
@@ -22,6 +23,7 @@ class Build(UuidAuditedModel):
     # optional fields populated by builder
     sha = models.CharField(max_length=40, blank=True)
     procfile = models.JSONField(default=dict, blank=True)
+    dryccfile = models.JSONField(default=dict, blank=True)
     dockerfile = models.TextField(blank=True)
 
     class Meta:
@@ -41,6 +43,12 @@ class Build(UuidAuditedModel):
             return 'image'
 
     @property
+    def procfile_types(self):
+        if self.dryccfile:
+            return list(self.dryccfile['deploy'].keys())
+        return list(self.procfile.keys())
+
+    @property
     def source_based(self):
         """
         Checks if a build is source (has a sha) based or not
@@ -53,7 +61,16 @@ class Build(UuidAuditedModel):
     def version(self):
         return 'git-{}'.format(self.sha) if self.source_based else 'latest'
 
-    def create(self, user, *args, **kwargs):
+    def get_image(self, procfile_type, default_image=None):
+        docker = self.dryccfile.get('build', {}).get('docker', {})
+        if procfile_type in docker:
+            if procfile_type == 'web':
+                return self.image
+            else:
+                return f'{self.image}-{procfile_type}'
+        return default_image if default_image else self.image
+
+    def create_release(self, user, *args, **kwargs):
         app_settings = self.app.appsettings_set.latest()
         latest_release = self.app.release_set.filter(failed=False).latest()
         latest_version = self.app.release_set.latest().version
@@ -64,22 +81,21 @@ class Build(UuidAuditedModel):
                 config=latest_release.config,
                 canary=len(app_settings.canaries) > 0,
             )
-            self.app.deploy(new_release)
+            run_pipeline.delay(new_release)
             return new_release
         except Exception as e:
             # check if the exception is during create or publish
             if ('new_release' not in locals() and
                     self.app.release_set.latest().version == latest_version+1):
                 new_release = self.app.release_set.latest()
-            if 'new_release' in locals():
+                new_release.state = "crashed"
                 new_release.failed = True
                 new_release.summary = "{} deployed {} which failed".format(self.owner, str(self.uuid)[:7])  # noqa
                 # Get the exception that has occured
                 new_release.exception = "error: {}".format(str(e))
                 new_release.save()
-            else:
+            if 'new_release' not in locals():
                 self.delete()
-
             raise DryccException(str(e)) from e
 
     def save(self, **kwargs):
@@ -90,14 +106,14 @@ class Build(UuidAuditedModel):
             # previous release had a Procfile and the current one does not
             (
                 previous_release.build is not None and
-                len(previous_release.build.procfile) > 0 and
-                len(self.procfile) == 0
+                len(previous_release.procfile_types) > 0 and
+                len(self.procfile_types) == 0
             )
         ):
             # Reject deployment
             raise Conflict(
-                'Last deployment had a Procfile but is missing in this deploy. '
-                'For a successful deployment provide a Procfile.'
+                'Last deployment had process types but is missing in this deploy. '
+                'For a successful deployment provide process types.'
             )
 
         # See if processes are permitted to be removed
@@ -107,16 +123,16 @@ class Build(UuidAuditedModel):
             # previous release had a Procfile and the current one does as well
             (
                 previous_release.build is not None and
-                len(previous_release.build.procfile) > 0 and
-                len(self.procfile) > 0
+                len(previous_release.procfile_types) > 0 and
+                len(self.procfile_types) > 0
             )
         )
 
         # spin down any proc type removed between the last procfile and the newest one
         if remove_procs and previous_release.build is not None:
             removed = {}
-            for proc in previous_release.build.procfile:
-                if proc not in self.procfile and self.app.structure.get(proc, 0) > 0:
+            for proc in previous_release.procfile_types:
+                if proc not in self.procfile_types and self.app.structure.get(proc, 0) > 0:
                     # Scale proc type down to 0
                     removed[proc] = 0
 
@@ -127,10 +143,11 @@ class Build(UuidAuditedModel):
         if (
             settings.DRYCC_DEPLOY_PROCFILE_MISSING_REMOVE is False and
             previous_release.build is not None and
-            len(previous_release.build.procfile) > 0 and
-            len(self.procfile) == 0
+            len(previous_release.procfile_types) > 0 and
+            len(self.procfile_types) == 0
         ):
             self.procfile = previous_release.build.procfile
+            self.dryccfile = previous_release.build.dryccfile
 
         return super(Build, self).save(**kwargs)
 

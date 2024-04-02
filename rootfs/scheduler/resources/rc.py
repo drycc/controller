@@ -28,7 +28,7 @@ class ReplicationController(Resource):
 
         return response
 
-    def create(self, namespace, name, image, entrypoint, command, **kwargs):
+    def create(self, namespace, name, image, command, args, **kwargs):
         manifest = {
             'kind': 'ReplicationController',
             'apiVersion': self.api_version,
@@ -47,8 +47,8 @@ class ReplicationController(Resource):
         }
 
         # tell pod how to execute the process
-        kwargs['command'] = entrypoint
-        kwargs['args'] = command
+        kwargs['command'] = command
+        kwargs['args'] = args
 
         # pod manifest spec
         manifest['spec']['template'] = self.pod.manifest(namespace, name, image, **kwargs)

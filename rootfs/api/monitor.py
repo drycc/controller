@@ -116,7 +116,7 @@ def query_loadbalancer(namespaces: Iterator[str],
     response = requests.get(
         urljoin(settings.DRYCC_PROMETHEUS_URL, "/api/v1/query"), params=params)
     if response.status_code != 200:
-        return StopIteration
+        return
     yield from (metric["metric"] for metric in response.json()["data"]["result"])
 
 

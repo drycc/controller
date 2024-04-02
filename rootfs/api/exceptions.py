@@ -39,7 +39,6 @@ def custom_exception_handler(exc, context):
     # Call REST framework's default exception handler after specific 404 handling,
     # to get the standard error response.
     response = exception_handler(exc, context)
-
     # No response means DRF couldn't handle it
     # Output a generic 500 in a JSON format
     if response is None:

@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 import json
 import time
 from scheduler.resources import Resource
@@ -30,7 +30,7 @@ class Deployment(Resource):
 
         return response
 
-    def manifest(self, namespace, name, image, entrypoint, command, spec_annotations, **kwargs):
+    def manifest(self, namespace, name, image, command, args, spec_annotations, **kwargs):
         replicas = kwargs.get('replicas', 0)
         batches = kwargs.get('deploy_batches', None)
         tags = kwargs.get('tags', {})
@@ -100,8 +100,8 @@ class Deployment(Resource):
             manifest['spec']['revisionHistoryLimit'] = int(kwargs.get('deployment_revision_history_limit'))  # noqa
 
         # tell pod how to execute the process
-        kwargs['command'] = entrypoint
-        kwargs['args'] = command
+        kwargs['command'] = command
+        kwargs['args'] = args
 
         # pod manifest spec
         manifest['spec']['template'] = self.pod.manifest(namespace, name, image, **kwargs)
@@ -115,9 +115,9 @@ class Deployment(Resource):
 
         return manifest
 
-    def create(self, namespace, name, image, entrypoint, command, spec_annotations, **kwargs):
+    def create(self, namespace, name, image, command, args, spec_annotations, **kwargs):
         manifest = self.manifest(namespace, name, image,
-                                 entrypoint, command, spec_annotations, **kwargs)
+                                 command, args, spec_annotations, **kwargs)
 
         url = self.api("/namespaces/{}/deployments", namespace)
         response = self.http_post(url, json=manifest)
@@ -133,9 +133,9 @@ class Deployment(Resource):
 
         return response
 
-    def update(self, namespace, name, image, entrypoint, command, spec_annotations, **kwargs):
+    def update(self, namespace, name, image, command, args, spec_annotations, **kwargs):
         manifest = self.manifest(namespace, name, image,
-                                 entrypoint, command, spec_annotations, **kwargs)
+                                 command, args, spec_annotations, **kwargs)
 
         url = self.api("/namespaces/{}/deployments/{}", namespace, name)
         response = self.http_put(url, json=manifest)
@@ -148,9 +148,9 @@ class Deployment(Resource):
 
         return response
 
-    def patch(self, namespace, name, image, entrypoint, command, spec_annotations, **kwargs):
+    def patch(self, namespace, name, image, command, args, spec_annotations, **kwargs):
         manifest = self.manifest(namespace, name, image,
-                                 entrypoint, command, spec_annotations, **kwargs)
+                                 command, args, spec_annotations, **kwargs)
 
         url = self.api("/namespaces/{}/deployments/{}", namespace, name)
         response = self.http_patch(
@@ -205,7 +205,7 @@ class Deployment(Resource):
             "/namespaces/{}/deployments/{}?fieldManager=kubectl-rollout&pretty=true",
             namespace, name
         )
-        restartedAt = "%sZ" % (timedelta(seconds=3) + datetime.utcnow()).isoformat("T")
+        restartedAt = "%sZ" % (timedelta(seconds=3) + datetime.now(timezone.utc)).isoformat("T")
         response = self.http_patch(
             url,
             data=json.dumps({
@@ -275,7 +275,12 @@ class Deployment(Resource):
         try:
             timeout += self.pod._handle_pending_pods(namespace, labels)
         except KubeException as e:
-            self.log(namespace, 'Deployment {} had stalled due an error and will be rolled back. {}'.format(name, str(e)), level='DEBUG')  # noqa
+            self.log(
+                namespace,
+                'Deployment {} had stalled due an error and will be rolled back. {}'.format(
+                    name, str(e)),
+                level='DEBUG'
+            )
             return False, True
 
         # fetch the latest RS for Deployment and use the start time to compare to deploy timeout
@@ -290,8 +295,13 @@ class Deployment(Resource):
 
         # throw an exception if over TTL so error is bubbled up
         start = self.parse_date(replica['metadata']['creationTimestamp'])
-        if (start + timedelta(seconds=timeout)) < datetime.utcnow():
-            self.log(namespace, 'Deploy operation for Deployment {} in has expired. Rolling back to last good known release'.format(name), level='DEBUG')  # noqa
+        if (start + timedelta(seconds=timeout)) < datetime.now(timezone.utc):
+            self.log(
+                namespace,
+                'Deploy operation for Deployment {} in has expired. '
+                'Rolling back to last good known release'.format(name),
+                level='DEBUG',
+            )
             return False, True
 
         try:

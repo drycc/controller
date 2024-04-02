@@ -24,7 +24,7 @@ class Command(BaseCommand):
         print("lock completed!")
 
     def unlock(self):
-        cache.set(lock_key, settings.VERSION)
+        cache.set(lock_key, settings.VERSION, timeout=None)
         print("unlock completed!")
 
     def waitting(self):

@@ -72,18 +72,21 @@ class Service(AuditedModel):
         return "-".join([self.app.id, self.procfile_type, protocol, str(port)]).lower()
 
     def get_port(self, port, protocol):
-        for port in self.ports:
-            if port["port"] == port and port["protocol"] == protocol:
-                return port
+        for item in self.ports:
+            if item["port"] == port and item["protocol"] == protocol:
+                return item
         return None
 
     def add_port(self, port, protocol, target_port):
-        self.ports.append({
-            "name": self.port_name(port, protocol),
-            "port": port,
-            "protocol": protocol,
-            "targetPort": target_port,
-        })
+        if self.get_port(port, protocol) is None:
+            self.ports.append({
+                "name": self.port_name(port, protocol),
+                "port": port,
+                "protocol": protocol,
+                "targetPort": target_port,
+            })
+            return True
+        return False
 
     def update_port(self, port, protocol, target_port):
         item = self.get_port(port, protocol)
@@ -167,10 +170,4 @@ class Service(AuditedModel):
 
     def _delete_k8s_svc(self, svc_name):
         self.log('deleting Service: {}'.format(svc_name), level=logging.DEBUG)
-        try:
-            self.scheduler().svc.delete(self._namespace(), svc_name)
-        except KubeException:
-            # swallow exception
-            # raise ServiceUnavailable('Kubernetes service could not be deleted') from e
-            self.log('Kubernetes service cannot be deleted: {}'.format(svc_name),
-                     level=logging.ERROR)
+        self.scheduler().svc.delete(self._namespace(), svc_name, ignore_exception=True)

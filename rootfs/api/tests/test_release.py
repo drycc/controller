@@ -11,7 +11,7 @@ from django.test.utils import override_settings
 from unittest import mock
 from rest_framework.authtoken.models import Token
 
-from api.models.app import App
+from api.models.app import App, PROCFILE_TYPE_WEB
 from api.models.release import Release
 from scheduler import KubeHTTPException
 from api.exceptions import DryccException
@@ -106,6 +106,80 @@ class ReleaseTest(DryccTransactionTestCase):
         self.assertEqual(response.status_code, 405, response.content)
         return release3
 
+    def test_get_image(self, mock_requests):
+        app_id = self.create_app()
+        url = f"/v2/apps/{app_id}/builds"
+        body = {
+            'image': '127.0.0.1:5555/autotest/example:git-fadf1231',
+            'stack': 'heroku-18',
+            'sha': 'a'*40,
+            'dryccfile': {
+                "build": {
+                    "docker": {"web": "Dockerfile", "worker": "worker/Dockerfile"},
+                    "config": {"RAILS_ENV": "development", "FOO": "bar"}
+                },
+                "run": {
+                    "command": ["./deployment-tasks.sh"],
+                    "image": "worker",
+                },
+                "deploy": {
+                    "web": {
+                        "command": ["bash", "-c"],
+                        "args": ["bundle exec puma -C config/puma.rb"],
+                    },
+                    "worker": {
+                        "command": ["bash", "-c"],
+                        "args": ["python myworker.py"],
+                    },
+                    "worker-1": {
+                        "image": "worker"
+                    },
+                    "worker-2": {},
+                    "worker-3": {
+                        "command": ["bash", "-c"],
+                        "args": ["bundle exec puma -C config/puma.rb"],
+                        "image": "web"
+                    },
+                    "worker-4": {
+                        "command": ["bash", "-c"],
+                        "args": ["bundle exec puma -C config/puma.rb"],
+                        "image": "127.0.0.1:7070/myapp/web:git-123fsa1"
+                    }
+                }
+            }
+        }
+        default_image = '127.0.0.1:5555/autotest/example:git-fadf1231'
+        worker_image = "127.0.0.1:5555/autotest/example:git-fadf1231-worker"
+        worker_4_image = "127.0.0.1:7070/myapp/web:git-123fsa1"
+
+        with mock.patch('scheduler.resources.pod.Pod.watch') as mock_kube:
+            mock_kube.return_value = ['up', 'down']
+            response = self.client.post(url, body)
+            self.assertEqual(response.status_code, 201, response.data)
+            app = App.objects.get(id=app_id)
+            release_obj = app.release_set.filter(version=2)[0]
+            self.assertEqual(
+                release_obj.get_run_image(),
+                worker_image, release_obj.build.dryccfile)
+            self.assertEqual(
+                release_obj.get_deploy_image("web"),
+                default_image, release_obj.build.dryccfile)
+            self.assertEqual(
+                release_obj.get_deploy_image("worker"),
+                worker_image, release_obj.build.dryccfile)
+            self.assertEqual(
+                release_obj.get_deploy_image("worker-1"),
+                worker_image, release_obj.build.dryccfile)
+            self.assertEqual(
+                release_obj.get_deploy_image("worker-2"),
+                default_image, release_obj.build.dryccfile)
+            self.assertEqual(
+                release_obj.get_deploy_image("worker-3"),
+                default_image, release_obj.build.dryccfile)
+            self.assertEqual(
+                release_obj.get_deploy_image("worker-4"),
+                worker_4_image, release_obj.build.dryccfile)
+
     def test_response_data(self, mock_requests):
         app_id = self.create_app()
         body = {'values': json.dumps({'NEW_URL': 'http://localhost:8080/'})}
@@ -115,7 +189,7 @@ class ReleaseTest(DryccTransactionTestCase):
         response = self.client.get(url)
         for key in response.data.keys():
             self.assertIn(key, ['uuid', 'owner', 'created', 'updated', 'app', 'build', 'config',
-                                'summary', 'canary', 'version', 'failed', 'exception'])
+                                'summary', 'canary', 'version', 'state', 'failed', 'exception'])
         expected = {
             'owner': self.user.username,
             'app': app_id,
@@ -167,7 +241,7 @@ class ReleaseTest(DryccTransactionTestCase):
         self.assertEqual(release5.build, release3.build)
         self.assertEqual(release5.config.values, release3.config.values)
         # double-check to see that the current build and config is the same as v3
-        self.assertEqual(release5.build.image, 'autotest/example')
+        self.assertEqual(release5.get_deploy_image(PROCFILE_TYPE_WEB), 'autotest/example')
         self.assertEqual(release5.config.values, {'NEW_URL1': 'http://localhost:8080/'})
         # try to rollback to v1 and verify that the rollback failed
         # (v1 is an initial release with no build)
@@ -182,7 +256,7 @@ class ReleaseTest(DryccTransactionTestCase):
         self.assertEqual(response.status_code, 201, response.data)
         self.assertEqual(Release.objects.count(), 6)
         release6 = Release.objects.get(app=app, version=6)
-        self.assertEqual(release6.build.image, 'autotest/example')
+        self.assertEqual(release6.get_deploy_image(PROCFILE_TYPE_WEB), 'autotest/example')
         self.assertEqual(release6.config.values, {})
 
     def test_release_str(self, mock_requests):
@@ -282,8 +356,9 @@ class ReleaseTest(DryccTransactionTestCase):
             url = "/v2/apps/{}/releases/rollback/".format(app_id)
             body = {'version': 2}
             response = self.client.post(url, body)
-            self.assertEqual(response.status_code, 400, response.data)
-            self.assertEqual(app.release_set.latest().version, 4)
+            self.assertEqual(response.status_code, 201, response.data)
+            data = self.client.get(f"/v2/apps/{app_id}/releases/", body).json()
+            self.assertEqual(data["results"][0]["state"], "crashed", data)
 
         # update config to roll a new release
         url = '/v2/apps/{}/config'.format(app_id)
@@ -317,7 +392,9 @@ class ReleaseTest(DryccTransactionTestCase):
                 url = "/v2/apps/{}/releases/rollback/".format(app_id)
                 body = {'version': 2}
                 response = self.client.post(url, body)
-                self.assertEqual(response.status_code, 400, response.data)
+                self.assertEqual(response.status_code, 201, response.data)
+                data = self.client.get(f"/v2/apps/{app_id}/releases/", body).json()
+                self.assertEqual(data["results"][0]["state"], "crashed", data)
 
     def test_release_unset_config(self, mock_requests):
         """
@@ -502,7 +579,7 @@ class ReleaseTest(DryccTransactionTestCase):
 
         self.assertEqual(release.get_port(), 3000)
 
-        self.assertEqual(release.image, 'test/autotest/example')
+        self.assertEqual(release.get_deploy_image(PROCFILE_TYPE_WEB), 'test/autotest/example')
 
     @override_settings(REGISTRY_LOCATION="off-cluster")
     def test_release_external_registry_no_port(self, mock_requests):
@@ -516,7 +593,9 @@ class ReleaseTest(DryccTransactionTestCase):
         url = '/v2/apps/{app_id}/builds'.format(**locals())
         body = {'image': 'test/autotest/example', 'stack': 'container'}
         response = self.client.post(url, body)
-        self.assertEqual(response.status_code, 400, response.data)
+        self.assertEqual(response.status_code, 201, response.data)
+        data = self.client.get(f"/v2/apps/{app_id}/releases/", body).json()
+        self.assertEqual(data["results"][0]["state"], "crashed", data)
 
         with self.assertRaises(
             DryccException,

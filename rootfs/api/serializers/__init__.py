@@ -20,6 +20,7 @@ from .schemas.rules import SCHEMA as RULES_SCHEMA
 from .schemas.volumes import SCHEMA as VOLUMES_SCHEMA
 from .schemas.autoscale import SCHEMA as AUTOSCALE_SCHEMA
 from .schemas.healthcheck import SCHEMA as HEALTHCHECK_SCHEMA
+from .schemas.dryccfile import (SCHEMA as DRYCCFILE_SCHEMA, PROCTYPE_REGEX)
 
 
 User = get_user_model()
@@ -33,7 +34,7 @@ GATEWAY_PROTOCOL_MISMATCH_MSG = (
 ROUTE_PROTOCOL_MATCH = re.compile(r'^(HTTPRoute|TCPRoute|UDPRoute|TLSRoute)$')
 ROUTE_PROTOCOL_MISMATCH_MSG = (
     "the route kind only supports: %s" % ROUTE_PROTOCOL_MATCH.pattern)
-PROCTYPE_MATCH = re.compile(r'^(?P<type>[a-z0-9]+(\-[a-z0-9]+)*)(?<!-canary)$')
+PROCTYPE_MATCH = re.compile(PROCTYPE_REGEX)
 PROCTYPE_MISMATCH_MSG = "Process types can only supports: %s" % PROCTYPE_MATCH.pattern
 MEMLIMIT_MATCH = re.compile(r'^(?P<mem>([1-9][0-9]*[mgMG]))$', re.IGNORECASE)
 MEMLIMIT_MISMATCH_MSG = (
@@ -155,11 +156,12 @@ class BuildSerializer(serializers.ModelSerializer):
     app = serializers.SlugRelatedField(slug_field='id', queryset=models.app.App.objects.all())
     owner = serializers.ReadOnlyField(source='owner.username')
     procfile = serializers.JSONField(required=False)
+    dryccfile = serializers.JSONField(required=False)
 
     class Meta:
         """Metadata options for a :class:`BuildSerializer`."""
         model = models.build.Build
-        fields = ['owner', 'app', 'image', 'stack', 'sha', 'procfile',
+        fields = ['owner', 'app', 'image', 'stack', 'sha', 'procfile', 'dryccfile',
                   'dockerfile', 'created', 'updated', 'uuid']
 
     @staticmethod
@@ -171,6 +173,16 @@ class BuildSerializer(serializers.ModelSerializer):
             if not re.match(PROCTYPE_MATCH, key):
                 raise serializers.ValidationError(PROCTYPE_MISMATCH_MSG)
 
+        return data
+
+    @staticmethod
+    def validate_dryccfile(data):
+        if data:
+            try:
+                jsonschema.validate(data, DRYCCFILE_SCHEMA)
+            except jsonschema.ValidationError as e:
+                raise serializers.ValidationError(
+                    "could not validate {}: {}".format(data, e.message))
         return data
 
 

@@ -271,7 +271,7 @@ class AppViewSet(BaseDryccViewSet):
 
     def run(self, request, **kwargs):
         app = self.get_object()
-        command = request.data.get('command', ' '.join(app.get_command('run')))
+        command = request.data.get('command', '').split()
         timeout = int(request.data.get('timeout', 3600))
         expires = int(request.data.get('expires', 3600))
         if expires == 0 or expires > settings.KUBERNETES_JOB_MAX_TTL_SECONDS_AFTER_FINISHED:
@@ -281,7 +281,8 @@ class AppViewSet(BaseDryccViewSet):
         volumes = request.data.get('volumes', None)
         if volumes:
             volumes = serializers.VolumeSerializer().validate_path(volumes)
-        app.run(self.request.user, command, volumes, timeout, expires)
+        app.run(self.request.user, args=command,
+                volumes=volumes, timeout=timeout, expires=expires)
         return Response(status=status.HTTP_204_NO_CONTENT)
 
     def update(self, request, **kwargs):
@@ -304,7 +305,7 @@ class BuildViewSet(ReleasableViewSet):
     serializer_class = serializers.BuildSerializer
 
     def post_save(self, build):
-        self.release = build.create(self.request.user)
+        build.create_release(self.request.user)
         super(BuildViewSet, self).post_save(build)
 
 
@@ -353,22 +354,24 @@ class ConfigViewSet(ReleasableViewSet):
         release = config.app.release_set.filter(failed=False).latest()
         latest_version = config.app.release_set.latest().version
         try:
-            self.release = release.new(
+            release = release.new(
                 self.request.user, config=config, build=release.build, canary=release.canary)
             # It's possible to set config values before a build
-            if self.release.build is not None:
-                config.app.deploy(self.release)
+            if release.build is not None:
+                config.app.deploy(release)
+            release.state = "succeed"
+            release.save()
         except Exception as e:
-            if (not hasattr(self, 'release') and
+            if ('release' not in locals() and
                     config.app.release_set.latest().version == latest_version+1):
-                self.release = config.app.release_set.latest()
-            if hasattr(self, 'release'):
-                self.release.failed = True
-                self.release.summary = "{} deployed a config that failed".format(
-                    self.request.user)
+                release = config.app.release_set.latest()
+            if 'release' in locals():
+                release.state = "crashed"
+                release.failed = True
+                release.summary = "{} deployed a config that failed".format(self.request.user)
                 # Get the exception that has occured
-                self.release.exception = "error: {}".format(str(e))
-                self.release.save()
+                release.exception = "error: {}".format(str(e))
+                release.save()
             else:
                 config.delete()
             if isinstance(e, AlreadyExists):
@@ -669,7 +672,7 @@ class BuildHookViewSet(BaseHookViewSet):
         return Response(response, status=status.HTTP_200_OK)
 
     def post_save(self, build):
-        build.create(self.user)
+        build.create_release(self.user)
 
 
 class ConfigHookViewSet(BaseHookViewSet):
@@ -764,7 +767,7 @@ class AppVolumesViewSet(ReleasableViewSet):
             path = serializers.VolumeSerializer().validate_path(path)
         volume = self.get_object()
         container_types = [_ for _ in path.keys()
-                           if _ not in volume.app.types]
+                           if _ not in volume.app.procfile_types]
         if container_types:
             raise DryccException("process type {} is not included in profile".
                                  format(','.join(container_types)))

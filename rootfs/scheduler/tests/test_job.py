@@ -20,8 +20,8 @@ class JobTest(TestCase):
             'app_type': kwargs.get('app_type', 'web'),
             'version': kwargs.get('version', 'v99'),
             'image': 'quay.io/fake/image',
-            'entrypoint': 'sh',
-            'command': 'start',
+            'command': 'sh',
+            'args': 'start',
             'deploy_timeout': 10,
         }
 

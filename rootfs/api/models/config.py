@@ -140,7 +140,7 @@ class Config(UuidAuditedModel):
                 if key not in data:
                     raise UnprocessableEntity(
                         '{} does not exist under {}'.format(key, 'limits'))
-                if key in self.app.types:
+                if key in self.app.procfile_types:
                     raise UnprocessableEntity(
                         "the %s has already been used and cannot be deleted" % key)
                 else:

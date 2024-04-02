@@ -1,8 +1,5 @@
 import backoff
 import base64
-from collections import OrderedDict
-from datetime import datetime
-from docker import auth as docker_auth
 import functools
 import json
 import logging
@@ -14,7 +11,10 @@ import time
 import socket
 from contextlib import closing
 from urllib.parse import urljoin
+from collections import OrderedDict
+from datetime import datetime, timezone
 
+from docker import auth as docker_auth
 from django.conf import settings
 from django.db import models
 from django.contrib.auth import get_user_model
@@ -112,7 +112,7 @@ class App(UuidAuditedModel):
         return application
 
     @property
-    def types(self):
+    def procfile_types(self):
         return list(self.structure.keys())
 
     def log(self, message, level=logging.INFO):
@@ -240,7 +240,36 @@ class App(UuidAuditedModel):
             )
         self._scale(user, structure, release, app_settings)
 
-    def deploy(self, release, force_deploy=False, rollback_on_failure=True):  # noqa
+    def pipeline(self, release, force_deploy=False, rollback_on_failure=True):
+        prefix = f"[pipeline] release v{release.version}"
+        try:
+            self.log(f"{prefix} starts running...")
+            if release.build.dryccfile:
+                if 'run' in release.build.dryccfile:
+                    self.log(f"{prefix} starts running pipeline.run")
+                    job_name = self.run(
+                        self.owner, release.get_run_image(), command=release.get_run_command(),
+                        args=release.get_run_args(), timeout=settings.DRYCC_PILELINE_RUN_TIMEOUT,
+                        expires=settings.DRYCC_PILELINE_RUN_TIMEOUT)
+                    state, labels = 'initializing', {'job-name': job_name}
+                    for count, state in enumerate(self.scheduler().pod.watch(
+                            self.id, labels, settings.DRYCC_PILELINE_RUN_TIMEOUT)):
+                        self.log(f"{prefix} waiting for pipeline.run: {state} * {count}")
+                    if state != 'down':
+                        raise DryccException(f'pipeline run state error: {state}')
+            self.log(f"{prefix} starts running pipeline.deploy")
+            self.deploy(release, force_deploy, rollback_on_failure)
+            release.state = "succeed"
+        except Exception as e:
+            release.state = "crashed"
+            release.failed = True
+            release.summary = "{} pipeline a release that failed".format(self.owner)
+            release.exception = "error: {}".format(str(e))
+            self.log(f"{prefix} pipeline runtime error: {release.exception}")
+        release.save()
+        self.log(f"{prefix} run completed...")
+
+    def deploy(self, release, force_deploy=False, rollback_on_failure=True):
         """
         Deploy a new release to this application
 
@@ -255,13 +284,12 @@ class App(UuidAuditedModel):
         prev_release = release.previous()
 
         default_structure = self._default_structure(release)
-        if (self.structure == {} and self.structure != default_structure) or (
+        if (self.structure != default_structure) or (
             prev_release and prev_release.build and prev_release.build.type != release.build.type
         ):
             # structure {} or build type change, merge old structure if exists
-            for ptype, value in self.structure.items():
-                if ptype in default_structure and value > 0:
-                    default_structure[ptype] = value
+            for procfile_type, scale in default_structure.items():
+                default_structure[procfile_type] = self.structure.get(procfile_type, scale)
             self.structure = default_structure
             self.save()
         # deploy application to k8s. Also handles initial scaling
@@ -273,64 +301,7 @@ class App(UuidAuditedModel):
             if not release.canary or scale_type in app_settings.canaries:
                 deploys[scale_type] = self._gather_app_settings(
                     release, app_settings, scale_type, replicas, volumes=scale_type_volumes)
-
-        # Sort deploys so routable comes first
-        deploys = OrderedDict(sorted(deploys.items(), key=lambda d: d[1].get('routable')))
-        # Check if any proc type has a Deployment in progress
-        self._check_deployment_in_progress(deploys, release, force_deploy)
-
-        try:
-            # create the application config in k8s (secret in this case) for all deploy objects
-            self.set_application_config(release)
-
-            # gather all proc types to be deployed
-            tasks = [
-                functools.partial(
-                    self.scheduler().deploy,
-                    namespace=self.id,
-                    name=self._get_job_id(scale_type, release.canary),
-                    image=release.image,
-                    entrypoint=self.get_entrypoint(scale_type),
-                    command=self.get_command(scale_type),
-                    **kwargs
-                ) for scale_type, kwargs in deploys.items()
-            ]
-            try:
-                apply_tasks(tasks)
-            except KubeException as e:
-                # Don't rollback if the previous release doesn't have a build which means
-                # this is the first build and all the previous releases are just config changes.
-                if (prev_release.canary == release.canary and
-                        rollback_on_failure and prev_release.build is not None):
-                    err = 'There was a problem deploying {}. Rolling back to release {}.'.format(
-                        'v{}'.format(release.version), "v{}".format(prev_release.version))
-                    # This goes in the log before the rollback starts
-                    self.log(err, logging.ERROR)
-                    # revert all process types to old release
-                    self.deploy(prev_release, force_deploy=True, rollback_on_failure=False)
-                    # let it bubble up
-                    raise DryccException('{}\n{}'.format(err, str(e))) from e
-
-                # otherwise just re-raise
-                raise
-        except Exception as e:
-            # This gets shown to the end user
-            err = '(app::deploy): {}'.format(e)
-            self.log(err, logging.ERROR)
-            raise ServiceUnavailable(err) from e
-        for procfile_type, value in deploys.items():
-            if procfile_type == PROCFILE_TYPE_WEB:  # http
-                target_port = int(value.get('envs', {}).get('PORT', DEFAULT_CONTAINER_PORT))
-                self._create_default_ingress(target_port)
-            service = self.service_set.filter(procfile_type=procfile_type).first()
-            if not service:
-                continue
-            if prev_release and prev_release.build:
-                continue
-            if procfile_type == PROCFILE_TYPE_WEB:
-                self._verify_http_health(service, **deploys[procfile_type])
-            else:
-                self._verify_tcp_health(service, **deploys[procfile_type])
+        self._deploy(deploys, prev_release, release, force_deploy, rollback_on_failure)
         # cleanup old release objects from kubernetes
         self.cleanup_old()
         release.cleanup_old()
@@ -392,7 +363,8 @@ class App(UuidAuditedModel):
         # cast content to string since it comes as bytes via the requests object
         return str(r.content.decode('utf-8'))
 
-    def run(self, user, command, volumes=None, timeout=3600, expires=3600):
+    def run(self, user, image=None, command=None, args=None, volumes=None,
+            timeout=3600, expires=3600, **kwargs):
         def pod_name(size=5, chars=string.ascii_lowercase + string.digits):
             return ''.join(random.choice(chars) for _ in range(size))
 
@@ -404,35 +376,37 @@ class App(UuidAuditedModel):
         app_settings = self.appsettings_set.latest()
         volume_list = []
         if volumes:
-            volume_objs = Volume.objects.filter(app=release.app, name__in=volumes.keys())
-            for _ in volume_objs:
-                _.path[PROCFILE_TYPE_RUN] = volumes.get(_.name, None)
-                volume_list.append(_)
+            for volume in Volume.objects.filter(app=self, name__in=volumes.keys()):
+                volume.path[PROCFILE_TYPE_RUN] = volumes.get(volume.name, None)
+                volume_list.append(volume)
+        else:
+            for volume in Volume.objects.filter(app=self):
+                if PROCFILE_TYPE_RUN in volume.path.keys():
+                    volume_list.append(volume)
         data = self._gather_app_settings(
-            release, app_settings, process_type=PROCFILE_TYPE_RUN,
+            release, app_settings, procfile_type=PROCFILE_TYPE_RUN,
             replicas=1, volumes=volume_list)
         data['restart_policy'] = 'Never'
         data['active_deadline_seconds'] = timeout
         data['ttl_seconds_after_finished'] = expires
         # create application config and build the pod manifest
         self.set_application_config(release)
-
-        scale_type = PROCFILE_TYPE_RUN
-        name = self._get_job_id(scale_type, release.canary) + '-' + pod_name()
+        name = self._get_job_id(PROCFILE_TYPE_RUN, release.canary) + '-' + pod_name()
         self.log("{} on {} runs '{}'".format(user.username, name, command))
-
+        kwargs.update(data)
         try:
             self.scheduler().job.create(
                 self.id,
                 name,
-                release.image,
-                self.get_entrypoint(scale_type),
-                command.split(),
-                **data
+                image if image else release.get_run_image(),
+                command if command else release.get_run_command(),
+                args if args else release.get_run_args(),
+                **kwargs
             )
         except Exception as e:
             err = '{} ({}): {}'.format(name, PROCFILE_TYPE_RUN, e)
             raise ServiceUnavailable(err) from e
+        return name
 
     def list_pods(self, *args, **kwargs):
         """Used to list basic information about pods running for a given application"""
@@ -457,7 +431,8 @@ class App(UuidAuditedModel):
                 if 'startTime' in p['status']:
                     started = p['status']['startTime']
                 else:
-                    started = str(datetime.utcnow().strftime(settings.DRYCC_DATETIME_FORMAT))
+                    started = str(
+                        datetime.now(timezone.utc).strftime(settings.DRYCC_DATETIME_FORMAT))
                 item['started'] = started
                 data.append(item)
             # sorting so latest start date is first
@@ -530,33 +505,6 @@ class App(UuidAuditedModel):
 
         return name
 
-    def get_entrypoint(self, container_type):
-        """
-        Return the kubernetes "container command" to be sent off to the scheduler.
-        """
-        entrypoint = []
-        release = self.release_set.filter(failed=False).latest()
-        if self._get_stack(release) == "buildpack":
-            if container_type in release.build.procfile:
-                entrypoint = [container_type]
-            else:
-                entrypoint = ['launcher']
-        return entrypoint
-
-    def get_command(self, container_type):
-        """
-        Return the kubernetes "container arguments" to be sent off to the scheduler.
-        """
-        release = self.release_set.filter(failed=False).latest()
-        if release is not None and release.build is not None:
-            # dockerfile or container image
-            if release.build.dockerfile or not release.build.sha:
-                # has profile
-                if release.build.procfile and container_type in release.build.procfile:
-                    command = release.build.procfile[container_type]
-                    return command.split()
-        return []
-
     def set_application_config(self, release):
         """
         Creates the application config as a secret in Kubernetes and
@@ -598,7 +546,7 @@ class App(UuidAuditedModel):
                 "unit": "number",
                 "usage": scale,
                 "kwargs": {
-                    "ptype": container_type,
+                    "procfile_type": container_type,
                 },
                 "timestamp": int(timestamp),
             })
@@ -612,17 +560,6 @@ class App(UuidAuditedModel):
         if canary:
             job_id = f"{job_id}-canary"
         return job_id
-
-    def _get_stack(self, release):
-        stack = release.config.values.get("DRYCC_STACK", None)
-        if stack is None:
-            if release.build.procfile \
-                    and release.build.sha \
-                    and not release.build.dockerfile:
-                stack = "buildpack"
-            else:
-                stack = "container"
-        return stack
 
     def _clean_app_logs(self):
         """Delete application logs stored by the logger component"""
@@ -656,9 +593,9 @@ class App(UuidAuditedModel):
                         self.scheduler().deployment.patch,
                         namespace=self.id,
                         name=self._get_job_id(scale_type, release.canary),
-                        image=release.image,
-                        entrypoint=self.get_entrypoint(scale_type),
-                        command=self.get_command(scale_type),
+                        image=release.get_deploy_image(scale_type),
+                        command=release.get_deploy_command(scale_type),
+                        args=release.get_deploy_args(scale_type),
                         spec_annotations=spec_annotations,
                         resource_version=deployment["metadata"]["resourceVersion"],
                         **data
@@ -674,6 +611,65 @@ class App(UuidAuditedModel):
             raise ServiceUnavailable(err) from e
         self.log(f'{user.username} changed volume mount for {volume}')
 
+    def _deploy(self, deploys, prev_release, release, force_deploy, rollback_on_failure):
+        # Sort deploys so routable comes first
+        deploys = OrderedDict(sorted(deploys.items(), key=lambda d: d[1].get('routable')))
+        # Check if any proc type has a Deployment in progress
+        self._check_deployment_in_progress(deploys, release, force_deploy)
+
+        try:
+            # create the application config in k8s (secret in this case) for all deploy objects
+            self.set_application_config(release)
+
+            # gather all proc types to be deployed
+            tasks = [
+                functools.partial(
+                    self.scheduler().deploy,
+                    namespace=self.id,
+                    name=self._get_job_id(scale_type, release.canary),
+                    image=release.get_deploy_image(scale_type),
+                    command=release.get_deploy_command(scale_type),
+                    args=release.get_deploy_args(scale_type),
+                    **kwargs
+                ) for scale_type, kwargs in deploys.items()
+            ]
+            try:
+                apply_tasks(tasks)
+            except KubeException as e:
+                # Don't rollback if the previous release doesn't have a build which means
+                # this is the first build and all the previous releases are just config changes.
+                if (prev_release.canary == release.canary and
+                        rollback_on_failure and prev_release.build is not None):
+                    err = 'There was a problem deploying {}. Rolling back to release {}.'.format(
+                        'v{}'.format(release.version), "v{}".format(prev_release.version))
+                    # This goes in the log before the rollback starts
+                    self.log(err, logging.ERROR)
+                    # revert all process types to old release
+                    self.deploy(prev_release, force_deploy=True, rollback_on_failure=False)
+                    # let it bubble up
+                    raise DryccException('{}\n{}'.format(err, str(e))) from e
+
+                # otherwise just re-raise
+                raise
+        except Exception as e:
+            # This gets shown to the end user
+            err = '(app::deploy): {}'.format(e)
+            self.log(err, logging.ERROR)
+            raise ServiceUnavailable(err) from e
+        for procfile_type, value in deploys.items():
+            if procfile_type == PROCFILE_TYPE_WEB:  # http
+                target_port = int(value.get('envs', {}).get('PORT', DEFAULT_CONTAINER_PORT))
+                self._create_default_ingress(target_port)
+            service = self.service_set.filter(procfile_type=procfile_type).first()
+            if not service:
+                continue
+            if prev_release and prev_release.build:
+                continue
+            if procfile_type == PROCFILE_TYPE_WEB:
+                self._verify_http_health(service, **deploys[procfile_type])
+            else:
+                self._verify_tcp_health(service, **deploys[procfile_type])
+
     def _scale(self, user, structure, release, app_settings):  # noqa
         """Scale containers up or down to match requested structure."""
         # use create to make sure minimum resources are created
@@ -688,11 +684,9 @@ class App(UuidAuditedModel):
             raise DryccException('Invalid scaling format: {}'.format(e))
 
         # test for available process types
-        available_process_types = release.build.procfile or {}
         for container_type in structure:
-            if self._get_stack(release) == "container":
-                continue  # allow container types in case we don't have the image source
-            if container_type not in available_process_types:
+            if container_type not in (PROCFILE_TYPE_WEB, PROCFILE_TYPE_RUN) and \
+                    container_type not in release.procfile_types:
                 raise NotFound(
                     'Container type {} does not exist in application'.format(container_type))
 
@@ -720,7 +714,8 @@ class App(UuidAuditedModel):
         volumes = Volume.objects.filter(app=self).exclude(path={})
         tasks = []
         for scale_type, replicas in scale_types.items():
-            scale_type_volumes = [_ for _ in volumes if scale_type in _.path.keys()]
+            scale_type_volumes = [
+                volume for volume in volumes if scale_type in volume.path.keys()]
             data = self._gather_app_settings(
                 release, app_settings, scale_type, replicas, volumes=scale_type_volumes)
             # gather all proc types to be deployed
@@ -729,9 +724,9 @@ class App(UuidAuditedModel):
                     self.scheduler().scale,
                     namespace=self.id,
                     name=self._get_job_id(scale_type, release.canary),
-                    image=release.image,
-                    entrypoint=self.get_entrypoint(scale_type),
-                    command=self.get_command(scale_type),
+                    image=release.get_deploy_image(scale_type),
+                    command=release.get_deploy_command(scale_type),
+                    args=release.get_deploy_args(scale_type),
                     **data
                 )
             )
@@ -745,13 +740,13 @@ class App(UuidAuditedModel):
             raise ServiceUnavailable(err) from e
 
     def _set_default_config(self, config=None, procfile_types=None):
-        procfile_types = self.types if procfile_types is None else procfile_types
+        procfile_types = self.procfile_types if procfile_types is None else procfile_types
         plan = LimitPlan.get_default()
         limits = {PROCFILE_TYPE_WEB: plan.id, PROCFILE_TYPE_RUN: plan.id}
         try:
             config = self.config_set.latest() if config is None else config
-            for ptype in procfile_types:
-                limits[ptype] = config.limits.get(ptype, plan.id)
+            for procfile_type in procfile_types:
+                limits[procfile_type] = config.limits.get(procfile_type, plan.id)
             if limits != config.limits:
                 config.limits = limits
                 config.save(update_fields=['limits'])
@@ -887,16 +882,9 @@ class App(UuidAuditedModel):
     def _default_structure(release):
         """Scale to default structure based on release type"""
         structure = {PROCFILE_TYPE_WEB: 1}
-        if release.build.procfile:
-            for ptype in release.build.procfile.keys():
-                if ptype == PROCFILE_TYPE_WEB:
-                    structure[ptype] = 1
-                else:
-                    structure[ptype] = 0
-        if PROCFILE_TYPE_WEB in structure:
-            if release.build.sha and not release.build.dockerfile and \
-                    (release.build.procfile and PROCFILE_TYPE_WEB not in release.build.procfile):
-                del structure[PROCFILE_TYPE_WEB]
+        for procfile_type in release.procfile_types:
+            if procfile_type != PROCFILE_TYPE_WEB:
+                structure[procfile_type] = 0
         return structure
 
     def _scheduler_filter(self, **kwargs):
@@ -981,7 +969,7 @@ class App(UuidAuditedModel):
         })
         return docker_config, name, True
 
-    def _get_volumes_and_mounts(self, process_type, volumes):
+    def _get_volumes_and_mounts(self, procfile_type, volumes):
         k8s_volumes, k8s_volume_mounts = [], []
         if volumes:
             for volume in volumes:
@@ -992,10 +980,10 @@ class App(UuidAuditedModel):
                     k8s_volume.update(volume.parameters)
                 k8s_volumes.append(k8s_volume)
                 k8s_volume_mounts.append(
-                    {"name": volume.name, "mountPath": volume.path.get(process_type)})
+                    {"name": volume.name, "mountPath": volume.path.get(procfile_type)})
         return k8s_volumes, k8s_volume_mounts
 
-    def _gather_app_settings(self, release, app_settings, process_type, replicas, volumes=None):
+    def _gather_app_settings(self, release, app_settings, procfile_type, replicas, volumes=None):
         """
         Gathers all required information needed in one easy place for passing into
         the Kubernetes client to deploy an application
@@ -1006,8 +994,8 @@ class App(UuidAuditedModel):
         envs = self._build_env_vars(release)
         config = release.config
         # Obtain a limit plan that must exist, if raise error here, it must be a bug
-        self._set_default_config(config, procfile_types=[process_type])
-        limit_plan = LimitPlan.objects.get(id=config.limits.get(process_type))
+        self._set_default_config(config, procfile_types=[procfile_type])
+        limit_plan = LimitPlan.objects.get(id=config.limits.get(procfile_type))
 
         # see if the app config has deploy batch preference, otherwise use global
         batches = int(config.values.get('DRYCC_DEPLOY_BATCHES', settings.DRYCC_DEPLOY_BATCHES))
@@ -1030,22 +1018,23 @@ class App(UuidAuditedModel):
         image_pull_policy = config.values.get('IMAGE_PULL_POLICY', settings.IMAGE_PULL_POLICY)
 
         # create image pull secret if needed
-        image_pull_secret_name = self.image_pull_secret(self.id, config.registry, release.image)
+        image_pull_secret_name = self.image_pull_secret(
+            self.id, config.registry, release.get_deploy_image(procfile_type))
 
         # only web is routable
         # https://www.drycc.cc/applications/managing-app-processes/#default-process-types
         routable = True if (
-            process_type == PROCFILE_TYPE_WEB and app_settings.routable) else False
+            procfile_type == PROCFILE_TYPE_WEB and app_settings.routable) else False
 
-        healthcheck = config.healthcheck.get(process_type, {})
-        volumes, volume_mounts = self._get_volumes_and_mounts(process_type, volumes)
+        healthcheck = config.healthcheck.get(procfile_type, {})
+        volumes, volume_mounts = self._get_volumes_and_mounts(procfile_type, volumes)
         return {
             'tags': config.tags,
             'envs': envs,
             'registry': config.registry,
             'replicas': replicas,
             'version': 'v{}'.format(release.version),
-            'app_type': process_type,
+            'app_type': procfile_type,
             'resources': {"limits": limit_plan.limits, "requests": limit_plan.requests},
             'build_type': release.build.type,
             'annotations': limit_plan.annotations,

@@ -3,11 +3,13 @@ Unit tests for the Drycc scheduler module.
 
 Run the tests with './manage.py test scheduler'
 """
+import time
 from unittest import mock
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from scheduler import KubeHTTPException
 from scheduler.tests import TestCase
 from scheduler.utils import generate_random_name
+from scheduler.states import PodState
 
 
 class PodsTest(TestCase):
@@ -25,8 +27,8 @@ class PodsTest(TestCase):
             'replicas': kwargs.get('replicas', 4),
             'pod_termination_grace_period_seconds': 2,
             'image': 'quay.io/fake/image',
-            'entrypoint': 'sh',
-            'command': 'start',
+            'command': 'sh',
+            'args': 'start',
             'deploy_timeout': 10,
         }
 
@@ -185,6 +187,28 @@ class PodsTest(TestCase):
                 liveness.return_value = True
                 self.assertTrue(self.scheduler.pod.ready(pod))
 
+    def test_watch(self):
+        # create a pod to then manipulate
+        name = self.create()
+        pod = self.scheduler.pod.get(self.namespace, name).json()
+        labels = pod['metadata']['labels']
+        with mock.patch('scheduler.resources.pod.Pod.state') as mock_pod:
+            mock_pod.return_value = PodState.creating
+            for count, state in enumerate(self.scheduler.pod.watch(
+                    self.namespace, labels, interval=1)):
+                if count < 3:
+                    self.assertEqual(state, str(PodState.creating))
+                else:
+                    mock_pod.return_value = PodState.down
+            self.assertEqual(state, str(PodState.down))
+            mock_pod.return_value = PodState.creating
+            state = None
+            start_time = time.time()
+            for state in self.scheduler.pod.watch(self.namespace, labels, timeout=3, interval=1):
+                self.assertEqual(state, str(PodState.creating))
+            self.assertEqual(state, str(PodState.creating))
+            self.assertTrue(4 > (time.time() - start_time) > 3)
+
     def test_deleted(self):
         # create a pod to then manipulate
         name = self.create()
@@ -194,6 +218,6 @@ class PodsTest(TestCase):
         self.assertFalse(self.scheduler.pod.deleted(pod))
 
         # set deleted 10 minutes in the past
-        ts_deleted = datetime.utcnow() - timedelta(minutes=10)
+        ts_deleted = datetime.now(timezone.utc) - timedelta(minutes=10)
         pod['metadata']['deletionTimestamp'] = ts_deleted.strftime(self.scheduler.DATETIME_FORMAT)
         self.assertTrue(self.scheduler.pod.deleted(pod))

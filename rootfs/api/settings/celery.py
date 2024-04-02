@@ -20,7 +20,7 @@ class Config(object):
     result_expires = 24 * 60 * 60
     broker_url = os.environ.get('DRYCC_RABBITMQ_URL', 'amqp://guest:guest@127.0.0.1:5672/')  # noqa
     cache_backend = 'django-cache'
-    task_default_queue = 'low'
+    task_default_queue = 'controller.low'
     task_default_exchange = 'controller.priority'
     task_default_routing_key = 'controller.priority.low'
     broker_connection_retry_on_startup = True
@@ -32,46 +32,51 @@ app.config_from_object(Config())
 app.conf.update(
     task_routes={
         'api.tasks.scale_app': {
-            'queue': 'high',
+            'queue': 'controller.high',
             'exchange': 'controller.priority',
             'routing_key': 'controller.priority.high',
         },
         'api.tasks.mount_app': {
-            'queue': 'low',
+            'queue': 'controller.high',
             'exchange': 'controller.priority',
             'routing_key': 'controller.priority.high',
         },
         'api.tasks.restart_app': {
-            'queue': 'high',
+            'queue': 'controller.high',
+            'exchange': 'controller.priority',
+            'routing_key': 'controller.priority.high',
+        },
+        'api.tasks.run_pipeline': {
+            'queue': 'controller.high',
             'exchange': 'controller.priority',
             'routing_key': 'controller.priority.high',
         },
         'api.tasks.downstream_model_owner': {
-            'queue': 'high',
+            'queue': 'controller.high',
             'exchange': 'controller.priority',
             'routing_key': 'controller.priority.high',
         },
         'api.tasks.send_measurements': {
-            'queue': 'middle',
+            'queue': 'controller.middle',
             'exchange': 'controller.priority',
             'routing_key': 'controller.priority.middle',
         },
     },
     task_queues=(
         Queue(
-            'low',
+            'controller.low',
             exchange=Exchange('controller.priority', type="direct"),
             routing_key='controller.priority.low',
             queue_arguments={'x-max-priority': 16},
         ),
         Queue(
-            'high',
+            'controller.high',
             exchange=Exchange('controller.priority', type="direct"),
             routing_key='controller.priority.high',
             queue_arguments={'x-max-priority': 64},
         ),
         Queue(
-            'middle',
+            'controller.middle',
             exchange=Exchange('controller.priority', type="direct"),
             routing_key='controller.priority.middle',
             queue_arguments={'x-max-priority': 32},

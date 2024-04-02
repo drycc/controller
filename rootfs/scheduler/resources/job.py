@@ -7,7 +7,7 @@ class Job(Resource):
     api_prefix = 'apis'
     api_version = 'batch/v1'
 
-    def manifest(self, namespace, name, image, entrypoint, command, **kwargs):
+    def manifest(self, namespace, name, image, command, args, **kwargs):
         manifest = {
             "apiVersion": "batch/v1",
             "kind": "Job",
@@ -26,16 +26,17 @@ class Job(Resource):
             }
         }
         # tell pod how to execute the process
-        kwargs['command'] = entrypoint
-        kwargs['args'] = command
-
+        kwargs['command'] = command
+        kwargs['args'] = args
+        # job labels
+        manifest['metadata']['labels'].update(kwargs.get('labels', {}))
         # pod manifest spec
         manifest['spec']['template'] = self.pod.manifest(namespace, name, image, **kwargs)
         return manifest
 
-    def create(self, namespace, name, image, entrypoint,
-               command, ignore_exception=False, **kwargs):
-        data = self.manifest(namespace, name, image, entrypoint, command, **kwargs)
+    def create(self, namespace, name, image, command,
+               args, ignore_exception=False, **kwargs):
+        data = self.manifest(namespace, name, image, command, args, **kwargs)
         url = self.api("/namespaces/{}/jobs", namespace)
         response = self.http_post(url, json=data)
 

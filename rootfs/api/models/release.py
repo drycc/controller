@@ -4,10 +4,12 @@ from django.conf import settings
 from django.db import models
 from django.contrib.auth import get_user_model
 from api.utils import dict_diff
+from api.tasks import run_pipeline
 from api.exceptions import DryccException, AlreadyExists
 from scheduler import KubeHTTPException
 from scheduler.resources.pod import DEFAULT_CONTAINER_PORT
 from .base import UuidAuditedModel
+
 
 User = get_user_model()
 logger = logging.getLogger(__name__)
@@ -19,9 +21,14 @@ class Release(UuidAuditedModel):
 
     Releases contain a :class:`Build` and a :class:`Config`.
     """
-
+    STATE_CHOICES = (
+        ("created", "Release created but not deployed"),
+        ("crashed", "Release pipeline runtime crashed"),
+        ("succeed", "Release pipeline runtime succeed"),
+    )
     owner = models.ForeignKey(User, on_delete=models.PROTECT)
     app = models.ForeignKey('App', on_delete=models.CASCADE)
+    state = models.TextField(choices=STATE_CHOICES, default=STATE_CHOICES[0][0])
     version = models.PositiveIntegerField()
     summary = models.TextField(blank=True, null=True)
     failed = models.BooleanField(default=False)
@@ -40,8 +47,67 @@ class Release(UuidAuditedModel):
         return "{0}-v{1}".format(self.app.id, self.version)
 
     @property
-    def image(self):
-        return self.build.image
+    def procfile_types(self):
+        if self.build is not None:
+            return self.build.procfile_types
+        return []
+
+    def get_run_image(self):
+        """
+        In the run phase of dryccfile
+        Return the kubernetes "container image" to be sent off to the scheduler.
+        """
+        image = self.build.dryccfile.get('run', {}).get(
+            'image', self.build.get_image('run'))
+        return self.build.get_image(image, default_image=image)
+
+    def get_run_args(self):
+        """
+        In the run phase of dryccfile
+        Return the kubernetes "container arguments" to be sent off to the scheduler.
+        """
+        return self.build.dryccfile.get('run', {}).get('args', [])
+
+    def get_run_command(self):
+        """
+        In the run phase of dryccfile
+        Return the kubernetes "container command" to be sent off to the scheduler.
+        """
+        return self.build.dryccfile.get('run', {}).get('command', [])
+
+    def get_deploy_image(self, container_type):
+        """
+        In the deploy phase of dryccfile
+        Return the kubernetes "container image" to be sent off to the scheduler.
+        """
+        image = self.build.dryccfile.get('deploy', {}).get(container_type, {}).get(
+            'image', self.build.get_image(container_type))
+        return self.build.get_image(image, default_image=image)
+
+    def get_deploy_args(self, container_type):
+        """
+        In the deploy phase of dryccfile
+        Return the kubernetes "container arguments" to be sent off to the scheduler.
+        """
+        if self.build is not None:
+            if self.build.dryccfile:
+                return self.build.dryccfile['deploy'].get(container_type, {}).get('args', [])
+            else:
+                # dockerfile or container image
+                if self.build.dockerfile or not self.build.sha:
+                    # has profile
+                    if self.build.procfile and container_type in self.build.procfile:
+                        args = self.build.procfile[container_type]
+                        return args.split()
+        return []
+
+    def get_deploy_command(self, container_type):
+        """
+        In the deploy phase of dryccfile
+        Return the kubernetes "container command" to be sent off to the scheduler.
+        """
+        return self.build.dryccfile.get(
+            'deploy', {}).get(container_type, {}).get('command', [])
 
     def log(self, message, level=logging.INFO):
         """Logs a message in the context of this application.
@@ -159,14 +225,14 @@ class Release(UuidAuditedModel):
             )
 
             if self.build is not None:
-                self.app.deploy(new_release, force_deploy=True)
+                run_pipeline.delay(new_release, force_deploy=True)
             return new_release
         except Exception as e:
             # check if the exception is during create or publish
             if ('new_release' not in locals() and 'latest_version' in locals() and
                     self.app.release_set.latest().version == latest_version+1):
                 new_release = self.app.release_set.latest()
-            if 'new_release' in locals():
+                new_release.state = "crashed"
                 new_release.failed = True
                 new_release.summary = "{} performed roll back to a release that failed".format(self.owner)  # noqa
                 # Get the exception that has occured

@@ -54,14 +54,14 @@ class AdmissionsTest(DryccTransactionTestCase):
 
     def test_admissions_scale(self, requests_mock):
         app_id = self.create_app("myapp")
-        for case, (admission_class, ptype, scale) in SCALE_TEST_CASES:
+        for case, (admission_class, procfile_type, scale) in SCALE_TEST_CASES:
             with open(os.path.join(TEST_ROOT, "admissions", case)) as f:
                 request = json.loads(f.read())["request"]
                 handler = admission_class()
                 self.assertEqual(handler.detect(request), True)
                 self.assertEqual(handler.handle(request), True)
                 app = App.objects.get(id=app_id)
-                self.assertEqual(app.structure.get(ptype, 0), scale)
+                self.assertEqual(app.structure.get(procfile_type, 0), scale)
 
     def test_admissions_service_catalog(self, requests_mock):
         app_id = self.create_app("myapp")

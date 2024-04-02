@@ -25,8 +25,8 @@ class HorizontalPodAutoscalersTest(TestCase):
             'replicas': kwargs.get('replicas', 1),
             'pod_termination_grace_period_seconds': 2,
             'image': 'quay.io/fake/image',
-            'entrypoint': 'sh',
-            'command': 'start',
+            'command': 'sh',
+            'args': 'start',
             'spec_annotations': kwargs.get('spec_annotations', {}),
         }
 
@@ -74,8 +74,8 @@ class HorizontalPodAutoscalersTest(TestCase):
             'replicas': kwargs.get('replicas', 4),
             'pod_termination_grace_period_seconds': 2,
             'image': 'quay.io/fake/image',
-            'entrypoint': 'sh',
-            'command': 'start',
+            'command': 'sh',
+            'args': 'start',
             'spec_annotations': kwargs.get('spec_annotations', {}),
         }
 

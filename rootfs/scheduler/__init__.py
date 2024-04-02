@@ -1,5 +1,5 @@
 from collections import OrderedDict
-from datetime import datetime
+from datetime import datetime, timezone
 import logging
 from packaging.version import Version, parse
 import requests
@@ -96,7 +96,7 @@ class KubeHTTPClient(object):
 
     @staticmethod
     def parse_date(date):
-        return datetime.strptime(date, KubeHTTPClient.DATETIME_FORMAT)
+        return datetime.strptime(date, KubeHTTPClient.DATETIME_FORMAT).replace(tzinfo=timezone.utc)
 
     @staticmethod
     def unhealthy(status_code):
@@ -258,7 +258,7 @@ class KubeHTTPClient(object):
 
         return response
 
-    def deploy(self, namespace, name, image, entrypoint, command, **kwargs):
+    def deploy(self, namespace, name, image, command, args, **kwargs):
         """Deploy Deployment depending on what's requested"""
         app_type = kwargs.get('app_type')
         version = kwargs.get('version')
@@ -297,13 +297,13 @@ class KubeHTTPClient(object):
         except KubeException:
             # create the initial deployment object (and the first revision)
             self.deployment.create(
-                namespace, name, image, entrypoint, command, spec_annotations, **kwargs
+                namespace, name, image, command, args, spec_annotations, **kwargs
             )
         else:
             try:
                 # kick off a new revision of the deployment
                 self.deployment.update(
-                    namespace, name, image, entrypoint, command, spec_annotations, **kwargs
+                    namespace, name, image, command, args, spec_annotations, **kwargs
                 )
             except KubeException as e:
                 raise KubeException(
@@ -311,7 +311,7 @@ class KubeHTTPClient(object):
                     "Additional information:\n{}".format(version, namespace, app_type, str(e))
                 ) from e
 
-    def scale(self, namespace, name, image, entrypoint, command, **kwargs):
+    def scale(self, namespace, name, image, command, args, **kwargs):
         """Scale Deployment"""
         try:
             self.deployment.get(namespace, name)
@@ -321,7 +321,7 @@ class KubeHTTPClient(object):
                 try:
                     spec_annotations = {}
                     self.deployment.create(
-                        namespace, name, image, entrypoint, command, spec_annotations, **kwargs
+                        namespace, name, image, command, args, spec_annotations, **kwargs
                     )
                 except KubeException:
                     # see if the deployment got created

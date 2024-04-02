@@ -1,8 +1,9 @@
 from collections import defaultdict
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 import operator
 import os
 import time
+import math
 
 from scheduler.exceptions import KubeException, KubeHTTPException
 from scheduler.resources import Resource
@@ -443,7 +444,7 @@ class Pod(Resource):
         if 'deletionTimestamp' in pod['metadata']:
             # past the graceful deletion period
             deletion = self.parse_date(pod['metadata']['deletionTimestamp'])
-            if deletion < datetime.utcnow():
+            if deletion < datetime.now(timezone.utc):
                 return True
 
         return False
@@ -563,7 +564,7 @@ class Pod(Resource):
         # see if pull operation has been happening for over 1 minute
         seconds = 60  # time threshold before padding timeout
         start = self.parse_date(event['firstTimestamp'])
-        if (start + timedelta(seconds=seconds)) < datetime.utcnow():
+        if (start + timedelta(seconds=seconds)) < datetime.now(timezone.utc):
             # make it so function doesn't do processing again
             setattr(self, '_handle_long_image_pulling_applied', True)
             return 600
@@ -700,6 +701,21 @@ class Pod(Resource):
             self.log(namespace, 'timed out ({}s) waiting for pods to come up in namespace {}'.format(timeout, namespace))  # noqa
 
         self.log(namespace, "{} out of {} pods are in service".format(count, desired))  # noqa
+
+    def watch(self, namespace, labels, timeout=300, interval=5,
+              until_states=['down', 'crashed', 'error']):
+        self.log(
+            namespace,
+            f"watching for {labels} labels in {namespace} namespace, "
+            f"timeout: {timeout}, interval: {interval}, until_states: {until_states}"
+        )
+        for _ in range(math.ceil(timeout / interval)):
+            for p in self.get(namespace, labels=labels).json()['items']:
+                state = str(self.state(p))
+                yield state
+                if state in until_states:
+                    return
+            time.sleep(interval)
 
     def _handle_not_ready_pods(self, namespace, labels):
         """

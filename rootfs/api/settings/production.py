@@ -232,14 +232,12 @@ LOGGING = {
         },
         'api': {
             'handlers': ['console'],
-            'propagate': True,
-        },
-        'registry': {
-            'handlers': ['console'],
+            'level': 'INFO',
             'propagate': True,
         },
         'scheduler': {
             'handlers': ['console'],
+            'level': 'INFO',
             'propagate': True,
         },
     }
@@ -328,6 +326,9 @@ DRYCC_DEPLOY_BATCHES = int(os.environ.get('DRYCC_DEPLOY_BATCHES', 0))
 # For Kubernetes Deployments it is part of the global timeout
 # where it roughly goes BATCHES * TIMEOUT = global timeout
 DRYCC_DEPLOY_TIMEOUT = int(os.environ.get('DRYCC_DEPLOY_TIMEOUT', 120))
+
+# the timeout of the pipeline run phase
+DRYCC_PILELINE_RUN_TIMEOUT = int(os.environ.get('DRYCC_PILELINE_RUN_TIMEOUT', 3600))
 
 try:
     DRYCC_DEPLOY_HOOK_URLS = os.environ['DRYCC_DEPLOY_HOOK_URLS'].split(',')

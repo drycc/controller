@@ -12,7 +12,7 @@ from unittest import mock
 from rest_framework.authtoken.models import Token
 
 from api.models.build import Build
-from api.models.app import App
+from api.models.app import App, PROCFILE_TYPE_WEB
 from scheduler import KubeException
 
 from api.tests import adapter, DryccTransactionTestCase
@@ -92,7 +92,7 @@ class BuildTest(DryccTransactionTestCase):
 
         for key in response.data:
             self.assertIn(key, ['uuid', 'owner', 'created', 'updated', 'app', 'dockerfile',
-                                'image', 'stack', 'procfile', 'sha'])
+                                'dryccfile', 'image', 'stack', 'procfile', 'sha'])
         expected = {
             'owner': self.user.username,
             'app': app_id,
@@ -306,13 +306,13 @@ class BuildTest(DryccTransactionTestCase):
         url = "/v2/apps/{app_id}/pods/web".format(**locals())
         response = self.client.get(url)
         self.assertEqual(response.status_code, 200, response.data)
-        self.assertEqual(len(response.data['results']), 1)
+        self.assertEqual(len(response.data['results']), 0)
 
         # look at the app structure
         url = "/v2/apps/{app_id}".format(**locals())
         response = self.client.get(url)
         self.assertEqual(response.status_code, 200, response.data)
-        self.assertEqual(response.json()['structure'], {'web': 1})
+        self.assertEqual(response.json()['structure'], {'web': 0})
 
     @override_settings(DRYCC_DEPLOY_PROCFILE_MISSING_REMOVE=False)
     def test_build_no_remove_process(self, mock_requests):
@@ -568,7 +568,7 @@ class BuildTest(DryccTransactionTestCase):
 
         build = Build.objects.get(uuid=response.data['uuid'])
         release = build.app.release_set.latest()
-        self.assertEqual(release.image, image)
+        self.assertEqual(release.get_deploy_image(PROCFILE_TYPE_WEB), image)
 
         # post an image as a build using registry hostname + port
         url = "/v2/apps/{app_id}/builds".format(**locals())
@@ -579,7 +579,7 @@ class BuildTest(DryccTransactionTestCase):
 
         build = Build.objects.get(uuid=response.data['uuid'])
         release = build.app.release_set.latest()
-        self.assertEqual(release.image, image)
+        self.assertEqual(release.get_deploy_image(PROCFILE_TYPE_WEB), image)
 
     def test_build_image_in_registry_with_auth(self, mock_requests):
         """add authentication to the build"""
@@ -649,12 +649,12 @@ class BuildTest(DryccTransactionTestCase):
         with mock.patch('scheduler.KubeHTTPClient.deploy') as mock_deploy:
             mock_deploy.side_effect = KubeException('Boom!')
 
-            url = "/v2/apps/{app_id}/builds".format(**locals())
+            url = f"/v2/apps/{app_id}/builds"
             body = {'image': 'autotest/example', 'stack': 'container'}
             response = self.client.post(url, body)
-            exp_error = {'detail': '(app::deploy): Boom!'}
-            self.assertEqual(response.data, exp_error, response.data)
-            self.assertEqual(response.status_code, 400, response.data)
+            self.assertEqual(response.status_code, 201, response.data)
+            data = self.client.get(f"/v2/apps/{app_id}/releases/", body).json()
+            self.assertEqual(data["results"][0]["state"], "crashed", data)
 
     def test_build_failures(self, mock_requests):
         app_id = self.create_app()
@@ -675,9 +675,9 @@ class BuildTest(DryccTransactionTestCase):
             url = "/v2/apps/{app_id}/builds".format(**locals())
             body = {'image': 'autotest/example', 'stack': 'container'}
             response = self.client.post(url, body)
-            self.assertEqual(response.status_code, 400, response.data)
-            self.assertEqual(app.release_set.latest().version, 3)
-            self.assertEqual(app.release_set.filter(failed=False).latest().version, 2)
+            self.assertEqual(response.status_code, 201, response.data)
+            data = self.client.get(f"/v2/apps/{app_id}/releases/", body).json()
+            self.assertEqual(data["results"][0]["state"], "crashed", data)
 
         # create a config to see that the new release is created with the last successful build
         url = "/v2/apps/{app_id}/config".format(**locals())
@@ -693,7 +693,7 @@ class BuildTest(DryccTransactionTestCase):
         app_id = self.create_app()
 
         # deploy app with incorrect proctype
-        url = "/v2/apps/{app_id}/builds".format(**locals())
+        url = f"/v2/apps/{app_id}/builds"
         body = {
             'image': 'autotest/example',
             'stack': 'heroku-18',
@@ -706,7 +706,7 @@ class BuildTest(DryccTransactionTestCase):
         response = self.client.post(url, body)
         self.assertEqual(response.status_code, 400, response.data)
 
-        url = "/v2/apps/{app_id}/builds".format(**locals())
+        url = f"/v2/apps/{app_id}/builds"
         body = {
             'image': 'autotest/example',
             'stack': 'heroku-18',
@@ -719,7 +719,7 @@ class BuildTest(DryccTransactionTestCase):
         response = self.client.post(url, body)
         self.assertEqual(response.status_code, 400, response.data)
 
-        url = "/v2/apps/{app_id}/builds".format(**locals())
+        url = f"/v2/apps/{app_id}/builds"
         body = {
             'image': 'autotest/example',
             'stack': 'heroku-18',
@@ -732,7 +732,7 @@ class BuildTest(DryccTransactionTestCase):
         response = self.client.post(url, body)
         self.assertEqual(response.status_code, 400, response.data)
 
-        url = "/v2/apps/{app_id}/builds".format(**locals())
+        url = f"/v2/apps/{app_id}/builds"
         body = {
             'image': 'autotest/example',
             'stack': 'heroku-18',
@@ -744,7 +744,7 @@ class BuildTest(DryccTransactionTestCase):
         }
         response = self.client.post(url, body)
         self.assertEqual(response.status_code, 400, response.data)
-        url = "/v2/apps/{app_id}/builds".format(**locals())
+        url = f"/v2/apps/{app_id}/builds"
         body = {
             'image': 'autotest/example',
             'stack': 'heroku-18',
@@ -757,7 +757,7 @@ class BuildTest(DryccTransactionTestCase):
         response = self.client.post(url, body)
         self.assertEqual(response.status_code, 400, response.data)
         # deploy app with empty command
-        url = "/v2/apps/{app_id}/builds".format(**locals())
+        url = f"/v2/apps/{app_id}/builds"
         body = {
             'image': 'autotest/example',
             'stack': 'heroku-18',
@@ -770,7 +770,7 @@ class BuildTest(DryccTransactionTestCase):
         response = self.client.post(url, body)
         self.assertEqual(response.status_code, 400, response.data)
 
-        url = "/v2/apps/{app_id}/builds".format(**locals())
+        url = f"/v2/apps/{app_id}/builds"
         body = {
             'image': 'autotest/example',
             'stack': 'heroku-18',
@@ -782,3 +782,108 @@ class BuildTest(DryccTransactionTestCase):
         }
         response = self.client.post(url, body)
         self.assertEqual(response.status_code, 201, response.data)
+
+    def test_dryccfile_ok(self, mock_requests):
+        app_id = self.create_app()
+        url = f"/v2/apps/{app_id}/builds"
+        default_image = "autotest/example"
+        run_image = "127.0.0.1:7070/myapp/run:git-123fsa1"
+        web_image = "127.0.0.1:7070/myapp/web:git-123fsa1"
+        worker_image = "127.0.0.1:7070/myapp/worker:git-123fsa1"
+        body = {
+            'image': 'autotest/example',
+            'stack': 'heroku-18',
+            'sha': 'a'*40,
+            'dryccfile': {
+                "build": {
+                    "docker": {"web": "Dockerfile", "worker": "worker/Dockerfile"},
+                    "config": {"RAILS_ENV": "development", "FOO": "bar"}
+                },
+                "run": {
+                    "command": ["./deployment-tasks.sh"],
+                    "image": run_image,
+                },
+                "deploy": {
+                    "web": {
+                        "command": ["bash", "-c"],
+                        "args": ["bundle exec puma -C config/puma.rb"],
+                        "image": "127.0.0.1:7070/myapp/web:git-123fsa1"
+                    },
+                    "worker": {
+                        "command": ["bash", "-c"],
+                        "args": ["python myworker.py"],
+                        "image": "127.0.0.1:7070/myapp/worker:git-123fsa1"
+                    }
+                }
+            }
+        }
+        with mock.patch('scheduler.resources.pod.Pod.watch') as mock_kube:
+            mock_kube.return_value = ['up', 'down']
+            response = self.client.post(url, body)
+            self.assertEqual(response.status_code, 201, response.data)
+            data = self.client.get(f"/v2/apps/{app_id}/releases/", body).json()
+            self.assertEqual(data["results"][0]["state"], "succeed", data)
+            app = App.objects.get(id=app_id)
+            for pod in app.list_pods():
+                if pod['type'] == 'run':
+                    self.assertEqual(pod["state"], "down", pod)
+                elif pod['type'] == 'web':
+                    self.assertEqual(pod["state"], "up", pod)
+            release = self.client.get(f"/v2/apps/{app_id}/releases/", body).json()["results"][0]
+            self.assertEqual(release["state"], "succeed", data)
+            self.assertEqual(release["version"], 2, data)
+            release_obj = app.release_set.filter(version=release["version"])[0]
+            self.assertEqual(release_obj.get_run_image(), run_image, data)
+            self.assertEqual(release_obj.get_deploy_image("web"), web_image, data)
+            self.assertEqual(release_obj.get_deploy_image("worker"), worker_image, data)
+            self.assertEqual(release_obj.get_deploy_image("noexist"), default_image, data)
+
+    def test_dryccfile_format(self, mock_requests):
+        body = {
+            'image': 'autotest/example',
+            'stack': 'heroku-18',
+            'sha': 'a'*40,
+            'dryccfile': {
+                "build": {
+                    "docker": {"web": "Dockerfile", "worker": "worker/Dockerfile"},
+                    "config": {"RAILS_ENV": "development", "FOO": "bar"}
+                },
+            }
+        }
+        with mock.patch('scheduler.resources.pod.Pod.watch') as mock_kube:
+            mock_kube.return_value = ['up', 'down']
+            app_id = self.create_app()
+            url = f"/v2/apps/{app_id}/builds"
+            response = self.client.post(url, body)
+            self.assertEqual(response.status_code, 400, response.data)
+            body['dryccfile']['deploy'] = {
+                "web-canary": {
+                    'image': "127.0.0.1/cat/cat"
+                }
+            }
+            response = self.client.post(url, body)
+            self.assertEqual(response.status_code, 400, response.data)
+            del body['dryccfile']['deploy']['web-canary']
+            body['dryccfile']['deploy'] = {
+                "web": {
+                    'image': "127.0.0.1/cat/cat"
+                }
+            }
+            response = self.client.post(url, body)
+            self.assertEqual(response.status_code, 201, response.data)
+            body['dryccfile']['run'] = {
+                'command': ["bash", "-c"],
+                'args': ["ls /"]
+            }
+            response = self.client.post(url, body)
+            self.assertEqual(response.status_code, 201, response.data)
+            body['dryccfile']['deploy'] = {}
+            response = self.client.post(url, body)
+            self.assertEqual(response.status_code, 400, response.data)
+            body['dryccfile'] = {}
+            body['procfile'] = {
+                'web': 'node server.js',
+                'worker-test1': 'node worker.js'
+            }
+            response = self.client.post(url, body)
+            self.assertEqual(response.status_code, 201, response.data)
