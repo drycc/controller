@@ -221,15 +221,14 @@ class App(UuidAuditedModel):
 
     def scale(self, user, structure):
         err_msg = None
-        if (PROCFILE_TYPE_RUN in structure or
-                self.release_set.filter(failed=False).latest().build is None):
+        release = self.release_set.filter(failed=False).latest()
+        if (PROCFILE_TYPE_RUN in structure or release.build is None):
             if PROCFILE_TYPE_RUN in structure:
                 err_msg = 'Cannot set scale for reserved types, procfile type is: run'
             else:
                 err_msg = 'No build associated with this release'
             self.log(err_msg, logging.WARNING)
             raise DryccException(err_msg)
-        release = self.release_set.filter(failed=False).latest()
         app_settings = self.appsettings_set.latest()
         if release.canary:
             self._scale(
