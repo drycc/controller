@@ -83,7 +83,7 @@ resources = [
     'horizontalpodautoscalers', 'scale', 'resourcequotas', 'ingresses',
     'persistentvolumeclaims', 'serviceinstances', 'servicebindings',
     'limitranges', 'gateways', 'httproutes', 'tcproutes', 'udproutes',
-    'issuers', 'certificates', 'jobs', 'clusterserviceclasses',
+    'issuers', 'certificates', 'certificaterequests', 'jobs', 'clusterserviceclasses',
 ]
 
 
@@ -604,7 +604,6 @@ def fetch_single(request, context):
         context.status_code = 404
         context.reason = 'Not Found'
         return {}
-
     return data
 
 
@@ -726,16 +725,55 @@ def post(request, context):
             manage_replicasets(data, url)
 
     # drycc run is the only thing that creates pods directly
-    if resource_type == 'pods':
-        create_pods(url, data['metadata']['labels'], data, 1)
-    elif resource_type == 'jobs':
-        create_jobs(url, resource_type, data)
-    else:
-        add_cache_item(url, resource_type, data)
+    change_cache(url, resource_type, data)
 
     context.status_code = 201
     context.reason = 'Created'
     return data
+
+
+def change_cache(url, resource_type, data):
+    if resource_type == 'pods':
+        create_pods(url, data['metadata']['labels'], data, 1)
+    elif resource_type == 'jobs':
+        create_jobs(url, resource_type, data)
+    elif resource_type in ('issuers', 'certificates', 'certificaterequests'):
+        add_cert_manager_item(url, resource_type, data)
+    else:
+        add_cache_item(url, resource_type, data)
+
+
+def add_cert_manager_item(url, resource_type, data):
+    conditions = [{
+        "lastTransitionTime": datetime.now().strftime("%Y-%m-%dT%H:%M:%SZ"),
+        "message": f"mock {resource_type} message ok",
+        "reason": "reason",
+        "status": "True",
+        "type": "Ready",
+    }]
+    data["status"] = {"conditions": conditions}
+    add_cache_item(url, resource_type, data)
+    if resource_type == "certificates":
+        name = "%s-auto-tls-1" % data["metadata"]["name"]
+        namespace = data["metadata"]["namespace"]
+        labels = data["metadata"].get("labels", {})
+        url = f"apis_cert_manager.io_v1_namespaces_{namespace}_certificaterequests_{name}"
+        url = url.replace("-", "_")
+        request = {
+            "apiVersion": "cert-manager.io/v1",
+            "kind": "CertificateRequest",
+            "metadata": {"name": name, "namespace": namespace, "labels": labels},
+            "spec": {
+                "extra": {},
+                "groups": ["system:serviceaccounts"],
+                "issuerRef": {"kind": "Issuer", "name": "%s-issuer" % name},
+                "request": "test",
+                "uid": "1f656b19-d19d-4233-bfe7-f0cf81b65126",
+                "username": "system:serviceaccount:cert-manager:cert-manager"
+            },
+            "status": {"conditions": conditions}
+        }
+        add_cache_item(url, "certificaterequests", request)
 
 
 def create_jobs(url, resource_type, data):
@@ -810,7 +848,7 @@ def put(request, context):
             manage_replicasets(data, url)
     else:
         # Update the individual resource
-        cache.set(url, data, None)
+        change_cache(url, resource_type, data)
 
     context.status_code = 200
     context.reason = 'OK'
@@ -886,7 +924,7 @@ def patch(request, context):  # noqa: C901
         cache.set(url, data, None)
     else:
         # Update the individual resource
-        cache.set(url, data, None)
+        change_cache(url, resource_type, data)
 
     context.status_code = 200
     context.reason = 'OK'

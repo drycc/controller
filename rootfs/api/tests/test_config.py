@@ -486,13 +486,15 @@ class ConfigTest(DryccTransactionTestCase):
             sha='somereallylongsha'
         )
         # create an initial release
-        Release.objects.create(
+        release = Release.objects.create(
             version=3,
             owner=user,
             app=app,
             config=app.config_set.latest(),
             build=build
         )
+        # deploy
+        app.pipeline(release)
         # unset error
         body = {
             'limits': {

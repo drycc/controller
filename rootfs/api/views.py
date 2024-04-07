@@ -356,14 +356,14 @@ class ConfigViewSet(ReleasableViewSet):
 
     def post_save(self, config):
         release = config.app.release_set.filter(failed=False).latest()
+        if release.build is not None and release.state == "created":
+            raise DryccException('There is an executing pipeline, please wait')
+        # It's possible to set config values before a build
         latest_version = config.app.release_set.latest().version
         try:
             release = release.new(
                 self.request.user, config=config, build=release.build, canary=release.canary)
-            # It's possible to set config values before a build
             if release.build is not None:
-                if release.state == "created":
-                    raise DryccException('There is an executing pipeline, please wait')
                 config.app.deploy(release)
             release.state = "succeed"
             release.save()
@@ -575,6 +575,10 @@ class ReleaseViewSet(AppResourceViewSet):
 class TLSViewSet(AppResourceViewSet):
     model = models.tls.TLS
     serializer_class = serializers.TLSSerializer
+
+    def events(self, request, **kwargs):
+        results = self.get_object().events()
+        return Response({'results': results, 'count': len(results)})
 
 
 class BaseHookViewSet(BaseDryccViewSet):

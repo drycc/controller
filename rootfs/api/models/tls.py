@@ -29,10 +29,95 @@ class TLS(UuidAuditedModel):
     https_enforced = models.BooleanField(null=True)
     certs_auto_enabled = models.BooleanField(null=True)
 
-    class Meta:
-        get_latest_by = 'created'
-        unique_together = (('app', 'uuid'))
-        ordering = ['-created']
+    def log(self, message, level=logging.INFO):
+        """Logs a message in the context of this application.
+
+        This prefixes log messages with an application "tag" that the customized
+        drycc-logspout will be on the lookout for.  When it's seen, the message-- usually
+        an application event of some sort like releasing or scaling, will be considered
+        as "belonging" to the application instead of the controller and will be handled
+        accordingly.
+        """
+        logger.log(level, "[{}]: {}".format(self.app.id, message))
+
+    @property
+    def events(self):
+        def to_result(name, kind, condition):
+            return {
+                "name": name,
+                "kind": kind,
+                "time": condition["lastTransitionTime"],
+                "type": condition["type"],
+                "status": condition["status"],
+                "message": condition["message"],
+            }
+
+        results = []
+        name = namespace = self.app.id
+        response = self.scheduler().issuer.get(namespace, name, ignore_exception=True)
+        if response.status_code == 200:
+            for condition in response.json()["status"]["conditions"]:
+                results.append(to_result(name, "Issuer", condition))
+        name = f"{self.app.id}-auto-tls"
+        response = self.scheduler().certificate.get(namespace, name, ignore_exception=True)
+        if response.status_code == 200:
+            for condition in response.json()["status"]["conditions"]:
+                results.append(to_result(name, "Certificate", condition))
+        response = self.scheduler().certificaterequest.get(namespace, ignore_exception=True)
+        if response.status_code == 200:
+            for item in response.json()["items"]:
+                for condition in item["status"]["conditions"]:
+                    results.append(to_result(
+                        item["metadata"]["name"], "CertificateRequest", condition))
+        return results
+
+    def refresh_issuer_to_k8s(self):
+        name = namespace = self.app.id
+        try:
+            if self.issuer["key_id"] and self.issuer["key_secret"]:
+                self._refresh_secret_to_k8s()
+            data = copy.deepcopy(self.issuer)
+            data["parent_refs"] = [
+                {
+                    "group": "gateway.networking.k8s.io",
+                    "kind": "Gateway",
+                    "name": gateway.name,
+                }
+                for gateway in self.app.gateway_set.all()
+            ]
+            try:
+                version = self.scheduler().issuer.get(
+                    namespace, name, ignore_exception=False).json()["metadata"]["resourceVersion"]
+                data.update({"version": version})
+                self.scheduler().issuer.put(namespace, name, **data)
+            except KubeException:
+                self.scheduler().issuer.create(namespace, name, **data)
+        except KubeException as e:
+            raise ServiceUnavailable('Kubernetes issuer could not be created') from e
+
+    def refresh_certificate_to_k8s(self):
+        namespace, name = self.app.id, f"{self.app.id}-auto-tls"
+        if self.certs_auto_enabled:
+            hosts = [domain.domain for domain in self.app.domain_set.all()]
+            if len(hosts) > 0:
+                response = self.scheduler().certificate.get(namespace, name)
+                if response.status_code == 200:
+                    data = response.json()
+                    version = data["metadata"]["resourceVersion"]
+                    self.scheduler().certificate.put(namespace, name, hosts, version)
+                else:
+                    logger.log(
+                        msg="certificate {} does not exist".format(namespace), level=logging.INFO)
+                    self.scheduler().certificate.create(namespace, name, hosts)
+            else:
+                self.log("skip creating certificate, no domain name set", logging.WARNING)
+        else:
+            self.scheduler().certificate.delete(namespace, name, ignore_exception=True)
+
+    @transaction.atomic
+    def save(self, *args, **kwargs):
+        self._check_previous_tls_settings()
+        super(TLS, self).save(*args, **kwargs)
 
     def __str__(self):
         return "{}-{}".format(self.app.id, str(self.uuid)[:7])
@@ -74,61 +159,7 @@ class TLS(UuidAuditedModel):
         except KubeException as e:
             raise ServiceUnavailable('Kubernetes secret could not be created') from e
 
-    def log(self, message, level=logging.INFO):
-        """Logs a message in the context of this application.
-
-        This prefixes log messages with an application "tag" that the customized
-        drycc-logspout will be on the lookout for.  When it's seen, the message-- usually
-        an application event of some sort like releasing or scaling, will be considered
-        as "belonging" to the application instead of the controller and will be handled
-        accordingly.
-        """
-        logger.log(level, "[{}]: {}".format(self.app.id, message))
-
-    def refresh_issuer_to_k8s(self):
-        name = namespace = self.app.id
-        try:
-            if self.issuer["key_id"] and self.issuer["key_secret"]:
-                self._refresh_secret_to_k8s()
-            data = copy.deepcopy(self.issuer)
-            data["parent_refs"] = [
-                {
-                    "group": "gateway.networking.k8s.io",
-                    "kind": "Gateway",
-                    "name": gateway.name,
-                }
-                for gateway in self.app.gateway_set.all()
-            ]
-            try:
-                version = self.scheduler().issuer.get(
-                    namespace, name, ignore_exception=False).json()["metadata"]["resourceVersion"]
-                data.update({"version": version})
-                self.scheduler().issuer.put(namespace, name, **data)
-            except KubeException:
-                self.scheduler().issuer.create(namespace, name, **data)
-        except KubeException as e:
-            raise ServiceUnavailable('Kubernetes issuer could not be created') from e
-
-    def refresh_certificate_to_k8s(self):
-        namespace = name = self.app.id
-        if self.certs_auto_enabled:
-            hosts = [domain.domain for domain in self.app.domain_set.all()]
-            if len(hosts) > 0:
-                response = self.scheduler().certificate.get(namespace, name)
-                if response.status_code == 200:
-                    data = response.json()
-                    version = data["metadata"]["resourceVersion"]
-                    self.scheduler().certificate.put(namespace, name, hosts, version)
-                else:
-                    logger.log(
-                        msg="certificate {} does not exist".format(namespace), level=logging.INFO)
-                    self.scheduler().certificate.create(namespace, name, hosts)
-            else:
-                self.log("skip creating certificate, no domain name set", logging.WARNING)
-        else:
-            self.scheduler().certificate.delete(namespace, name, ignore_exception=True)
-
-    @transaction.atomic
-    def save(self, *args, **kwargs):
-        self._check_previous_tls_settings()
-        super(TLS, self).save(*args, **kwargs)
+    class Meta:
+        get_latest_by = 'created'
+        unique_together = (('app', 'uuid'))
+        ordering = ['-created']

@@ -25,7 +25,7 @@ from api.exceptions import AlreadyExists, DryccException, ServiceUnavailable
 from api.utils import generate_app_name, apply_tasks
 from scheduler import KubeHTTPException, KubeException
 from scheduler.resources.pod import DEFAULT_CONTAINER_PORT
-from .gateway import Gateway, Route, DEFAULT_HTTP_PORT, DEFAULT_HTTPS_PORT
+from .gateway import Gateway, Route, DEFAULT_HTTP_PORT
 from .limit import LimitPlan
 from .config import Config
 from .service import Service
@@ -767,17 +767,19 @@ class App(UuidAuditedModel):
         # create default gateway
         try:
             gateway = self.gateway_set.filter(name=self.id).latest()
+            if gateway.change_default_tls():
+                gateway.save()
         except Gateway.DoesNotExist:
             gateway = Gateway(app=self, owner=self.owner, name=self.id)
-        modified = gateway.add(DEFAULT_HTTP_PORT, "HTTP")
-        if self.tls_set.latest().certs_auto_enabled or self.domain_set.filter(
-                models.Q(certificate__isnull=False)).exists():
-            modified = gateway.add(DEFAULT_HTTPS_PORT, "HTTPS") if not modified else True
-        if modified:
+            added, msg = gateway.add(DEFAULT_HTTP_PORT, "HTTP")
+            if not added:
+                raise DryccException(msg)
             gateway.save()
         # create default route
         try:
-            self.route_set.filter(name=self.id).latest()
+            route = self.route_set.filter(name=self.id).latest()
+            if route.change_default_tls():
+                route.save()
         except Route.DoesNotExist:
             route = Route(app=self, owner=self.owner, kind="HTTPRoute", name=self.id,
                           port=DEFAULT_HTTP_PORT, procfile_type=service.procfile_type)

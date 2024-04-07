@@ -535,6 +535,7 @@ class TLSSerializer(serializers.ModelSerializer):
 
     app = serializers.SlugRelatedField(slug_field='id', queryset=models.app.App.objects.all())
     owner = serializers.ReadOnlyField(source='owner.username')
+    events = serializers.ReadOnlyField()
 
     class Meta:
         """Metadata options for a :class:`AppTLSSerializer`."""

@@ -277,24 +277,25 @@ class PodTest(DryccTransactionTestCase):
         build = Build.objects.create(owner=user, app=app, image="qwerty")
 
         # create an initial release
-        Release.objects.create(
+        release = Release.objects.create(
             version=2,
             owner=user,
             app=app,
             config=app.config_set.latest(),
             build=build
         )
-
+        # deploy
+        app.pipeline(release)
         url = "/v2/apps/{app_id}/scale".format(**locals())
         body = {'web': 'not_an_int'}
         response = self.client.post(url, body)
         self.assertEqual(response.status_code, 204, response.data)
-        self.assertEqual(app.structure, {})
+        self.assertEqual(app.structure, {'web': 1})
 
         body = {'invalid': 1}
         response = self.client.post(url, body)
         self.assertEqual(response.status_code, 204, response.data)
-        self.assertEqual(app.structure, {})
+        self.assertEqual(app.structure, {'web': 1})
 
     def test_container_str(self, mock_requests):
         """Test the text representation of a container."""
@@ -515,6 +516,8 @@ class PodTest(DryccTransactionTestCase):
             config=app.config_set.latest(),
             build=build
         )
+        # deploy
+        app.pipeline(release)
 
         # use `start web` for backwards compatibility with buildpacks
         self.assertEqual(release.get_deploy_args('web'), [])
@@ -572,6 +575,8 @@ class PodTest(DryccTransactionTestCase):
             config=app.config_set.latest(),
             build=build
         )
+        # deploy
+        app.pipeline(release)
 
         # create a run pod
         url = "/v2/apps/{app_id}/run".format(**locals())
@@ -631,6 +636,8 @@ class PodTest(DryccTransactionTestCase):
             config=app.config_set.latest(),
             build=build
         )
+        # deploy
+        app.pipeline(release)
 
         # create a run pod
         url = "/v2/apps/{app_id}/run".format(**locals())
@@ -659,13 +666,15 @@ class PodTest(DryccTransactionTestCase):
         )
 
         # create an initial release
-        Release.objects.create(
+        release = Release.objects.create(
             version=2,
             owner=user,
             app=app,
             config=app.config_set.latest(),
             build=build
         )
+        # deploy
+        app.pipeline(release)
 
         # create a run pod
         url = "/v2/apps/{app_id}/run".format(**locals())

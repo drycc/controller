@@ -59,7 +59,7 @@ rules:
   resources: ["ingresses"]
   verbs: ["get", "list", "watch", "create", "update", "delete"]
 - apiGroups: ["cert-manager.io"]
-  resources: ["certificates", "issuers"]
+  resources: ["certificates", "certificaterequest", "issuers"]
   verbs: ["get", "list", "watch", "create", "update", "delete"]
 - apiGroups: ["networking.k8s.io"]
   resources: ["ingresses"]

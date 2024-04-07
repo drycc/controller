@@ -18,7 +18,7 @@ from api.utils import get_session
 from api.tasks import send_measurements
 from api.models.app import App
 from api.models.service import Service
-from api.models.gateway import Gateway, DEFAULT_HTTPS_PORT
+from api.models.gateway import Gateway
 from api.models.appsettings import AppSettings
 from api.models.build import Build
 from api.models.certificate import Certificate
@@ -165,13 +165,15 @@ def tls_changed_handle(sender, instance: TLS, created=False, update_fields=None,
     if (update_fields and "certs_auto_enabled" in update_fields) or created:
         instance.refresh_certificate_to_k8s()
         for gateway in instance.app.gateway_set.all():
-            if (instance.certs_auto_enabled and gateway.name == instance.app.id
-                    and gateway.add(DEFAULT_HTTPS_PORT, "HTTPS")[0]):
+            if gateway.change_default_tls():
                 gateway.save()
             else:
                 gateway.refresh_to_k8s()
         for route in instance.app.route_set.all():
-            route.refresh_to_k8s()
+            if route.change_default_tls():
+                route.save()
+            else:
+                route.refresh_to_k8s()
 
 
 @receiver(post_save, sender=Gateway)
@@ -195,9 +197,15 @@ def service_changed_handle(
 def domain_changed_handle(
         sender, instance: Domain, created=False, update_fields=None, **kwargs):
     for gateway in instance.app.gateway_set.all():
-        gateway.refresh_to_k8s()
+        if gateway.change_default_tls():
+            gateway.save()
+        else:
+            gateway.refresh_to_k8s()
     for route in instance.app.route_set.all():
-        route.refresh_to_k8s()
+        if route.change_default_tls():
+            route.save()
+        else:
+            route.refresh_to_k8s()
 
 
 @receiver(signal=[post_save, post_delete], sender=AppSettings)

@@ -5,6 +5,7 @@ from django.contrib.auth import get_user_model
 from rest_framework.authtoken.models import Token
 
 from api.models.app import App
+from api.models.tls import TLS
 from api.tests import adapter, DryccTransactionTestCase
 
 User = get_user_model()
@@ -24,6 +25,12 @@ class TestTLS(DryccTransactionTestCase):
     def tearDown(self):
         # make sure every test has a clean slate for k8s mocking
         cache.clear()
+
+    def change_certs_auto(self, app_id, enabled):
+        data = {'certs_auto_enabled': enabled}
+        response = self.client.post(f'/v2/apps/{app_id}/tls', data)
+        self.assertEqual(response.status_code, 201, response.data)
+        self.assertEqual(response.data.get('certs_auto_enabled'), enabled, response.data)
 
     def test_tls_enforced(self, mock_requests):
         """
@@ -63,6 +70,20 @@ class TestTLS(DryccTransactionTestCase):
             '/v2/apps/{app_id}/tls'.format(**locals()),
             data)
         self.assertEqual(response.status_code, 400, response.data)
+
+    def test_tls_events(self, mock_requests):
+        app_id = self.create_app()
+
+        response = self.client.post(
+            '/v2/apps/{}/domains'.format(app_id),
+            {'domain': 'test-domain.example.com'}
+        )
+        self.assertEqual(response.status_code, 201, response.data)
+        self.change_certs_auto(app_id, True)
+        tls = TLS.objects.get(app__id=app_id)
+        tls.refresh_certificate_to_k8s()
+        response = self.client.get('/v2/apps/{}/tls'.format(app_id))
+        self.assertEqual(len(response.json()["events"]), 3)
 
     def test_tls_created_on_app_create(self, mock_requests):
         """

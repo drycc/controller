@@ -8,6 +8,8 @@ from django.core.cache import cache
 from rest_framework.authtoken.models import Token
 
 from api.models.app import App
+from api.models.build import Build
+from api.models.release import Release
 from api.tests import TEST_ROOT, DryccTransactionTestCase
 from api.serializers.schemas.rules import SCHEMA as RULES_SCHEMA
 
@@ -25,6 +27,41 @@ class BaseGatewayTest(DryccTransactionTestCase):
     def tearDown(self):
         # make sure every test has a clean slate for k8s mocking
         cache.clear()
+
+    def create_app_with_domain_and_deploy(self):
+        app_id = self.create_app()
+        response = self.client.post(
+            '/v2/apps/{}/domains'.format(app_id),
+            {'domain': 'test-domain.example.com'}
+        )
+        self.assertEqual(response.status_code, 201, response.data)
+        # check default gateway route
+        response = self.client.get('/v2/apps/{}/gateways/'.format(app_id))
+        self.assertEqual(len(response.data["results"]), 0, response.data)
+        response = self.client.get('/v2/apps/{}/routes/'.format(app_id))
+        self.assertEqual(len(response.data["results"]), 0, response.data)
+        # create a release so we can scale
+        app = App.objects.get(id=app_id)
+        user = User.objects.get(username='autotest')
+        build = Build.objects.create(owner=user, app=app, image="qwerty")
+
+        # create an initial release
+        release = Release.objects.create(
+            version=2,
+            owner=user,
+            app=app,
+            config=app.config_set.latest(),
+            build=build
+        )
+        # deploy
+        app.pipeline(release)
+        return app_id
+
+    def change_certs_auto(self, app_id, enabled):
+        data = {'certs_auto_enabled': enabled}
+        response = self.client.post(f'/v2/apps/{app_id}/tls', data)
+        self.assertEqual(response.status_code, 201, response.data)
+        self.assertEqual(response.data.get('certs_auto_enabled'), enabled, response.data)
 
     def create_gateway(self, app_id, name, port, protocol):
         response = self.client.post(
@@ -200,6 +237,68 @@ class GatewayTest(BaseGatewayTest):
         self.assertEqual(response.status_code, 204)
         response = self.client.get('/v2/apps/{}/gateways/'.format(app_id))
         self.assertEqual(response.data["count"], 0, response.data)
+
+    def test_change_tls(self):
+        app_id = self.create_app_with_domain_and_deploy()
+        response = self.client.get('/v2/apps/{}/gateways/'.format(app_id))
+        expect = [{
+            'allowedRoutes': {
+                'namespaces': {
+                    'from': 'All'
+                }
+            },
+            'name': 'tcp-80-0',
+            'port': 80,
+            'protocol': 'HTTP'
+        }]
+        self.assertEqual(response.data["count"], 1, response.data)
+        self.assertEqual(response.json()["results"][0]["listeners"], expect, response.data)
+
+        self.change_certs_auto(app_id, True)
+        response = self.client.get('/v2/apps/{}/gateways/'.format(app_id))
+        self.assertEqual(response.data["count"], 1, response.data)
+        expect = [{
+            'allowedRoutes': {
+                'namespaces': {
+                    'from': 'All'
+                }
+            },
+            'name': 'tcp-80-0',
+            'port': 80,
+            'protocol': 'HTTP'
+        }, {
+            'allowedRoutes': {
+                'namespaces': {
+                    'from': 'All'
+                }
+            },
+            'name': 'mix-443-0',
+            'port': 443,
+            'hostname': 'test-domain.example.com',
+            'protocol': 'HTTPS',
+            'tls': {
+                'certificateRefs': [{
+                    'kind': 'Secret',
+                    'name': '%s-auto-tls' % app_id,
+                }]
+            }
+        }]
+        self.assertEqual(response.json()["results"][0]["listeners"], expect, response.data)
+
+        self.change_certs_auto(app_id, False)
+        response = self.client.get('/v2/apps/{}/gateways/'.format(app_id))
+        expect = [{
+            'allowedRoutes': {
+                'namespaces': {
+                    'from': 'All'
+                }
+            },
+            'name': 'tcp-80-0',
+            'port': 80,
+            'protocol': 'HTTP'
+        }]
+        self.assertEqual(response.data["count"], 1, response.data)
+        self.assertEqual(response.json()["results"][0]["listeners"], expect, response.data)
 
 
 class RouteTest(BaseGatewayTest):
@@ -441,3 +540,36 @@ class RouteTest(BaseGatewayTest):
             content_type="application/json",
         )
         self.assertEqual(response.status_code, 400)
+
+    def test_change_tls(self):
+        app_id = self.create_app_with_domain_and_deploy()
+        response = self.client.get('/v2/apps/{}/routes/'.format(app_id))
+        self.assertEqual(len(response.data["results"]), 1, response.data)
+        expect = [{
+            'name': f'{app_id}',
+            'port': 80
+        }]
+        # enable tls
+        self.change_certs_auto(app_id, True)
+        self.assertEqual(response.data["results"][0]["parent_refs"], expect, response.data)
+        response = self.client.get('/v2/apps/{}/routes/'.format(app_id))
+        self.assertEqual(len(response.data["results"]), 1, response.data)
+        expect = [{
+            'name': f'{app_id}',
+            'port': 80
+        }, {
+            'name': f'{app_id}',
+            'port': 443
+        }]
+        self.assertEqual(len(response.data["results"]), 1, response.data)
+        self.assertEqual(response.data["results"][0]["parent_refs"], expect, response.data)
+        # disable tls
+        self.change_certs_auto(app_id, False)
+        response = self.client.get('/v2/apps/{}/routes/'.format(app_id))
+        self.assertEqual(len(response.data["results"]), 1, response.data)
+        expect = [{
+            'name': f'{app_id}',
+            'port': 80
+        }]
+        self.assertEqual(len(response.data["results"]), 1, response.data)
+        self.assertEqual(response.data["results"][0]["parent_refs"], expect, response.data)

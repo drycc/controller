@@ -50,7 +50,7 @@ class Issuer(Resource):
         }
         if "version" in kwargs:
             data["metadata"]["resourceVersion"] = kwargs.get("version")
-        if "key_id" in kwargs and "key_secret" in kwargs:
+        if kwargs.get("kwargs") and kwargs.get("key_secret"):
             data["spec"]["acme"]["externalAccountBinding"] = {
                 "keyID": kwargs["key_id"],
                 "keySecretRef": {
@@ -111,11 +111,8 @@ class Certificate(Resource):
                 "namespace": namespace
             },
             "spec": {
-                "secretName": "%s-certificate-auto" % name,
-                "issuerRef": {
-                    "name": "drycc-cluster-issuer",
-                    "kind": "ClusterIssuer"
-                },
+                "secretName": name,
+                "issuerRef": {"name": namespace, "kind": "Issuer"},
                 "dnsNames": hosts
             }
         }
@@ -167,4 +164,25 @@ class Certificate(Resource):
         response = self.http_delete(url)
         if not ignore_exception and self.unhealthy(response.status_code):
             raise KubeHTTPException(response, 'delete certificate ' + name)
+        return response
+
+
+class CertificateRequest(Resource):
+    api_version = 'cert-manager.io/v1'
+    api_prefix = 'apis'
+
+    def get(self, namespace, name=None, ignore_exception=True, **kwargs):
+        """
+        Fetch a single certificate or a list of certificaterequest
+        """
+        if name is not None:
+            url = self.api('/namespaces/{}/certificaterequests/{}', namespace, name)
+            message = 'get certificaterequest ' + name
+        else:
+            url = self.api('/namespaces/{}/certificaterequests', namespace)
+            message = 'get certificaterequests'
+        response = self.http_get(url)
+        if not ignore_exception and self.unhealthy(response.status_code):
+            raise KubeHTTPException(response, message)
+
         return response

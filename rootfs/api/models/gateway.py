@@ -22,29 +22,6 @@ class Gateway(AuditedModel):
     name = models.CharField(max_length=63, db_index=True)
     ports = models.JSONField(default=list)
 
-    def _check_port(self, port, protocol):
-        for item in self.ports:
-            if item["port"] == port:
-                if (item["protocol"] == protocol) or (
-                        item["protocol"] != "UDP" and protocol != "UDP"):
-                    return False
-        return True
-
-    def _get_tls_domain(self, auto_tls):
-        domains = self.app.domain_set.all()
-        if not auto_tls:
-            domains = domains.exclude(certificate=None)
-        return domains
-
-    def _get_listener_name(self, port, protocol, index):
-        if protocol in ("TCP", "TLS", "HTTP"):
-            protocol = "TCP"
-        elif protocol in ("HTTPS", ):
-            protocol = "MIX"
-        else:
-            protocol = "UDP"
-        return "-".join([protocol, str(port), str(index)]).lower()
-
     def add(self, port, protocol):
         # check port
         if not self._check_port(port, protocol):
@@ -125,7 +102,19 @@ class Gateway(AuditedModel):
         except KubeException as e:
             raise ServiceUnavailable('Kubernetes gateway could not be created') from e
 
+    def change_default_tls(self):
+        if self.name != self.app.id:
+            return False
+        tls_enabled = (self.app.tls_set.latest().certs_auto_enabled and
+                       self.app.domain_set.exists()) or self.app.domain_set.filter(
+                           models.Q(certificate__isnull=False)).exists()
+        if tls_enabled:
+            return self.add(DEFAULT_HTTPS_PORT, "HTTPS")[0]
+        else:
+            return self.remove(DEFAULT_HTTPS_PORT, "HTTPS")[0]
+
     def save(self, *args, **kwargs):
+        self.change_default_tls()
         super().save(*args, **kwargs)
         self.refresh_to_k8s()
 
@@ -138,6 +127,29 @@ class Gateway(AuditedModel):
                 level=logging.ERROR,
             )
         return super().delete(*args, **kwargs)
+
+    def _check_port(self, port, protocol):
+        for item in self.ports:
+            if item["port"] == port:
+                if (item["protocol"] == protocol) or (
+                        item["protocol"] != "UDP" and protocol != "UDP"):
+                    return False
+        return True
+
+    def _get_tls_domain(self, auto_tls):
+        domains = self.app.domain_set.all()
+        if not auto_tls:
+            domains = domains.exclude(certificate=None)
+        return domains
+
+    def _get_listener_name(self, port, protocol, index):
+        if protocol in ("TCP", "TLS", "HTTP"):
+            protocol = "TCP"
+        elif protocol in ("HTTPS", ):
+            protocol = "MIX"
+        else:
+            protocol = "UDP"
+        return "-".join([protocol, str(port), str(index)]).lower()
 
     class Meta:
         get_latest_by = 'created'
@@ -233,6 +245,17 @@ class Route(AuditedModel):
             self.scheduler().httproute.delete(self.app.id, self.name)
             self.scheduler().httproute.delete(self.app.id, self._https_redirect_name)
 
+    def change_default_tls(self):
+        if self.app.id != self.name:
+            return False
+        tls_enabled = (self.app.tls_set.latest().certs_auto_enabled and
+                       self.app.domain_set.exists()) or self.app.domain_set.filter(
+                           models.Q(certificate__isnull=False)).exists()
+        if tls_enabled:
+            return self.attach(self.app.id, DEFAULT_HTTPS_PORT)[0]
+        else:
+            return self.detach(self.app.id, DEFAULT_HTTPS_PORT)[0]
+
     def attach(self, gateway_name, port):
         ok, msg = self._check_parent(gateway_name, port)
         if not ok:
@@ -253,6 +276,7 @@ class Route(AuditedModel):
         return True, ""
 
     def save(self, *args, **kwargs):
+        self.change_default_tls()
         ok, msg = self.check_rules()
         if not ok:
             raise ValueError(msg)
