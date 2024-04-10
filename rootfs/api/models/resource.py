@@ -1,4 +1,5 @@
 import logging
+from functools import cmp_to_key
 from django.db import models, transaction
 from django.contrib.auth import get_user_model
 from api.exceptions import DryccException, AlreadyExists, ServiceUnavailable
@@ -45,6 +46,7 @@ class Resource(UuidAuditedModel):
                 "name": serviceclass["spec"]["externalName"],
                 "updateable": serviceclass["spec"]["planUpdatable"],
             })
+        services.sort(key=lambda service: service["name"])
         return services
 
     @classmethod
@@ -63,6 +65,11 @@ class Resource(UuidAuditedModel):
                         "name": serviceplan["spec"]["externalName"],
                         "description": serviceplan["spec"]["description"],
                     })
+        plans.sort(key=cmp_to_key(
+            lambda p1, p2: len(p1["name"]) - len(p2["name"])
+            if len(p1["name"]) != len(p2["name"])
+            else (1 if p1["name"] > p2["name"] else -1)
+        ))
         return plans
 
     def attach(self, *args, **kwargs):
