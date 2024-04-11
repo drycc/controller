@@ -228,7 +228,7 @@ resources:
   pk: std1
   fields:
     cpu:
-      name: Unknown CPU
+      name: Universal CPU
       cores: 32
       clock: 3100MHZ
       boost: 3700MHZ
@@ -238,7 +238,7 @@ resources:
       type: DDR4-ECC
     features:
       gpu:
-        name: Unknown Integrated GPU
+        name: Integrated GPU
         tmus: 1
         rops: 1
         cores: 128

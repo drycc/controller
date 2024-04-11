@@ -29,7 +29,7 @@ class TestLimit(DryccTransactionTestCase):
         results = {
             "id": "std1",
             "cpu": {
-                "name": "Unknown CPU",
+                "name": "Universal CPU",
                 "boost": "3700MHZ",
                 "clock": "3100MHZ",
                 "cores": 32,
@@ -41,7 +41,7 @@ class TestLimit(DryccTransactionTestCase):
             },
             "features": {
                 "gpu": {
-                    "name": "Unknown Integrated GPU",
+                    "name": "Integrated GPU",
                     "rops": 1,
                     "tmus": 1,
                     "cores": 128,
