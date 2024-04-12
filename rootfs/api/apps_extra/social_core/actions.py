@@ -1,6 +1,5 @@
 import json
 from urllib.parse import quote
-
 from social_core.utils import (
     partial_pipeline_data,
     sanitize_redirect,
@@ -8,6 +7,7 @@ from social_core.utils import (
     user_is_active,
     user_is_authenticated,
 )
+from api.oauth import TokenManager
 
 
 def do_auth(backend, redirect_name="next"):
@@ -40,8 +40,8 @@ def do_auth(backend, redirect_name="next"):
         query = urlparse("?" + form_data).query
         params = parse_qs(query)
         return {key: params[key][0] for key in params}
-    from django.core.cache import cache
-    cache.set("oidc_key_" + data.get("key", ""), form2json(url).get("state"), 60 * 10)
+    manager = TokenManager()
+    manager.set_state(data.get("key", ""), form2json(url).get("state"))
     return response
 
 
@@ -129,11 +129,8 @@ def do_complete(backend, login, user=None, redirect_name="next", *args, **kwargs
     if social_auth and social_auth.extra_data:
         extra_data = json.loads(social_auth.extra_data) if \
             isinstance(social_auth.extra_data, str) else social_auth.extra_data
-    from django.core.cache import cache
-    cache.set("oidc_state_" + data.get("state"),
-              {"token": extra_data.get("id_token", "fail"),
-               "username": user.username},
-              60 * 10)
+    manager = TokenManager()
+    manager.set_token(data.get("state"), extra_data.get("access_token", "fail"), user.username)
     return response
 
 

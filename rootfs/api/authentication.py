@@ -7,7 +7,7 @@ from rest_framework import authentication
 from rest_framework.authentication import TokenAuthentication, \
     get_authorization_header
 from rest_framework import exceptions
-from api.oauth import OAuthManager
+
 
 logger = logging.getLogger(__name__)
 
@@ -44,19 +44,21 @@ class DryccAuthentication(TokenAuthentication):
                 msg = gettext_lazy(
                     'Invalid token header. Token string should not contain invalid characters.')
                 raise exceptions.AuthenticationFailed(msg)
-            return cache.get_or_set(
-                token, lambda: self._get_user(token), settings.OAUTH_CACHE_USER_TIME), None
+            return self.sync_user(token), None
         return super(DryccAuthentication, self).authenticate(request)
 
     @staticmethod
-    def _get_user(key):
-        from api import serializers
-        try:
-            user_info = OAuthManager().get_user_by_token(key)
-            if not user_info.get('email'):
-                user_info['email'] = OAuthManager().get_email_by_token(key)
-            user, _ = serializers.UserSerializer.update_or_create(user_info)
-            return user
-        except Exception as e:
-            logger.info(e)
-            raise exceptions.AuthenticationFailed(gettext_lazy('Verify token fail.'))
+    def sync_user(token):
+        def _sync_user(token):
+            from api import serializers
+            from api.oauth import OAuthManager
+            try:
+                user_info = OAuthManager().get_user_by_token(token)
+                if not user_info.get('email'):
+                    user_info['email'] = OAuthManager().get_email_by_token(token)
+                user, _ = serializers.UserSerializer.update_or_create(user_info)
+                return user
+            except Exception as e:
+                logger.info(e)
+                raise exceptions.AuthenticationFailed(gettext_lazy('Verify token fail.'))
+        return cache.get_or_set(token, lambda: _sync_user(token), settings.OAUTH_CACHE_USER_TIME)

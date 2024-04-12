@@ -11,7 +11,9 @@ import idna
 from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.utils import timezone
+from django.utils.translation import gettext_lazy
 from rest_framework import serializers
+
 
 from api import models
 from api.exceptions import DryccException
@@ -94,6 +96,21 @@ class JSONFieldSerializer(serializers.JSONField):
                 # Do nothing, the validator will catch this later
 
         return obj
+
+
+class AuthSerializer(serializers.Serializer):
+    username = serializers.CharField(
+        label=gettext_lazy("Username"),
+        required=False,
+        write_only=True
+    )
+    password = serializers.CharField(
+        label=gettext_lazy("Password"),
+        style={'input_type': 'password'},
+        required=False,
+        trim_whitespace=False,
+        write_only=True,
+    )
 
 
 class UserSerializer(serializers.ModelSerializer):

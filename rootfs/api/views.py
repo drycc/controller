@@ -5,6 +5,7 @@ import re
 import uuid
 import logging
 import json
+import requests
 from django.db.models import Q
 from django.core.cache import cache
 from django.http import Http404, HttpResponse
@@ -20,7 +21,7 @@ from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.response import Response
 from rest_framework.viewsets import GenericViewSet
 
-from api import monitor, models, permissions, serializers, viewsets, authentication
+from api import monitor, models, permissions, serializers, viewsets, authentication, oauth
 from api.tasks import scale_app, restart_app, mount_app, downstream_model_owner
 from api.exceptions import AlreadyExists, ServiceUnavailable, DryccException
 
@@ -85,13 +86,42 @@ def complete(request, backend, *args, **kwargs):
 class AuthLoginView(GenericViewSet):
 
     permission_classes = (AllowAny, )
+    serializer_class = serializers.AuthSerializer
 
     def login(self, request, *args, **kwargs):
-        def get_local_host(request):
-            uri = request.build_absolute_uri()
-            return uri[0:uri.find(request.path)]
-        res = redirect(get_local_host(request) + "/v2/login/drycc/?key=" + uuid.uuid4().hex)
-        return res
+        key = uuid.uuid4().hex
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        username = serializer.validated_data.get('username')
+        password = serializer.validated_data.get('password')
+        if username and password:
+            return self._create_interactive_response(username, password, key)
+        return self._create_browser_response(key)
+
+    def _create_browser_response(self, key):
+        uri = self.request.build_absolute_uri()
+        return redirect(f"{uri[0:uri.find(self.request.path)]}/v2/login/drycc/?key={key}")
+
+    def _create_interactive_response(self, username, password, key):
+        response = requests.post(
+            settings.SOCIAL_AUTH_DRYCC_ACCESS_TOKEN_URL,
+            data={
+                'grant_type': 'password',
+                'client_id': settings.SOCIAL_AUTH_DRYCC_KEY,
+                'client_secret': settings.SOCIAL_AUTH_DRYCC_SECRET,
+                'username': username,
+                'password': password,
+            },
+        )
+        if response.status_code != 200:
+            raise DryccException(response.content)
+        state = uuid.uuid4().hex
+        token = response.json()["access_token"]
+        authentication.DryccAuthentication.sync_user(token)
+        manager = oauth.TokenManager()
+        manager.set_state(key, state)
+        manager.set_token(state, token, username)
+        return HttpResponse(json.dumps({"key": key}))
 
 
 class AuthTokenView(GenericViewSet):
@@ -99,8 +129,8 @@ class AuthTokenView(GenericViewSet):
     permission_classes = (AllowAny, )
 
     def token(self, request, *args, **kwargs):
-        state = cache.get("oidc_key_" + self.kwargs['key'], "")
-        token = cache.get("oidc_state_" + state, {})
+        manager = oauth.TokenManager()
+        token = manager.get_token(self.kwargs['key'])
         if not token.get('token'):
             return HttpResponse(status=404)
         return HttpResponse(json.dumps(token))
