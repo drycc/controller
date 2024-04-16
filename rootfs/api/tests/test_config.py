@@ -473,7 +473,6 @@ class ConfigTest(DryccTransactionTestCase):
         # dockerfile + procfile worflow
         app = App.objects.get(id=app_id)
         user = User.objects.get(username='autotest')
-        build = Build.objects.create(owner=user, app=app, image="qwerty")
         build = Build.objects.create(
             owner=user,
             app=app,
@@ -545,3 +544,45 @@ class ConfigTest(DryccTransactionTestCase):
         out = self.call_command()
         self.assertIn(out, "done\n")
         self.assertEqual(response.status_code, 201)
+
+    def test_set_config_limits_run(self, *args, **kwargs):
+        # create
+        app_id = self.create_app()
+        # dockerfile + procfile worflow
+        app = App.objects.get(id=app_id)
+        user = User.objects.get(username='autotest')
+        build = Build.objects.create(
+            owner=user,
+            app=app,
+            image="qwerty",
+            procfile={
+                'web': 'node server.js',
+                'worker': 'node worker.js'
+            },
+            dockerfile='foo',
+            sha='somereallylongsha'
+        )
+        # create an initial release
+        release = Release.objects.create(
+            version=3,
+            owner=user,
+            app=app,
+            config=app.config_set.latest(),
+            build=build
+        )
+        # deploy
+        app.pipeline(release)
+        body = {
+            'values': json.dumps({'PORT': 5000}),
+            'limits': {
+                  PROCFILE_TYPE_RUN: 'std1.large.c2m4',
+                  PROCFILE_TYPE_WEB: 'std1.large.c2m4',
+            },
+        }
+        url = f"/v2/apps/{app_id}/config"
+        response = self.client.post(url, body)
+        url = "/v2/apps/{app_id}/config".format(**locals())
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, 200, response.data)
+        expect = {'run': 'std1.large.c2m4', 'web': 'std1.large.c2m4', 'worker': 'std1.large.c1m1'}
+        self.assertEqual(expect, response.json()["limits"], response.data)

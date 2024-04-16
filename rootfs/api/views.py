@@ -284,8 +284,8 @@ class AppViewSet(BaseDryccViewSet):
 
     def scale(self, request, **kwargs):
         app = self.get_object()
-        release = app.release_set.filter(failed=False).latest()
-        if release.build is not None and release.state == "created":
+        latest_release = app.release_set.filter(failed=False).latest()
+        if latest_release.build is not None and latest_release.state == "created":
             raise DryccException('There is an executing pipeline, please wait')
         scale_app.delay(self.get_object(), request.user, request.data)
         return Response(status=status.HTTP_204_NO_CONTENT)
@@ -385,22 +385,20 @@ class ConfigViewSet(ReleasableViewSet):
     serializer_class = serializers.ConfigSerializer
 
     def post_save(self, config):
-        release = config.app.release_set.filter(failed=False).latest()
-        if release.build is not None and release.state == "created":
+        latest_release = config.app.release_set.filter(failed=False).latest()
+        if latest_release.build is not None and latest_release.state == "created":
             raise DryccException('There is an executing pipeline, please wait')
         # It's possible to set config values before a build
         latest_version = config.app.release_set.latest().version
         try:
-            release = release.new(
-                self.request.user, config=config, build=release.build, canary=release.canary)
+            release = latest_release.new(
+                self.request.user, config=config, build=latest_release.build,
+                canary=latest_release.canary)
             if release.build is not None:
                 config.app.deploy(release)
             release.state = "succeed"
             release.save()
         except Exception as e:
-            if ('release' not in locals() and
-                    config.app.release_set.latest().version == latest_version+1):
-                release = config.app.release_set.latest()
             if 'release' in locals():
                 release.state = "crashed"
                 release.failed = True
@@ -461,8 +459,8 @@ class CanaryViewSet(AppResourceViewSet):
 
     def release(self, request, *args, **kwargs):
         self._clean_canaries()
-        release = self.get_app().release_set.filter(failed=False).latest()
-        data = {'version': release.rollback(request.user, release.version).version}
+        latest_release = self.get_app().release_set.filter(failed=False).latest()
+        data = {'version': latest_release.rollback(request.user, latest_release.version).version}
         return Response(data, status=status.HTTP_201_CREATED)
 
     def rollback(self, request, *args, **kwargs):
@@ -596,8 +594,8 @@ class ReleaseViewSet(AppResourceViewSet):
         Create a new release as a copy of the state of the compiled slug and config vars of a
         previous release.
         """
-        release = self.get_app().release_set.filter(failed=False).latest()
-        new_release = release.rollback(request.user, request.data.get('version', None))
+        latest_release = self.get_app().release_set.filter(failed=False).latest()
+        new_release = latest_release.rollback(request.user, request.data.get('version', None))
         response = {'version': new_release.version}
         return Response(response, status=status.HTTP_201_CREATED)
 

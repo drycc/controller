@@ -11,7 +11,7 @@ docker==7.0.0
 gunicorn==21.2.0
 uvicorn[standard]==0.29.0
 asgiref==3.8.0
-idna==3.6
+idna==3.7
 jsonschema==4.21.1
 morph==0.1.5
 packaging==24.0

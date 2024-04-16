@@ -738,19 +738,27 @@ class App(UuidAuditedModel):
             self.log(err, logging.ERROR)
             raise ServiceUnavailable(err) from e
 
-    def _set_default_config(self, config=None, procfile_types=None):
-        procfile_types = self.procfile_types if procfile_types is None else procfile_types
+    def _set_default_limit(self, config, procfile_type):
+        if procfile_type not in config.limits:
+            plan = LimitPlan.get_default()
+            config.limits[procfile_type] = plan.id
+            config.save(update_fields=['limits'])
+        return config
+
+    def _set_default_config(self):
         plan = LimitPlan.get_default()
         limits = {PROCFILE_TYPE_WEB: plan.id, PROCFILE_TYPE_RUN: plan.id}
         try:
-            config = self.config_set.latest() if config is None else config
-            for procfile_type in procfile_types:
-                limits[procfile_type] = config.limits.get(procfile_type, plan.id)
-            if limits != config.limits:
-                config.limits = limits
-                config.save(update_fields=['limits'])
+            config = self.config_set.latest()
+            limits[PROCFILE_TYPE_WEB] = config.limits.get(PROCFILE_TYPE_WEB, plan.id)
+            limits[PROCFILE_TYPE_RUN] = config.limits.get(PROCFILE_TYPE_RUN, plan.id)
         except Config.DoesNotExist:
             config = Config.objects.create(owner=self.owner, app=self, limits=limits)
+        for procfile_type in self.procfile_types:
+            limits[procfile_type] = config.limits.get(procfile_type, plan.id)
+        if limits != config.limits:
+            config.limits = limits
+            config.save(update_fields=['limits'])
         return config
 
     def _create_default_ingress(self, target_port):
@@ -993,9 +1001,8 @@ class App(UuidAuditedModel):
         """
 
         envs = self._build_env_vars(release)
-        config = release.config
         # Obtain a limit plan that must exist, if raise error here, it must be a bug
-        self._set_default_config(config, procfile_types=[procfile_type])
+        config = self._set_default_limit(release.config, procfile_type)
         limit_plan = LimitPlan.objects.get(id=config.limits.get(procfile_type))
 
         # see if the app config has deploy batch preference, otherwise use global
