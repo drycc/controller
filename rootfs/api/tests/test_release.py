@@ -195,7 +195,7 @@ class ReleaseTest(DryccTransactionTestCase):
             'app': app_id,
             'build': None,
             'config': uuid.UUID(config_response.data['uuid']),
-            'summary': '{} added NEW_URL'.format(self.user.username),
+            'summary': '{} added values NEW_URL'.format(self.user.username),
             'version': 2
         }
         self.assertEqual(response.data, response.data | expected)
@@ -280,7 +280,7 @@ class ReleaseTest(DryccTransactionTestCase):
         response = self.client.post(url, body)
         self.assertEqual(response.status_code, 201, response.data)
         self.assertEqual(
-            'autotest added FOO',
+            'autotest added values FOO',
             app.release_set.latest().summary)
 
     def test_admin_can_create_release(self, mock_requests):

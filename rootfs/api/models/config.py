@@ -3,6 +3,7 @@ import logging
 from django.conf import settings
 from django.db import models
 from django.contrib.auth import get_user_model
+from api.utils import dict_diff
 from api.exceptions import DryccException, UnprocessableEntity
 from .release import Release
 from .base import UuidAuditedModel
@@ -16,6 +17,9 @@ class Config(UuidAuditedModel):
     Set of configuration values applied as environment variables
     during runtime execution of the Application.
     """
+    procfile_fields = ("lifecycle_post_start", "lifecycle_pre_stop", "tags", "limits",
+                       "healthcheck", "termination_grace_period")
+    all_diff_fields = ("values", "registry") + procfile_fields
 
     owner = models.ForeignKey(User, on_delete=models.PROTECT)
     app = models.ForeignKey('App', on_delete=models.CASCADE)
@@ -52,6 +56,13 @@ class Config(UuidAuditedModel):
         except Release.DoesNotExist:
             prev_release = None
         return prev_release
+
+    def diff(self, config=None):
+        old_config = config if config else self.previous()
+        result = {}
+        for field in self.all_diff_fields:
+            result[field] = dict_diff(getattr(self, field), getattr(old_config, field))
+        return result
 
     def save(self, **kwargs):
         """merge the old config with the new"""

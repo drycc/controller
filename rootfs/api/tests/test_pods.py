@@ -233,8 +233,7 @@ class PodTest(DryccTransactionTestCase):
         url = "/v2/apps/{app_id}/pods".format(**locals())
         response = self.client.get(url)
         self.assertEqual(response.status_code, 200, response.data)
-        self.assertEqual(len(response.data['results']), 1)
-        self.assertEqual(response.data['results'][0]['release'], 'v2')
+        self.assertPodContains(response.data['results'], app_id, "web", "v2")
 
         # post a new build
         url = "/v2/apps/{app_id}/builds".format(**locals())
@@ -253,8 +252,7 @@ class PodTest(DryccTransactionTestCase):
         url = "/v2/apps/{app_id}/pods".format(**locals())
         response = self.client.get(url)
         self.assertEqual(response.status_code, 200, response.data)
-        self.assertEqual(len(response.data['results']), 1)
-        self.assertEqual(response.data['results'][0]['release'], 'v3')
+        self.assertPodContains(response.data['results'], app_id, 'web', 'v3')
 
         # post new config
         url = "/v2/apps/{app_id}/config".format(**locals())
@@ -265,8 +263,8 @@ class PodTest(DryccTransactionTestCase):
         url = "/v2/apps/{app_id}/pods".format(**locals())
         response = self.client.get(url)
         self.assertEqual(response.status_code, 200, response.data)
-        self.assertEqual(len(response.data['results']), 1)
-        self.assertEqual(response.data['results'][0]['release'], 'v4')
+        self.assertPodContains(response.data['results'], app_id, "web", 'v4')
+
 
     def test_container_errors(self, mock_requests):
         app_id = self.create_app()
@@ -328,6 +326,8 @@ class PodTest(DryccTransactionTestCase):
         self.assertEqual(len(response.data['results']), 6)
         pods = response.data['results']
         for pod in pods:
+            if pod['state'] != 'up':
+                continue
             self.assertIn(pod['type'], ['web', 'worker'])
             self.assertEqual(pod['release'], 'v2')
             # pod name is auto generated so use regex

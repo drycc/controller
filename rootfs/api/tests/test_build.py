@@ -116,12 +116,7 @@ class BuildTest(DryccTransactionTestCase):
         url = "/v2/apps/{app_id}/pods/web".format(**locals())
         response = self.client.get(url)
         self.assertEqual(response.status_code, 200, response.data)
-        self.assertEqual(len(response.data['results']), 1)
-        container = response.data['results'][0]
-        self.assertEqual(container['type'], 'web')
-        self.assertEqual(container['release'], 'v2')
-        # pod name is auto generated so use regex
-        self.assertRegex(container['name'], app_id + '-web-[0-9]{1,10}-[a-z0-9]{5}')
+        self.assertPodContains(response.data['results'], app_id, 'web', "v2", "up")
 
         # post an image as a build with a procfile
         app_id = self.create_app()
@@ -140,12 +135,7 @@ class BuildTest(DryccTransactionTestCase):
         url = "/v2/apps/{app_id}/pods/web".format(**locals())
         response = self.client.get(url)
         self.assertEqual(response.status_code, 200, response.data)
-        self.assertEqual(len(response.data['results']), 1)
-        container = response.data['results'][0]
-        self.assertEqual(container['type'], 'web')
-        self.assertEqual(container['release'], 'v2')
-        # pod name is auto generated so use regex
-        self.assertRegex(container['name'], app_id + '-web-[0-9]{1,10}-[a-z0-9]{5}')
+        self.assertPodContains(response.data['results'], app_id, 'web', "v2", "up")
 
         # start with a new app
         app_id = self.create_app()
@@ -163,13 +153,7 @@ class BuildTest(DryccTransactionTestCase):
         url = "/v2/apps/{app_id}/pods/web".format(**locals())
         response = self.client.get(url)
         self.assertEqual(response.status_code, 200, response.data)
-        self.assertEqual(len(response.data['results']), 1)
-        container = response.data['results'][0]
-        self.assertEqual(container['type'], 'web')
-        self.assertEqual(container['release'], 'v2')
-        # pod name is auto generated so use regex
-        self.assertRegex(container['name'], app_id + '-web-[0-9]{1,10}-[a-z0-9]{5}')
-
+        self.assertPodContains(response.data['results'], app_id, 'web', "v2", "up")
         # start with a new app
         app_id = self.create_app()
 
@@ -190,13 +174,7 @@ class BuildTest(DryccTransactionTestCase):
         url = "/v2/apps/{app_id}/pods/web".format(**locals())
         response = self.client.get(url)
         self.assertEqual(response.status_code, 200, response.data)
-        self.assertEqual(len(response.data['results']), 1)
-        container = response.data['results'][0]
-        self.assertEqual(container['type'], 'web')
-        self.assertEqual(container['release'], 'v2')
-        # pod name is auto generated so use regex
-        self.assertRegex(container['name'], app_id + '-web-[0-9]{1,10}-[a-z0-9]{5}')
-
+        self.assertPodContains(response.data['results'], app_id, 'web', "v2", "up")
         # start with a new app
         app_id = self.create_app()
         # post a new build with procfile
@@ -217,12 +195,7 @@ class BuildTest(DryccTransactionTestCase):
         url = "/v2/apps/{app_id}/pods/web".format(**locals())
         response = self.client.get(url)
         self.assertEqual(response.status_code, 200, response.data)
-        self.assertEqual(len(response.data['results']), 1)
-        container = response.data['results'][0]
-        self.assertEqual(container['type'], 'web')
-        self.assertEqual(container['release'], 'v2')
-        # pod name is auto generated so use regex
-        self.assertRegex(container['name'], app_id + '-web-[0-9]{1,10}-[a-z0-9]{5}')
+        self.assertPodContains(response.data['results'], app_id, 'web', "v2", "up")
 
         # start with a new app
         app_id = self.create_app()
@@ -268,10 +241,7 @@ class BuildTest(DryccTransactionTestCase):
         url = "/v2/apps/{app_id}/pods/web".format(**locals())
         response = self.client.get(url)
         self.assertEqual(response.status_code, 200, response.data)
-        self.assertEqual(len(response.data['results']), 1)
-        container = response.data['results'][0]
-        self.assertEqual(container['type'], 'web')
-        self.assertEqual(container['release'], 'v2')
+        self.assertPodContains(response.data['results'], app_id, 'web', "v2", "up")
 
         # scale worker
         url = "/v2/apps/{app_id}/scale".format(**locals())
@@ -283,12 +253,8 @@ class BuildTest(DryccTransactionTestCase):
         url = "/v2/apps/{app_id}/pods/worker".format(**locals())
         response = self.client.get(url)
         self.assertEqual(response.status_code, 200, response.data)
-        self.assertEqual(len(response.data['results']), 1)
-        container = response.data['results'][0]
-        self.assertEqual(container['type'], 'worker')
-        self.assertEqual(container['release'], 'v2')
-        # pod name is auto generated so use regex
-        self.assertRegex(container['name'], app_id + '-worker-[0-9]{1,10}-[a-z0-9]{5}')
+
+        self.assertPodContains(response.data['results'], app_id, 'worker', "v2", "up")
 
         # do another deploy for this time forget Procfile
         url = "/v2/apps/{app_id}/builds".format(**locals())
@@ -348,12 +314,7 @@ class BuildTest(DryccTransactionTestCase):
         url = "/v2/apps/{app_id}/pods/worker".format(**locals())
         response = self.client.get(url)
         self.assertEqual(response.status_code, 200, response.data)
-        self.assertEqual(len(response.data['results']), 1)
-        container = response.data['results'][0]
-        self.assertEqual(container['type'], 'worker')
-        self.assertEqual(container['release'], 'v2')
-        # pod name is auto generated so use regex
-        self.assertRegex(container['name'], app_id + '-worker-[0-9]{1,10}-[a-z0-9]{5}')
+        self.assertPodContains(response.data['results'], app_id, 'worker', "v2", "up")
 
         # do another deploy for this time forget Procfile
         url = "/v2/apps/{app_id}/builds".format(**locals())
@@ -365,23 +326,13 @@ class BuildTest(DryccTransactionTestCase):
         url = "/v2/apps/{app_id}/pods/worker".format(**locals())
         response = self.client.get(url)
         self.assertEqual(response.status_code, 200, response.data)
-        self.assertEqual(len(response.data['results']), 1)
-        container = response.data['results'][0]
-        self.assertEqual(container['type'], 'worker')
-        self.assertEqual(container['release'], 'v3')
-        # pod name is auto generated so use regex
-        self.assertRegex(container['name'], app_id + '-worker-[0-9]{1,10}-[a-z0-9]{5}')
+        self.assertPodContains(response.data['results'], app_id, 'worker', "v3", "up")
 
         # verify web is still there
         url = "/v2/apps/{app_id}/pods/web".format(**locals())
         response = self.client.get(url)
         self.assertEqual(response.status_code, 200, response.data)
-        self.assertEqual(len(response.data['results']), 1)
-        container = response.data['results'][0]
-        self.assertEqual(container['type'], 'web')
-        self.assertEqual(container['release'], 'v3')
-        # pod name is auto generated so use regex
-        self.assertRegex(container['name'], app_id + '-web-[0-9]{1,10}-[a-z0-9]{5}')
+        self.assertPodContains(response.data['results'], app_id, 'web', "v3", "up")
 
         # look at the app structure
         url = "/v2/apps/{app_id}".format(**locals())
@@ -399,12 +350,7 @@ class BuildTest(DryccTransactionTestCase):
         url = "/v2/apps/{app_id}/pods/worker".format(**locals())
         response = self.client.get(url)
         self.assertEqual(response.status_code, 200, response.data)
-        self.assertEqual(len(response.data['results']), 2)
-        container = response.data['results'][0]
-        self.assertEqual(container['type'], 'worker')
-        self.assertEqual(container['release'], 'v3')
-        # pod name is auto generated so use regex
-        self.assertRegex(container['name'], app_id + '-worker-[0-9]{1,10}-[a-z0-9]{5}')
+        self.assertPodContains(response.data['results'], app_id, 'worker', "v3", "up")
 
     @override_settings(DRYCC_DEPLOY_REJECT_IF_PROCFILE_MISSING=True)
     def test_build_forgotten_procfile_reject(self, mock_requests):
@@ -440,12 +386,7 @@ class BuildTest(DryccTransactionTestCase):
         url = "/v2/apps/{app_id}/pods/worker".format(**locals())
         response = self.client.get(url)
         self.assertEqual(response.status_code, 200, response.data)
-        self.assertEqual(len(response.data['results']), 1)
-        container = response.data['results'][0]
-        self.assertEqual(container['type'], 'worker')
-        self.assertEqual(container['release'], 'v2')
-        # pod name is auto generated so use regex
-        self.assertRegex(container['name'], app_id + '-worker-[0-9]{1,10}-[a-z0-9]{5}')
+        self.assertPodContains(response.data['results'], app_id, 'worker', "v2", "up")
 
         # do another deploy for this time forget Procfile
         url = "/v2/apps/{app_id}/builds".format(**locals())
@@ -529,7 +470,7 @@ class BuildTest(DryccTransactionTestCase):
         url = "/v2/apps/{app_id}/pods/web".format(**locals())
         response = self.client.get(url)
         self.assertEqual(response.status_code, 200, response.data)
-        self.assertEqual(len(response.data['results']), 1)
+        self.assertPodContains(response.data['results'], app_id, 'web', "v2", "up")
 
         # scale to zero
         url = "/v2/apps/{app_id}/scale".format(**locals())

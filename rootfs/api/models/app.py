@@ -257,7 +257,7 @@ class App(UuidAuditedModel):
                     if state != 'down':
                         raise DryccException(f'pipeline run state error: {state}')
             self.log(f"{prefix} starts running pipeline.deploy")
-            self.deploy(release, force_deploy, rollback_on_failure)
+            self.deploy(release, None, force_deploy, rollback_on_failure)
             release.state = "succeed"
         except Exception as e:
             release.state = "crashed"
@@ -268,7 +268,7 @@ class App(UuidAuditedModel):
         release.save()
         self.log(f"{prefix} run completed...")
 
-    def deploy(self, release, force_deploy=False, rollback_on_failure=True):
+    def deploy(self, release, structure=None, force_deploy=False, rollback_on_failure=True):
         """
         Deploy a new release to this application
 
@@ -296,11 +296,13 @@ class App(UuidAuditedModel):
         volumes = self.volume_set.all()
         deploys = {}
         for scale_type, replicas in self.structure.items():
+            if structure is not None and scale_type not in structure:
+                continue
             scale_type_volumes = [_ for _ in volumes if scale_type in _.path.keys()]
             if not release.canary or scale_type in app_settings.canaries:
                 deploys[scale_type] = self._gather_app_settings(
                     release, app_settings, scale_type, replicas, volumes=scale_type_volumes)
-        self._deploy(deploys, prev_release, release, force_deploy, rollback_on_failure)
+        self._deploy(deploys, structure, prev_release, release, force_deploy, rollback_on_failure)
         # cleanup old release objects from kubernetes
         self.cleanup_old()
         release.cleanup_old()
@@ -610,7 +612,8 @@ class App(UuidAuditedModel):
             raise ServiceUnavailable(err) from e
         self.log(f'{user.username} changed volume mount for {volume}')
 
-    def _deploy(self, deploys, prev_release, release, force_deploy, rollback_on_failure):
+    def _deploy(self, deploys, structure, prev_release,
+                release, force_deploy, rollback_on_failure):
         # Sort deploys so routable comes first
         deploys = OrderedDict(sorted(deploys.items(), key=lambda d: d[1].get('routable')))
         # Check if any proc type has a Deployment in progress
@@ -644,7 +647,8 @@ class App(UuidAuditedModel):
                     # This goes in the log before the rollback starts
                     self.log(err, logging.ERROR)
                     # revert all process types to old release
-                    self.deploy(prev_release, force_deploy=True, rollback_on_failure=False)
+                    self.deploy(prev_release, structure,
+                                force_deploy=True, rollback_on_failure=False)
                     # let it bubble up
                     raise DryccException('{}\n{}'.format(err, str(e))) from e
 
@@ -898,19 +902,14 @@ class App(UuidAuditedModel):
 
     def _scheduler_filter(self, **kwargs):
         labels = {'app': self.id, 'heritage': 'drycc'}
-
-        # always supply a version, either latest or a specific one
-        if 'release' not in kwargs or kwargs['release'] is None:
-            release = self.release_set.filter(failed=False).latest()
-        else:
-            release = self.release_set.get(version=kwargs['release'])
-
-        version = "v{}".format(release.version)
-        labels.update({'version': version})
-
         if 'type' in kwargs:
             labels.update({'type': kwargs['type']})
-
+        if 'version' in kwargs:
+            if isinstance(kwargs['version'], int):
+                version = "v{}".format(kwargs['version'])
+            else:
+                version = kwargs['version']
+            labels.update({'version': version})
         return labels
 
     def _build_env_vars(self, release):

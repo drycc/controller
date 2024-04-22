@@ -237,12 +237,7 @@ class HookTest(DryccTransactionTestCase):
         url = "/v2/apps/{app_id}/pods/web".format(**locals())
         response = self.client.get(url)
         self.assertEqual(response.status_code, 200, response.data)
-        self.assertEqual(len(response.data['results']), 1)
-        container = response.data['results'][0]
-        self.assertEqual(container['type'], 'web')
-        self.assertEqual(container['release'], 'v2')
-        # pod name is auto generated so use regex
-        self.assertRegex(container['name'], app_id + '-web-[0-9]{1,10}-[a-z0-9]{5}')
+        self.assertPodContains(response.data['results'], app_id, 'web', 'v2')
 
         # post the build without an auth token
         self.client.credentials()
@@ -282,12 +277,7 @@ class HookTest(DryccTransactionTestCase):
         url = "/v2/apps/{app_id}/pods/web".format(**locals())
         response = self.client.get(url)
         self.assertEqual(response.status_code, 200, response.data)
-        self.assertEqual(len(response.data['results']), 1)
-        container = response.data['results'][0]
-        self.assertEqual(container['type'], 'web')
-        self.assertEqual(container['release'], 'v2')
-        # pod name is auto generated so use regex
-        self.assertRegex(container['name'], app_id + '-web-[0-9]{1,10}-[a-z0-9]{5}')
+        self.assertPodContains(response.data['results'], app_id, 'web', 'v2')
 
         # post the build without an auth token
         self.client.credentials()

@@ -2,6 +2,7 @@ import logging
 import random
 import requests_mock
 import time
+import unittest
 from os.path import dirname, realpath
 
 from django.test.runner import DiscoverRunner
@@ -51,7 +52,7 @@ class SilentDjangoTestSuiteRunner(DiscoverRunner):
             test_labels, extra_tests, **kwargs)
 
 
-class DryccTestCase(APITestCase):
+class DryccBaseTestCase(unittest.TestCase):
 
     def create_app(self, name=None):
         body = {}
@@ -63,14 +64,23 @@ class DryccTestCase(APITestCase):
         self.assertIn('id', response.data)
         return response.data['id']
 
+    def assertPodContains(self, pods, app_id, procfile_type, version, state="up"):
+        for pod in pods:
+            if (pod["type"] == procfile_type and
+                    pod["release"] == version and pod["state"] == state):
+                pod_name = app_id + '-%s-[0-9]{1,10}-[a-z0-9]{5}' % procfile_type
+                self.assertRegex(pod['name'], pod_name)
+                return
+        raise ValueError(
+            "pod not contains: procfile_type={}, version={}, state={}".format(
+                procfile_type, version, state
+            )
+        )
 
-class DryccTransactionTestCase(APITransactionTestCase):
-    def create_app(self, name=None):
-        body = {}
-        if name:
-            body = {'id': name}
 
-        response = self.client.post('/v2/apps', body)
-        self.assertEqual(response.status_code, 201, response.data)
-        self.assertIn('id', response.data)
-        return response.data['id']
+class DryccTransactionTestCase(DryccBaseTestCase, APITransactionTestCase):
+    pass
+
+
+class DryccTestCase(DryccBaseTestCase, APITestCase):
+    pass

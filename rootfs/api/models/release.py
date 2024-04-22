@@ -3,7 +3,6 @@ import logging
 from django.conf import settings
 from django.db import models
 from django.contrib.auth import get_user_model
-from api.utils import dict_diff
 from api.tasks import run_pipeline
 from api.exceptions import DryccException, AlreadyExists
 from scheduler import KubeHTTPException
@@ -385,127 +384,13 @@ class Release(UuidAuditedModel):
                 else:
                     self.summary += "{} deployed {}".format(self.build.owner, self.build.image)
             elif self.config != old_config:
-                # if env vars change, log the dict diff
-                dict1 = self.config.values
-                dict2 = old_config.values if old_config else {}
-                diff = dict_diff(dict1, dict2)
-                # try to be as succinct as possible
-                added = ', '.join(k for k in diff.get('added', {}))
-                added = 'added ' + added if added else ''
-                changed = ', '.join(k for k in diff.get('changed', {}))
-                changed = 'changed ' + changed if changed else ''
-                deleted = ', '.join(k for k in diff.get('deleted', {}))
-                deleted = 'deleted ' + deleted if deleted else ''
-                changes = ', '.join(i for i in (added, changed, deleted) if i)
-                if changes:
-                    if self.summary:
-                        self.summary += ' and '
-                    self.summary += "{} {}".format(self.config.owner, changes)
-
-                # if the limits changed, log the dict diff
-                changes = []
-                old_limits = old_config.limits if old_config else {}
-                diff = dict_diff(self.config.limits, old_limits)
-                if diff.get('added') or diff.get('changed') or diff.get('deleted'):
-                    changes.append('limits')
-                if changes:
-                    changes = 'changed limits for '+', '.join(changes)
-                    self.summary += "{} {}".format(self.config.owner, changes)
-
-                # if the lifecycle_post_start hooks changed, log the dict diff
-                changes = []
-                old_lifecycle_post_start = old_config.lifecycle_post_start if old_config else {}
-                diff = dict_diff(self.config.lifecycle_post_start, old_lifecycle_post_start)
-                # try to be as succinct as possible
-                added = ', '.join(k for k in diff.get('added', {}))
-                added = 'added lifecycle_post_start  ' + added if added else ''
-                changed = ', '.join(k for k in diff.get('changed', {}))
-                changed = 'changed lifecycle_post_start ' + changed if changed else ''
-                deleted = ', '.join(k for k in diff.get('deleted', {}))
-                deleted = 'deleted lifecycle_post_start ' + deleted if deleted else ''
-                changes = ', '.join(i for i in (added, changed, deleted) if i)
-                if changes:
-                    if self.summary:
-                        self.summary += ' and '
-                    self.summary += "{} {}".format(self.config.owner, changes)
-
-                # if the lifecycle_pre_stop hooks changed, log the dict diff
-                changes = []
-                old_lifecycle_pre_stop = old_config.lifecycle_pre_stop if old_config else {}
-                diff = dict_diff(self.config.lifecycle_pre_stop, old_lifecycle_pre_stop)
-                # try to be as succinct as possible
-                added = ', '.join(k for k in diff.get('added', {}))
-                added = 'added lifecycle_pre_stop  ' + added if added else ''
-                changed = ', '.join(k for k in diff.get('changed', {}))
-                changed = 'changed lifecycle_pre_stop ' + changed if changed else ''
-                deleted = ', '.join(k for k in diff.get('deleted', {}))
-                deleted = 'deleted lifecycle_pre_stop ' + deleted if deleted else ''
-                changes = ', '.join(i for i in (added, changed, deleted) if i)
-                if changes:
-                    if self.summary:
-                        self.summary += ' and '
-
-                # if the timeouts changed, log the dict diff
-                changes = []
-                old_timeout = old_config.termination_grace_period if old_config else {}
-                diff = dict_diff(self.config.termination_grace_period, old_timeout)
-                if diff.get('added') or diff.get('changed') or diff.get('deleted'):
-                    changes.append('termination_grace_period')
-                if changes:
-                    changes = 'changed timeouts for '+', '.join(changes)
-                    self.summary += "{} {}".format(self.config.owner, changes)
-
-                # if the tags changed, log the dict diff
-                changes = []
-                old_tags = old_config.tags if old_config else {}
-                diff = dict_diff(self.config.tags, old_tags)
-                # try to be as succinct as possible
-                added = ', '.join(k for k in diff.get('added', {}))
-                added = 'added tag ' + added if added else ''
-                changed = ', '.join(k for k in diff.get('changed', {}))
-                changed = 'changed tag ' + changed if changed else ''
-                deleted = ', '.join(k for k in diff.get('deleted', {}))
-                deleted = 'deleted tag ' + deleted if deleted else ''
-                changes = ', '.join(i for i in (added, changed, deleted) if i)
-                if changes:
-                    if self.summary:
-                        self.summary += ' and '
-                    self.summary += "{} {}".format(self.config.owner, changes)
-
-                # if the registry information changed, log the dict diff
-                changes = []
-                old_registry = old_config.registry if old_config else {}
-                diff = dict_diff(self.config.registry, old_registry)
-                # try to be as succinct as possible
-                added = ', '.join(k for k in diff.get('added', {}))
-                added = 'added registry info ' + added if added else ''
-                changed = ', '.join(k for k in diff.get('changed', {}))
-                changed = 'changed registry info ' + changed if changed else ''
-                deleted = ', '.join(k for k in diff.get('deleted', {}))
-                deleted = 'deleted registry info ' + deleted if deleted else ''
-                changes = ', '.join(i for i in (added, changed, deleted) if i)
-                if changes:
-                    if self.summary:
-                        self.summary += ' and '
-                    self.summary += "{} {}".format(self.config.owner, changes)
-
-                # if the healthcheck information changed, log the dict diff
-                changes = []
-                old_healthcheck = old_config.healthcheck if old_config else {}
-                diff = dict_diff(self.config.healthcheck, old_healthcheck)
-                # try to be as succinct as possible
-                added = ', '.join(list(map(lambda x: 'default' if x == '' else x, [k for k in diff.get('added', {})])))  # noqa
-                added = 'added healthcheck info for proc type ' + added if added else ''
-                changed = ', '.join(list(map(lambda x: 'default' if x == '' else x, [k for k in diff.get('changed', {})])))  # noqa
-                changed = 'changed healthcheck info for proc type ' + changed if changed else ''
-                deleted = ', '.join(list(map(lambda x: 'default' if x == '' else x, [k for k in diff.get('deleted', {})])))  # noqa
-                deleted = 'deleted healthcheck info for proc type ' + deleted if deleted else ''
-                changes = ', '.join(i for i in (added, changed, deleted) if i)
-                if changes:
-                    if self.summary:
-                        self.summary += ' and '
-                    self.summary += "{} {}".format(self.config.owner, changes)
-
+                for field, diff in self.config.diff(old_config).items():
+                    diff_list = []
+                    for diff_type, values in diff.items():
+                        diff_list.append(f'{diff_type} {field} {", ".join(values.keys())}')
+                    if diff_list:
+                        changes = ', '.join(diff_list)
+                        self.summary += "{} {}".format(self.config.owner, changes)
             if not self.summary:
                 if self.version == 1:
                     self.summary = "{} created the initial release".format(self.owner)

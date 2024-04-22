@@ -388,14 +388,17 @@ class ConfigViewSet(ReleasableViewSet):
         latest_release = config.app.release_set.filter(failed=False).latest()
         if latest_release.build is not None and latest_release.state == "created":
             raise DryccException('There is an executing pipeline, please wait')
-        # It's possible to set config values before a build
-        latest_version = config.app.release_set.latest().version
         try:
             release = latest_release.new(
                 self.request.user, config=config, build=latest_release.build,
                 canary=latest_release.canary)
             if release.build is not None:
-                config.app.deploy(release)
+                structure = set()
+                for field, diff in config.diff().items():
+                    if field in config.procfile_fields:
+                        for value in diff.values():
+                            structure.update(value.keys())
+                config.app.deploy(release, structure=structure if structure else None)
             release.state = "succeed"
             release.save()
         except Exception as e:
