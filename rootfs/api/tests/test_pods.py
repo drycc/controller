@@ -265,7 +265,6 @@ class PodTest(DryccTransactionTestCase):
         self.assertEqual(response.status_code, 200, response.data)
         self.assertPodContains(response.data['results'], app_id, "web", 'v4')
 
-
     def test_container_errors(self, mock_requests):
         app_id = self.create_app()
 
