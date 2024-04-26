@@ -239,7 +239,7 @@ class Release(UuidAuditedModel):
                 new_release.save()
             raise DryccException(str(e)) from e
 
-    def cleanup_old(self):  # noqa
+    def cleanup_old(self, procfile_types=None):
         """
         Cleanup any old resources from Kubernetes
 
@@ -252,9 +252,11 @@ class Release(UuidAuditedModel):
             'Cleaning up RSs for releases older than {} (latest)'.format(latest_version),
             level=logging.DEBUG
         )
-
-        # Cleanup controllers
+        # base labels
         labels = {'heritage': 'drycc'}
+        if procfile_types:
+            labels['type__in'] = procfile_types
+        # Cleanup controllers
         replica_sets_removal = []
         replica_sets = self.scheduler().rs.get(self.app.id, labels=labels).json()['items']
         if not replica_sets:
@@ -274,17 +276,19 @@ class Release(UuidAuditedModel):
                 'Found the following versions to cleanup: {}'.format(', '.join(replica_sets_removal)),  # noqa
                 level=logging.DEBUG
             )
-
         # this is RC related
         for version in replica_sets_removal:
-            self._delete_release_in_scheduler(self.app.id, version)
-
+            self._delete_release_in_scheduler(self.app.id, procfile_types, version)
         # handle Deployments specific cleanups
-        self._cleanup_deployment_secrets_and_configs(self.app.id)
-
+        self._cleanup_deployment_secrets_and_configs(self.app.id, procfile_types)
         # Remove stray pods
+        self._cleanup_stray_pods(self.app.id, procfile_types, latest_version)
+
+    def _cleanup_stray_pods(self, namespace, procfile_types, latest_version):
         labels = {'heritage': 'drycc'}
-        pods = self.scheduler().pod.get(self.app.id, labels=labels).json()['items']
+        if procfile_types:
+            labels['type__in'] = procfile_types
+        pods = self.scheduler().pod.get(namespace, labels=labels).json()['items']
         if not pods:
             pods = []
         for pod in pods:
@@ -297,13 +301,13 @@ class Release(UuidAuditedModel):
                 continue
 
             try:
-                self.scheduler().pod.delete(self.app.id, pod['metadata']['name'])
+                self.scheduler().pod.delete(namespace, pod['metadata']['name'])
             except KubeHTTPException as e:
                 # Sometimes k8s will manage to remove the pod from under us
                 if e.response.status_code == 404:
                     continue
 
-    def _cleanup_deployment_secrets_and_configs(self, namespace):
+    def _cleanup_deployment_secrets_and_configs(self, namespace, procfile_types=None):
         """
         Clean up any environment secrets (and in the future ConfigMaps) that
         are tied to a release Deployments no longer track
@@ -332,10 +336,12 @@ class Release(UuidAuditedModel):
         labels = {
             'heritage': 'drycc',
             'app': namespace,
-            'type': 'env',
+            'class': 'env',
             # http://kubernetes.io/docs/user-guide/labels/#set-based-requirement
             'version__notin': versions
         }
+        if procfile_types:
+            labels['type__in'] = procfile_types
         self.log('Cleaning up orphaned env var secrets for application {}'.format(namespace), level=logging.DEBUG)  # noqa
         secrets = self.scheduler().secret.get(namespace, labels=labels).json()['items']
         if not secrets:
@@ -343,7 +349,7 @@ class Release(UuidAuditedModel):
         for secret in secrets:
             self.scheduler().secret.delete(namespace, secret['metadata']['name'])
 
-    def _delete_release_in_scheduler(self, namespace, version):
+    def _delete_release_in_scheduler(self, namespace, procfile_types, version):
         """
         Deletes a specific release in k8s based on ReplicationController
 
@@ -355,7 +361,8 @@ class Release(UuidAuditedModel):
             'app': namespace,
             'version': version
         }
-
+        if procfile_types:
+            labels['type__in'] = procfile_types
         # see if the app config has deploy timeout preference, otherwise use global
         timeout = self.config.values.get('DRYCC_DEPLOY_TIMEOUT', settings.DRYCC_DEPLOY_TIMEOUT)
 

@@ -216,7 +216,8 @@ class Pod(Resource):
 
         if env:
             # map application configuration (env secret) to env vars
-            secret_name = "{}-{}-env".format(namespace, kwargs.get('version'))
+            secret_name = "{}-{}-{}-env".format(
+                namespace, kwargs.get('app_type'), kwargs.get('version'))
             for key in env.keys():
                 item = {
                     "name": key,

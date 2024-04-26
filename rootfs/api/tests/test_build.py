@@ -44,7 +44,7 @@ class BuildTest(DryccTransactionTestCase):
         app_id = self.create_app()
 
         # check to see that no initial build was created
-        url = "/v2/apps/{app_id}/builds".format(**locals())
+        url = f"/v2/apps/{app_id}/builds"
         response = self.client.get(url)
         self.assertEqual(response.status_code, 200, response.data)
         self.assertEqual(response.data['count'], 0)
@@ -58,14 +58,14 @@ class BuildTest(DryccTransactionTestCase):
         self.assertEqual(response.data['image'], body['image'])
 
         # read the build
-        url = "/v2/apps/{app_id}/builds/{build_id}".format(**locals())
+        url = f"/v2/apps/{app_id}/builds/{build_id}"
         response = self.client.get(url)
         self.assertEqual(response.status_code, 200, response.data)
         build2 = response.data
         self.assertEqual(build1, build2)
 
         # post a new build
-        url = "/v2/apps/{app_id}/builds".format(**locals())
+        url = f"/v2/apps/{app_id}/builds"
         body = {'image': 'autotest/example', 'stack': 'container'}
         response = self.client.post(url, body)
         self.assertEqual(response.status_code, 201, response.data)
@@ -86,7 +86,7 @@ class BuildTest(DryccTransactionTestCase):
         app_id = self.create_app()
 
         # post an image as a build
-        url = "/v2/apps/{app_id}/builds".format(**locals())
+        url = f"/v2/apps/{app_id}/builds"
         body = {'image': 'autotest/example', 'stack': 'container'}
         response = self.client.post(url, body)
 
@@ -108,12 +108,12 @@ class BuildTest(DryccTransactionTestCase):
         app_id = self.create_app()
 
         # post an image as a build
-        url = "/v2/apps/{app_id}/builds".format(**locals())
+        url = f"/v2/apps/{app_id}/builds"
         body = {'image': 'autotest/example', 'stack': 'container'}
         response = self.client.post(url, body)
         self.assertEqual(response.status_code, 201, response.data)
 
-        url = "/v2/apps/{app_id}/pods/web".format(**locals())
+        url = f"/v2/apps/{app_id}/pods/web"
         response = self.client.get(url)
         self.assertEqual(response.status_code, 200, response.data)
         self.assertPodContains(response.data['results'], app_id, 'web', "v2", "up")
@@ -121,7 +121,7 @@ class BuildTest(DryccTransactionTestCase):
         # post an image as a build with a procfile
         app_id = self.create_app()
         # post an image as a build
-        url = "/v2/apps/{app_id}/builds".format(**locals())
+        url = f"/v2/apps/{app_id}/builds"
         body = {
             'image': 'autotest/example',
             'stack': 'heroku-18',
@@ -132,7 +132,7 @@ class BuildTest(DryccTransactionTestCase):
         response = self.client.post(url, body)
         self.assertEqual(response.status_code, 201, response.data)
 
-        url = "/v2/apps/{app_id}/pods/web".format(**locals())
+        url = f"/v2/apps/{app_id}/pods/web"
         response = self.client.get(url)
         self.assertEqual(response.status_code, 200, response.data)
         self.assertPodContains(response.data['results'], app_id, 'web', "v2", "up")
@@ -140,7 +140,7 @@ class BuildTest(DryccTransactionTestCase):
         # start with a new app
         app_id = self.create_app()
         # post a new build with procfile
-        url = "/v2/apps/{app_id}/builds".format(**locals())
+        url = f"/v2/apps/{app_id}/builds"
         body = {
             'image': 'autotest/example',
             'sha': 'a'*40,
@@ -150,7 +150,7 @@ class BuildTest(DryccTransactionTestCase):
         response = self.client.post(url, body)
         self.assertEqual(response.status_code, 201, response.data)
 
-        url = "/v2/apps/{app_id}/pods/web".format(**locals())
+        url = f"/v2/apps/{app_id}/pods/web"
         response = self.client.get(url)
         self.assertEqual(response.status_code, 200, response.data)
         self.assertPodContains(response.data['results'], app_id, 'web', "v2", "up")
@@ -158,7 +158,7 @@ class BuildTest(DryccTransactionTestCase):
         app_id = self.create_app()
 
         # post a new build with procfile
-        url = "/v2/apps/{app_id}/builds".format(**locals())
+        url = f"/v2/apps/{app_id}/builds"
         body = {
             'image': 'autotest/example',
             'sha': 'a'*40,
@@ -171,7 +171,7 @@ class BuildTest(DryccTransactionTestCase):
         response = self.client.post(url, body)
         self.assertEqual(response.status_code, 201, response.data)
 
-        url = "/v2/apps/{app_id}/pods/web".format(**locals())
+        url = f"/v2/apps/{app_id}/pods/web"
         response = self.client.get(url)
         self.assertEqual(response.status_code, 200, response.data)
         self.assertPodContains(response.data['results'], app_id, 'web', "v2", "up")
@@ -179,7 +179,7 @@ class BuildTest(DryccTransactionTestCase):
         app_id = self.create_app()
         # post a new build with procfile
 
-        url = "/v2/apps/{app_id}/builds".format(**locals())
+        url = f"/v2/apps/{app_id}/builds"
         body = {
             'image': 'autotest/example',
             'sha': 'a'*40,
@@ -192,7 +192,7 @@ class BuildTest(DryccTransactionTestCase):
         response = self.client.post(url, body)
         self.assertEqual(response.status_code, 201, response.data)
 
-        url = "/v2/apps/{app_id}/pods/web".format(**locals())
+        url = f"/v2/apps/{app_id}/pods/web"
         response = self.client.get(url)
         self.assertEqual(response.status_code, 200, response.data)
         self.assertPodContains(response.data['results'], app_id, 'web', "v2", "up")
@@ -201,7 +201,7 @@ class BuildTest(DryccTransactionTestCase):
         app_id = self.create_app()
         # post a new build with procfile and no routable type
 
-        url = "/v2/apps/{app_id}/builds".format(**locals())
+        url = f"/v2/apps/{app_id}/builds"
         body = {
             'image': 'autotest/example',
             'sha': 'a'*40,
@@ -225,7 +225,7 @@ class BuildTest(DryccTransactionTestCase):
         app_id = self.create_app()
 
         # post a new build with procfile
-        url = "/v2/apps/{app_id}/builds".format(**locals())
+        url = f"/v2/apps/{app_id}/builds"
         body = {
             'image': 'autotest/example',
             'sha': 'a'*40,
@@ -238,44 +238,44 @@ class BuildTest(DryccTransactionTestCase):
         response = self.client.post(url, body)
         self.assertEqual(response.status_code, 201, response.data)
         # verify web
-        url = "/v2/apps/{app_id}/pods/web".format(**locals())
+        url = f"/v2/apps/{app_id}/pods/web"
         response = self.client.get(url)
         self.assertEqual(response.status_code, 200, response.data)
         self.assertPodContains(response.data['results'], app_id, 'web', "v2", "up")
 
         # scale worker
-        url = "/v2/apps/{app_id}/scale".format(**locals())
+        url = f"/v2/apps/{app_id}/scale"
         body = {'worker': 1}
         response = self.client.post(url, body)
         self.assertEqual(response.status_code, 204, response.data)
 
         # verify worker
-        url = "/v2/apps/{app_id}/pods/worker".format(**locals())
+        url = f"/v2/apps/{app_id}/pods/worker"
         response = self.client.get(url)
         self.assertEqual(response.status_code, 200, response.data)
 
         self.assertPodContains(response.data['results'], app_id, 'worker', "v2", "up")
 
         # do another deploy for this time forget Procfile
-        url = "/v2/apps/{app_id}/builds".format(**locals())
+        url = f"/v2/apps/{app_id}/builds"
         body = {'image': 'autotest/example', 'stack': 'container'}
         response = self.client.post(url, body)
         self.assertEqual(response.status_code, 201, response.data)
 
         # verify worker is not there
-        url = "/v2/apps/{app_id}/pods/worker".format(**locals())
+        url = f"/v2/apps/{app_id}/pods/worker"
         response = self.client.get(url)
         self.assertEqual(response.status_code, 200, response.data)
         self.assertEqual(len(response.data['results']), 0)
 
         # verify web is not there
-        url = "/v2/apps/{app_id}/pods/web".format(**locals())
+        url = f"/v2/apps/{app_id}/pods/web"
         response = self.client.get(url)
         self.assertEqual(response.status_code, 200, response.data)
         self.assertEqual(len(response.data['results']), 0)
 
         # look at the app structure
-        url = "/v2/apps/{app_id}".format(**locals())
+        url = f"/v2/apps/{app_id}"
         response = self.client.get(url)
         self.assertEqual(response.status_code, 200, response.data)
         self.assertEqual(response.json()['structure'], {'web': 0})
@@ -291,7 +291,7 @@ class BuildTest(DryccTransactionTestCase):
         app_id = self.create_app()
 
         # post a new build with procfile
-        url = "/v2/apps/{app_id}/builds".format(**locals())
+        url = f"/v2/apps/{app_id}/builds"
         body = {
             'image': 'autotest/example',
             'sha': 'a'*40,
@@ -305,49 +305,49 @@ class BuildTest(DryccTransactionTestCase):
         self.assertEqual(response.status_code, 201, response.data)
 
         # scale worker
-        url = "/v2/apps/{app_id}/scale".format(**locals())
+        url = f"/v2/apps/{app_id}/scale"
         body = {'worker': 1}
         response = self.client.post(url, body)
         self.assertEqual(response.status_code, 204, response.data)
 
         # verify worker
-        url = "/v2/apps/{app_id}/pods/worker".format(**locals())
+        url = f"/v2/apps/{app_id}/pods/worker"
         response = self.client.get(url)
         self.assertEqual(response.status_code, 200, response.data)
         self.assertPodContains(response.data['results'], app_id, 'worker', "v2", "up")
 
         # do another deploy for this time forget Procfile
-        url = "/v2/apps/{app_id}/builds".format(**locals())
+        url = f"/v2/apps/{app_id}/builds"
         body = {'image': 'autotest/example', 'stack': 'container'}
         response = self.client.post(url, body)
         self.assertEqual(response.status_code, 201, response.data)
 
         # verify worker is still there
-        url = "/v2/apps/{app_id}/pods/worker".format(**locals())
+        url = f"/v2/apps/{app_id}/pods/worker"
         response = self.client.get(url)
         self.assertEqual(response.status_code, 200, response.data)
         self.assertPodContains(response.data['results'], app_id, 'worker', "v3", "up")
 
         # verify web is still there
-        url = "/v2/apps/{app_id}/pods/web".format(**locals())
+        url = f"/v2/apps/{app_id}/pods/web"
         response = self.client.get(url)
         self.assertEqual(response.status_code, 200, response.data)
         self.assertPodContains(response.data['results'], app_id, 'web', "v3", "up")
 
         # look at the app structure
-        url = "/v2/apps/{app_id}".format(**locals())
+        url = f"/v2/apps/{app_id}"
         response = self.client.get(url)
         self.assertEqual(response.status_code, 200, response.data)
         self.assertEqual(response.json()['structure'], {'web': 1, 'worker': 1})
 
         # scale worker to make sure no info was lost
-        url = "/v2/apps/{app_id}/scale".format(**locals())
+        url = f"/v2/apps/{app_id}/scale"
         body = {'worker': 2}  # bump from 1 to 2
         response = self.client.post(url, body)
         self.assertEqual(response.status_code, 204, response.data)
 
         # verify worker info
-        url = "/v2/apps/{app_id}/pods/worker".format(**locals())
+        url = f"/v2/apps/{app_id}/pods/worker"
         response = self.client.get(url)
         self.assertEqual(response.status_code, 200, response.data)
         self.assertPodContains(response.data['results'], app_id, 'worker', "v3", "up")
@@ -363,7 +363,7 @@ class BuildTest(DryccTransactionTestCase):
         app_id = self.create_app()
 
         # post a new build with procfile
-        url = "/v2/apps/{app_id}/builds".format(**locals())
+        url = f"/v2/apps/{app_id}/builds"
         body = {
             'image': 'autotest/example',
             'stack': 'heroku-18',
@@ -377,19 +377,19 @@ class BuildTest(DryccTransactionTestCase):
         self.assertEqual(response.status_code, 201, response.data)
 
         # scale worker
-        url = "/v2/apps/{app_id}/scale".format(**locals())
+        url = f"/v2/apps/{app_id}/scale"
         body = {'worker': 1}
         response = self.client.post(url, body)
         self.assertEqual(response.status_code, 204, response.data)
 
         # verify worker
-        url = "/v2/apps/{app_id}/pods/worker".format(**locals())
+        url = f"/v2/apps/{app_id}/pods/worker"
         response = self.client.get(url)
         self.assertEqual(response.status_code, 200, response.data)
         self.assertPodContains(response.data['results'], app_id, 'worker', "v2", "up")
 
         # do another deploy for this time forget Procfile
-        url = "/v2/apps/{app_id}/builds".format(**locals())
+        url = f"/v2/apps/{app_id}/builds"
         body = {'image': 'autotest/example', 'stack': 'container'}
         response = self.client.post(url, body)
         self.assertEqual(response.status_code, 409, response.data)
@@ -399,7 +399,7 @@ class BuildTest(DryccTransactionTestCase):
         app_id = self.create_app()
 
         # post a new build
-        url = "/v2/apps/{app_id}/builds".format(**locals())
+        url = f"/v2/apps/{app_id}/builds"
         body = {'image': 'autotest/example', 'stack': 'container'}
         response = self.client.post(url, body)
         self.assertEqual(response.status_code, 201, response.data)
@@ -420,7 +420,7 @@ class BuildTest(DryccTransactionTestCase):
 
         # post a new build as admin
         self.client.credentials(HTTP_AUTHORIZATION='Token ' + self.token)
-        url = "/v2/apps/{app_id}/builds".format(**locals())
+        url = f"/v2/apps/{app_id}/builds"
         body = {'image': 'autotest/example', 'stack': 'container'}
         response = self.client.post(url, body)
         self.assertEqual(response.status_code, 201, response.data)
@@ -454,7 +454,7 @@ class BuildTest(DryccTransactionTestCase):
         app_id = self.create_app()
 
         # post a new build
-        url = "/v2/apps/{app_id}/builds".format(**locals())
+        url = f"/v2/apps/{app_id}/builds"
         body = {
             'image': 'autotest/example',
             'sha': 'a'*40,
@@ -467,19 +467,19 @@ class BuildTest(DryccTransactionTestCase):
         response = self.client.post(url, body)
         self.assertEqual(response.status_code, 201, response.data)
 
-        url = "/v2/apps/{app_id}/pods/web".format(**locals())
+        url = f"/v2/apps/{app_id}/pods/web"
         response = self.client.get(url)
         self.assertEqual(response.status_code, 200, response.data)
         self.assertPodContains(response.data['results'], app_id, 'web', "v2", "up")
 
         # scale to zero
-        url = "/v2/apps/{app_id}/scale".format(**locals())
+        url = f"/v2/apps/{app_id}/scale"
         body = {'web': 0}
         response = self.client.post(url, body)
         self.assertEqual(response.status_code, 204, response.data)
 
         # post another build
-        url = "/v2/apps/{app_id}/builds".format(**locals())
+        url = f"/v2/apps/{app_id}/builds"
         body = {
             'image': 'autotest/example',
             'sha': 'a'*40,
@@ -491,7 +491,7 @@ class BuildTest(DryccTransactionTestCase):
         }
         response = self.client.post(url, body)
         self.assertEqual(response.status_code, 201, response.data)
-        url = "/v2/apps/{app_id}/pods/web".format(**locals())
+        url = f"/v2/apps/{app_id}/pods/web"
         response = self.client.get(url)
         self.assertEqual(response.status_code, 200, response.data)
         self.assertEqual(len(response.data['results']), 0)
@@ -501,7 +501,7 @@ class BuildTest(DryccTransactionTestCase):
         app_id = self.create_app()
 
         # post an image as a build using registry hostname
-        url = "/v2/apps/{app_id}/builds".format(**locals())
+        url = f"/v2/apps/{app_id}/builds"
         image = '127.0.0.1:5000/autotest/example'
         body = {'image': image, 'stack': 'container'}
         response = self.client.post(url, body)
@@ -512,7 +512,7 @@ class BuildTest(DryccTransactionTestCase):
         self.assertEqual(release.get_deploy_image(PROCFILE_TYPE_WEB), image)
 
         # post an image as a build using registry hostname + port
-        url = "/v2/apps/{app_id}/builds".format(**locals())
+        url = f"/v2/apps/{app_id}/builds"
         image = '127.0.0.1:5000/autotest/example'
         body = {'image': image, 'stack': 'container'}
         response = self.client.post(url, body)
@@ -527,19 +527,19 @@ class BuildTest(DryccTransactionTestCase):
         app_id = self.create_app()
 
         # post an image as a build using registry hostname
-        url = "/v2/apps/{app_id}/builds".format(**locals())
+        url = f"/v2/apps/{app_id}/builds"
         image = 'autotest/example'
         response = self.client.post(url, {'image': image, 'stack': 'container'})
         self.assertEqual(response.status_code, 201, response.data)
 
         # add the required PORT information
-        url = '/v2/apps/{app_id}/config'.format(**locals())
+        url = f'/v2/apps/{app_id}/config'
         body = {'values': json.dumps({'PORT': '80'})}
         response = self.client.post(url, body)
         self.assertEqual(response.status_code, 201, response.data)
 
         # set some registry information
-        url = '/v2/apps/{app_id}/config'.format(**locals())
+        url = f'/v2/apps/{app_id}/config'
         body = {'registry': json.dumps({'username': 'bob', 'password': 'zoomzoom'})}
         response = self.client.post(url, body)
         self.assertEqual(response.status_code, 201, response.data)
@@ -549,13 +549,13 @@ class BuildTest(DryccTransactionTestCase):
         app_id = self.create_app()
 
         # post an image as a build using registry hostname
-        url = "/v2/apps/{app_id}/builds".format(**locals())
+        url = f"/v2/apps/{app_id}/builds"
         image = 'autotest/example'
         response = self.client.post(url, {'image': image, 'stack': 'container'})
         self.assertEqual(response.status_code, 201, response.data)
 
         # set some registry information
-        url = '/v2/apps/{app_id}/config'.format(**locals())
+        url = f'/v2/apps/{app_id}/config'
         body = {'registry': json.dumps({'username': 'bob', 'password': 'zoomzoom'})}
         response = self.client.post(url, body)
         self.assertEqual(response.status_code, 400, response.data)
@@ -567,7 +567,7 @@ class BuildTest(DryccTransactionTestCase):
         app_id = self.create_app()
 
         # deploy app to get a build
-        url = "/v2/apps/{app_id}/builds".format(**locals())
+        url = f"/v2/apps/{app_id}/builds"
         body = {'image': 'autotest/example', 'stack': 'container'}
         response = self.client.post(url, body)
         self.assertEqual(response.status_code, 201, response.data)
@@ -576,7 +576,7 @@ class BuildTest(DryccTransactionTestCase):
         with mock.patch('api.models.app.App.deploy') as mock_deploy:
             mock_deploy.side_effect = Exception('Boom!')
 
-            url = "/v2/apps/{app_id}/builds".format(**locals())
+            url = f"/v2/apps/{app_id}/builds"
             body = {'image': 'autotest/example'}
             response = self.client.post(url, body)
             self.assertEqual(response.status_code, 400, response.data)
@@ -602,7 +602,7 @@ class BuildTest(DryccTransactionTestCase):
         app = App.objects.get(id=app_id)
 
         # deploy app to get a build
-        url = "/v2/apps/{app_id}/builds".format(**locals())
+        url = f"/v2/apps/{app_id}/builds"
         body = {'image': 'autotest/example', 'stack': 'container'}
         response = self.client.post(url, body)
         self.assertEqual(response.status_code, 201, response.data)
@@ -613,7 +613,7 @@ class BuildTest(DryccTransactionTestCase):
         with mock.patch('api.models.app.App.deploy') as mock_deploy:
             mock_deploy.side_effect = Exception('Boom!')
 
-            url = "/v2/apps/{app_id}/builds".format(**locals())
+            url = f"/v2/apps/{app_id}/builds"
             body = {'image': 'autotest/example', 'stack': 'container'}
             response = self.client.post(url, body)
             self.assertEqual(response.status_code, 201, response.data)
@@ -621,7 +621,7 @@ class BuildTest(DryccTransactionTestCase):
             self.assertEqual(data["results"][0]["state"], "crashed", data)
 
         # create a config to see that the new release is created with the last successful build
-        url = "/v2/apps/{app_id}/config".format(**locals())
+        url = f"/v2/apps/{app_id}/config"
 
         body = {'values': json.dumps({'Test': 'test'})}
         response = self.client.post(url, body)

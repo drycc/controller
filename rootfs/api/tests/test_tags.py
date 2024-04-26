@@ -32,7 +32,7 @@ class TestTags(DryccTransactionTestCase):
         app_id = self.create_app()
 
         # check default
-        url = '/v2/apps/{app_id}/config'.format(**locals())
+        url = f'/v2/apps/{app_id}/config'
         response = self.client.get(url)
         self.assertEqual(response.status_code, 200, response.data)
         self.assertIn('tags', response.data)

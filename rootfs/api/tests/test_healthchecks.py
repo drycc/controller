@@ -34,7 +34,7 @@ class TestHealthchecks(DryccTransactionTestCase):
             'healthcheck': {'web': {'readinessProbe': {'httpGet': {'port': 5000}}}}
         }
         response = self.client.post(
-            '/v2/apps/{app_id}/config'.format(**locals()),
+            f'/v2/apps/{app_id}/config',
             readiness_probe)
         self.assertEqual(response.status_code, 201, response.data)
         self.assertIn('readinessProbe', response.data['healthcheck']['web'])
@@ -44,7 +44,7 @@ class TestHealthchecks(DryccTransactionTestCase):
                                           {'httpGet': {'port': 5000},
                                            'successThreshold': 1}}}}
         response = self.client.post(
-            '/v2/apps/{app_id}/config'.format(**locals()),
+            f'/v2/apps/{app_id}/config',
             liveness_probe)
         self.assertEqual(response.status_code, 201, response.data)
         self.assertIn('livenessProbe', response.data['healthcheck']['web'])
@@ -59,13 +59,13 @@ class TestHealthchecks(DryccTransactionTestCase):
 
         # check that config fails if trying to unset non-existing healthcheck
         response = self.client.post(
-            '/v2/apps/{app_id}/config'.format(**locals()),
+            f'/v2/apps/{app_id}/config',
             {'healthcheck': {'invalid_proctype': None}})
-        self.assertEqual(response.status_code, 422, response.data)
+        self.assertEqual(response.status_code, 400, response.data)
 
         # remove a probeType
         response = self.client.post(
-            '/v2/apps/{app_id}/config'.format(**locals()),
+            f'/v2/apps/{app_id}/config',
             {'healthcheck': {'web': {'livenessProbe': None}}})
         self.assertEqual(response.status_code, 201, response.data)
         self.assertNotIn('livenessProbe', response.data['healthcheck']['web'])
@@ -73,26 +73,26 @@ class TestHealthchecks(DryccTransactionTestCase):
 
         # check that config fails if trying to unset non-existing probeType
         response = self.client.post(
-            '/v2/apps/{app_id}/config'.format(**locals()),
+            f'/v2/apps/{app_id}/config',
             {'healthcheck': {'web': {'livenessProbe': None}}})
         self.assertEqual(response.status_code, 422, response.data)
 
         # check that config fails if trying to unset non-existing probeType
         response = self.client.post(
-            '/v2/apps/{app_id}/config'.format(**locals()),
+            f'/v2/apps/{app_id}/config',
             {'healthcheck': {'invalid_proctype': {'livenessProbe': None}}})
-        self.assertEqual(response.status_code, 422, response.data)
+        self.assertEqual(response.status_code, 400, response.data)
 
         # check that config fails if trying to unset non-existing probeType
         response = self.client.post(
-            '/v2/apps/{app_id}/config'.format(**locals()),
+            f'/v2/apps/{app_id}/config',
             {'healthcheck': {'web': None}})
         self.assertEqual(response.status_code, 201, response.data)
         self.assertNotIn('web', response.data['healthcheck'])
 
         # post a new build
         response = self.client.post(
-            "/v2/apps/{app_id}/builds".format(**locals()),
+            f"/v2/apps/{app_id}/builds",
             {'image': 'quay.io/autotest/example', 'stack': 'container'}
         )
         self.assertEqual(response.status_code, 201, response.data)
@@ -105,7 +105,7 @@ class TestHealthchecks(DryccTransactionTestCase):
 
         # Set a probe different from liveness/readiness
         response = self.client.post(
-            '/v2/apps/{app_id}/config'.format(**locals()),
+            f'/v2/apps/{app_id}/config',
             {'healthcheck': json.dumps({'web': {'testProbe':
                                         {'httpGet': {'port': '50'}, 'initialDelaySeconds': "1"}}})}
         )
@@ -113,7 +113,7 @@ class TestHealthchecks(DryccTransactionTestCase):
 
         # Set one of the values that require a numeric value to a string
         response = self.client.post(
-            '/v2/apps/{app_id}/config'.format(**locals()),
+            f'/v2/apps/{app_id}/config',
             {'healthcheck': json.dumps({'web': {'livenessProbe':
                                         {'httpGet': {'port': '50'}, 'initialDelaySeconds': "t"}}})}
         )
@@ -121,7 +121,7 @@ class TestHealthchecks(DryccTransactionTestCase):
 
         # Don't set one of the mandatory value
         response = self.client.post(
-            '/v2/apps/{app_id}/config'.format(**locals()),
+            f'/v2/apps/{app_id}/config',
             {'healthcheck': json.dumps({'web': {'livenessProbe':
                                         {'httpGet': {'path': '/'}, 'initialDelaySeconds': 1}}})}
         )

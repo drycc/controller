@@ -32,7 +32,7 @@ class TestRegistry(DryccTransactionTestCase):
         app_id = self.create_app()
 
         # check default
-        url = '/v2/apps/{app_id}/config'.format(**locals())
+        url = f'/v2/apps/{app_id}/config'
         response = self.client.get(url)
         self.assertEqual(response.status_code, 200, response.data)
         self.assertIn('registry', response.data)
@@ -118,7 +118,7 @@ class TestRegistry(DryccTransactionTestCase):
 
         # Set mandatory PORT
         response = self.client.post(
-            '/v2/apps/{app_id}/config'.format(**locals()),
+            f'/v2/apps/{app_id}/config',
             {'values': json.dumps({'PORT': '4999'})}
         )
 
@@ -128,7 +128,7 @@ class TestRegistry(DryccTransactionTestCase):
             'password': 's3cur3pw1'
         })}
         response = self.client.post(
-            '/v2/apps/{app_id}/config'.format(**locals()),
+            f'/v2/apps/{app_id}/config',
             body
         )
         self.assertEqual(response.status_code, 201, response.data)

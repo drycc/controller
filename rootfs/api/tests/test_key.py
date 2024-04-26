@@ -85,7 +85,7 @@ class KeyTest(DryccTestCase):
         self.assertEqual(response.status_code, 200, response.data)
         self.assertEqual(len(response.data['results']), 1)
 
-        url = '/v2/keys/{key_id}'.format(**locals())
+        url = f'/v2/keys/{key_id}'
         response = self.client.get(url)
         self.assertEqual(response.status_code, 200, response.data)
         self.assertEqual(body['id'], response.data['id'])

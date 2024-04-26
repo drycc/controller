@@ -162,12 +162,10 @@ class HookTest(DryccTransactionTestCase):
     def test_build_hook(self, mock_requests):
         """Test creating a Build via an API Hook"""
         app_id = self.create_app()
-
-        build = {'username': 'autotest', 'app': app_id}
-        url = '/v2/hooks/build'.format(**locals())
+        url = '/v2/hooks/build'
         body = {'receive_user': 'autotest',
                 'receive_repo': app_id,
-                'image': '{app_id}:v2'.format(**locals()),
+                'image': f'{app_id}:v2',
                 'stack': 'container'}
         # post the build without an auth token
         self.client.credentials()
@@ -183,8 +181,7 @@ class HookTest(DryccTransactionTestCase):
     def test_build_hook_slug_url(self, mock_requests):
         """Test creating a slug_url build via an API Hook"""
         app_id = self.create_app()
-        build = {'username': 'autotest', 'app': app_id}
-        url = '/v2/hooks/build'.format(**locals())
+        url = '/v2/hooks/build'
         body = {'receive_user': 'autotest',
                 'receive_repo': app_id,
                 'image': 'http://example.com/slugs/foo-12345354.tar.gz',
@@ -207,12 +204,12 @@ class HookTest(DryccTransactionTestCase):
         app_id = self.create_app()
 
         build = {'username': 'autotest', 'app': app_id}
-        url = '/v2/hooks/build'.format(**locals())
+        url = '/v2/hooks/build'
         PROCFILE = {'web': 'node server.js', 'worker': 'node worker.js'}
         SHA = 'ecdff91c57a0b9ab82e89634df87e293d259a3aa'
         body = {'receive_user': 'autotest',
                 'receive_repo': app_id,
-                'image': '{app_id}:v2'.format(**locals()),
+                'image': f'{app_id}:v2',
                 'stack': 'heroku-18',
                 'sha': SHA,
                 'procfile': PROCFILE}
@@ -225,7 +222,7 @@ class HookTest(DryccTransactionTestCase):
         self.assertIn('version', response.data['release'])
 
         # make sure build fields were populated
-        url = '/v2/apps/{app_id}/builds'.format(**locals())
+        url = f'/v2/apps/{app_id}/builds'
         response = self.client.get(url)
         self.assertEqual(response.status_code, 200, response.data)
         self.assertIn('results', response.data)
@@ -234,7 +231,7 @@ class HookTest(DryccTransactionTestCase):
         self.assertEqual(build['procfile'], PROCFILE)
 
         # test listing/retrieving container info
-        url = "/v2/apps/{app_id}/pods/web".format(**locals())
+        url = f"/v2/apps/{app_id}/pods/web"
         response = self.client.get(url)
         self.assertEqual(response.status_code, 200, response.data)
         self.assertPodContains(response.data['results'], app_id, 'web', 'v2')
@@ -248,14 +245,14 @@ class HookTest(DryccTransactionTestCase):
         """Test creating a Dockerfile build via an API Hook"""
         app_id = self.create_app()
         build = {'username': 'autotest', 'app': app_id}
-        url = '/v2/hooks/build'.format(**locals())
+        url = '/v2/hooks/build'
         SHA = 'ecdff91c57a0b9ab82e89634df87e293d259a3aa'
         DOCKERFILE = """FROM busybox
         CMD /bin/true"""
 
         body = {'receive_user': 'autotest',
                 'receive_repo': app_id,
-                'image': '{app_id}:v2'.format(**locals()),
+                'image': f'{app_id}:v2',
                 'stack': 'container',
                 'sha': SHA,
                 'dockerfile': DOCKERFILE}
@@ -266,7 +263,7 @@ class HookTest(DryccTransactionTestCase):
         self.assertIn('release', response.data)
         self.assertIn('version', response.data['release'])
         # make sure build fields were populated
-        url = '/v2/apps/{app_id}/builds'.format(**locals())
+        url = f'/v2/apps/{app_id}/builds'
         response = self.client.get(url)
         self.assertEqual(response.status_code, 200, response.data)
         self.assertIn('results', response.data)
@@ -274,7 +271,7 @@ class HookTest(DryccTransactionTestCase):
         self.assertEqual(build['sha'], SHA)
         self.assertEqual(build['dockerfile'], DOCKERFILE)
         # test default container
-        url = "/v2/apps/{app_id}/pods/web".format(**locals())
+        url = f"/v2/apps/{app_id}/pods/web"
         response = self.client.get(url)
         self.assertEqual(response.status_code, 200, response.data)
         self.assertPodContains(response.data['results'], app_id, 'web', 'v2')
@@ -287,14 +284,13 @@ class HookTest(DryccTransactionTestCase):
     def test_config_hook(self, mock_requests):
         """Test reading Config via an API Hook"""
         app_id = self.create_app()
-        url = '/v2/apps/{app_id}/config'.format(**locals())
+        url = f'/v2/apps/{app_id}/config'
         response = self.client.get(url)
         self.assertEqual(response.status_code, 200, response.data)
         self.assertIn('values', response.data)
         values = response.data['values']
         # prepare the config hook
-        config = {'username': 'autotest', 'app': app_id}
-        url = '/v2/hooks/config'.format(**locals())
+        url = '/v2/hooks/config'
         body = {'receive_user': 'autotest',
                 'receive_repo': app_id}
         # post without an auth token
@@ -324,7 +320,7 @@ class HookTest(DryccTransactionTestCase):
         """
         body = {'receive_user': 'autotest',
                 'receive_repo': app_id,
-                'image': '{app_id}:v2'.format(**locals()),
+                'image': f'{app_id}:v2',
                 'stack': 'container',
                 'sha': 'ecdff91c57a0b9ab82e89634df87e293d259a3aa',
                 'dockerfile': DOCKERFILE}

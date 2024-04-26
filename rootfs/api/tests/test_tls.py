@@ -41,7 +41,7 @@ class TestTLS(DryccTransactionTestCase):
 
         data = {'https_enforced': True}
         response = self.client.post(
-            '/v2/apps/{app_id}/tls'.format(**locals()),
+            f'/v2/apps/{app_id}/tls',
             data)
         self.assertEqual(response.status_code, 201, response.data)
         self.assertTrue(response.data.get('https_enforced'), response.data)
@@ -49,14 +49,14 @@ class TestTLS(DryccTransactionTestCase):
 
         data = {'https_enforced': False}
         response = self.client.post(
-            '/v2/apps/{app_id}/tls'.format(**locals()),
+            f'/v2/apps/{app_id}/tls',
             data)
         self.assertEqual(response.status_code, 201, response.data)
         self.assertFalse(app.tls_set.latest().https_enforced)
 
         # when the same data is sent again, a 409 is returned
         conflict_response = self.client.post(
-            '/v2/apps/{app_id}/tls'.format(**locals()),
+            f'/v2/apps/{app_id}/tls',
             data)
         self.assertEqual(conflict_response.status_code, 409, conflict_response.data)
         self.assertFalse(app.tls_set.latest().https_enforced)
@@ -67,7 +67,7 @@ class TestTLS(DryccTransactionTestCase):
         # sending bad data returns a 400
         data['https_enforced'] = "test"
         response = self.client.post(
-            '/v2/apps/{app_id}/tls'.format(**locals()),
+            f'/v2/apps/{app_id}/tls',
             data)
         self.assertEqual(response.status_code, 400, response.data)
 

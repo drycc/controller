@@ -18,12 +18,13 @@ class Config(UuidAuditedModel):
     during runtime execution of the Application.
     """
     procfile_fields = ("lifecycle_post_start", "lifecycle_pre_stop", "tags", "limits",
-                       "healthcheck", "termination_grace_period")
+                       "typed_values", "healthcheck", "termination_grace_period")
     all_diff_fields = ("values", "registry") + procfile_fields
 
     owner = models.ForeignKey(User, on_delete=models.PROTECT)
     app = models.ForeignKey('App', on_delete=models.CASCADE)
     values = models.JSONField(default=dict, blank=True)
+    typed_values = models.JSONField(default=dict, blank=True)
     lifecycle_post_start = models.JSONField(default=dict, blank=True)
     lifecycle_pre_stop = models.JSONField(default=dict, blank=True)
     tags = models.JSONField(default=dict, blank=True)
@@ -79,17 +80,9 @@ class Config(UuidAuditedModel):
                          'lifecycle_pre_stop', 'termination_grace_period']:
                 data = getattr(previous_config, attr, {}).copy()
                 new_data = getattr(self, attr, {}).copy()
-
-                # remove config keys if a null value is provided
-                for key, value in new_data.items():
-                    if value is None:
-                        # error if unsetting non-existing key
-                        if key not in data:
-                            raise UnprocessableEntity('{} does not exist under {}'.format(key, attr))  # noqa
-                        data.pop(key)
-                    else:
-                        data[key] = value
+                self._merge_data(attr, data, new_data)
                 setattr(self, attr, data)
+            self._set_typed_values(previous_config)
             self._set_limits(previous_config)
             self._set_healthcheck(previous_config)
             self._set_registry()
@@ -98,6 +91,18 @@ class Config(UuidAuditedModel):
             self._set_tags({'tags': {}})
 
         return super(Config, self).save(**kwargs)
+
+    def _merge_data(self, field, data, new_data):
+        # remove config keys if a null value is provided
+        for key, value in new_data.items():
+            if value is None:
+                # error if unsetting non-existing key
+                if key not in data:
+                    raise UnprocessableEntity('{} does not exist under {}'.format(key, field))  # noqa
+                data.pop(key)
+            else:
+                data[key] = value
+        return data
 
     def _set_registry(self):
         # lower case all registry options for consistency
@@ -144,20 +149,13 @@ class Config(UuidAuditedModel):
     def _set_limits(self, previous_config):
         data = getattr(previous_config, 'limits', {}).copy()
         new_data = getattr(self, 'limits', {}).copy()
-        # remove config keys if a null value is provided
+        # check procfile
         for key, value in new_data.items():
             if value is None:
-                # error if unsetting non-existing key
-                if key not in data:
-                    raise UnprocessableEntity(
-                        '{} does not exist under {}'.format(key, 'limits'))
                 if key in self.app.procfile_types:
                     raise UnprocessableEntity(
                         "the %s has already been used and cannot be deleted" % key)
-                else:
-                    data.pop(key)
-            else:
-                data[key] = value
+        self._merge_data('limits', data, new_data)
         setattr(self, 'limits', data)
 
     def _set_healthcheck(self, previous_config):
@@ -168,17 +166,25 @@ class Config(UuidAuditedModel):
             if value is None:
                 # error if unsetting non-existing key
                 if key not in data:
-                    raise UnprocessableEntity('{} does not exist under {}'.format(key, 'healthcheck'))  # noqa
+                    raise UnprocessableEntity(
+                        '{} does not exist under {}'.format(key, 'healthcheck'))
                 data.pop(key)
             else:
-                for probeType, probe in value.items():
-                    if probe is None:
-                        # error if unsetting non-existing key
-                        if key not in data or probeType not in data[key].keys():
-                            raise UnprocessableEntity('{} does not exist under {}'.format(key, 'healthcheck'))  # noqa
-                        data[key].pop(probeType)
-                    else:
-                        if key not in data:
-                            data[key] = {}
-                        data[key][probeType] = probe
+                data[key] = self._merge_data('healthcheck', data.get(key, {}), value)
         setattr(self, 'healthcheck', data)
+
+    def _set_typed_values(self, previous_config):
+        data = getattr(previous_config, 'typed_values', {}).copy()
+        new_data = getattr(self, 'typed_values', {}).copy()
+        # remove config keys if a null value is provided
+        for procfile_type, values in new_data.items():
+            if not values:
+                # error if unsetting non-existing key
+                if procfile_type not in data:
+                    raise UnprocessableEntity(
+                        '{} does not exist under {}'.format(procfile_type, 'typed_values'))
+                data.pop(procfile_type)
+            else:
+                data[procfile_type] = self._merge_data(
+                    'typed_values', data.get(procfile_type, {}), values)
+        setattr(self, 'typed_values', data)

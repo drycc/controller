@@ -56,7 +56,7 @@ class ConfigTest(DryccTransactionTestCase):
         app_id = self.create_app()
 
         # check to see that an initial/empty config was created
-        url = "/v2/apps/{app_id}/config".format(**locals())
+        url = f"/v2/apps/{app_id}/config"
         response = self.client.get(url)
         self.assertEqual(response.status_code, 200, response.data)
         self.assertIn('values', response.data)
@@ -132,7 +132,7 @@ class ConfigTest(DryccTransactionTestCase):
     def test_default_tags(self, mock_requests):
         settings.DRYCC_DEFAULT_CONFIG_TAGS = '{"ssd": "true"}'
         app_id = self.create_app()
-        url = "/v2/apps/{app_id}/config".format(**locals())
+        url = f"/v2/apps/{app_id}/config"
         response = self.client.get(url)
         expected = {
             'owner': self.user.username,
@@ -167,15 +167,16 @@ class ConfigTest(DryccTransactionTestCase):
         """Test that the serialized response contains only relevant data."""
         app_id = self.create_app()
 
-        url = "/v2/apps/{app_id}/config".format(**locals())
+        url = f"/v2/apps/{app_id}/config"
 
         # set an initial config value
         body = {'values': json.dumps({'PORT': '5000'})}
         response = self.client.post(url, body)
         for key in response.data:
-            self.assertIn(key, ['uuid', 'owner', 'created', 'updated', 'app', 'values', 'limits',
-                                'tags', 'registry', 'healthcheck', 'lifecycle_post_start',
-                                'lifecycle_pre_stop', 'termination_grace_period'])
+            self.assertIn(key, ['uuid', 'owner', 'created', 'updated', 'app', 'values',
+                                'typed_values', 'limits', 'tags', 'registry', 'healthcheck',
+                                'lifecycle_post_start', 'lifecycle_pre_stop',
+                                'termination_grace_period'])
         expected = {
             'owner': self.user.username,
             'app': app_id,
@@ -193,7 +194,7 @@ class ConfigTest(DryccTransactionTestCase):
         """Test that config data is converted into the correct type."""
         app_id = self.create_app()
 
-        url = "/v2/apps/{app_id}/config".format(**locals())
+        url = f"/v2/apps/{app_id}/config"
 
         body = {
             'values': json.dumps({'PORT': 5000}),
@@ -205,8 +206,9 @@ class ConfigTest(DryccTransactionTestCase):
         self.assertEqual(response.status_code, 201, response.data)
         for key in response.data:
             self.assertIn(key, ['uuid', 'owner', 'created', 'updated', 'app', 'values', 'limits',
-                                'tags', 'registry', 'healthcheck', 'lifecycle_post_start',
-                                'lifecycle_pre_stop', 'termination_grace_period'])
+                                'typed_values', 'tags', 'registry', 'healthcheck',
+                                'lifecycle_post_start', 'lifecycle_pre_stop',
+                                'termination_grace_period'])
         expected = {
             'owner': self.user.username,
             'app': app_id,
@@ -233,7 +235,7 @@ class ConfigTest(DryccTransactionTestCase):
         Test that config sets on the same key function properly
         """
         app_id = self.create_app()
-        url = "/v2/apps/{app_id}/config".format(**locals())
+        url = f"/v2/apps/{app_id}/config"
 
         # set an initial config value
         body = {'values': json.dumps({'PORT': '5000'})}
@@ -253,7 +255,7 @@ class ConfigTest(DryccTransactionTestCase):
         Test that config sets with unicode values are accepted.
         """
         app_id = self.create_app()
-        url = "/v2/apps/{app_id}/config".format(**locals())
+        url = f"/v2/apps/{app_id}/config"
 
         # set an initial config value
         body = {'values': json.dumps({'POWERED_BY': 'Деис'})}
@@ -285,7 +287,7 @@ class ConfigTest(DryccTransactionTestCase):
         """
         keys = ("FOO", "_foo", "f001", "FOO_BAR_BAZ_")
         app_id = self.create_app()
-        url = '/v2/apps/{app_id}/config'.format(**locals())
+        url = f'/v2/apps/{app_id}/config'
         for k in keys:
             body = {'values': json.dumps({k: "testvalue"})}
             response = self.client.post(url, body)
@@ -307,7 +309,7 @@ class ConfigTest(DryccTransactionTestCase):
 
         with mock.patch('api.models.app.App.deploy') as mock_deploy:
             mock_deploy.side_effect = Exception('Boom!')
-            url = '/v2/apps/{app_id}/config'.format(**locals())
+            url = f'/v2/apps/{app_id}/config'
             body = {'values': json.dumps({'test': "testvalue"})}
             response = self.client.post(url, body)
             self.assertEqual(response.status_code, 400)
@@ -317,7 +319,7 @@ class ConfigTest(DryccTransactionTestCase):
         """
         keys = ("123", "../../foo", "FOO/", "FOO-BAR")
         app_id = self.create_app()
-        url = '/v2/apps/{app_id}/config'.format(**locals())
+        url = f'/v2/apps/{app_id}/config'
         for k in keys:
             body = {'values': json.dumps({k: "testvalue"})}
             response = self.client.post(url, body)
@@ -333,7 +335,7 @@ class ConfigTest(DryccTransactionTestCase):
             {'field': 'PORT', 'value': 99999}
         ]
         app_id = self.create_app()
-        url = '/v2/apps/{app_id}/config'.format(**locals())
+        url = f'/v2/apps/{app_id}/config'
         for row in data:
             body = {'values': json.dumps({row['field']: row['value']})}
             response = self.client.post(url, body)
@@ -348,7 +350,7 @@ class ConfigTest(DryccTransactionTestCase):
 
         self.client.credentials(HTTP_AUTHORIZATION='Token ' + token)
         app_id = self.create_app()
-        url = "/v2/apps/{app_id}/config".format(**locals())
+        url = f"/v2/apps/{app_id}/config"
 
         # set an initial config value
         self.client.credentials(HTTP_AUTHORIZATION='Token ' + self.token)
@@ -401,7 +403,7 @@ class ConfigTest(DryccTransactionTestCase):
         self.assertEqual(response.data['image'], body['image'])
 
         # set an initial config value
-        url = "/v2/apps/{app_id}/config".format(**locals())
+        url = f"/v2/apps/{app_id}/config"
         body = {'values': json.dumps({'NEW_URL1': 'http://localhost:8080/'})}
         response = self.client.post(url, body)
         self.assertEqual(response.status_code, 201, response.data)
@@ -411,7 +413,7 @@ class ConfigTest(DryccTransactionTestCase):
         # create a failed config to check that failed release is created
         with mock.patch('api.models.app.App.deploy') as mock_deploy:
             mock_deploy.side_effect = Exception('Boom!')
-            url = '/v2/apps/{app_id}/config'.format(**locals())
+            url = f'/v2/apps/{app_id}/config'
             body = {'values': json.dumps({'test': "testvalue"})}
             response = self.client.post(url, body)
             self.assertEqual(response.status_code, 400)
@@ -581,8 +583,38 @@ class ConfigTest(DryccTransactionTestCase):
         }
         url = f"/v2/apps/{app_id}/config"
         response = self.client.post(url, body)
-        url = "/v2/apps/{app_id}/config".format(**locals())
+        url = f"/v2/apps/{app_id}/config"
         response = self.client.get(url)
         self.assertEqual(response.status_code, 200, response.data)
         expect = {'run': 'std1.large.c2m4', 'web': 'std1.large.c2m4', 'worker': 'std1.large.c1m1'}
         self.assertEqual(expect, response.json()["limits"], response.data)
+
+    def test_config_set_typed_values(self, mock_requests):
+        """
+        Test that config sets on the same key function properly
+        """
+        app_id = self.create_app()
+        url = f"/v2/apps/{app_id}/config"
+
+        # set an initial config value
+        body = {'typed_values': {'web': {'PORT': '5000'}}}
+        response = self.client.post(url, body)
+        self.assertEqual(response.status_code, 201, response.data)
+        self.assertIn('PORT', response.data['typed_values']['web'])
+
+        # reset same config value
+        body = {'typed_values': {'web': {'PORT': '5001'}}}
+        response = self.client.post(url, body)
+        self.assertEqual(response.status_code, 201, response.data)
+        self.assertIn('PORT', response.data['typed_values']['web'])
+        self.assertEqual(response.data['typed_values']['web']['PORT'], '5001')
+        # unset PORT
+        body = {'typed_values': {'web': {'PORT': None}}}
+        response = self.client.post(url, body)
+        self.assertEqual(response.status_code, 201, response.data)
+        self.assertEqual(response.data['typed_values']['web'], {}, response.data)
+        # unset web
+        body = {'typed_values': {'web': None}}
+        response = self.client.post(url, body)
+        self.assertEqual(response.status_code, 201, response.data)
+        self.assertEqual(response.data['typed_values'], {}, response.data)

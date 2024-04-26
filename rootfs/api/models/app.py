@@ -268,7 +268,7 @@ class App(UuidAuditedModel):
         release.save()
         self.log(f"{prefix} run completed...")
 
-    def deploy(self, release, structure=None, force_deploy=False, rollback_on_failure=True):
+    def deploy(self, release, procfile_types=None, force_deploy=False, rollback_on_failure=True):
         """
         Deploy a new release to this application
 
@@ -296,16 +296,17 @@ class App(UuidAuditedModel):
         volumes = self.volume_set.all()
         deploys = {}
         for scale_type, replicas in self.structure.items():
-            if structure is not None and scale_type not in structure:
+            if procfile_types is not None and scale_type not in procfile_types:
                 continue
             scale_type_volumes = [_ for _ in volumes if scale_type in _.path.keys()]
             if not release.canary or scale_type in app_settings.canaries:
                 deploys[scale_type] = self._gather_app_settings(
                     release, app_settings, scale_type, replicas, volumes=scale_type_volumes)
-        self._deploy(deploys, structure, prev_release, release, force_deploy, rollback_on_failure)
+        self._deploy(
+            deploys, procfile_types, prev_release, release, force_deploy, rollback_on_failure)
         # cleanup old release objects from kubernetes
-        self.cleanup_old()
-        release.cleanup_old()
+        self.cleanup_old(procfile_types)
+        release.cleanup_old(procfile_types)
 
     def mount(self, user, volume, structure=None):
         if self.release_set.filter(failed=False).latest().build is None:
@@ -320,15 +321,17 @@ class App(UuidAuditedModel):
                 app_settings,
                 structure=structure,
             )
-        self._mount(user, volume, release, app_settings)
+        self._mount(user, volume, release, app_settings, structure=structure)
 
-    def cleanup_old(self):
+    def cleanup_old(self, procfile_types=None):
         names, app_settings = [], self.appsettings_set.latest()
         for scale_type in self.structure.keys():
             if scale_type in app_settings.canaries:
                 names.append(self._get_job_id(scale_type, True))
             names.append(self._get_job_id(scale_type, False))
         labels = {'heritage': 'drycc'}
+        if procfile_types:
+            labels["type__in"] = procfile_types
         deployments = self.scheduler().deployments.get(self.id, labels=labels).json()["items"]
         if deployments is not None:
             for deployment in deployments:
@@ -390,12 +393,12 @@ class App(UuidAuditedModel):
         data['restart_policy'] = 'Never'
         data['active_deadline_seconds'] = timeout
         data['ttl_seconds_after_finished'] = expires
-        # create application config and build the pod manifest
-        self.set_application_config(release)
         name = self._get_job_id(PROCFILE_TYPE_RUN, release.canary) + '-' + pod_name()
         self.log("{} on {} runs '{}'".format(user.username, name, command))
         kwargs.update(data)
         try:
+            # create application config and build the pod manifest
+            self.set_application_config(release, PROCFILE_TYPE_RUN)
             self.scheduler().job.create(
                 self.id,
                 name,
@@ -506,7 +509,7 @@ class App(UuidAuditedModel):
 
         return name
 
-    def set_application_config(self, release):
+    def set_application_config(self, release, procfile_type):
         """
         Creates the application config as a secret in Kubernetes and
         updates it if it already exists
@@ -515,18 +518,19 @@ class App(UuidAuditedModel):
         version = 'v{}'.format(release.version)
         labels = {
             'version': version,
-            'type': 'env'
+            'type': procfile_type,
+            'class': 'env'
         }
 
         # secrets use dns labels for keys, map those properly here
         secrets_env = {}
-        for key, value in self._build_env_vars(release).items():
+        for key, value in self._build_env_vars(release, procfile_type).items():
             secrets_env[key.lower().replace('_', '-')] = str(value)
 
         # dictionary sorted by key
         secrets_env = OrderedDict(sorted(secrets_env.items(), key=lambda t: t[0]))
 
-        secret_name = "{}-{}-env".format(self.id, version)
+        secret_name = "{}-{}-{}-env".format(self.id, procfile_type, version)
         try:
             self.scheduler().secret.get(self.id, secret_name)
         except KubeHTTPException:
@@ -578,7 +582,8 @@ class App(UuidAuditedModel):
         volumes = Volume.objects.filter(app=self)
         tasks = []
         for scale_type, replicas in structure.items() if structure else self.structure.items():
-            if not release.canary or scale_type in app_settings.canaries:
+            if scale_type != PROCFILE_TYPE_RUN and (
+                    not release.canary or scale_type in app_settings.canaries):
                 replicas = self.structure.get(scale_type, 0)
                 scale_type_volumes = [
                     volume for volume in volumes if scale_type in volume.path.keys()]
@@ -588,23 +593,20 @@ class App(UuidAuditedModel):
                     self.id, self._get_job_id(scale_type, release.canary)).json()
                 spec_annotations = deployment['spec']['template']['metadata'].get(
                     'annotations', {})
+                self.set_application_config(release, scale_type)
                 # gather volume proc types to be deployed
-                tasks.append(
-                    functools.partial(
-                        self.scheduler().deployment.patch,
-                        namespace=self.id,
-                        name=self._get_job_id(scale_type, release.canary),
-                        image=release.get_deploy_image(scale_type),
-                        command=release.get_deploy_command(scale_type),
-                        args=release.get_deploy_args(scale_type),
-                        spec_annotations=spec_annotations,
-                        resource_version=deployment["metadata"]["resourceVersion"],
-                        **data
-                    )
-                )
+                tasks.append(functools.partial(
+                    self.scheduler().deployment.patch,
+                    namespace=self.id,
+                    name=self._get_job_id(scale_type, release.canary),
+                    image=release.get_deploy_image(scale_type),
+                    command=release.get_deploy_command(scale_type),
+                    args=release.get_deploy_args(scale_type),
+                    spec_annotations=spec_annotations,
+                    resource_version=deployment["metadata"]["resourceVersion"],
+                    **data
+                ))
         try:
-            # create the application config in k8s (secret in this case) for all deploy objects
-            self.set_application_config(release)
             apply_tasks(tasks)
         except Exception as e:
             err = f'(changed volume mount for {volume}: {e}'
@@ -612,7 +614,7 @@ class App(UuidAuditedModel):
             raise ServiceUnavailable(err) from e
         self.log(f'{user.username} changed volume mount for {volume}')
 
-    def _deploy(self, deploys, structure, prev_release,
+    def _deploy(self, deploys, procfile_types, prev_release,
                 release, force_deploy, rollback_on_failure):
         # Sort deploys so routable comes first
         deploys = OrderedDict(sorted(deploys.items(), key=lambda d: d[1].get('routable')))
@@ -620,12 +622,10 @@ class App(UuidAuditedModel):
         self._check_deployment_in_progress(deploys, release, force_deploy)
 
         try:
-            # create the application config in k8s (secret in this case) for all deploy objects
-            self.set_application_config(release)
-
-            # gather all proc types to be deployed
-            tasks = [
-                functools.partial(
+            tasks = []
+            for scale_type, kwargs in deploys.items():
+                self.set_application_config(release, scale_type)
+                tasks.append(functools.partial(
                     self.scheduler().deploy,
                     namespace=self.id,
                     name=self._get_job_id(scale_type, release.canary),
@@ -633,8 +633,7 @@ class App(UuidAuditedModel):
                     command=release.get_deploy_command(scale_type),
                     args=release.get_deploy_args(scale_type),
                     **kwargs
-                ) for scale_type, kwargs in deploys.items()
-            ]
+                ))
             try:
                 apply_tasks(tasks)
             except KubeException as e:
@@ -647,7 +646,7 @@ class App(UuidAuditedModel):
                     # This goes in the log before the rollback starts
                     self.log(err, logging.ERROR)
                     # revert all process types to old release
-                    self.deploy(prev_release, structure,
+                    self.deploy(prev_release, procfile_types,
                                 force_deploy=True, rollback_on_failure=False)
                     # let it bubble up
                     raise DryccException('{}\n{}'.format(err, str(e))) from e
@@ -721,6 +720,8 @@ class App(UuidAuditedModel):
                 volume for volume in volumes if scale_type in volume.path.keys()]
             data = self._gather_app_settings(
                 release, app_settings, scale_type, replicas, volumes=scale_type_volumes)
+            # create the application config in k8s (secret in this case) for all deploy objects
+            self.set_application_config(release, scale_type)
             # gather all proc types to be deployed
             tasks.append(
                 functools.partial(
@@ -734,8 +735,6 @@ class App(UuidAuditedModel):
                 )
             )
         try:
-            # create the application config in k8s (secret in this case) for all deploy objects
-            self.set_application_config(release)
             apply_tasks(tasks)
         except Exception as e:
             err = '(scale): {}'.format(e)
@@ -912,7 +911,7 @@ class App(UuidAuditedModel):
             labels.update({'version': version})
         return labels
 
-    def _build_env_vars(self, release):
+    def _build_env_vars(self, release, procfile_type):
         """
         Build a dict of env vars, setting default vars based on app type
         and then combining with the user set ones
@@ -935,9 +934,9 @@ class App(UuidAuditedModel):
         port = release.get_port()
         if port:
             default_env['PORT'] = port
-
         # merge envs on top of default to make envs win
         default_env.update(release.config.values)
+        default_env.update(release.config.typed_values.get(procfile_type, {}))
         return default_env
 
     def _get_private_registry_config(self, image, registry=None):
@@ -999,7 +998,7 @@ class App(UuidAuditedModel):
         Any global setting that can also be set per app goes here
         """
 
-        envs = self._build_env_vars(release)
+        envs = self._build_env_vars(release, procfile_type)
         # Obtain a limit plan that must exist, if raise error here, it must be a bug
         config = self._set_default_limit(release.config, procfile_type)
         limit_plan = LimitPlan.objects.get(id=config.limits.get(procfile_type))

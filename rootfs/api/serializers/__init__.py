@@ -89,7 +89,9 @@ class JSONFieldSerializer(serializers.JSONField):
                 continue
 
             try:
-                if self.convert_to_str:
+                if isinstance(v, (dict, list)):
+                    self.to_representation(v)
+                elif self.convert_to_str:
                     obj[k] = str(v)
             except ValueError:
                 obj[k] = v
@@ -236,6 +238,7 @@ class ConfigSerializer(serializers.ModelSerializer):
     app = serializers.SlugRelatedField(slug_field='id', queryset=models.app.App.objects.all())
     owner = serializers.ReadOnlyField(source='owner.username')
     values = JSONFieldSerializer(required=False, binary=True)
+    typed_values = JSONFieldSerializer(required=False, binary=True)
     limits = JSONFieldSerializer(required=False, binary=True)
     lifecycle_post_start = JSONFieldSerializer(required=False, binary=True)
     lifecycle_pre_stop = JSONFieldSerializer(required=False, binary=True)
@@ -253,12 +256,10 @@ class ConfigSerializer(serializers.ModelSerializer):
     @staticmethod
     def validate_values(data):
         for key, value in data.items():
-            if value is None:  # use NoneType to unset an item
-                continue
-
             if not re.match(CONFIGKEY_MATCH, key):
                 raise serializers.ValidationError(CONFIGKEY_MISMATCH_MSG)
-
+            if value is None:  # use NoneType to unset an item
+                continue
             # Validate PORT
             if key == 'PORT':
                 if not str(value).isnumeric():
@@ -269,10 +270,22 @@ class ConfigSerializer(serializers.ModelSerializer):
                     raise serializers.ValidationError('PORT needs to be between 1 and 65535')
         return data
 
+    @classmethod
+    def validate_typed_values(cls, data):
+        for procfile_type, values in data.items():
+            if not re.match(PROCTYPE_MATCH, procfile_type):
+                raise serializers.ValidationError(PROCTYPE_MISMATCH_MSG)
+            if values is None:  # use NoneType to unset an item
+                continue
+            cls.validate_values(values)
+        return data
+
     @staticmethod
     def validate_limits(data):
         req_plan_ids = []
-        for plan_id in data.values():
+        for procfile_type, plan_id in data.items():
+            if not re.match(PROCTYPE_MATCH, procfile_type):
+                raise serializers.ValidationError(PROCTYPE_MISMATCH_MSG)
             if plan_id is not None:
                 req_plan_ids.append(plan_id)
         plan_ids = [plan.id for plan in models.limit.LimitPlan.objects.filter(
@@ -284,13 +297,11 @@ class ConfigSerializer(serializers.ModelSerializer):
 
     @staticmethod
     def validate_termination_grace_period(data):
-        for key, value in data.items():
+        for procfile_type, value in data.items():
+            if not re.match(PROCTYPE_MATCH, procfile_type):
+                raise serializers.ValidationError(PROCTYPE_MISMATCH_MSG)
             if value is None:  # use NoneType to unset an item
                 continue
-
-            if not re.match(PROCTYPE_MATCH, key):
-                raise serializers.ValidationError(PROCTYPE_MISMATCH_MSG)
-
             timeout = re.match(TERMINATION_GRACE_PERIOD_MATCH, str(value))
             if not timeout:
                 raise serializers.ValidationError(
@@ -346,7 +357,9 @@ class ConfigSerializer(serializers.ModelSerializer):
 
     @staticmethod
     def validate_healthcheck(data):
-        for _, healthcheck in data.items():
+        for procfile_type, healthcheck in data.items():
+            if not re.match(PROCTYPE_MATCH, procfile_type):
+                raise serializers.ValidationError(PROCTYPE_MISMATCH_MSG)
             if healthcheck is None:
                 continue
             for key, value in healthcheck.items():

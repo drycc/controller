@@ -44,18 +44,18 @@ class ReleaseTest(DryccTransactionTestCase):
         """
         app_id = self.create_app()
         # check that updating config rolls a new release
-        url = '/v2/apps/{app_id}/config'.format(**locals())
+        url = f'/v2/apps/{app_id}/config'
         body = {'values': json.dumps({'NEW_URL1': 'http://localhost:8080/'})}
         response = self.client.post(url, body)
         self.assertEqual(response.status_code, 201, response.data)
         self.assertIn('NEW_URL1', response.data['values'])
         # check to see that an initial release was created
-        url = '/v2/apps/{app_id}/releases'.format(**locals())
+        url = f'/v2/apps/{app_id}/releases'
         response = self.client.get(url)
         self.assertEqual(response.status_code, 200, response.data)
         # account for the config release as well
         self.assertEqual(response.data['count'], 2)
-        url = '/v2/apps/{app_id}/releases/v1'.format(**locals())
+        url = f'/v2/apps/{app_id}/releases/v1'
         response = self.client.get(url)
         self.assertEqual(response.status_code, 200, response.data)
         release1 = response.data
@@ -63,7 +63,7 @@ class ReleaseTest(DryccTransactionTestCase):
         self.assertIn('build', response.data)
         self.assertEqual(release1['version'], 1)
         # check to see that a new release was created
-        url = '/v2/apps/{app_id}/releases/v2'.format(**locals())
+        url = f'/v2/apps/{app_id}/releases/v2'
         response = self.client.get(url)
         self.assertEqual(response.status_code, 200, response.data)
         release2 = response.data
@@ -72,14 +72,13 @@ class ReleaseTest(DryccTransactionTestCase):
         self.assertEqual(release1['build'], release2['build'])
         self.assertEqual(release2['version'], 2)
         # check that updating the build rolls a new release
-        url = '/v2/apps/{app_id}/builds'.format(**locals())
-        build_config = json.dumps({'PATH': 'bin:/usr/local/bin:/usr/bin:/bin'})
+        url = f'/v2/apps/{app_id}/builds'
         body = {'image': 'autotest/example', 'stack': 'container'}
         response = self.client.post(url, body)
         self.assertEqual(response.status_code, 201, response.data)
         self.assertEqual(response.data['image'], body['image'])
         # check to see that a new release was created
-        url = '/v2/apps/{app_id}/releases/v3'.format(**locals())
+        url = f'/v2/apps/{app_id}/releases/v3'
         response = self.client.get(url)
         self.assertEqual(response.status_code, 200, response.data)
         release3 = response.data
@@ -87,7 +86,7 @@ class ReleaseTest(DryccTransactionTestCase):
         self.assertNotEqual(release2['build'], release3['build'])
         self.assertEqual(release3['version'], 3)
         # check that we can fetch a previous release
-        url = '/v2/apps/{app_id}/releases/v2'.format(**locals())
+        url = f'/v2/apps/{app_id}/releases/v2'
         response = self.client.get(url)
         self.assertEqual(response.status_code, 200, response.data)
         release2 = response.data
@@ -95,7 +94,7 @@ class ReleaseTest(DryccTransactionTestCase):
         self.assertNotEqual(release2['build'], release3['build'])
         self.assertEqual(release2['version'], 2)
         # disallow post/put/patch/delete
-        url = '/v2/apps/{app_id}/releases'.format(**locals())
+        url = f'/v2/apps/{app_id}/releases'
         response = self.client.post(url)
         self.assertEqual(response.status_code, 405, response.content)
         response = self.client.put(url)
@@ -204,34 +203,34 @@ class ReleaseTest(DryccTransactionTestCase):
         app_id = self.create_app()
         app = App.objects.get(id=app_id)
         # try to rollback with only 1 release extant, expecting 400
-        url = "/v2/apps/{app_id}/releases/rollback/".format(**locals())
+        url = f"/v2/apps/{app_id}/releases/rollback/"
         response = self.client.post(url)
         self.assertEqual(response.status_code, 400, response.data)
         self.assertEqual(response.data, {'detail': 'version cannot be below 0'})
         self.assertEqual(response.get('content-type'), 'application/json')
         # update the build to roll a new release
-        url = '/v2/apps/{app_id}/builds'.format(**locals())
+        url = f'/v2/apps/{app_id}/builds'
         body = {'image': 'autotest/example', 'stack': 'container'}
         response = self.client.post(url, body)
         self.assertEqual(response.status_code, 201, response.data)
         # update config to roll another release
-        url = '/v2/apps/{app_id}/config'.format(**locals())
+        url = f'/v2/apps/{app_id}/config'
         body = {'values': json.dumps({'NEW_URL1': 'http://localhost:8080/'})}
         response = self.client.post(url, body)
         self.assertEqual(response.status_code, 201, response.data)
         # create another release with a different build
-        url = '/v2/apps/{app_id}/builds'.format(**locals())
+        url = f'/v2/apps/{app_id}/builds'
         body = {'image': 'autotest/example:canary', 'stack': 'container'}
         response = self.client.post(url, body)
         self.assertEqual(response.status_code, 201, response.data)
         # rollback and check to see that a 5th release was created
         # with the build and config of release #3
-        url = "/v2/apps/{app_id}/releases/rollback/".format(**locals())
+        url = f"/v2/apps/{app_id}/releases/rollback/"
         response = self.client.post(url)
         self.assertEqual(response.status_code, 201, response.data)
         self.assertEqual(Release.objects.count(), 5)
-        release1 = Release.objects.get(app=app, version=1)
-        release2 = Release.objects.get(app=app, version=2)
+        Release.objects.get(app=app, version=1)
+        Release.objects.get(app=app, version=2)
         release3 = Release.objects.get(app=app, version=3)
         release4 = Release.objects.get(app=app, version=4)
         release5 = Release.objects.get(app=app, version=5)
@@ -245,12 +244,12 @@ class ReleaseTest(DryccTransactionTestCase):
         self.assertEqual(release5.config.values, {'NEW_URL1': 'http://localhost:8080/'})
         # try to rollback to v1 and verify that the rollback failed
         # (v1 is an initial release with no build)
-        url = "/v2/apps/{app_id}/releases/rollback/".format(**locals())
+        url = f"/v2/apps/{app_id}/releases/rollback/"
         body = {'version': 1}
         response = self.client.post(url, body)
         self.assertContains(response, 'Cannot roll back to initial release.', status_code=400)
         # roll back to v2 so we can verify config gets rolled back too
-        url = "/v2/apps/{app_id}/releases/rollback/".format(**locals())
+        url = f"/v2/apps/{app_id}/releases/rollback/"
         body = {'version': 2}
         response = self.client.post(url, body)
         self.assertEqual(response.status_code, 201, response.data)
@@ -273,7 +272,7 @@ class ReleaseTest(DryccTransactionTestCase):
         # check that the release has push and env change messages
         self.assertIn('autotest deployed ', release.summary)
         # add config, confirm that config objects are in the summary
-        url = '/v2/apps/{app.id}/config'.format(**locals())
+        url = f'/v2/apps/{app.id}/config'
         body = {
             'values': json.dumps({'FOO': 'bar'}),
         }
@@ -290,14 +289,14 @@ class ReleaseTest(DryccTransactionTestCase):
         self.client.credentials(HTTP_AUTHORIZATION='Token ' + token)
         app_id = self.create_app()
         # check that updating config rolls a new release
-        url = '/v2/apps/{app_id}/config'.format(**locals())
+        url = f'/v2/apps/{app_id}/config'
         body = {'values': json.dumps({'NEW_URL1': 'http://localhost:8080/'})}
         self.client.credentials(HTTP_AUTHORIZATION='Token ' + self.token)
         response = self.client.post(url, body)
         self.assertEqual(response.status_code, 201, response.data)
         self.assertIn('NEW_URL1', response.data['values'])
         # check to see that an initial release was created
-        url = '/v2/apps/{app_id}/releases'.format(**locals())
+        url = f'/v2/apps/{app_id}/releases'
         response = self.client.get(url)
         self.assertEqual(response.status_code, 200, response.data)
         # account for the config release as well
@@ -313,12 +312,12 @@ class ReleaseTest(DryccTransactionTestCase):
         app_id = self.create_app()
 
         # push a new build
-        url = '/v2/apps/{app_id}/builds'.format(**locals())
+        url = f'/v2/apps/{app_id}/builds'
         body = {'image': 'test', 'stack': 'container'}
         response = self.client.post(url, body)
 
         # update config to roll a new release
-        url = '/v2/apps/{app_id}/config'.format(**locals())
+        url = f'/v2/apps/{app_id}/config'
         body = {'values': json.dumps({'NEW_URL1': 'http://localhost:8080/'})}
         response = self.client.post(url, body)
         unauthorized_user = User.objects.get(username='autotest2')
@@ -326,7 +325,7 @@ class ReleaseTest(DryccTransactionTestCase):
 
         # try to rollback
         self.client.credentials(HTTP_AUTHORIZATION='Token ' + unauthorized_token)
-        url = '/v2/apps/{app_id}/releases/rollback/'.format(**locals())
+        url = f'/v2/apps/{app_id}/releases/rollback/'
         response = self.client.post(url)
         self.assertEqual(response.status_code, 403)
 
@@ -335,7 +334,6 @@ class ReleaseTest(DryccTransactionTestCase):
         Cause an Exception in app.deploy to cause a release.delete
         """
         app_id = self.create_app()
-        app = App.objects.get(id=app_id)
 
         # deploy app to get a build
         url = "/v2/apps/{}/builds".format(app_id)
@@ -368,7 +366,7 @@ class ReleaseTest(DryccTransactionTestCase):
 
         # try to rollback to v4 and verify that the rollback failed
         # (v4 is a failed release)
-        url = "/v2/apps/{app_id}/releases/rollback/".format(**locals())
+        url = f"/v2/apps/{app_id}/releases/rollback/"
         body = {'version': 4}
         response = self.client.post(url, body)
         self.assertContains(response, 'Cannot roll back to failed release.', status_code=400)
@@ -404,7 +402,7 @@ class ReleaseTest(DryccTransactionTestCase):
         app_id = self.create_app()
 
         # check that updating config rolls a new release
-        url = '/v2/apps/{app_id}/config'.format(**locals())
+        url = f'/v2/apps/{app_id}/config'
         body = {'limits': json.dumps({'cmd': None})}
         response = self.client.post(url, body)
         self.assertEqual(response.status_code, 422, response.data)
@@ -418,14 +416,14 @@ class ReleaseTest(DryccTransactionTestCase):
         app_id = self.create_app()
 
         # check that updating config rolls a new release
-        url = '/v2/apps/{app_id}/config'.format(**locals())
+        url = f'/v2/apps/{app_id}/config'
         body = {'values': json.dumps({'NEW_URL1': 'http://localhost:8080/'})}
         response = self.client.post(url, body)
         self.assertEqual(response.status_code, 201, response.data)
         self.assertIn('NEW_URL1', response.data['values'])
 
         # trigger identical release
-        url = '/v2/apps/{app_id}/config'.format(**locals())
+        url = f'/v2/apps/{app_id}/config'
         body = {'values': json.dumps({'NEW_URL1': 'http://localhost:8080/'})}
         response = self.client.post(url, body)
         self.assertEqual(response.status_code, 409, response.data)
@@ -437,7 +435,7 @@ class ReleaseTest(DryccTransactionTestCase):
         app_id = self.create_app()
         app = App.objects.get(id=app_id)
 
-        url = '/v2/apps/{app_id}/builds'.format(**locals())
+        url = f'/v2/apps/{app_id}/builds'
         body = {'sha': '123456', 'image': 'autotest/example', 'stack': 'heroku-18'}
         response = self.client.post(url, body)
         self.assertEqual(response.status_code, 201, response.data)
@@ -450,12 +448,12 @@ class ReleaseTest(DryccTransactionTestCase):
         self.assertEqual(release.get_port(), 5000)
 
         # switch to a dockerfile app or else it'll automatically default to 5000
-        url = '/v2/apps/{app_id}/builds'.format(**locals())
+        url = f'/v2/apps/{app_id}/builds'
         body = {'image': 'autotest/example', 'stack': 'container'}
         response = self.client.post(url, body)
         self.assertEqual(response.status_code, 201, response.data)
 
-        url = '/v2/apps/{app_id}/config'.format(**locals())
+        url = f'/v2/apps/{app_id}/config'
         body = {'values': json.dumps({'PORT': '8080'})}
         response = self.client.post(url, body)
         self.assertEqual(response.status_code, 201, response.data)
@@ -475,29 +473,29 @@ class ReleaseTest(DryccTransactionTestCase):
         app_id = 'foo'
         body = {'sha': '123456', 'image': 'autotest/example', 'stack': 'heroku-18'}
 
-        mr_rocks = mock_requests.post('http://drycc.rocks?app={app_id}&user={self.user.username}&sha=&release=v1&release_summary={self.user.username}+created+initial+release'.format(**locals()))  # noqa
+        mr_rocks = mock_requests.post(f'http://drycc.rocks?app={app_id}&user={self.user.username}&sha=&release=v1&release_summary={self.user.username}+created+initial+release')  # noqa
         self.create_app(app_id)
         # check app logs
-        exp_msg = "[{app_id}]: Sent deploy hook to http://drycc.rocks".format(**locals())
+        exp_msg = f"[{app_id}]: Sent deploy hook to http://drycc.rocks"
         mock_logger.log.assert_any_call(logging.INFO, exp_msg)
         self.assertTrue(mr_rocks.called)
         self.assertEqual(mr_rocks.call_count, 1)
 
         # override DRYCC_DEPLOY_HOOK_URLS again, ensuring that the new deploy hooks get the same
         # treatment
-        url = '/v2/apps/{app_id}/builds'.format(**locals())
+        url = f'/v2/apps/{app_id}/builds'
         with self.settings(DRYCC_DEPLOY_HOOK_URLS=['http://drycc.ninja', 'http://cat.dog']):
-            mr_ninja = mock_requests.post("http://drycc.ninja?app={app_id}&user={self.user.username}&sha=123456&release=v2&release_summary={self.user.username}+deployed+123456".format(**locals()))  # noqa
-            mr_catdog = mock_requests.post("http://cat.dog?app={app_id}&user={self.user.username}&sha=123456&release=v2&release_summary={self.user.username}+deployed+123456".format(**locals()))  # noqa
+            mr_ninja = mock_requests.post(f"http://drycc.ninja?app={app_id}&user={self.user.username}&sha=123456&release=v2&release_summary={self.user.username}+deployed+123456")  # noqa
+            mr_catdog = mock_requests.post(f"http://cat.dog?app={app_id}&user={self.user.username}&sha=123456&release=v2&release_summary={self.user.username}+deployed+123456")  # noqa
             response = self.client.post(url, body)
             self.assertEqual(response.status_code, 201, response.data)
 
             # check app logs
-            exp_msg = "[{app_id}]: Sent deploy hook to http://drycc.ninja".format(**locals())
+            exp_msg = f"[{app_id}]: Sent deploy hook to http://drycc.ninja"
             mock_logger.log.assert_any_call(logging.INFO, exp_msg)
             self.assertTrue(mr_ninja.called)
             self.assertEqual(mr_ninja.call_count, 1)
-            exp_msg = "[{app_id}]: Sent deploy hook to http://cat.dog".format(**locals())
+            exp_msg = f"[{app_id}]: Sent deploy hook to http://cat.dog"
             mock_logger.log.assert_any_call(logging.INFO, exp_msg)
             self.assertTrue(mr_catdog.called)
             self.assertEqual(mr_catdog.call_count, 1)
@@ -507,17 +505,17 @@ class ReleaseTest(DryccTransactionTestCase):
         with self.settings(DRYCC_DEPLOY_HOOK_URLS=['http://cat.ninja', 'http://drycc.dog']):
             def raise_callback(request, context):
                 raise requests.ConnectionError('poop')
-            mr_ninja = mock_requests.post("http://cat.ninja?app={app_id}&user={self.user.username}&sha={sha}&release=v3&release_summary={self.user.username}+deployed+{sha}".     format(**locals()), text=raise_callback)  # noqa
-            mr_catdog = mock_requests.post("http://drycc.dog?app={app_id}&user={self.user.username}&sha={sha}&release=v3&release_summary={self.user.username}+deployed+{sha}".       format(**locals()))  # noqa
+            mr_ninja = mock_requests.post(f"http://cat.ninja?app={app_id}&user={self.user.username}&sha={sha}&release=v3&release_summary={self.user.username}+deployed+{sha}", text=raise_callback)  # noqa
+            mr_catdog = mock_requests.post(f"http://drycc.dog?app={app_id}&user={self.user.username}&sha={sha}&release=v3&release_summary={self.user.username}+deployed+{sha}")  # noqa
             response = self.client.post(url, body)
             self.assertEqual(response.status_code, 201, response.data)
 
             # check app logs
-            exp_msg = "[{app_id}]: An error occurred while sending the deploy hook to http://cat.ninja: poop".format(**locals())  # noqa
+            exp_msg = f"[{app_id}]: An error occurred while sending the deploy hook to http://cat.ninja: poop"  # noqa
             mock_logger.log.assert_any_call(logging.ERROR, exp_msg)
             self.assertTrue(mr_ninja.called)
             self.assertEqual(mr_ninja.call_count, 1)
-            exp_msg = "[{app_id}]: Sent deploy hook to http://drycc.dog".format(**locals())
+            exp_msg = f"[{app_id}]: Sent deploy hook to http://drycc.dog"
             mock_logger.log.assert_any_call(logging.INFO, exp_msg)
             self.assertTrue(mr_catdog.called)
             self.assertEqual(mr_catdog.call_count, 1)
@@ -553,7 +551,7 @@ class ReleaseTest(DryccTransactionTestCase):
             self.assertEqual(response.status_code, 201, response.data)
 
             # check app logs
-            exp_msg = "[{app_id}]: Sent deploy hook to {hook_url}".format(**locals())
+            exp_msg = f"[{app_id}]: Sent deploy hook to {hook_url}"
             mock_logger.log.assert_any_call(logging.INFO, exp_msg)
             self.assertTrue(mr_terminator.called)
             self.assertEqual(mr_terminator.call_count, 1)
@@ -571,7 +569,7 @@ class ReleaseTest(DryccTransactionTestCase):
         self.assertEqual(config_response.status_code, 201, config_response.data)
 
         app = App.objects.get(id=app_id)
-        url = '/v2/apps/{app_id}/builds'.format(**locals())
+        url = f'/v2/apps/{app_id}/builds'
         body = {'image': 'test/autotest/example', 'stack': 'container'}
         response = self.client.post(url, body)
         self.assertEqual(response.status_code, 201, response.data)
@@ -590,7 +588,7 @@ class ReleaseTest(DryccTransactionTestCase):
         app_id = self.create_app()
 
         app = App.objects.get(id=app_id)
-        url = '/v2/apps/{app_id}/builds'.format(**locals())
+        url = f'/v2/apps/{app_id}/builds'
         body = {'image': 'test/autotest/example', 'stack': 'container'}
         response = self.client.post(url, body)
         self.assertEqual(response.status_code, 201, response.data)
@@ -606,7 +604,7 @@ class ReleaseTest(DryccTransactionTestCase):
 
         # Set routable to false and port should be None instead of error
         response = self.client.post(
-            '/v2/apps/{app.id}/settings'.format(**locals()),
+            f'/v2/apps/{app.id}/settings',
             {'routable': False}
         )
         self.assertEqual(response.status_code, 201, response.data)

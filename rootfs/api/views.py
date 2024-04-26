@@ -393,12 +393,13 @@ class ConfigViewSet(ReleasableViewSet):
                 self.request.user, config=config, build=latest_release.build,
                 canary=latest_release.canary)
             if release.build is not None:
-                structure = set()
+                procfile_types = set()
                 for field, diff in config.diff().items():
                     if field in config.procfile_fields:
                         for value in diff.values():
-                            structure.update(value.keys())
-                config.app.deploy(release, structure=structure if structure else None)
+                            procfile_types.update(value.keys())
+                config.app.deploy(
+                    release, procfile_types=list(procfile_types) if procfile_types else None)
             release.state = "succeed"
             release.save()
         except Exception as e:

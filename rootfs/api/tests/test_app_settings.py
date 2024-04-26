@@ -35,7 +35,7 @@ class TestAppSettings(DryccTransactionTestCase):
         self.assertTrue(app.appsettings_set.latest().routable)
         # Set routable to false
         response = self.client.post(
-            '/v2/apps/{app.id}/settings'.format(**locals()),
+            f'/v2/apps/{app.id}/settings',
             {'routable': False}
         )
         self.assertEqual(response.status_code, 201, response.data)
@@ -50,7 +50,7 @@ class TestAppSettings(DryccTransactionTestCase):
         # create an autoscaling rule
         scale = {'autoscale': {'cmd': {'min': 2, 'max': 5, 'cpu_percent': 45}}}
         response = self.client.post(
-            '/v2/apps/{app_id}/settings'.format(**locals()),
+            f'/v2/apps/{app_id}/settings',
             scale
         )
         self.assertEqual(response.status_code, 201, response.data)
@@ -60,7 +60,7 @@ class TestAppSettings(DryccTransactionTestCase):
         # update
         scale = {'autoscale': {'cmd': {'min': 2, 'max': 8, 'cpu_percent': 45}}}
         response = self.client.post(
-            '/v2/apps/{app_id}/settings'.format(**locals()),
+            f'/v2/apps/{app_id}/settings',
             scale
         )
         self.assertEqual(response.status_code, 201, response.data)
@@ -70,7 +70,7 @@ class TestAppSettings(DryccTransactionTestCase):
         # create
         scale = {'autoscale': {'worker': {'min': 2, 'max': 5, 'cpu_percent': 45}}}
         response = self.client.post(
-            '/v2/apps/{app_id}/settings'.format(**locals()),
+            f'/v2/apps/{app_id}/settings',
             scale
         )
         self.assertEqual(response.status_code, 201, response.data)
@@ -82,13 +82,13 @@ class TestAppSettings(DryccTransactionTestCase):
 
         # check that config fails if trying to unset non-existing proc type
         response = self.client.post(
-            '/v2/apps/{app_id}/settings'.format(**locals()),
+            f'/v2/apps/{app_id}/settings',
             {'autoscale': {'invalid_proctype': None}})
         self.assertEqual(response.status_code, 422, response.data)
 
         # remove a proc type
         response = self.client.post(
-            '/v2/apps/{app_id}/settings'.format(**locals()),
+            f'/v2/apps/{app_id}/settings',
             {'autoscale': {'worker': None}})
         self.assertEqual(response.status_code, 201, response.data)
         self.assertNotIn('worker', response.data['autoscale'])
@@ -96,7 +96,7 @@ class TestAppSettings(DryccTransactionTestCase):
 
         # remove another proc type
         response = self.client.post(
-            '/v2/apps/{app_id}/settings'.format(**locals()),
+            f'/v2/apps/{app_id}/settings',
             {'autoscale': {'cmd': None}})
         self.assertEqual(response.status_code, 201, response.data)
         self.assertNotIn('cmd', response.data['autoscale'])
@@ -109,14 +109,14 @@ class TestAppSettings(DryccTransactionTestCase):
 
         # Set one of the values that require a numeric value to a string
         response = self.client.post(
-            '/v2/apps/{app_id}/settings'.format(**locals()),
+            f'/v2/apps/{app_id}/settings',
             {'autoscale': {'cmd': {'min': 4, 'max': 5, 'cpu_percent': "t"}}}
         )
         self.assertEqual(response.status_code, 400, response.data)
 
         # Don't set one of the mandatory value
         response = self.client.post(
-            '/v2/apps/{app_id}/settings'.format(**locals()),
+            f'/v2/apps/{app_id}/settings',
             {'autoscale': {'cmd': {'min': 4, 'cpu_percent': 45}}}
         )
         self.assertEqual(response.status_code, 400, response.data)
@@ -137,7 +137,7 @@ class TestAppSettings(DryccTransactionTestCase):
                 }
         }
         response = self.client.post(
-            '/v2/apps/{app_id}/settings'.format(**locals()),
+            f'/v2/apps/{app_id}/settings',
             base_labels
         )
         self.assertEqual(response.status_code, 201, response.data)
@@ -146,7 +146,7 @@ class TestAppSettings(DryccTransactionTestCase):
         # update
         labels = {'label': {'team': 'backend'}}
         response = self.client.post(
-            '/v2/apps/{app_id}/settings'.format(**locals()),
+            f'/v2/apps/{app_id}/settings',
             labels
         )
         self.assertEqual(response.status_code, 201, response.data)
@@ -157,7 +157,7 @@ class TestAppSettings(DryccTransactionTestCase):
         # remove
         labels = {'label': {'git_repo': None}}
         response = self.client.post(
-            '/v2/apps/{app_id}/settings'.format(**locals()),
+            f'/v2/apps/{app_id}/settings',
             labels
         )
         self.assertEqual(response.status_code, 201, response.data)
@@ -168,7 +168,7 @@ class TestAppSettings(DryccTransactionTestCase):
         # error on remove non-exist label
         labels = {'label': {'git_repo': None}}
         response = self.client.post(
-            '/v2/apps/{app_id}/settings'.format(**locals()),
+            f'/v2/apps/{app_id}/settings',
             labels
         )
         self.assertEqual(response.status_code, 422, response.data)

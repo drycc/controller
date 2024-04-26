@@ -16,7 +16,7 @@ from django.core.cache import cache
 from django.test.utils import override_settings
 from rest_framework.authtoken.models import Token
 
-from api.models.app import App
+from api.models.app import App, PROCFILE_TYPE_WEB
 from api.models.config import Config
 from scheduler import KubeException, KubeHTTPException
 
@@ -60,7 +60,7 @@ class AppTest(DryccTestCase):
         self.assertEqual(response.status_code, 200, response.data)
         self.assertEqual(len(response.data['results']), 1)
 
-        url = '/v2/apps/{app_id}'.format(**locals())
+        url = f'/v2/apps/{app_id}'
         response = self.client.get(url)
         self.assertEqual(response.status_code, 200, response.data)
 
@@ -115,11 +115,11 @@ class AppTest(DryccTestCase):
                 **locals())
             release_logger.log.assert_any_call(logging.INFO, exp_msg)
             app.log('hello world')
-            exp_msg = "[{app_id}]: hello world".format(**locals())
+            exp_msg = f"[{app_id}]: hello world"
             mock_logger.log.assert_any_call(logging.INFO, exp_msg)
             app.log('goodbye world', logging.WARNING)
             # assert logging with a different log level
-            exp_msg = "[{app_id}]: goodbye world".format(**locals())
+            exp_msg = f"[{app_id}]: goodbye world"
             mock_logger.log.assert_any_call(logging.WARNING, exp_msg)
 
     def test_app_errors(self, mock_requests):
@@ -148,11 +148,11 @@ class AppTest(DryccTestCase):
         )
 
         app_id = self.create_app()
-        url = '/v2/apps/{app_id}'.format(**locals())
+        url = f'/v2/apps/{app_id}'
         response = self.client.delete(url)
         self.assertEqual(response.status_code, 204, response.data)
         for endpoint in ('containers', 'config', 'releases', 'builds'):
-            url = '/v2/apps/{app_id}/{endpoint}'.format(**locals())
+            url = f'/v2/apps/{app_id}/{endpoint}'
             response = self.client.get(url)
             self.assertEqual(response.status_code, 404)
 
@@ -247,7 +247,7 @@ class AppTest(DryccTestCase):
 
         # create build
         body = {'image': 'autotest/example', 'stack': 'container'}
-        url = '/v2/apps/{app_id}/builds'.format(**locals())
+        url = f'/v2/apps/{app_id}/builds'
         response = self.client.post(url, body)
         self.assertEqual(response.status_code, 201, response.data)
 
@@ -271,7 +271,7 @@ class AppTest(DryccTestCase):
 
         # create build
         body = {'image': 'autotest/example', 'stack': 'container'}
-        url = '/v2/apps/{app_id}/builds'.format(**locals())
+        url = f'/v2/apps/{app_id}/builds'
         response = self.client.post(url, body)
         self.assertEqual(response.status_code, 201, response.data)
 
@@ -585,14 +585,14 @@ class AppTest(DryccTestCase):
         app = App.objects.create(owner=self.user)
         # Make sure an exception is raised when calling without a build available
         with self.assertRaises(DryccException):
-            app._build_env_vars(app.release_set.latest())
+            app._build_env_vars(app.release_set.latest(), PROCFILE_TYPE_WEB)
         data = {'image': 'autotest/example', 'stack': 'heroku-18'}
-        url = "/v2/apps/{app.id}/builds".format(**locals())
+        url = f"/v2/apps/{app.id}/builds"
         response = self.client.post(url, data)
         self.assertEqual(response.status_code, 201, response.data)
         time_created = app.release_set.latest().created
         self.assertEqual(
-            app._build_env_vars(app.release_set.latest()),
+            app._build_env_vars(app.release_set.latest(), PROCFILE_TYPE_WEB),
             {
                 'DRYCC_APP': app.id,
                 'WORKFLOW_RELEASE': 'v2',
@@ -607,7 +607,7 @@ class AppTest(DryccTestCase):
         self.assertEqual(response.status_code, 201, response.data)
         time_created = app.release_set.latest().created
         self.assertEqual(
-            app._build_env_vars(app.release_set.latest()),
+            app._build_env_vars(app.release_set.latest(), PROCFILE_TYPE_WEB),
             {
                 'DRYCC_APP': app.id,
                 'WORKFLOW_RELEASE': 'v3',
@@ -622,7 +622,7 @@ class AppTest(DryccTestCase):
         app = App.objects.create(owner=self.user)
         app.save()
         data = {'image': 'autotest/example', 'stack': 'container'}
-        url = "/v2/apps/{app.id}/builds".format(**locals())
+        url = f"/v2/apps/{app.id}/builds"
         response = self.client.post(url, data)
         self.assertEqual(response.status_code, 201, response.data)
         Config.objects.create(
