@@ -1,3 +1,4 @@
+import time
 import requests
 from typing import Iterator, Dict
 from contextlib import closing
@@ -107,6 +108,35 @@ GROUP by namespace, pod_name, timestamp
 query_loadbalancer_promql_tpl = """
 kube_service_status_load_balancer_ingress{namespace=~"%s"}
 """
+
+query_last_metrics_promql_tpl = """
+last_over_time({__name__=~"%s",namespace="%s"}[%s])
+"""
+
+
+def last_metrics(namespace):
+    if not settings.DRYCC_METRICS_CONFIG:
+        return ()
+    promql = query_last_metrics_promql_tpl % (
+        '|'.join(settings.DRYCC_METRICS_CONFIG.keys()),
+        namespace,
+        '1m'
+    )
+    params = {"query": promql, "start": int(time.time() - 60)}
+    response = requests.get(
+        urljoin(settings.DRYCC_PROMETHEUS_URL, "/api/v1/query"),
+        params=params
+    )
+    if response.status_code != 200:
+        return ()
+    return ('%s{%s} %s\n' % (
+        item['metric']['__name__'],
+        ','.join([
+            f'{key}="{value}"' for key, value in item['metric'].items()
+            if key in settings.DRYCC_METRICS_CONFIG[item['metric']['__name__']]
+          ]),
+        item['value'][1],
+    ) for item in response.json()['data']['result'])
 
 
 def query_loadbalancer(namespaces: Iterator[str],

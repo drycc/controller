@@ -1,7 +1,6 @@
 import json
 from django.contrib.auth import get_user_model
 from django.core.cache import cache
-from rest_framework.authtoken.models import Token
 
 from api.models.app import App
 from api.tests import adapter, DryccTransactionTestCase
@@ -19,7 +18,7 @@ class CanaryTest(DryccTransactionTestCase):
 
     def setUp(self):
         self.user = User.objects.get(username='autotest')
-        self.token = Token.objects.get(user=self.user).key
+        self.token = self.get_or_create_token(self.user)
         self.client.credentials(HTTP_AUTHORIZATION='Token ' + self.token)
 
     def tearDown(self):

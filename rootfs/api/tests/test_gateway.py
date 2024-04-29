@@ -2,14 +2,13 @@ import os
 import json
 import string
 import random
-import jsonschema
 from django.contrib.auth import get_user_model
 from django.core.cache import cache
-from rest_framework.authtoken.models import Token
 
 from api.models.app import App
 from api.models.build import Build
 from api.models.release import Release
+from api.utils import validate_json
 from api.tests import TEST_ROOT, DryccTransactionTestCase
 from api.serializers.schemas.rules import SCHEMA as RULES_SCHEMA
 
@@ -21,7 +20,7 @@ class BaseGatewayTest(DryccTransactionTestCase):
 
     def setUp(self):
         self.user = User.objects.get(username='autotest')
-        self.token = Token.objects.get(user=self.user).key
+        self.token = self.get_or_create_token(self.user)
         self.client.credentials(HTTP_AUTHORIZATION='Token ' + self.token)
 
     def tearDown(self):
@@ -472,7 +471,7 @@ class RouteTest(BaseGatewayTest):
             with open("{}/rules/{}".format(TEST_ROOT, rule)) as f:
                 data = f.read()
                 try:
-                    jsonschema.validate(data, RULES_SCHEMA)
+                    validate_json(data, RULES_SCHEMA)
                 except Exception as e:
                     raise self.failureException("validate %s rule error: %s" % (rule, str(e)))
 

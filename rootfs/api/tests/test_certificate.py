@@ -1,6 +1,5 @@
 from django.contrib.auth import get_user_model
 from django.core.cache import cache
-from rest_framework.authtoken.models import Token
 from django.core.exceptions import SuspiciousOperation
 
 from api.models.certificate import Certificate
@@ -17,7 +16,7 @@ class CertificateTest(DryccTestCase):
 
     def setUp(self):
         self.user = User.objects.get(username='autotest')
-        self.token = Token.objects.get(user=self.user).key
+        self.token = self.get_or_create_token(self.user)
         self.client.credentials(HTTP_AUTHORIZATION='Token ' + self.token)
 
         self.url = '/v2/certs'

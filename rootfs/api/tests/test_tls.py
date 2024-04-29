@@ -2,7 +2,6 @@ import requests_mock
 
 from django.core.cache import cache
 from django.contrib.auth import get_user_model
-from rest_framework.authtoken.models import Token
 
 from api.models.app import App
 from api.models.tls import TLS
@@ -19,7 +18,7 @@ class TestTLS(DryccTransactionTestCase):
 
     def setUp(self):
         self.user = User.objects.get(username='autotest')
-        self.token = Token.objects.get(user=self.user).key
+        self.token = self.get_or_create_token(self.user)
         self.client.credentials(HTTP_AUTHORIZATION='Token ' + self.token)
 
     def tearDown(self):

@@ -5,6 +5,12 @@ metadata:
   labels:
     heritage: drycc
 data:
+  metrics.json: |
+    {{- if .Values.config.metrics }}
+    {{- (tpl .Values.config.metrics $) | nindent 4 }}
+    {{- else}}
+    {{- include "controller.config.defaultMetrics" . | fromYaml | toPrettyJson | nindent 4 }}
+    {{- end }}
   limit-specs.json: |
     {{- if .Values.config.limitSpecs }}
     {{- (tpl .Values.config.limitSpecs $)  | nindent 4 }}

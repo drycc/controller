@@ -12,7 +12,6 @@ from django.conf import settings
 from django.core.management import call_command
 
 from unittest import mock
-from rest_framework.authtoken.models import Token
 
 from api.models.app import App, PROCFILE_TYPE_RUN, PROCFILE_TYPE_WEB
 from api.models.config import Config
@@ -34,7 +33,7 @@ class ConfigTest(DryccTransactionTestCase):
 
     def setUp(self):
         self.user = User.objects.get(username='autotest')
-        self.token = Token.objects.get(user=self.user).key
+        self.token = self.get_or_create_token(self.user)
         self.client.credentials(HTTP_AUTHORIZATION='Token ' + self.token)
 
         url = '/v2/apps'
@@ -346,7 +345,7 @@ class ConfigTest(DryccTransactionTestCase):
         values for that app.
         """
         user = User.objects.get(username='autotest2')
-        token = Token.objects.get(user=user).key
+        token = self.get_or_create_token(user)
 
         self.client.credentials(HTTP_AUTHORIZATION='Token ' + token)
         app_id = self.create_app()
@@ -378,7 +377,7 @@ class ConfigTest(DryccTransactionTestCase):
         app_id = self.create_app()
 
         unauthorized_user = User.objects.get(username='autotest2')
-        unauthorized_token = Token.objects.get(user=unauthorized_user).key
+        unauthorized_token = self.get_or_create_token(unauthorized_user)
         self.client.credentials(HTTP_AUTHORIZATION='Token ' + unauthorized_token)
         url = '/v2/apps/{}/config'.format(app_id)
         body = {'values': {'FOO': 'bar'}}

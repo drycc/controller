@@ -13,7 +13,6 @@ from django.conf import settings
 from django.db.models.signals import post_delete, post_save
 from django.dispatch import receiver
 from django.contrib.auth import get_user_model
-from rest_framework.authtoken.models import Token
 from api.utils import get_session
 from api.tasks import send_measurements
 from api.models.app import App
@@ -135,13 +134,6 @@ post_delete.connect(_log_instance_removed, sender=Domain, dispatch_uid='api.mode
 post_delete.connect(_log_instance_removed, sender=TLS, dispatch_uid='api.models.log')
 post_delete.connect(_log_instance_removed, sender=Volume, dispatch_uid='api.models.log')
 post_delete.connect(_log_instance_removed, sender=Resource, dispatch_uid='api.models.log')
-
-
-# automatically generate a new token on creation
-@receiver(post_save, sender=User)
-def create_auth_token_handle(sender, instance, created=False, **kwargs):
-    if created:
-        Token.objects.create(user=instance)
 
 
 @receiver(post_save, sender=App)

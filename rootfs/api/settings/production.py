@@ -3,6 +3,7 @@ Django settings for the Drycc project.
 """
 import sys
 import uuid
+import json
 import os.path
 import tempfile
 import dj_database_url
@@ -110,7 +111,6 @@ INSTALLED_APPS = (
     'guardian',
     'gunicorn',
     'rest_framework',
-    'rest_framework.authtoken',
     'social_django',
     # Drycc apps
     'api'
@@ -270,8 +270,18 @@ SCHEDULER_URL = "https://{}:{}".format(
 )
 
 K8S_API_VERIFY_TLS = os.environ.get('K8S_API_VERIFY_TLS', 'true').lower() == "true"
+
 # drycc prometheus url
 DRYCC_PROMETHEUS_URL = os.environ.get('DRYCC_PROMETHEUS_URL', '')
+
+# drycc metrics config file
+DRYCC_METRICS_CONFIG = {}
+DRYCC_METRICS_CONFIG_PATH = os.environ.get(
+    'DRYCC_METRICS_CONFIG_PATH', '/etc/controller/metrics.json')
+if os.path.exists(DRYCC_METRICS_CONFIG_PATH):
+    with open(DRYCC_METRICS_CONFIG_PATH) as fd:
+        DRYCC_METRICS_CONFIG = json.load(fd)
+DRYCC_METRICS_EXPIRY = int(os.environ.get('DRYCC_METRICS_EXPIRY', '20'))
 
 # security keys and auth tokens
 random_secret = 'CHANGEME_sapm$s%upvsw5l_zuy_&29rkywd^78ff(qi*#@&*^'

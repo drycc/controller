@@ -14,7 +14,6 @@ from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.core.cache import cache
 from django.test.utils import override_settings
-from rest_framework.authtoken.models import Token
 
 from api.models.app import App, PROCFILE_TYPE_WEB
 from api.models.config import Config
@@ -43,7 +42,7 @@ class AppTest(DryccTestCase):
 
     def setUp(self):
         self.user = User.objects.get(username='autotest')
-        self.token = Token.objects.get(user=self.user).key
+        self.token = self.get_or_create_token(self.user)
         self.client.credentials(HTTP_AUTHORIZATION='Token ' + self.token)
 
     def tearDown(self):
@@ -190,7 +189,7 @@ class AppTest(DryccTestCase):
         # log in as non-admin user and create an app
         username = 'autotest2'
         user = User.objects.get(username=username)
-        token = Token.objects.get(user=user).key
+        token = self.get_or_create_token(user)
         self.client.credentials(HTTP_AUTHORIZATION='Token ' + token)
         app_id = self.create_app()
 
@@ -214,7 +213,7 @@ class AppTest(DryccTestCase):
         """
         # log in as non-admin user and create an app
         user = User.objects.get(username='autotest2')
-        token = Token.objects.get(user=user).key
+        token = self.get_or_create_token(user)
         self.client.credentials(HTTP_AUTHORIZATION='Token ' + token)
         self.create_app()
 
@@ -292,7 +291,7 @@ class AppTest(DryccTestCase):
         """
         app_id = self.create_app()
         unauthorized_user = User.objects.get(username='autotest2')
-        unauthorized_token = Token.objects.get(user=unauthorized_user).key
+        unauthorized_token = self.get_or_create_token(unauthorized_user)
         self.client.credentials(HTTP_AUTHORIZATION='Token ' + unauthorized_token)
 
         url = '/v2/apps/{}/run'.format(app_id)
@@ -314,7 +313,7 @@ class AppTest(DryccTestCase):
 
     def test_app_transfer(self, mock_requests):
         owner = User.objects.get(username='autotest2')
-        owner_token = Token.objects.get(user=owner).key
+        owner_token = self.get_or_create_token(owner)
         self.client.credentials(HTTP_AUTHORIZATION='Token ' + owner_token)
 
         collaborator = User.objects.get(username='autotest3')
@@ -330,7 +329,7 @@ class AppTest(DryccTestCase):
         # Transfer App
         url = '/v2/apps/{}'.format(app.id)
         new_owner = User.objects.get(username='autotest4')
-        new_owner_token = Token.objects.get(user=new_owner).key
+        new_owner_token = self.get_or_create_token(new_owner)
         body = {'owner': new_owner.username}
         response = self.client.post(url, body)
         self.assertEqual(response.status_code, 200, response.data)

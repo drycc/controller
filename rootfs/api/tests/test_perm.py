@@ -1,6 +1,5 @@
 from django.test import tag
 from django.contrib.auth import get_user_model
-from rest_framework.authtoken.models import Token
 from api.tests import DryccTestCase
 
 User = get_user_model()
@@ -13,14 +12,14 @@ class TestAppPerms(DryccTestCase):
     @tag('auth')
     def setUp(self):
         self.user = User.objects.get(username='autotest-1')
-        self.token = Token.objects.get(user=self.user).key
+        self.token = self.get_or_create_token(self.user)
         # Always have first user authed coming into tests
         self.client.credentials(HTTP_AUTHORIZATION='Token ' + self.token)
 
         self.user2 = User.objects.get(username='autotest-2')
-        self.token2 = Token.objects.get(user=self.user2).key
+        self.token2 = self.get_or_create_token(self.user2)
         self.user3 = User.objects.get(username='autotest-3')
-        self.token3 = Token.objects.get(user=self.user3).key
+        self.token3 = self.get_or_create_token(self.user3)
 
     @tag('auth')
     def test_create(self):

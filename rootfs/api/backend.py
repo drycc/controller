@@ -1,81 +1,16 @@
+import logging
 from django.conf import settings
+from django.core.cache import cache
 from django.contrib.auth import get_user_model
-from django.core.exceptions import ObjectDoesNotExist
+from django.utils.translation import gettext_lazy
 
-from social_core.utils import cache
-from social_core.backends.oauth import BaseOAuth2
+from social_core.utils import cache as social_cache
 from social_core.backends.open_id_connect import OpenIdConnectAuth
+from rest_framework import exceptions
 
-from api import serializers
-from api.oauth import OAuthManager
 
+logger = logging.getLogger(__name__)
 User = get_user_model()
-
-
-class DryccOauthBackend(object):
-
-    # The Django auth backend API
-    def authenticate(self, request, username=None, password=None, **kwargs):
-        if username is None:
-            return None
-
-        with OAuthManager() as client:
-            client.fetch_token(username, password)
-            user_info = client.get_user()
-            user_info['username'] = username
-            user_info['password'] = password
-            if not user_info.get('email'):
-                user_info['email'] = client.get_email()
-            user, _ = serializers.UserSerializer.update_or_create(user_info)
-        return user
-
-    def get_user(self, user_id):
-        user = None
-        try:
-            user = User.objects.get(pk=user_id)
-        except ObjectDoesNotExist:
-            pass
-        return user
-
-
-class DryccOAuth(BaseOAuth2):
-    """Drycc OAuth authentication backend"""
-    name = 'drycc'
-    AUTHORIZATION_URL = settings.SOCIAL_AUTH_DRYCC_AUTHORIZATION_URL
-    ACCESS_TOKEN_URL = settings.SOCIAL_AUTH_DRYCC_ACCESS_TOKEN_URL
-    ACCESS_TOKEN_METHOD = 'POST'
-    SCOPE_SEPARATOR = ','
-    EXTRA_DATA = [
-        ('id', 'id'),
-        ('access_token', 'access_token'),
-        ('refresh_token', 'refresh_token'),
-        ('expires_in', 'expires_in'),
-        ('token_type', 'token_type'),
-        ('id_token', 'id_token'),
-        ('scope', 'scope'),
-    ]
-
-    def get_user_details(self, response):
-        """Return user details from GitHub account"""
-        return {
-            'username': response.get('username'),
-            'email': response.get('email') or '',
-            'first_name': response.get('first_name'),
-            'last_name': response.get('last_name'),
-            'is_superuser': response.get('is_superuser'),
-            'is_staff': response.get('is_staff'),
-            'is_active': response.get('is_active'),
-        }
-
-    def user_data(self, access_token, *args, **kwargs):
-        """Loads user data from service"""
-        url = settings.SOCIAL_AUTH_DRYCC_USERINFO_URL
-        return self.get_json(url, headers={
-            'authorization': 'Bearer ' + access_token})
-
-    def get_user_id(self, details, response):
-        """Use user account id as unique id"""
-        return response.get('id')
 
 
 class DryccOIDC(OpenIdConnectAuth):
@@ -97,7 +32,64 @@ class DryccOIDC(OpenIdConnectAuth):
         ('scope', 'scope'),
     ]
 
-    @cache(ttl=86400)
+    @social_cache(ttl=86400)
     def oidc_config(self):
         return self.get_json(self.OIDC_ENDPOINT +
                              '/.well-known/openid-configuration/')
+
+    def get_user_data(self, access_token):
+        """Loads user data from service"""
+        url = settings.SOCIAL_AUTH_DRYCC_USERINFO_URL
+        response = self.get_json(url, headers={
+            'authorization': 'Bearer ' + access_token})
+        return {
+            'id': response.get('id'),
+            'username': response.get('username'),
+            'email': response.get('email') or '',
+            'first_name': response.get('first_name'),
+            'last_name': response.get('last_name'),
+            'is_superuser': response.get('is_superuser'),
+            'is_staff': response.get('is_staff'),
+            'is_active': response.get('is_active'),
+        }
+
+    def refresh_token(self, refresh_token):
+        return self.get_json(
+            settings.SOCIAL_AUTH_DRYCC_ACCESS_TOKEN_URL,
+            method='POST',
+            data={
+                'grant_type': 'refresh_token',
+                'client_id': settings.SOCIAL_AUTH_DRYCC_KEY,
+                'refresh_token': refresh_token,
+            },
+        )
+
+
+class OauthCacheManager(object):
+
+    def __init__(self, timeout=60 * 10):
+        self.timeout = timeout
+        self.drycc_oauth = DryccOIDC()
+
+    def get_user(self, access_token):
+        def _get_user(access_token):
+            from api import serializers
+            try:
+                user_info = self.drycc_oauth.get_user_data(access_token)
+                user, _ = serializers.UserSerializer.update_or_create(user_info)
+                return user
+            except Exception as e:
+                logger.info(e)
+                raise exceptions.AuthenticationFailed(gettext_lazy('Verify token fail.'))
+        return cache.get_or_set(
+            access_token, lambda: _get_user(access_token), settings.OAUTH_CACHE_USER_TIME)
+
+    def set_state(self, key, state):
+        cache.set("oidc_key_" + key, state, self.timeout)
+
+    def set_token(self, state, data):
+        cache.set("oidc_state_" + state, data, self.timeout)
+
+    def get_token(self, key):
+        state = cache.get("oidc_key_" + key, "")
+        return cache.get("oidc_state_" + state, {})

@@ -8,7 +8,6 @@ import base64
 from django.core.cache import cache
 from django.conf import settings
 from django.contrib.auth import get_user_model
-from rest_framework.authtoken.models import Token
 from api.tests import adapter, DryccTransactionTestCase
 import requests_mock
 
@@ -24,7 +23,7 @@ class ManagerTest(DryccTransactionTestCase):
     def setUp(self):
 
         self.user = User.objects.get(username='autotest')
-        self.token = Token.objects.get(user=self.user).key
+        self.token = self.get_or_create_token(self.user)
         self.client.credentials(HTTP_AUTHORIZATION='Token ' + self.token)
         self.app_id = self.create_app()
         self.user_id = 7

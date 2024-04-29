@@ -5,7 +5,6 @@ Run the tests with "./manage.py test api"
 """
 
 from django.contrib.auth import get_user_model
-from rest_framework.authtoken.models import Token
 from api.tests import DryccTestCase
 
 from api import __version__
@@ -21,7 +20,7 @@ class APIMiddlewareTest(DryccTestCase):
 
     def setUp(self):
         self.user = User.objects.get(username='autotest')
-        self.token = Token.objects.get(user=self.user).key
+        self.token = self.get_or_create_token(self.user)
         self.client.credentials(HTTP_AUTHORIZATION='Token ' + self.token)
 
     def test_drycc_version_header_good(self):

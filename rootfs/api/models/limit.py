@@ -1,9 +1,8 @@
 import logging
-import jsonschema
 from functools import partial
 from django.db import models
 from django.contrib.auth import get_user_model
-from rest_framework.exceptions import ValidationError
+from api.utils import validate_json
 from .base import AuditedModel
 
 
@@ -82,15 +81,6 @@ plan_limits_schema = {
     },
     "required": ["cpu", "memory"],
 }
-
-
-def validate_json(value, schema):
-    if value is not None:
-        try:
-            jsonschema.validate(value, schema)
-        except jsonschema.ValidationError as e:
-            raise ValidationError(e.message)
-    return value
 
 
 class LimitSpec(AuditedModel):

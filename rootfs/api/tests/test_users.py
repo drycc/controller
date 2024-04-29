@@ -1,5 +1,4 @@
 from django.contrib.auth import get_user_model
-from rest_framework.authtoken.models import Token
 from api.tests import DryccTestCase
 
 User = get_user_model()
@@ -12,7 +11,7 @@ class TestUsers(DryccTestCase):
 
     def test_super_user_can_list(self):
         user = User.objects.get(username='autotest')
-        token = Token.objects.get(user=user)
+        token = self.get_or_create_token(user)
 
         for url in ['/v2/users', '/v2/users/']:
             response = self.client.get(url,
@@ -22,7 +21,7 @@ class TestUsers(DryccTestCase):
 
     def test_enable(self):
         user = User.objects.get(username='autotest')
-        token = Token.objects.get(user=user)
+        token = self.get_or_create_token(user)
         response = self.client.patch("/v2/users/autotest2/enable/",
                                      HTTP_AUTHORIZATION='token {}'.format(token))
         self.assertEqual(response.status_code, 204)
@@ -31,7 +30,7 @@ class TestUsers(DryccTestCase):
 
     def test_disable(self):
         user = User.objects.get(username='autotest')
-        token = Token.objects.get(user=user)
+        token = self.get_or_create_token(user)
         response = self.client.patch("/v2/users/autotest2/disable/",
                                      HTTP_AUTHORIZATION='token {}'.format(token))
         self.assertEqual(response.status_code, 204)
@@ -40,7 +39,7 @@ class TestUsers(DryccTestCase):
 
     def test_non_super_user_cannot_list(self):
         user = User.objects.get(username='autotest2')
-        token = Token.objects.get(user=user)
+        token = self.get_or_create_token(user)
 
         for url in ['/v2/users', '/v2/users/']:
             response = self.client.get(url,

@@ -84,3 +84,11 @@ spec:
             name: http
         {{- include "controller.limits" . | indent 8 }}
         {{- include "controller.envs" . | indent 8 }}
+        volumeMounts:
+        - name: controller-config
+          readOnly: false
+          mountPath: /etc/controller
+      volumes:
+      - name: controller-config
+        configMap:
+          name: controller-config

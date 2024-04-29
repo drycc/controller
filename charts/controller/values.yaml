@@ -68,6 +68,7 @@ rabbitmqUrl: ""
 
 # limit specs, plans config
 config:
+  metrics: ""
   limitSpecs: ""
   limitPlans: ""
 

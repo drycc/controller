@@ -15,27 +15,33 @@ from django.shortcuts import get_object_or_404, redirect
 from guardian.shortcuts import assign_perm, get_objects_for_user, \
     get_users_with_perms, remove_perm
 from django.views.generic import View
+from django.utils.decorators import method_decorator
+from django.views.decorators.cache import cache_page
+from django.views.decorators.vary import vary_on_headers
 from rest_framework import renderers, status, filters
 from rest_framework.exceptions import PermissionDenied, NotFound
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.response import Response
 from rest_framework.viewsets import GenericViewSet
 
-from api import monitor, models, permissions, serializers, viewsets, authentication, oauth
+from api import monitor, models, permissions, serializers, viewsets, authentication
 from api.tasks import scale_app, restart_app, mount_app, downstream_model_owner
 from api.exceptions import AlreadyExists, ServiceUnavailable, DryccException
 
 from django.views.decorators.cache import never_cache
 from django.contrib.auth import REDIRECT_FIELD_NAME
 from django.views.decorators.csrf import csrf_exempt
+from django.http.response import StreamingHttpResponse
 from social_django.utils import psa
 from social_django.views import _do_login
 from social_core.utils import setting_name
 from api import admissions
+from api.backend import OauthCacheManager
 from api.apps_extra.social_core.actions import do_auth, do_complete
 
 User = get_user_model()
 logger = logging.getLogger(__name__)
+oauth_cache_manager = OauthCacheManager()
 NAMESPACE = getattr(settings, setting_name('URL_NAMESPACE'), None) or 'social'
 
 
@@ -116,11 +122,8 @@ class AuthLoginView(GenericViewSet):
         if response.status_code != 200:
             raise DryccException(response.content)
         state = uuid.uuid4().hex
-        token = response.json()["access_token"]
-        authentication.DryccAuthentication.sync_user(token)
-        manager = oauth.TokenManager()
-        manager.set_state(key, state)
-        manager.set_token(state, token, username)
+        oauth_cache_manager.set_state(key, state)
+        oauth_cache_manager.set_token(state, response.json())
         return HttpResponse(json.dumps({"key": key}))
 
 
@@ -129,11 +132,14 @@ class AuthTokenView(GenericViewSet):
     permission_classes = (AllowAny, )
 
     def token(self, request, *args, **kwargs):
-        manager = oauth.TokenManager()
-        token = manager.get_token(self.kwargs['key'])
-        if not token.get('token'):
-            return HttpResponse(status=404)
-        return HttpResponse(json.dumps(token))
+        oauth = oauth_cache_manager.get_token(self.kwargs['key'])
+        if oauth:
+            user = oauth_cache_manager.get_user(oauth['access_token'])
+            alias = request.query_params.get('alias', '')
+            token = models.base.Token(owner=user, alias=alias, oauth=oauth)
+            token.save()
+            return HttpResponse(json.dumps({"token": token.key, "username": user.username}))
+        return HttpResponse(status=404)
 
 
 class UserManagementViewSet(GenericViewSet):
@@ -211,6 +217,21 @@ class AdmissionWebhookViewSet(GenericViewSet):
                 "allowed": allowed,
             }
         })
+
+
+class TokenViewSet(viewsets.OwnerViewSet):
+
+    serializer_class = serializers.TokenSerializer
+    permission_classes = [IsAuthenticated, permissions.IsOwner]
+
+    def get_queryset(self):
+        return models.base.Token.objects.filter(owner=self.request.user)
+
+    def destroy(self, *args, **kwargs):
+        key = self.get_object().key
+        response = super(TokenViewSet, self).destroy(self, *args, **kwargs)
+        cache.delete(key)
+        return response
 
 
 class BaseDryccViewSet(viewsets.OwnerViewSet):
@@ -1112,27 +1133,9 @@ class MetricView(BaseDryccViewSet):
             networks.append((timestamp, rx_bytes, tx_bytes))
         return networks
 
+    @method_decorator(cache_page(settings.DRYCC_METRICS_EXPIRY))
+    @method_decorator(vary_on_headers("Authorization"))
     def status(self, request, **kwargs):
-        """
-        {
-            "id": "django_t1",
-            "type": "web",
-            "count": 1,
-            "status": {
-                "cpus": {
-                    "max": [(1611023853, 50000)],
-                    "avg": [(1611023853, 50000)]
-                },
-                "memory": {
-                    "max": [(1611023853, 50000)],
-                    "avg": [(1611023853, 50000)],
-                },
-                "networks": [
-                    (1611023853, 10000, 50000)
-                ]
-            }
-        }
-        """
         app_id = self._get_app().id
         data = serializers.MetricSerializer(data=self.request.query_params)
         if not data.is_valid():
@@ -1152,3 +1155,13 @@ class MetricView(BaseDryccViewSet):
                     app_id, kwargs['type'], start, stop, every),
             }
         })
+
+    @method_decorator(cache_page(settings.DRYCC_METRICS_EXPIRY))
+    @method_decorator(vary_on_headers("Authorization"))
+    def metric(self, request, **kwargs):
+        app_id = self._get_app().id
+        streaming_content = monitor.last_metrics(app_id)
+        return StreamingHttpResponse(
+            content_type='application/json',
+            streaming_content=streaming_content
+        )

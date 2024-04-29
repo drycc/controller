@@ -8,6 +8,8 @@ from os.path import dirname, realpath
 from django.test.runner import DiscoverRunner
 from rest_framework.test import APITestCase, APITransactionTestCase
 
+from api.models.base import Token
+
 
 # Mock out router requests and add in some jitter
 # Used for application is available in router checks
@@ -63,6 +65,21 @@ class DryccBaseTestCase(unittest.TestCase):
         self.assertEqual(response.status_code, 201, response.data)
         self.assertIn('id', response.data)
         return response.data['id']
+
+    def get_or_create_token(self, user):
+        token, _ = Token.objects.get_or_create(
+            owner=user,
+            defaults={
+                "oauth": {
+                    "access_token": "test",
+                    "expires_in": 3600 * 24 * 7,
+                    "token_type": "Bearer",
+                    "scope": "openid",
+                    "refresh_token": "test",
+                }
+            }
+        )
+        return token.key
 
     def assertPodContains(self, pods, app_id, procfile_type, version, state="up"):
         for pod in pods:

@@ -6,7 +6,6 @@ Run the tests with "./manage.py test api"
 from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.core.cache import cache
-from rest_framework.authtoken.models import Token
 
 from api.tests import adapter, DryccTransactionTestCase
 import requests_mock
@@ -57,7 +56,7 @@ class HookTest(DryccTransactionTestCase):
 
     def setUp(self):
         self.user = User.objects.get(username='autotest')
-        self.token = Token.objects.get(user=self.user).key
+        self.token = self.get_or_create_token(self.user)
         self.client.credentials(HTTP_AUTHORIZATION='Token ' + self.token)
 
     def tearDown(self):
@@ -309,7 +308,7 @@ class HookTest(DryccTransactionTestCase):
         """
         """Test creating a Push via the API"""
         user = User.objects.get(username='autotest2')
-        token = Token.objects.get(user=user).key
+        token = self.get_or_create_token(user)
         self.client.credentials(HTTP_AUTHORIZATION='Token ' + token)
 
         app_id = self.create_app()

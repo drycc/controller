@@ -13,6 +13,7 @@ import math
 import pkgutil
 import inspect
 import requests
+import jsonschema
 from copy import deepcopy
 from django.db import models
 from requests_toolbelt import user_agent
@@ -184,6 +185,15 @@ def unit_to_bytes(size):
     elif size[-1] == 'P':
         _ *= math.pow(1024, 5)
     return round(_)
+
+
+def validate_json(value, schema, raise_exception=ValidationError):
+    if value is not None:
+        try:
+            jsonschema.validate(value, schema)
+        except jsonschema.ValidationError as e:
+            raise raise_exception("could not validate {}: {}".format(value, e.message))
+    return value
 
 
 if __name__ == "__main__":

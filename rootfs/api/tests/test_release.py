@@ -9,7 +9,6 @@ from django.contrib.auth import get_user_model
 from django.core.cache import cache
 from django.test.utils import override_settings
 from unittest import mock
-from rest_framework.authtoken.models import Token
 
 from api.models.app import App, PROCFILE_TYPE_WEB
 from api.models.release import Release
@@ -30,7 +29,7 @@ class ReleaseTest(DryccTransactionTestCase):
 
     def setUp(self):
         self.user = User.objects.get(username='autotest')
-        self.token = Token.objects.get(user=self.user).key
+        self.token = self.get_or_create_token(self.user)
         self.client.credentials(HTTP_AUTHORIZATION='Token ' + self.token)
 
     def tearDown(self):
@@ -285,7 +284,7 @@ class ReleaseTest(DryccTransactionTestCase):
     def test_admin_can_create_release(self, mock_requests):
         """If a non-user creates an app, an admin should be able to create releases."""
         user = User.objects.get(username='autotest2')
-        token = Token.objects.get(user=user).key
+        token = self.get_or_create_token(user)
         self.client.credentials(HTTP_AUTHORIZATION='Token ' + token)
         app_id = self.create_app()
         # check that updating config rolls a new release
@@ -321,7 +320,7 @@ class ReleaseTest(DryccTransactionTestCase):
         body = {'values': json.dumps({'NEW_URL1': 'http://localhost:8080/'})}
         response = self.client.post(url, body)
         unauthorized_user = User.objects.get(username='autotest2')
-        unauthorized_token = Token.objects.get(user=unauthorized_user).key
+        unauthorized_token = self.get_or_create_token(unauthorized_user)
 
         # try to rollback
         self.client.credentials(HTTP_AUTHORIZATION='Token ' + unauthorized_token)

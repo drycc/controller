@@ -1,10 +1,9 @@
 import logging
-import jsonschema
 from functools import partial
 from django.db import models
 from django.conf import settings
 from django.contrib.auth import get_user_model
-from rest_framework.exceptions import ValidationError
+from api.utils import validate_json
 from api.exceptions import ServiceUnavailable
 from scheduler import KubeException
 from .base import AuditedModel
@@ -27,15 +26,6 @@ service_ports_schema = {
         "required": ["name", "port", "protocol", "targetPort"],
     }
 }
-
-
-def validate_json(value, schema):
-    if value is not None:
-        try:
-            jsonschema.validate(value, schema)
-        except jsonschema.ValidationError as e:
-            raise ValidationError(e.message)
-    return value
 
 
 class Service(AuditedModel):

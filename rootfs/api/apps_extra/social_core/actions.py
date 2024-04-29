@@ -7,7 +7,6 @@ from social_core.utils import (
     user_is_active,
     user_is_authenticated,
 )
-from api.oauth import TokenManager
 
 
 def do_auth(backend, redirect_name="next"):
@@ -40,8 +39,9 @@ def do_auth(backend, redirect_name="next"):
         query = urlparse("?" + form_data).query
         params = parse_qs(query)
         return {key: params[key][0] for key in params}
-    manager = TokenManager()
-    manager.set_state(data.get("key", ""), form2json(url).get("state"))
+    from api.backend import OauthCacheManager
+    oauth_cache_manager = OauthCacheManager()
+    oauth_cache_manager.set_state(data.get("key", ""), form2json(url).get("state"))
     return response
 
 
@@ -129,8 +129,9 @@ def do_complete(backend, login, user=None, redirect_name="next", *args, **kwargs
     if social_auth and social_auth.extra_data:
         extra_data = json.loads(social_auth.extra_data) if \
             isinstance(social_auth.extra_data, str) else social_auth.extra_data
-    manager = TokenManager()
-    manager.set_token(data.get("state"), extra_data.get("access_token", "fail"), user.username)
+    from api.backend import OauthCacheManager
+    oauth_cache_manager = OauthCacheManager()
+    oauth_cache_manager.set_token(data.get("state"), extra_data)
     return response
 
 

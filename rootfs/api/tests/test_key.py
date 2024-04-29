@@ -6,7 +6,6 @@ Run the tests with "./manage.py test api"
 """
 from django.contrib.auth import get_user_model
 from django.core.cache import cache
-from rest_framework.authtoken.models import Token
 
 from api.models.key import Key
 from api.utils import fingerprint
@@ -64,7 +63,7 @@ class KeyTest(DryccTestCase):
 
     def setUp(self):
         self.user = User.objects.get(username='autotest')
-        self.token = Token.objects.get(user=self.user).key
+        self.token = self.get_or_create_token(self.user)
         self.client.credentials(HTTP_AUTHORIZATION='Token ' + self.token)
 
     def tearDown(self):
@@ -178,10 +177,10 @@ class KeyTest(DryccTestCase):
 
     def test_key_api_with_non_superuser_rsa(self):
         self.user = User.objects.get(username='autotest2')
-        self.token = self.user.auth_token.key
+        self.token = self.get_or_create_token(self.user)
         self._check_key(RSA_PUBKEY)
 
     def test_key_api_with_non_superuser_ecdsa(self):
         self.user = User.objects.get(username='autotest2')
-        self.token = self.user.auth_token.key
+        self.token = self.get_or_create_token(self.user)
         self._check_key(ECDSA_PUBKEY)

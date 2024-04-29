@@ -205,15 +205,16 @@ app_urlpatterns = [
         r"^apps/(?P<id>{})/routes/(?P<name>[-_\w]+)/rules/?$".format(settings.APP_URL_REGEX),
         views.RouteViewSet.as_view({'get': 'get', 'put': 'set'})),
     # users
-    re_path(
-        r'^users/?$',
-        views.UserView.as_view({'get': 'list'})),
+    re_path(r'^users/?$', views.UserView.as_view({'get': 'list'})),
     re_path(
         r'^users/(?P<username>[\w.@+-]+)/enable/?$',
         views.UserView.as_view({'patch': 'enable'})),
     re_path(
         r'^users/(?P<username>[\w.@+-]+)/disable/?$',
         views.UserView.as_view({'patch': 'disable'})),
+    re_path(
+        r'^apps/(?P<id>{})/metrics/?$'.format(settings.APP_URL_REGEX),
+        views.MetricView.as_view({'get': 'metric'})),
     re_path(
         r'^apps/(?P<id>{})/metrics/(?P<type>[a-z0-9]+(\-[a-z0-9]+)*)/status/?$'.format(
             settings.APP_URL_REGEX),
@@ -224,6 +225,9 @@ app_urlpatterns = [
     re_path(
         r'^manager/(?P<type>[\w.@+-]+)s/(?P<id>{})/unblock/?$'.format(settings.APP_URL_REGEX),
         views.WorkflowManagerViewset.as_view({'delete': 'unblock'})),
+    # tokens
+    re_path(r'^tokens/?$', views.TokenViewSet.as_view({'get': 'list'})),
+    re_path(r"^tokens/(?P<pk>[-_\w]+)/?$", views.TokenViewSet.as_view({'delete': 'destroy'})),
     # social login is placed at the end of the URL match
     re_path(r'^login/(?P<backend>[^/]+){0}$'.format(extra), views.auth, name='begin'),
     re_path(r'^complete/(?P<backend>[^/]+){0}$'.format(extra), views.complete, name='complete'),

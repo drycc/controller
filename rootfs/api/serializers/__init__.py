@@ -5,7 +5,6 @@ import time
 import json
 import logging
 import re
-import jsonschema
 import idna
 
 from django.conf import settings
@@ -16,6 +15,7 @@ from rest_framework import serializers
 
 
 from api import models
+from api.utils import validate_json
 from api.exceptions import DryccException
 from scheduler.resources.pod import DEFAULT_CONTAINER_PORT
 from .schemas.rules import SCHEMA as RULES_SCHEMA
@@ -148,6 +148,17 @@ class UserSerializer(serializers.ModelSerializer):
         return user, created
 
 
+class TokenSerializer(serializers.ModelSerializer):
+    """Serialize a :class:`~api.models.base.Token` model."""
+
+    owner = serializers.ReadOnlyField(source='owner.username')
+
+    class Meta:
+        model = models.base.Token
+        fields = ['uuid', 'owner', 'alias', 'fuzzy_key', 'created', 'updated']
+        read_only_fields = fields
+
+
 class AdminUserSerializer(serializers.ModelSerializer):
     """Serialize admin status for a User model."""
 
@@ -197,11 +208,7 @@ class BuildSerializer(serializers.ModelSerializer):
     @staticmethod
     def validate_dryccfile(data):
         if data:
-            try:
-                jsonschema.validate(data, DRYCCFILE_SCHEMA)
-            except jsonschema.ValidationError as e:
-                raise serializers.ValidationError(
-                    "could not validate {}: {}".format(data, e.message))
+            return validate_json(data, DRYCCFILE_SCHEMA, serializers.ValidationError)
         return data
 
 
@@ -367,11 +374,7 @@ class ConfigSerializer(serializers.ModelSerializer):
                     continue
                 if not re.match(HEALTHCHECK_MATCH, key):
                     raise serializers.ValidationError(HEALTHCHECK_MISMATCH_MSG)
-                try:
-                    jsonschema.validate(value, HEALTHCHECK_SCHEMA)
-                except jsonschema.ValidationError as e:
-                    raise serializers.ValidationError(
-                        "could not validate {}: {}".format(value, e.message))
+                validate_json(value, HEALTHCHECK_SCHEMA, serializers.ValidationError)
         return data
 
 
@@ -551,12 +554,7 @@ class AppSettingsSerializer(serializers.ModelSerializer):
         for _, autoscale in data.items():
             if autoscale is None:
                 continue
-            try:
-                jsonschema.validate(autoscale, AUTOSCALE_SCHEMA)
-            except jsonschema.ValidationError as e:
-                raise serializers.ValidationError(
-                    "could not validate {}: {}".format(autoscale, e.message)
-                )
+            validate_json(autoscale, AUTOSCALE_SCHEMA, serializers.ValidationError)
         return data
 
 
@@ -632,12 +630,7 @@ class VolumeSerializer(serializers.ModelSerializer):
 
     @staticmethod
     def validate_parameters(data):
-        try:
-            jsonschema.validate(data, VOLUMES_SCHEMA)
-        except jsonschema.ValidationError as e:
-            raise serializers.ValidationError(
-                "could not validate {}: {}".format(data, e.message))
-        return data
+        return validate_json(data, VOLUMES_SCHEMA, serializers.ValidationError)
 
 
 class ResourceSerializer(serializers.ModelSerializer):
@@ -760,10 +753,4 @@ class RouteSerializer(serializers.Serializer):
 
     @staticmethod
     def validate_rules(value):
-        try:
-            jsonschema.validate(value, RULES_SCHEMA)
-        except jsonschema.ValidationError as e:
-            raise serializers.ValidationError(
-                "could not validate {}: {}".format(value, e.message)
-            )
-        return value
+        return validate_json(value, RULES_SCHEMA, serializers.ValidationError)
