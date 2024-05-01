@@ -1,7 +1,7 @@
 from django.contrib.auth import get_user_model
 from django.core.cache import cache
 
-from api.models.app import App
+from api.models.app import App, PROCFILE_TYPE_WEB
 from api.models.certificate import Certificate
 from api.models.domain import Domain
 from api.tests import TEST_ROOT, DryccTestCase
@@ -25,7 +25,8 @@ class CertificateUseCase1Test(DryccTestCase):
 
         self.url = '/v2/certs'
         self.app = App.objects.create(owner=self.user, id='test-app-use-case-1')
-        self.domain = Domain.objects.create(owner=self.user, app=self.app, domain='foo.com')
+        self.domain = Domain.objects.create(
+            owner=self.user, app=self.app, domain='foo.com', procfile_type=PROCFILE_TYPE_WEB)
         self.name = 'foo-com'  # certificate name
 
         with open('{}/certs/{}.key'.format(TEST_ROOT, self.domain)) as f:

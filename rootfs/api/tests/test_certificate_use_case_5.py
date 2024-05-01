@@ -1,7 +1,7 @@
 from django.contrib.auth import get_user_model
 from django.core.cache import cache
 
-from api.models.app import App
+from api.models.app import App, PROCFILE_TYPE_WEB
 from api.models.certificate import Certificate
 from api.models.domain import Domain
 from api.tests import TEST_ROOT, DryccTestCase
@@ -26,10 +26,14 @@ class CertificateUseCase5Test(DryccTestCase):
         self.url = '/v2/certs'
         self.app = App.objects.create(owner=self.user, id='test-app-use-case-5')
         # Done out of scope as it gets the same cert as the wildcard
-        Domain.objects.create(owner=self.user, app=self.app, domain='foo.com')
+        Domain.objects.create(
+            owner=self.user, app=self.app, domain='foo.com', procfile_type=PROCFILE_TYPE_WEB)
         self.domains = {
-            '*.foo.com': Domain.objects.create(owner=self.user, app=self.app, domain='*.foo.com'),
-            'bar.com': Domain.objects.create(owner=self.user, app=self.app, domain='bar.com'),
+            '*.foo.com': Domain.objects.create(
+                owner=self.user, app=self.app, domain='*.foo.com',
+                procfile_type=PROCFILE_TYPE_WEB),
+            'bar.com': Domain.objects.create(
+                owner=self.user, app=self.app, domain='bar.com', procfile_type=PROCFILE_TYPE_WEB),
         }
 
         self.certificates = {}

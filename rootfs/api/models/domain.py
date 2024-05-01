@@ -21,6 +21,7 @@ class Domain(AuditedModel):
         blank=True,
         null=True
     )
+    procfile_type = models.TextField()
 
     class Meta:
         ordering = ['domain', 'certificate']

@@ -3,7 +3,7 @@ import requests_mock
 from django.core.cache import cache
 from django.contrib.auth import get_user_model
 
-from api.models.app import App
+from api.models.app import App, PROCFILE_TYPE_WEB
 from api.models.tls import TLS
 from api.tests import adapter, DryccTransactionTestCase
 
@@ -75,7 +75,7 @@ class TestTLS(DryccTransactionTestCase):
 
         response = self.client.post(
             '/v2/apps/{}/domains'.format(app_id),
-            {'domain': 'test-domain.example.com'}
+            {'domain': 'test-domain.example.com', 'procfile_type': PROCFILE_TYPE_WEB}
         )
         self.assertEqual(response.status_code, 201, response.data)
         self.change_certs_auto(app_id, True)

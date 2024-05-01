@@ -5,8 +5,9 @@ import random
 from django.contrib.auth import get_user_model
 from django.core.cache import cache
 
-from api.models.app import App
+from api.models.app import App, PROCFILE_TYPE_WEB
 from api.models.build import Build
+from api.models.gateway import Route
 from api.models.release import Release
 from api.utils import validate_json
 from api.tests import TEST_ROOT, DryccTransactionTestCase
@@ -31,7 +32,7 @@ class BaseGatewayTest(DryccTransactionTestCase):
         app_id = self.create_app()
         response = self.client.post(
             '/v2/apps/{}/domains'.format(app_id),
-            {'domain': 'test-domain.example.com'}
+            {'domain': 'test-domain.example.com', 'procfile_type': PROCFILE_TYPE_WEB}
         )
         self.assertEqual(response.status_code, 201, response.data)
         # check default gateway route
@@ -91,7 +92,7 @@ class BaseGatewayTest(DryccTransactionTestCase):
 
         response = self.client.post(
             '/v2/apps/{}/domains'.format(app_id),
-            {'domain': domain}
+            {'domain': domain, 'procfile_type': PROCFILE_TYPE_WEB}
         )
         self.assertEqual(response.status_code, 201)
 
@@ -153,46 +154,197 @@ class GatewayTest(BaseGatewayTest):
         }
         self.assertEqual(expect, actual)
 
-    def add_tls_listener(self, name, protocol):
-        app_id = self.create_app(name)
-        domain, secret_name = self.create_tls_domain(app_id)
+    def add_listener(self, app_id, name, protocol, port):
         response = self.client.post(
             '/v2/apps/{}/gateways/'.format(app_id),
-            {'name': name, 'port': 443, 'protocol': protocol}
+            {'name': name, 'port': port, 'protocol': protocol}
         )
         self.assertEqual(response.status_code, 201)
         response = self.client.get('/v2/apps/{}/gateways/'.format(app_id))
-        if protocol == "HTTPS":
-            listener_name = "mix-443-%s" % 0
-        else:
-            listener_name = "tcp-443-%s" % 0
-        results = [{
-            "app": app_id,
-            "owner": "autotest",
-            "name": name,
-            "listeners": [
-                {
-                    "tls": {"certificateRefs": [{"kind": "Secret", "name": secret_name}]},
-                    "name": listener_name,
-                    "port": 443,
-                    "hostname": domain,
-                    "protocol": protocol,
-                    "allowedRoutes": {"namespaces": {"from": "All"}}
-                }
-            ],
-            "addresses": [{"type": "IPAddress", "value": "172.22.108.207"}]
-        }]
-        self.assertEqual(results, json.loads(json.dumps(response.data["results"])))
-        return app_id, domain, secret_name
+        return app_id, response.data["results"]
+
+    def add_tls_listener(self, name, protocol, port):
+        app_id = self.create_app(name)
+        domain, secret_name = self.create_tls_domain(app_id)
+        app_id, results = self.add_listener(app_id, name, protocol, port)
+        return app_id, domain, secret_name, results
 
     def test_add_tls_listener(self):
-        self.add_tls_listener("tls-gateway", "TLS")
+        port = 443
+        name = "tls-gateway"
+        _, domain, secret_name, results = self.add_tls_listener(name, "TLS", port)
+        expect = [{
+            'app': name,
+            'owner': 'autotest',
+            'name': name,
+            'listeners': [{
+                'allowedRoutes': {
+                    'namespaces': {
+                        'from': 'All'
+                    }
+                },
+                'name': 'tcp-%s-0' % port,
+                'port': port,
+                'hostname': domain,
+                'protocol': 'TLS',
+                'tls': {
+                    'certificateRefs': [{
+                        'kind': 'Secret',
+                        'name': secret_name
+                    }]
+                }
+            }, {
+                'allowedRoutes': {
+                    'namespaces': {
+                        'from': 'All'
+                    }
+                },
+                'name': 'tcp-%s-0' % port,
+                'port': port,
+                'protocol': 'TLS'
+            }],
+            'addresses': [{
+                'type': 'IPAddress',
+                'value': '172.22.108.207'
+            }]
+        }]
+        self.assertEqual(results, expect)
 
     def test_add_https_listener(self):
-        self.add_tls_listener("bingo-gateway", "HTTPS")
+        port = 443
+        name = "bingo-gateway"
+        _, domain, secret_name, results = self.add_tls_listener(name, "HTTPS", port)
+        expect = [{
+            'app': name,
+            'owner': 'autotest',
+            'name': name,
+            'listeners': [{
+                'allowedRoutes': {
+                    'namespaces': {
+                        'from': 'All'
+                    }
+                },
+                'name': 'mix-%s-0' % port,
+                'port': port,
+                'hostname': domain,
+                'protocol': 'HTTPS',
+                'tls': {
+                    'certificateRefs': [{
+                        'kind': 'Secret',
+                        'name': secret_name
+                    }]
+                }
+            }, {
+                'allowedRoutes': {
+                    'namespaces': {
+                        'from': 'All'
+                    }
+                },
+                'name': 'mix-%s-0' % port,
+                'port': port,
+                'protocol': 'HTTPS'
+            }],
+            'addresses': [{
+                'type': 'IPAddress',
+                'value': '172.22.108.207'
+            }]
+        }]
+        self.assertEqual(results, expect)
+
+    def test_add_http_listener(self):
+        port = 80
+        name = "bingo-gateway"
+        _, domain, secret_name, results = self.add_tls_listener(name, "HTTP", port)
+        expect = [{
+            'app': 'bingo-gateway',
+            'owner': 'autotest',
+            'name': 'bingo-gateway',
+            'listeners': [{
+                'allowedRoutes': {
+                    'namespaces': {
+                        'from': 'All'
+                    }
+                },
+                'name': 'tcp-%s-0' % port,
+                'port': port,
+                'hostname': domain,
+                'protocol': 'HTTP',
+                'tls': {
+                    'certificateRefs': [{
+                        'kind': 'Secret',
+                        'name': secret_name
+                    }]
+                }
+            }, {
+                'allowedRoutes': {
+                    'namespaces': {
+                        'from': 'All'
+                    }
+                },
+                'name': 'tcp-%s-0' % port,
+                'port': port,
+                'protocol': 'HTTP'
+            }, {
+                'allowedRoutes': {
+                    'namespaces': {
+                        'from': 'All'
+                    }
+                },
+                'name': 'mix-443-0',
+                'port': 443,
+                'hostname': 'autotest.example.com',
+                'protocol': 'HTTPS',
+                'tls': {
+                    'certificateRefs': [{
+                        'kind': 'Secret',
+                        'name': secret_name
+                    }]
+                }
+            }, {
+                'allowedRoutes': {
+                    'namespaces': {
+                        'from': 'All'
+                    }
+                },
+                'name': 'mix-443-0',
+                'port': 443,
+                'protocol': 'HTTPS'
+            }],
+            'addresses': [{
+                'type': 'IPAddress',
+                'value': '172.22.108.207'
+            }]
+        }]
+        self.assertEqual(results, expect)
+
+    def test_add_udp_listener(self):
+        port = 999
+        name = "bingo-gateway"
+        app_id = self.create_app(name)
+        _, results = self.add_listener(app_id, name, "UDP", port)
+        expect = [{
+            'app': 'bingo-gateway',
+            'owner': 'autotest',
+            'name': 'bingo-gateway',
+            'listeners': [{
+                'allowedRoutes': {
+                    'namespaces': {
+                        'from': 'All'
+                    }
+                },
+                'name': 'udp-999-0',
+                'port': 999,
+                'protocol': 'UDP'
+            }],
+            'addresses': [{
+                'type': 'IPAddress',
+                'value': '172.22.108.207'
+            }]
+        }]
+        self.assertEqual(results, expect)
 
     def test_remove_domain(self):
-        app_id, domain, _ = self.add_tls_listener("bingo-gateway", "HTTPS")
+        app_id, domain, _, _ = self.add_tls_listener("bingo-gateway", "HTTPS", 443)
         url = '/v2/apps/{app_id}/domains/{domain}'.format(domain=domain,
                                                           app_id=app_id)
         response = self.client.delete(url)
@@ -202,9 +354,9 @@ class GatewayTest(BaseGatewayTest):
         self.assertEqual(response.data["results"][0]["listeners"], [])
 
     def test_remove_tls(self):
-        app_id, domain, secret_name = self.add_tls_listener("bingo-gateway", "HTTPS")
+        app_id, domain, secret_name, _ = self.add_tls_listener("bingo-gateway", "HTTPS", 443)
         response = self.client.get('/v2/apps/{}/gateways/'.format(app_id))
-        self.assertEqual(len(response.data["results"][0]["listeners"]), 1)
+        self.assertEqual(len(response.data["results"][0]["listeners"]), 2)
         response = self.client.delete(
             '{}/{}/domain/{}/'.format('/v2/certs', secret_name, domain)
         )
@@ -221,7 +373,7 @@ class GatewayTest(BaseGatewayTest):
             data)
         self.assertEqual(response.status_code, 201, response.data)
         response = self.client.get('/v2/apps/{}/gateways/'.format(app_id))
-        self.assertEqual(len(response.data["results"][0]["listeners"]), 1)
+        self.assertEqual(len(response.data["results"][0]["listeners"]), 2)
 
     def test_remove_listener(self):
         app_id = self.create_app()
@@ -251,38 +403,72 @@ class GatewayTest(BaseGatewayTest):
             'protocol': 'HTTP'
         }]
         self.assertEqual(response.data["count"], 1, response.data)
-        self.assertEqual(response.json()["results"][0]["listeners"], expect, response.data)
+        self.assertEqual(response.data["results"][0]["listeners"], expect, response.data)
 
         self.change_certs_auto(app_id, True)
         response = self.client.get('/v2/apps/{}/gateways/'.format(app_id))
         self.assertEqual(response.data["count"], 1, response.data)
         expect = [{
-            'allowedRoutes': {
-                'namespaces': {
-                    'from': 'All'
+            'app': app_id,
+            'owner': 'autotest',
+            'name': app_id,
+            'listeners': [{
+                'allowedRoutes': {
+                    'namespaces': {
+                        'from': 'All'
+                    }
+                },
+                'name': 'tcp-80-0',
+                'port': 80,
+                'hostname': 'test-domain.example.com',
+                'protocol': 'HTTP',
+                'tls': {
+                    'certificateRefs': [{
+                        'kind': 'Secret',
+                        'name': '%s-auto-tls' % app_id
+                    }]
                 }
-            },
-            'name': 'tcp-80-0',
-            'port': 80,
-            'protocol': 'HTTP'
-        }, {
-            'allowedRoutes': {
-                'namespaces': {
-                    'from': 'All'
+            }, {
+                'allowedRoutes': {
+                    'namespaces': {
+                        'from': 'All'
+                    }
+                },
+                'name': 'tcp-80-0',
+                'port': 80,
+                'protocol': 'HTTP'
+            }, {
+                'allowedRoutes': {
+                    'namespaces': {
+                        'from': 'All'
+                    }
+                },
+                'name': 'mix-443-0',
+                'port': 443,
+                'hostname': 'test-domain.example.com',
+                'protocol': 'HTTPS',
+                'tls': {
+                    'certificateRefs': [{
+                        'kind': 'Secret',
+                        'name': '%s-auto-tls' % app_id
+                    }]
                 }
-            },
-            'name': 'mix-443-0',
-            'port': 443,
-            'hostname': 'test-domain.example.com',
-            'protocol': 'HTTPS',
-            'tls': {
-                'certificateRefs': [{
-                    'kind': 'Secret',
-                    'name': '%s-auto-tls' % app_id,
-                }]
-            }
+            }, {
+                'allowedRoutes': {
+                    'namespaces': {
+                        'from': 'All'
+                    }
+                },
+                'name': 'mix-443-0',
+                'port': 443,
+                'protocol': 'HTTPS'
+            }],
+            'addresses': [{
+                'type': 'IPAddress',
+                'value': '172.22.108.207'
+            }]
         }]
-        self.assertEqual(response.json()["results"][0]["listeners"], expect, response.data)
+        self.assertEqual(response.data["results"], expect, response.data)
 
         self.change_certs_auto(app_id, False)
         response = self.client.get('/v2/apps/{}/gateways/'.format(app_id))
@@ -302,10 +488,10 @@ class GatewayTest(BaseGatewayTest):
 
 class RouteTest(BaseGatewayTest):
 
-    def create_route(self, app_id):
+    def create_route(self, app_id, route_name="test-route",
+                     procfile_type="task", kind="HTTPRoute"):
         # create service
         port = 5000
-        procfile_type = "task"
         response = self.client.post(
             '/v2/apps/{}/services'.format(app_id),
             {
@@ -317,17 +503,16 @@ class RouteTest(BaseGatewayTest):
         )
         self.assertEqual(response.status_code, 201, response.data)
         # create route
-        route_name = "test-route"
         response = self.client.post(
             '/v2/apps/{}/routes/'.format(app_id),
             {
                 "port": 5000,
                 "procfile_type": procfile_type,
-                "kind": "HTTPRoute",
+                "kind": kind,
                 "name": route_name,
             }
         )
-        self.assertEqual(response.status_code, 201)
+        self.assertEqual(response.status_code, 201, response.data)
         return procfile_type, port, route_name
 
     def test_create_route(self):
@@ -344,6 +529,33 @@ class RouteTest(BaseGatewayTest):
             }
         )
         self.assertEqual(response.status_code, 404)
+
+    def test_hostnames(self):
+        app_id = self.create_app()
+        procfile_type, port, route_name = self.create_route(app_id)
+        response = self.client.post(
+            '/v2/apps/{}/domains'.format(app_id),
+            {'domain': "domain1.test.com", 'procfile_type': procfile_type}
+        )
+        self.assertEqual(response.status_code, 201)
+        route = Route.objects.get(app__id=app_id)
+        self.assertEqual(route.hostnames, ["domain1.test.com"])
+
+        response = self.client.post(
+            '/v2/apps/{}/domains'.format(app_id),
+            {'domain': "domain2.test.com", 'procfile_type': "web-1"}
+        )
+        self.assertEqual(response.status_code, 201)
+        route = Route.objects.get(app__id=app_id)
+        self.assertEqual(route.hostnames, ["domain1.test.com"])
+
+        response = self.client.post(
+            '/v2/apps/{}/domains'.format(app_id),
+            {'domain': "domain3.test.com", 'procfile_type': procfile_type}
+        )
+        self.assertEqual(response.status_code, 201)
+        route = Route.objects.get(app__id=app_id)
+        self.assertEqual(route.hostnames, ["domain1.test.com", "domain3.test.com"])
 
     def test_route_attach(self):
         app_id = self.create_app()
@@ -371,6 +583,57 @@ class RouteTest(BaseGatewayTest):
         response = self.client.get('/v2/apps/{}/routes/'.format(app_id))
         self.assertEqual(len(response.data["results"][0]["parent_refs"]), 2)
         return procfile_type, app_id, gateway_name_1, gateway_name_2, port, route_name
+
+    def test_route_check_parent_ok(self):
+        app_id = self.create_app()
+        _, port, route_name = self.create_route(app_id, "myroute1", "test")
+        gateway_name_1 = 'bing-gateway-1'
+        self.create_gateway(app_id, gateway_name_1, 5000, "HTTP")
+        self.client.patch(
+            '/v2/apps/{}/routes/{}/attach/'.format(app_id, route_name),
+            {
+                "gateway": gateway_name_1,
+                "port": port
+            }
+        )
+        response = self.client.get('/v2/apps/{}/routes/'.format(app_id))
+        self.assertEqual(len(response.data["results"][0]["parent_refs"]), 1)
+        # create other route
+        _, port, route_name = self.create_route(app_id, "myroute2", "mytest")
+        response = self.client.patch(
+            '/v2/apps/{}/routes/{}/attach/'.format(app_id, route_name),
+            {
+                "gateway": gateway_name_1,
+                "port": port
+            }
+        )
+        self.assertEqual(response.status_code, 204)
+
+    def test_route_check_parent_err(self):
+        app_id = self.create_app()
+        _, port, route_name = self.create_route(app_id, "myroute1", "test", "TCPRoute")
+        gateway_name_1 = 'bing-gateway-1'
+        self.create_gateway(app_id, gateway_name_1, 5000, "TCP")
+        self.client.patch(
+            '/v2/apps/{}/routes/{}/attach/'.format(app_id, route_name),
+            {
+                "gateway": gateway_name_1,
+                "port": port
+            }
+        )
+        response = self.client.get('/v2/apps/{}/routes/'.format(app_id))
+        self.assertEqual(len(response.data["results"][0]["parent_refs"]), 1)
+        # create other route
+        _, port, route_name = self.create_route(app_id, "myroute2", "mytest", "TCPRoute")
+        response = self.client.patch(
+            '/v2/apps/{}/routes/{}/attach/'.format(app_id, route_name),
+            {
+                "gateway": gateway_name_1,
+                "port": port
+            }
+        )
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.data['detail'], 'this listener has already been referenced')
 
     def test_route_detach(self):
         _, app_id, gateway_name_1, gateway_name_2, port, route_name = self.test_route_attach()

@@ -15,6 +15,8 @@ logger = logging.getLogger(__name__)
 DEFAULT_HTTP_PORT = 80
 DEFAULT_HTTPS_PORT = 443
 
+HOSTNAME_PROTOCOLS = ("TLS", "HTTP", "HTTPS")
+
 
 class Gateway(AuditedModel):
     app = models.ForeignKey('App', on_delete=models.CASCADE)
@@ -46,27 +48,27 @@ class Gateway(AuditedModel):
         domains = list(self._get_tls_domain(auto_tls))
         for item in self.ports:
             port, protocol = item["port"], item["protocol"]
-            if item["protocol"] in ("TLS", "HTTPS"):
+            if item["protocol"] in HOSTNAME_PROTOCOLS:
                 for domain in domains:
-                    secret_name = f"{self.app.id}-auto-tls" if auto_tls else (
-                        domain.certificate.name if domain.certificate else None)
-                    if secret_name is None:
-                        continue
-                    listeners.append({
+                    listener = {
                         "allowedRoutes": {"namespaces": {"from": "All"}},
                         "name": self._get_listener_name(port, protocol, domains.index(domain)),
                         "port": port,
                         "hostname": domain.domain,
                         "protocol": protocol,
-                        "tls": {"certificateRefs": [{"kind": "Secret", "name": secret_name}]},
-                    })
-            else:
-                listeners.append({
-                    "allowedRoutes": {"namespaces": {"from": "All"}},
-                    "name": self._get_listener_name(port, protocol, 0),
-                    "port": port,
-                    "protocol": protocol,
-                })
+                    }
+                    secret_name = f"{self.app.id}-auto-tls" if auto_tls else (
+                        domain.certificate.name if domain.certificate else None)
+                    if secret_name:
+                        listener["tls"] = {
+                            "certificateRefs": [{"kind": "Secret", "name": secret_name}]}
+                    listeners.append(listener)
+            listeners.append({
+                "allowedRoutes": {"namespaces": {"from": "All"}},
+                "name": self._get_listener_name(port, protocol, 0),
+                "port": port,
+                "protocol": protocol,
+            })
         return listeners
 
     @property
@@ -184,6 +186,11 @@ class Route(AuditedModel):
         return self.PROTOCOLS_CHOICES[self.kind]
 
     @property
+    def hostnames(self):
+        return [domain.domain for domain in self.app.domain_set.filter(
+                procfile_type=self.procfile_type)]
+
+    @property
     def default_rules(self):
         service = get_object_or_404(self.app.service_set, procfile_type=self.procfile_type)
         stable_backend_refs, canary_backend_refs = [], []
@@ -259,7 +266,7 @@ class Route(AuditedModel):
     def attach(self, gateway_name, port):
         ok, msg = self._check_parent(gateway_name, port)
         if not ok:
-            return ok, msg
+            return ok, {"detail": msg}
         parent_ref = {"name": gateway_name, "port": port}
         if parent_ref in self.parent_refs:
             return False, {"detail": "gateway and port already exist in this route"}
@@ -302,38 +309,38 @@ class Route(AuditedModel):
         try:
             gateway = self.app.gateway_set.filter(name=gateway_name).latest()
         except Gateway.DoesNotExist:
-            return False, {"detail": f"this gateway {gateway_name} does not exist"}
+            return False, f"this gateway {gateway_name} does not exist"
         is_listener_allowed = False
         for gateway_port in gateway.ports:
             if port == gateway_port.get("port") and \
                     self.kind.split("Route")[0] in gateway_port.get("protocol"):
                 is_listener_allowed = True
         if not is_listener_allowed:
-            return False, {"detail": f"this gateway does not allow {self.kind} port {port} bind, \nplease add gateway listener first."}  # noqa
+            return False, "listener does not exist, please add gateway listener first."
         for route in self.app.route_set.exclude(app=self.app, name=self.name):
             for parent_ref in route.parent_refs:
                 if parent_ref["name"] == gateway_name and parent_ref["port"] == port:
-                    for protocol in self.protocols:
-                        if protocol in route.protocols:
-                            return False, {"detail": "this listener has already been referenced"}
+                    if not set(route.protocols).issubset(HOSTNAME_PROTOCOLS) and (
+                            set(route.protocols).issubset(self.protocols) or
+                            set(self.protocols).issubset(route.protocols)):
+                        return False, "this listener has already been referenced"
         return True, ""
 
     def _refresh_to_k8s(self, rules, parent_refs):
         try:
             k8s_route = getattr(self.scheduler(), self.kind.lower())
-            hostnames = [domain.domain for domain in self.app.domain_set.all()]
             try:
                 data = k8s_route.get(self.app.id, self.name).json()
                 k8s_route.patch(self.app.id, self.name, **{
                     "rules": rules,
-                    "hostnames": hostnames,
+                    "hostnames": self.hostnames,
                     "parent_refs": parent_refs,
                     "version": data["metadata"]["resourceVersion"],
                 })
             except KubeException:
                 k8s_route.create(self.app.id, self.name, **{
                     "rules": rules,
-                    "hostnames": hostnames,
+                    "hostnames": self.hostnames,
                     "parent_refs": parent_refs,
                 })
         except KubeException as e:

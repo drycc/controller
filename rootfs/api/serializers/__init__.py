@@ -410,7 +410,7 @@ class DomainSerializer(serializers.ModelSerializer):
     class Meta:
         """Metadata options for a :class:`DomainSerializer`."""
         model = models.domain.Domain
-        fields = ['owner', 'created', 'updated', 'app', 'domain']
+        fields = ['owner', 'created', 'updated', 'app', 'domain', 'procfile_type']
         read_only_fields = ['uuid']
 
     @staticmethod
@@ -459,6 +459,13 @@ class DomainSerializer(serializers.ModelSerializer):
                "The domain {} is already in use by another app".format(value))
 
         return aceValue
+
+    @staticmethod
+    def validate_procfile_type(value):
+        if not re.match(PROCTYPE_MATCH, value):
+            raise serializers.ValidationError(PROCTYPE_MISMATCH_MSG)
+
+        return value
 
 
 class ServiceSerializer(serializers.ModelSerializer):
