@@ -15,7 +15,8 @@ logger = logging.getLogger(__name__)
 DEFAULT_HTTP_PORT = 80
 DEFAULT_HTTPS_PORT = 443
 
-HOSTNAME_PROTOCOLS = ("TLS", "HTTP", "HTTPS")
+TLS_PROTOCOLS = ("HTTPS", "TLS")
+HOSTNAME_PROTOCOLS = TLS_PROTOCOLS + ("HTTP", )
 
 
 class Gateway(AuditedModel):
@@ -52,23 +53,24 @@ class Gateway(AuditedModel):
                 for domain in domains:
                     listener = {
                         "allowedRoutes": {"namespaces": {"from": "All"}},
-                        "name": self._get_listener_name(port, protocol, domains.index(domain)),
+                        "name": self._get_listener_name(port, protocol, domains.index(domain) + 1),
                         "port": port,
                         "hostname": domain.domain,
                         "protocol": protocol,
                     }
                     secret_name = f"{self.app.id}-auto-tls" if auto_tls else (
                         domain.certificate.name if domain.certificate else None)
-                    if secret_name:
+                    if secret_name and protocol in TLS_PROTOCOLS:
                         listener["tls"] = {
                             "certificateRefs": [{"kind": "Secret", "name": secret_name}]}
                     listeners.append(listener)
-            listeners.append({
-                "allowedRoutes": {"namespaces": {"from": "All"}},
-                "name": self._get_listener_name(port, protocol, 0),
-                "port": port,
-                "protocol": protocol,
-            })
+            if protocol not in TLS_PROTOCOLS:
+                listeners.append({
+                    "allowedRoutes": {"namespaces": {"from": "All"}},
+                    "name": self._get_listener_name(port, protocol, 0),
+                    "port": port,
+                    "protocol": protocol,
+                })
         return listeners
 
     @property

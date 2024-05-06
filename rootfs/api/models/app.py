@@ -256,15 +256,19 @@ class App(UuidAuditedModel):
                         self.log(f"{prefix} waiting for pipeline.run: {state} * {count}")
                     if state != 'down':
                         raise DryccException(f'pipeline run state error: {state}')
-            self.log(f"{prefix} starts running pipeline.deploy")
-            self.deploy(release, None, force_deploy, rollback_on_failure)
+            procfile_types = release.diff_procfile_types()
+            if procfile_types is None or len(procfile_types) > 0:
+                self.log(f"{prefix} starts running pipeline.deploy")
+                self.deploy(release, procfile_types, force_deploy, rollback_on_failure)
+            else:
+                self.log(f"{prefix} no changes, skip executing pipeline.deploy")
             release.state = "succeed"
         except Exception as e:
             release.state = "crashed"
             release.failed = True
             release.summary = "{} pipeline a release that failed".format(self.owner)
             release.exception = "error: {}".format(str(e))
-            self.log(f"{prefix} pipeline runtime error: {release.exception}")
+            self.log(f"{prefix} pipeline runtime error: {release.exception}", logging.ERROR)
         release.save()
         self.log(f"{prefix} run completed...")
 
@@ -276,7 +280,6 @@ class App(UuidAuditedModel):
         """
         if release.build is None:
             raise DryccException('No build associated with this release')
-
         # use create to make sure minimum resources are created
         self.create()
         # Previous release
@@ -330,7 +333,7 @@ class App(UuidAuditedModel):
                 names.append(self._get_job_id(scale_type, True))
             names.append(self._get_job_id(scale_type, False))
         labels = {'heritage': 'drycc'}
-        if procfile_types:
+        if procfile_types is not None:
             labels["type__in"] = procfile_types
         deployments = self.scheduler().deployments.get(self.id, labels=labels).json()["items"]
         if deployments is not None:

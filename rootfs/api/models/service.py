@@ -59,7 +59,7 @@ class Service(AuditedModel):
         }
 
     def port_name(self, port, protocol):
-        return "-".join([self.app.id, self.procfile_type, protocol, str(port)]).lower()
+        return "-".join([protocol, str(port)]).lower()
 
     def get_port(self, port, protocol):
         for item in self.ports:

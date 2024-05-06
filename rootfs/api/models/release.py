@@ -3,6 +3,7 @@ import logging
 from django.conf import settings
 from django.db import models
 from django.contrib.auth import get_user_model
+from api.utils import dict_diff
 from api.tasks import run_pipeline
 from api.exceptions import DryccException, AlreadyExists
 from scheduler import KubeHTTPException
@@ -107,6 +108,30 @@ class Release(UuidAuditedModel):
         """
         return self.build.dryccfile.get(
             'deploy', {}).get(container_type, {}).get('command', [])
+
+    def diff_procfile_types(self):
+        """
+        If returning None, it indicates that all procfile_types have changed.
+        """
+        def _get_full_deploy(release):
+            deploy = {}
+            for procfile_type, value in release.build.dryccfile['deploy'].items():
+                value['image'] = release.get_deploy_image(procfile_type)
+                value['args'] = release.get_deploy_args(procfile_type)
+                value['command'] = release.get_deploy_command(procfile_type)
+                deploy[procfile_type] = value
+            return deploy
+
+        pre_release = self.previous()
+        if (pre_release and pre_release.build and
+                pre_release.build.dryccfile and self.build and self.build.dryccfile):
+            deploy = _get_full_deploy(self)
+            pre_deploy = _get_full_deploy(pre_release)
+            procfile_types = set()
+            for value in dict_diff(deploy, pre_deploy).values():
+                procfile_types = procfile_types.union(value.keys())
+            return procfile_types
+        return None
 
     def log(self, message, level=logging.INFO):
         """Logs a message in the context of this application.
@@ -254,7 +279,7 @@ class Release(UuidAuditedModel):
         )
         # base labels
         labels = {'heritage': 'drycc'}
-        if procfile_types:
+        if procfile_types is not None:
             labels['type__in'] = procfile_types
         # Cleanup controllers
         replica_sets_removal = []
@@ -286,7 +311,7 @@ class Release(UuidAuditedModel):
 
     def _cleanup_stray_pods(self, namespace, procfile_types, latest_version):
         labels = {'heritage': 'drycc'}
-        if procfile_types:
+        if procfile_types is not None:
             labels['type__in'] = procfile_types
         pods = self.scheduler().pod.get(namespace, labels=labels).json()['items']
         if not pods:
@@ -340,7 +365,7 @@ class Release(UuidAuditedModel):
             # http://kubernetes.io/docs/user-guide/labels/#set-based-requirement
             'version__notin': versions
         }
-        if procfile_types:
+        if procfile_types is not None:
             labels['type__in'] = procfile_types
         self.log('Cleaning up orphaned env var secrets for application {}'.format(namespace), level=logging.DEBUG)  # noqa
         secrets = self.scheduler().secret.get(namespace, labels=labels).json()['items']
@@ -361,7 +386,7 @@ class Release(UuidAuditedModel):
             'app': namespace,
             'version': version
         }
-        if procfile_types:
+        if procfile_types is not None:
             labels['type__in'] = procfile_types
         # see if the app config has deploy timeout preference, otherwise use global
         timeout = self.config.values.get('DRYCC_DEPLOY_TIMEOUT', settings.DRYCC_DEPLOY_TIMEOUT)

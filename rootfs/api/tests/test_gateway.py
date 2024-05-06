@@ -174,39 +174,14 @@ class GatewayTest(BaseGatewayTest):
         name = "tls-gateway"
         _, domain, secret_name, results = self.add_tls_listener(name, "TLS", port)
         expect = [{
-            'app': name,
-            'owner': 'autotest',
-            'name': name,
+            'app': name, 'owner': 'autotest', 'name': name,
             'listeners': [{
-                'allowedRoutes': {
-                    'namespaces': {
-                        'from': 'All'
-                    }
-                },
-                'name': 'tcp-%s-0' % port,
-                'port': port,
-                'hostname': domain,
+                'allowedRoutes': {'namespaces': {'from': 'All'}},
+                'name': 'tcp-443-1', 'port': 443, 'hostname': domain,
                 'protocol': 'TLS',
-                'tls': {
-                    'certificateRefs': [{
-                        'kind': 'Secret',
-                        'name': secret_name
-                    }]
-                }
-            }, {
-                'allowedRoutes': {
-                    'namespaces': {
-                        'from': 'All'
-                    }
-                },
-                'name': 'tcp-%s-0' % port,
-                'port': port,
-                'protocol': 'TLS'
+                'tls': {'certificateRefs': [{'kind': 'Secret', 'name': secret_name}]}
             }],
-            'addresses': [{
-                'type': 'IPAddress',
-                'value': '172.22.108.207'
-            }]
+            'addresses': [{'type': 'IPAddress', 'value': '172.22.108.207'}]
         }]
         self.assertEqual(results, expect)
 
@@ -224,7 +199,7 @@ class GatewayTest(BaseGatewayTest):
                         'from': 'All'
                     }
                 },
-                'name': 'mix-%s-0' % port,
+                'name': 'mix-%s-1' % port,
                 'port': port,
                 'hostname': domain,
                 'protocol': 'HTTPS',
@@ -234,15 +209,6 @@ class GatewayTest(BaseGatewayTest):
                         'name': secret_name
                     }]
                 }
-            }, {
-                'allowedRoutes': {
-                    'namespaces': {
-                        'from': 'All'
-                    }
-                },
-                'name': 'mix-%s-0' % port,
-                'port': port,
-                'protocol': 'HTTPS'
             }],
             'addresses': [{
                 'type': 'IPAddress',
@@ -256,64 +222,31 @@ class GatewayTest(BaseGatewayTest):
         name = "bingo-gateway"
         _, domain, secret_name, results = self.add_tls_listener(name, "HTTP", port)
         expect = [{
-            'app': 'bingo-gateway',
-            'owner': 'autotest',
-            'name': 'bingo-gateway',
-            'listeners': [{
-                'allowedRoutes': {
-                    'namespaces': {
-                        'from': 'All'
-                    }
+            'app': 'bingo-gateway', 'owner': 'autotest', 'name': 'bingo-gateway',
+            'listeners': [
+                {
+                    'allowedRoutes': {'namespaces': {'from': 'All'}},
+                    'name': 'tcp-80-1',
+                    'port': 80,
+                    'hostname': domain,
+                    'protocol': 'HTTP'
                 },
-                'name': 'tcp-%s-0' % port,
-                'port': port,
-                'hostname': domain,
-                'protocol': 'HTTP',
-                'tls': {
-                    'certificateRefs': [{
-                        'kind': 'Secret',
-                        'name': secret_name
-                    }]
+                {
+                    'allowedRoutes': {'namespaces': {'from': 'All'}},
+                    'name': 'tcp-80-0',
+                    'port': 80,
+                    'protocol': 'HTTP'
+                },
+                {
+                    'allowedRoutes': {'namespaces': {'from': 'All'}},
+                    'name': 'mix-443-1',
+                    'port': 443,
+                    'hostname': domain,
+                    'protocol': 'HTTPS',
+                    'tls': {'certificateRefs': [{'kind': 'Secret', 'name': secret_name}]}
                 }
-            }, {
-                'allowedRoutes': {
-                    'namespaces': {
-                        'from': 'All'
-                    }
-                },
-                'name': 'tcp-%s-0' % port,
-                'port': port,
-                'protocol': 'HTTP'
-            }, {
-                'allowedRoutes': {
-                    'namespaces': {
-                        'from': 'All'
-                    }
-                },
-                'name': 'mix-443-0',
-                'port': 443,
-                'hostname': 'autotest.example.com',
-                'protocol': 'HTTPS',
-                'tls': {
-                    'certificateRefs': [{
-                        'kind': 'Secret',
-                        'name': secret_name
-                    }]
-                }
-            }, {
-                'allowedRoutes': {
-                    'namespaces': {
-                        'from': 'All'
-                    }
-                },
-                'name': 'mix-443-0',
-                'port': 443,
-                'protocol': 'HTTPS'
-            }],
-            'addresses': [{
-                'type': 'IPAddress',
-                'value': '172.22.108.207'
-            }]
+            ],
+            'addresses': [{'type': 'IPAddress', 'value': '172.22.108.207'}]
         }]
         self.assertEqual(results, expect)
 
@@ -356,7 +289,7 @@ class GatewayTest(BaseGatewayTest):
     def test_remove_tls(self):
         app_id, domain, secret_name, _ = self.add_tls_listener("bingo-gateway", "HTTPS", 443)
         response = self.client.get('/v2/apps/{}/gateways/'.format(app_id))
-        self.assertEqual(len(response.data["results"][0]["listeners"]), 2)
+        self.assertEqual(len(response.data["results"][0]["listeners"]), 1)
         response = self.client.delete(
             '{}/{}/domain/{}/'.format('/v2/certs', secret_name, domain)
         )
@@ -373,7 +306,7 @@ class GatewayTest(BaseGatewayTest):
             data)
         self.assertEqual(response.status_code, 201, response.data)
         response = self.client.get('/v2/apps/{}/gateways/'.format(app_id))
-        self.assertEqual(len(response.data["results"][0]["listeners"]), 2)
+        self.assertEqual(len(response.data["results"][0]["listeners"]), 1)
 
     def test_remove_listener(self):
         app_id = self.create_app()
@@ -412,61 +345,30 @@ class GatewayTest(BaseGatewayTest):
             'app': app_id,
             'owner': 'autotest',
             'name': app_id,
-            'listeners': [{
-                'allowedRoutes': {
-                    'namespaces': {
-                        'from': 'All'
-                    }
+            'listeners': [
+                {
+                    'allowedRoutes': {'namespaces': {'from': 'All'}},
+                    'name': 'tcp-80-1',
+                    'port': 80,
+                    'hostname': 'test-domain.example.com',
+                    'protocol': 'HTTP'
                 },
-                'name': 'tcp-80-0',
-                'port': 80,
-                'hostname': 'test-domain.example.com',
-                'protocol': 'HTTP',
-                'tls': {
-                    'certificateRefs': [{
-                        'kind': 'Secret',
-                        'name': '%s-auto-tls' % app_id
-                    }]
+                {
+                    'allowedRoutes': {'namespaces': {'from': 'All'}},
+                    'name': 'tcp-80-0',
+                    'port': 80,
+                    'protocol': 'HTTP'
+                },
+                {
+                    'allowedRoutes': {'namespaces': {'from': 'All'}},
+                    'name': 'mix-443-1',
+                    'port': 443,
+                    'hostname': 'test-domain.example.com',
+                    'protocol': 'HTTPS',
+                    'tls': {'certificateRefs': [{'kind': 'Secret', 'name': f'{app_id}-auto-tls'}]}
                 }
-            }, {
-                'allowedRoutes': {
-                    'namespaces': {
-                        'from': 'All'
-                    }
-                },
-                'name': 'tcp-80-0',
-                'port': 80,
-                'protocol': 'HTTP'
-            }, {
-                'allowedRoutes': {
-                    'namespaces': {
-                        'from': 'All'
-                    }
-                },
-                'name': 'mix-443-0',
-                'port': 443,
-                'hostname': 'test-domain.example.com',
-                'protocol': 'HTTPS',
-                'tls': {
-                    'certificateRefs': [{
-                        'kind': 'Secret',
-                        'name': '%s-auto-tls' % app_id
-                    }]
-                }
-            }, {
-                'allowedRoutes': {
-                    'namespaces': {
-                        'from': 'All'
-                    }
-                },
-                'name': 'mix-443-0',
-                'port': 443,
-                'protocol': 'HTTPS'
-            }],
-            'addresses': [{
-                'type': 'IPAddress',
-                'value': '172.22.108.207'
-            }]
+            ],
+            'addresses': [{'type': 'IPAddress', 'value': '172.22.108.207'}]
         }]
         self.assertEqual(response.data["results"], expect, response.data)
 

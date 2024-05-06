@@ -419,8 +419,9 @@ class ConfigViewSet(ReleasableViewSet):
                     if field in config.procfile_fields:
                         for value in diff.values():
                             procfile_types.update(value.keys())
-                config.app.deploy(
-                    release, procfile_types=list(procfile_types) if procfile_types else None)
+                # all_diff_fields changed, deploy all.
+                procfile_types = procfile_types if procfile_types else None
+                config.app.deploy(release, procfile_types)
             release.state = "succeed"
             release.save()
         except Exception as e:

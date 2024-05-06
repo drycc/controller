@@ -90,7 +90,8 @@ class Build(UuidAuditedModel):
                 new_release = self.app.release_set.latest()
                 new_release.state = "crashed"
                 new_release.failed = True
-                new_release.summary = "{} deployed {} which failed".format(self.owner, str(self.uuid)[:7])  # noqa
+                new_release.summary = "{} deployed {} which failed".format(
+                    self.owner, str(self.uuid)[:7])
                 # Get the exception that has occured
                 new_release.exception = "error: {}".format(str(e))
                 new_release.save()

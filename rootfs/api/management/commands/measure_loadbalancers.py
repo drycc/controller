@@ -37,8 +37,9 @@ class Command(BaseCommand):
                 "usage": 1,
                 "kwargs": {
                     "ip": ip,
+                    "node": item["node"],
                     "service": item["service"],
-                    "hostname": item["hostname"],
+                    "instance": item["instance"],
                 },
                 "timestamp": start
             })
