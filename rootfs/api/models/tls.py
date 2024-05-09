@@ -106,8 +106,8 @@ class TLS(UuidAuditedModel):
                     version = data["metadata"]["resourceVersion"]
                     self.scheduler().certificate.put(namespace, name, hosts, version)
                 else:
-                    logger.log(
-                        msg="certificate {} does not exist".format(namespace), level=logging.INFO)
+                    self.log(
+                        "certificate {} does not exist".format(namespace), level=logging.INFO)
                     self.scheduler().certificate.create(namespace, name, hosts)
             else:
                 self.log("skip creating certificate, no domain name set", logging.WARNING)

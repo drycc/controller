@@ -25,6 +25,17 @@ class Gateway(AuditedModel):
     name = models.CharField(max_length=63, db_index=True)
     ports = models.JSONField(default=list)
 
+    def log(self, message, level=logging.INFO):
+        """Logs a message in the context of this service.
+
+        This prefixes log messages with an application "tag" that the customized
+        drycc-logspout will be on the lookout for.  When it's seen, the message-- usually
+        an application event of some sort like releasing or scaling, will be considered
+        as "belonging" to the application instead of the controller and will be handled
+        accordingly.
+        """
+        logger.log(level, "[{}]: {}".format(self.app.id, message))
+
     def add(self, port, protocol):
         # check port
         if not self._check_port(port, protocol):
@@ -126,8 +137,8 @@ class Gateway(AuditedModel):
         try:
             self.scheduler().gateways.delete(self.app.id, self.name, ignore_exception=False)
         except KubeException:
-            logger.log(
-                msg='Kubernetes gateway cannot be deleted: {}'.format(self.name),
+            self.log(
+                'Kubernetes gateway cannot be deleted: {}'.format(self.name),
                 level=logging.ERROR,
             )
         return super().delete(*args, **kwargs)
@@ -225,6 +236,17 @@ class Route(AuditedModel):
             return self.rules["canary"]
         return self.rules["stable"]
 
+    def log(self, message, level=logging.INFO):
+        """Logs a message in the context of this service.
+
+        This prefixes log messages with an application "tag" that the customized
+        drycc-logspout will be on the lookout for.  When it's seen, the message-- usually
+        an application event of some sort like releasing or scaling, will be considered
+        as "belonging" to the application instead of the controller and will be handled
+        accordingly.
+        """
+        logger.log(level, "[{}]: {}".format(self.app.id, message))
+
     def check_rules(self):
         service = self.app.service_set.filter(
             procfile_type=self.procfile_type).first()
@@ -297,8 +319,8 @@ class Route(AuditedModel):
             k8s_route = getattr(self.scheduler(), self.kind.lower())
             k8s_route.delete(self.app.id, self.name, ignore_exception=False)
         except KubeException:
-            logger.log(
-                msg='Kubernetes {} cannot be deleted: {}'.format(self.kind.lower(), self.name),
+            self.log(
+                'Kubernetes {} cannot be deleted: {}'.format(self.kind.lower(), self.name),
                 level=logging.ERROR,
             )
         return super().delete(*args, **kwargs)

@@ -27,6 +27,4 @@ hiredis==2.3.2
 django_redis==5.4.0
 dj-database-url==2.1.0
 social-auth-app-django==5.4.1
-python-jose==3.3.0
-Authlib==1.3.0
 kubernetes==29.0.0
