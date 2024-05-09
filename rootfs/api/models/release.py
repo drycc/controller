@@ -343,7 +343,7 @@ class Release(UuidAuditedModel):
         """
 
         # Find all ReplicaSets
-        versions = []
+        versions = ['v{}'.format(self.version), ]
         labels = {'heritage': 'drycc', 'app': namespace}
         replicasets = self.scheduler().rs.get(namespace, labels=labels).json()['items']
         if not replicasets:
