@@ -44,13 +44,17 @@ class Release(UuidAuditedModel):
         unique_together = (('app', 'version'),)
 
     def __str__(self):
-        return "{0}-v{1}".format(self.app.id, self.version)
+        return "{0}-{1}".format(self.app.id, self.version_name)
 
     @property
     def procfile_types(self):
         if self.build is not None:
             return self.build.procfile_types
         return []
+
+    @property
+    def version_name(self):
+        return f'v{self.version}'
 
     def get_run_image(self):
         """
@@ -272,9 +276,8 @@ class Release(UuidAuditedModel):
         Secrets no longer tied to any ReplicaSet
         Stray pods no longer relevant to the latest release
         """
-        latest_version = 'v{}'.format(self.version)
         self.log(
-            'Cleaning up RSs for releases older than {} (latest)'.format(latest_version),
+            'Cleaning up RSs for releases older than {} (latest)'.format(self.version_name),
             level=logging.DEBUG
         )
         # base labels
@@ -287,29 +290,30 @@ class Release(UuidAuditedModel):
         if not replica_sets:
             replica_sets = []
         for replica_set in replica_sets:
-            current_version = replica_set['metadata']['labels']['version']
+            current_version_name = replica_set['metadata']['labels']['version']
             # skip the latest release
-            if current_version == latest_version:
+            if current_version_name == self.version_name:
                 continue
 
             # aggregate versions together to removal all at once
-            if current_version not in replica_sets_removal:
-                replica_sets_removal.append(current_version)
+            if current_version_name not in replica_sets_removal:
+                replica_sets_removal.append(current_version_name)
 
         if replica_sets_removal:
             self.log(
-                'Found the following versions to cleanup: {}'.format(', '.join(replica_sets_removal)),  # noqa
+                'Found the following versions to cleanup: {}'.format(
+                    ', '.join(replica_sets_removal)),
                 level=logging.DEBUG
             )
         # this is RC related
-        for version in replica_sets_removal:
-            self._delete_release_in_scheduler(self.app.id, procfile_types, version)
+        for version_name in replica_sets_removal:
+            self._delete_release_in_scheduler(self.app.id, procfile_types, version_name)
         # handle Deployments specific cleanups
         self._cleanup_deployment_secrets_and_configs(self.app.id, procfile_types)
         # Remove stray pods
-        self._cleanup_stray_pods(self.app.id, procfile_types, latest_version)
+        self._cleanup_stray_pods(self.app.id, procfile_types, self.version_name)
 
-    def _cleanup_stray_pods(self, namespace, procfile_types, latest_version):
+    def _cleanup_stray_pods(self, namespace, procfile_types, latest_version_name):
         labels = {'heritage': 'drycc'}
         if procfile_types is not None:
             labels['type__in'] = procfile_types
@@ -320,9 +324,9 @@ class Release(UuidAuditedModel):
             if self.scheduler().pod.deleted(pod):
                 continue
 
-            current_version = pod['metadata']['labels']['version']
+            current_version_name = pod['metadata']['labels']['version']
             # skip the latest release
-            if current_version == latest_version:
+            if current_version_name == latest_version_name:
                 continue
 
             try:
@@ -343,7 +347,7 @@ class Release(UuidAuditedModel):
         """
 
         # Find all ReplicaSets
-        versions = ['v{}'.format(self.version), ]
+        version_names = [self.version_name, ]
         labels = {'heritage': 'drycc', 'app': namespace}
         replicasets = self.scheduler().rs.get(namespace, labels=labels).json()['items']
         if not replicasets:
@@ -351,11 +355,11 @@ class Release(UuidAuditedModel):
         for replicaset in replicasets:
             if (
                 'version' not in replicaset['metadata']['labels'] or
-                replicaset['metadata']['labels']['version'] in versions
+                replicaset['metadata']['labels']['version'] in version_names
             ):
                 continue
 
-            versions.append(replicaset['metadata']['labels']['version'])
+            version_names.append(replicaset['metadata']['labels']['version'])
 
         # find all env secrets not owned by any replicaset
         labels = {
@@ -363,7 +367,7 @@ class Release(UuidAuditedModel):
             'app': namespace,
             'class': 'env',
             # http://kubernetes.io/docs/user-guide/labels/#set-based-requirement
-            'version__notin': versions
+            'version__notin': version_names
         }
         if procfile_types is not None:
             labels['type__in'] = procfile_types
@@ -374,7 +378,7 @@ class Release(UuidAuditedModel):
         for secret in secrets:
             self.scheduler().secret.delete(namespace, secret['metadata']['name'])
 
-    def _delete_release_in_scheduler(self, namespace, procfile_types, version):
+    def _delete_release_in_scheduler(self, namespace, procfile_types, version_name):
         """
         Deletes a specific release in k8s based on ReplicationController
 
@@ -384,7 +388,7 @@ class Release(UuidAuditedModel):
         labels = {
             'heritage': 'drycc',
             'app': namespace,
-            'version': version
+            'version': version_name
         }
         if procfile_types is not None:
             labels['type__in'] = procfile_types

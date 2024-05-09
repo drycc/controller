@@ -90,7 +90,7 @@ def _hook_release_created(**kwargs):
             url = deploy_hook
             params = {
                 'app': release.app,
-                'release': 'v{}'.format(release.version),
+                'release': release.version_name,
                 'release_summary': release.summary,
                 'sha': '',
                 'user': release.owner,

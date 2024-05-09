@@ -240,7 +240,7 @@ class App(UuidAuditedModel):
         self._scale(user, structure, release, app_settings)
 
     def pipeline(self, release, force_deploy=False, rollback_on_failure=True):
-        prefix = f"[pipeline] release v{release.version}"
+        prefix = f"[pipeline] release {release.version_name}"
         try:
             self.log(f"{prefix} starts running...")
             if release.build.dryccfile:
@@ -518,9 +518,8 @@ class App(UuidAuditedModel):
         updates it if it already exists
         """
         # env vars are stored in secrets and mapped to env in k8s
-        version = 'v{}'.format(release.version)
         labels = {
-            'version': version,
+            'version': release.version_name,
             'type': procfile_type,
             'class': 'env'
         }
@@ -533,7 +532,7 @@ class App(UuidAuditedModel):
         # dictionary sorted by key
         secrets_env = OrderedDict(sorted(secrets_env.items(), key=lambda t: t[0]))
 
-        secret_name = "{}-{}-{}-env".format(self.id, procfile_type, version)
+        secret_name = "{}-{}-{}-env".format(self.id, procfile_type, release.version_name)
         try:
             self.scheduler().secret.get(self.id, secret_name)
         except KubeHTTPException:
@@ -645,7 +644,7 @@ class App(UuidAuditedModel):
                 if (prev_release.canary == release.canary and
                         rollback_on_failure and prev_release.build is not None):
                     err = 'There was a problem deploying {}. Rolling back to release {}.'.format(
-                        'v{}'.format(release.version), "v{}".format(prev_release.version))
+                        release.version_name, prev_release.version_name)
                     # This goes in the log before the rollback starts
                     self.log(err, logging.ERROR)
                     # revert all process types to old release
@@ -925,7 +924,7 @@ class App(UuidAuditedModel):
         # mix in default environment information drycc may require
         default_env = {
             'DRYCC_APP': self.id,
-            'WORKFLOW_RELEASE': 'v{}'.format(release.version),
+            'WORKFLOW_RELEASE': release.version_name,
             'WORKFLOW_RELEASE_SUMMARY': release.summary,
             'WORKFLOW_RELEASE_CREATED_AT': str(release.created.strftime(
                 settings.DRYCC_DATETIME_FORMAT))
@@ -1042,7 +1041,7 @@ class App(UuidAuditedModel):
             'envs': envs,
             'registry': config.registry,
             'replicas': replicas,
-            'version': 'v{}'.format(release.version),
+            'version': release.version_name,
             'app_type': procfile_type,
             'resources': {"limits": limit_plan.limits, "requests": limit_plan.requests},
             'build_type': release.build.type,
