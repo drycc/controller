@@ -9,7 +9,7 @@ class Deployment(Resource):
     api_prefix = 'apis'
     api_version = 'apps/v1'
 
-    def get(self, namespace, name=None, **kwargs):
+    def get(self, namespace, name=None, ignore_exception=False, **kwargs):
         """
         Fetch a single Deployment or a list
         """
@@ -24,7 +24,7 @@ class Deployment(Resource):
 
         url = self.api(url, *args)
         response = self.http_get(url, params=self.query_params(**kwargs))
-        if self.unhealthy(response.status_code):
+        if self.unhealthy(response.status_code) and not ignore_exception:
             args.reverse()  # error msg is in reverse order
             raise KubeHTTPException(response, message, *args)
 
@@ -115,7 +115,8 @@ class Deployment(Resource):
 
         return manifest
 
-    def create(self, namespace, name, image, command, args, spec_annotations, **kwargs):
+    def create(self, namespace, name, image, command, args,
+               spec_annotations, ignore_exception=False, **kwargs):
         manifest = self.manifest(namespace, name, image,
                                  command, args, spec_annotations, **kwargs)
 
@@ -123,17 +124,18 @@ class Deployment(Resource):
         response = self.http_post(url, json=manifest)
         if self.unhealthy(response.status_code):
             self.log(namespace, 'template: {}'.format(json.dumps(manifest, indent=4)), 'DEBUG')
-            raise KubeHTTPException(
-                response,
-                'create Deployment "{}" in Namespace "{}"', name, namespace
-            )
-
-        self.wait_until_updated(namespace, name)
-        self.wait_until_ready(namespace, name, **kwargs)
-
+            if not ignore_exception:
+                raise KubeHTTPException(
+                    response,
+                    'create Deployment "{}" in Namespace "{}"', name, namespace
+                )
+        else:
+            self.wait_until_updated(namespace, name)
+            self.wait_until_ready(namespace, name, **kwargs)
         return response
 
-    def update(self, namespace, name, image, command, args, spec_annotations, **kwargs):
+    def update(self, namespace, name, image, command, args,
+               spec_annotations, ignore_exception=False, **kwargs):
         manifest = self.manifest(namespace, name, image,
                                  command, args, spec_annotations, **kwargs)
 
@@ -141,14 +143,15 @@ class Deployment(Resource):
         response = self.http_put(url, json=manifest)
         if self.unhealthy(response.status_code):
             self.log(namespace, 'template: {}'.format(json.dumps(manifest, indent=4)), 'DEBUG')
-            raise KubeHTTPException(response, 'update Deployment "{}"', name)
-
-        self.wait_until_updated(namespace, name)
-        self.wait_until_ready(namespace, name, **kwargs)
-
+            if not ignore_exception:
+                raise KubeHTTPException(response, 'update Deployment "{}"', name)
+        else:
+            self.wait_until_updated(namespace, name)
+            self.wait_until_ready(namespace, name, **kwargs)
         return response
 
-    def patch(self, namespace, name, image, command, args, spec_annotations, **kwargs):
+    def patch(self, namespace, name, image, command, args,
+              spec_annotations, ignore_exception=False, **kwargs):
         manifest = self.manifest(namespace, name, image,
                                  command, args, spec_annotations, **kwargs)
 
@@ -161,11 +164,11 @@ class Deployment(Resource):
 
         if self.unhealthy(response.status_code):
             self.log(namespace, 'template: {}'.format(json.dumps(manifest, indent=4)), 'DEBUG')
-            raise KubeHTTPException(response, 'patch Deployment "{}"', name)
-
-        self.wait_until_updated(namespace, name)
-        self.wait_until_ready(namespace, name, **kwargs)
-
+            if not ignore_exception:
+                raise KubeHTTPException(response, 'patch Deployment "{}"', name)
+        else:
+            self.wait_until_updated(namespace, name)
+            self.wait_until_ready(namespace, name, **kwargs)
         return response
 
     def delete(self, namespace, name, ignore_exception=False):
@@ -200,7 +203,7 @@ class Deployment(Resource):
             kwargs['previous_replicas'] = current
             self.wait_until_ready(namespace, name, **kwargs)
 
-    def restart(self, namespace, name):
+    def restart(self, namespace, name, ignore_exception=False):
         url = self.api(
             "/namespaces/{}/deployments/{}?fieldManager=kubectl-rollout&pretty=true",
             namespace, name
@@ -221,7 +224,7 @@ class Deployment(Resource):
             }),
             headers={"Content-Type": "application/merge-patch+json"},
         )
-        if self.unhealthy(response.status_code):
+        if self.unhealthy(response.status_code) and not ignore_exception:
             raise KubeHTTPException(
                 response,
                 'restart Deployment "{}" in Namespace "{}"', name, namespace

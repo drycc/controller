@@ -512,6 +512,33 @@ class App(UuidAuditedModel):
 
         return name
 
+    def state_to_k8s(self):
+        def _load_procfile_types(canary):
+            procfile_types = set()
+            for procfile_type, scale in self.structure.items():
+                response = self.scheduler().deployment.get(
+                    self.id, self._get_job_id(procfile_type, canary),
+                    ignore_exception=True)
+                if response.status_code == 404 and scale > 0:
+                    procfile_types.add(procfile_type)
+                elif response.status_code != 200:
+                    data = response.json()
+                    self.log('get deployment status_code {}, message: {}'.format(
+                        response.status_code, data.get("message", "")), logging.ERROR)
+            return procfile_types
+
+        release = self.release_set.filter(failed=False).latest()
+        if release.build is None:
+            self.log('the last release does not have a build, skipping deployment...')
+            return
+        procfile_types = _load_procfile_types(False)
+        if release.canary:
+            procfile_types = procfile_types.union(_load_procfile_types(canary=True))
+        if len(procfile_types) == 0:
+            self.log('the cluster status is the latest, skipping deployment...')
+            return
+        self.deploy(release, procfile_types)
+
     def set_application_config(self, release, procfile_type):
         """
         Creates the application config as a secret in Kubernetes and

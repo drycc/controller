@@ -20,14 +20,9 @@ class Command(BaseCommand):
     to k8s.
     """
 
-    def _deploy(self, app, release):
-        if release.build is None:
-            print('WARNING: {} has no build associated with '
-                  'its latest release. Skipping deployment...'.format(app))
-            return
-
+    def _deploy(self, app):
         try:
-            app.deploy(release)
+            app.state_to_k8s()
         except AlreadyExists as error:
             logger.debug(error)
             print('WARNING: {} has a deployment in progress. '
@@ -50,13 +45,9 @@ class Command(BaseCommand):
                 cert.attach_in_kubernetes(domain)
 
         # deploy apps
-        print("Deploying available applications")
+        print("Deploying available applications.")
         for app in App.objects.all():
-            release = app.release_set.filter(failed=False).latest()
-            if release.canary:
-                self._deploy(app, app.release_set.filter(failed=False, canary=False).latest())
-            self._deploy(app, release)
-
+            self._deploy(app)
         print("Done Publishing DB state to kubernetes.")
 
     def save_apps(self):
