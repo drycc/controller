@@ -8,12 +8,10 @@ from django.contrib.auth import get_user_model
 from api.exceptions import ServiceUnavailable
 from scheduler import KubeException
 
-from .base import AuditedModel
+from .base import AuditedModel, DEFAULT_HTTP_PORT, DEFAULT_HTTPS_PORT, PROCFILE_TYPE_MAX_LENGTH
 
 User = get_user_model()
 logger = logging.getLogger(__name__)
-DEFAULT_HTTP_PORT = 80
-DEFAULT_HTTPS_PORT = 443
 
 TLS_PROTOCOLS = ("HTTPS", "TLS")
 HOSTNAME_PROTOCOLS = TLS_PROTOCOLS + ("HTTP", )
@@ -190,7 +188,7 @@ class Route(AuditedModel):
     rules = models.JSONField(default=list)
     routable = models.BooleanField(default=True)
     parent_refs = models.JSONField(default=list)
-    procfile_type = models.TextField()
+    procfile_type = models.CharField(max_length=PROCFILE_TYPE_MAX_LENGTH)
 
     @property
     def protocols(self):

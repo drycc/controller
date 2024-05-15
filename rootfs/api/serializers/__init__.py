@@ -17,6 +17,7 @@ from rest_framework import serializers
 from api import models
 from api.utils import validate_json
 from api.exceptions import DryccException
+from api.models.base import PROCFILE_TYPE_MIN_LENGTH, PROCFILE_TYPE_MAX_LENGTH
 from scheduler.resources.pod import DEFAULT_CONTAINER_PORT
 from .schemas.rules import SCHEMA as RULES_SCHEMA
 from .schemas.volumes import SCHEMA as VOLUMES_SCHEMA
@@ -67,6 +68,16 @@ VOLUME_PATH_MATCH = re.compile(r'^\/(\w+\/?)+$', re.IGNORECASE)
 METRIC_EVERY_MATCH = re.compile(r'^[1-9][0-9]*m$')
 HEALTHCHECK_MATCH = re.compile(r'^(livenessProbe|readinessProbe|startupProbe)$')
 HEALTHCHECK_MISMATCH_MSG = "Healthcheck pattern: %s" % HEALTHCHECK_MATCH.pattern
+
+
+def validate_procfile_type(value):
+    if not re.match(PROCTYPE_MATCH, value):
+        raise serializers.ValidationError(PROCTYPE_MISMATCH_MSG)
+    if len(value) < PROCFILE_TYPE_MIN_LENGTH or len(value) > PROCFILE_TYPE_MAX_LENGTH:
+        raise serializers.ValidationError(
+            "The length of procfile_type must be between {} and {}".format(
+                PROCFILE_TYPE_MIN_LENGTH, PROCFILE_TYPE_MAX_LENGTH))
+    return value
 
 
 class JSONFieldSerializer(serializers.JSONField):
@@ -199,16 +210,17 @@ class BuildSerializer(serializers.ModelSerializer):
         for key, value in data.items():
             if value is None or value == "":
                 raise serializers.ValidationError("Command can't be empty for process type")
-
-            if not re.match(PROCTYPE_MATCH, key):
-                raise serializers.ValidationError(PROCTYPE_MISMATCH_MSG)
-
+            validate_procfile_type(key)
         return data
 
     @staticmethod
     def validate_dryccfile(data):
         if data:
-            return validate_json(data, DRYCCFILE_SCHEMA, serializers.ValidationError)
+            validate_json(data, DRYCCFILE_SCHEMA, serializers.ValidationError)
+            procfile_types = set().union(data.get("deploy", {}).keys())
+            procfile_types = procfile_types.union(data.get("build", {}).get("docker", {}).keys())
+            for procfile_type in procfile_types:
+                validate_procfile_type(procfile_type)
         return data
 
 
@@ -460,12 +472,7 @@ class DomainSerializer(serializers.ModelSerializer):
 
         return aceValue
 
-    @staticmethod
-    def validate_procfile_type(value):
-        if not re.match(PROCTYPE_MATCH, value):
-            raise serializers.ValidationError(PROCTYPE_MISMATCH_MSG)
-
-        return value
+    validate_procfile_type = staticmethod(validate_procfile_type)
 
 
 class ServiceSerializer(serializers.ModelSerializer):
@@ -502,12 +509,7 @@ class ServiceSerializer(serializers.ModelSerializer):
     def validate_target_port(cls, value):
         return cls.validate_port(value)
 
-    @staticmethod
-    def validate_procfile_type(value):
-        if not re.match(PROCTYPE_MATCH, value):
-            raise serializers.ValidationError(PROCTYPE_MISMATCH_MSG)
-
-        return value
+    validate_procfile_type = staticmethod(validate_procfile_type)
 
 
 class CertificateSerializer(serializers.ModelSerializer):
@@ -719,12 +721,7 @@ class GatewaySerializer(serializers.Serializer):
             raise serializers.ValidationError(GATEWAY_PROTOCOL_MISMATCH_MSG)
         return value
 
-    @staticmethod
-    def validate_procfile_type(value):
-        if not re.match(PROCTYPE_MATCH, value):
-            raise serializers.ValidationError(PROCTYPE_MISMATCH_MSG)
-
-        return value
+    validate_procfile_type = staticmethod(validate_procfile_type)
 
 
 class RouteSerializer(serializers.Serializer):
@@ -751,12 +748,7 @@ class RouteSerializer(serializers.Serializer):
             raise serializers.ValidationError(ROUTE_PROTOCOL_MISMATCH_MSG)
         return value
 
-    @staticmethod
-    def validate_procfile_type(value):
-        if not re.match(PROCTYPE_MATCH, value):
-            raise serializers.ValidationError(PROCTYPE_MISMATCH_MSG)
-
-        return value
+    validate_procfile_type = staticmethod(validate_procfile_type)
 
     @staticmethod
     def validate_rules(value):

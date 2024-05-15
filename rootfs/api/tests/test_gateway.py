@@ -5,7 +5,8 @@ import random
 from django.contrib.auth import get_user_model
 from django.core.cache import cache
 
-from api.models.app import App, PROCFILE_TYPE_WEB
+from api.models.app import App
+from api.models.base import PROCFILE_TYPE_WEB
 from api.models.build import Build
 from api.models.gateway import Route
 from api.models.release import Release

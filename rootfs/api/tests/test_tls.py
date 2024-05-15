@@ -3,7 +3,8 @@ import requests_mock
 from django.core.cache import cache
 from django.contrib.auth import get_user_model
 
-from api.models.app import App, PROCFILE_TYPE_WEB
+from api.models.app import App
+from api.models.base import PROCFILE_TYPE_WEB
 from api.models.tls import TLS
 from api.tests import adapter, DryccTransactionTestCase
 

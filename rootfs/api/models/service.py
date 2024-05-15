@@ -6,7 +6,7 @@ from django.contrib.auth import get_user_model
 from api.utils import validate_json
 from api.exceptions import ServiceUnavailable
 from scheduler import KubeException
-from .base import AuditedModel
+from .base import AuditedModel, PROCFILE_TYPE_MAX_LENGTH
 
 
 User = get_user_model()
@@ -34,7 +34,7 @@ class Service(AuditedModel):
     ports = models.JSONField(
         default=list, validators=[partial(validate_json, schema=service_ports_schema)])
     canary = models.BooleanField(default=False)
-    procfile_type = models.TextField()
+    procfile_type = models.CharField(max_length=PROCFILE_TYPE_MAX_LENGTH)
 
     class Meta:
         get_latest_by = 'created'

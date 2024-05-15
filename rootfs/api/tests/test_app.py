@@ -15,7 +15,8 @@ from django.contrib.auth import get_user_model
 from django.core.cache import cache
 from django.test.utils import override_settings
 
-from api.models.app import App, PROCFILE_TYPE_WEB
+from api.models.app import App
+from api.models.base import PROCFILE_TYPE_WEB
 from api.models.config import Config
 from scheduler import KubeException, KubeHTTPException
 

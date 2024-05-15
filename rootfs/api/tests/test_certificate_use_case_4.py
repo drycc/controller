@@ -1,7 +1,8 @@
 from django.contrib.auth import get_user_model
 from django.core.cache import cache
 
-from api.models.app import App, PROCFILE_TYPE_WEB
+from api.models.app import App
+from api.models.base import PROCFILE_TYPE_WEB
 from api.models.certificate import Certificate
 from api.models.domain import Domain
 from api.tests import TEST_ROOT, DryccTestCase

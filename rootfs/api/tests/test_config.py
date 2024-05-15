@@ -13,7 +13,8 @@ from django.core.management import call_command
 
 from unittest import mock
 
-from api.models.app import App, PROCFILE_TYPE_RUN, PROCFILE_TYPE_WEB
+from api.models.app import App
+from api.models.base import PROCFILE_TYPE_RUN, PROCFILE_TYPE_WEB
 from api.models.config import Config
 from api.serializers import CONFIG_LIMITS_MISMATCH_MSG
 from api.models.build import Build

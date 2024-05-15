@@ -25,7 +25,7 @@ from api.exceptions import AlreadyExists, DryccException, ServiceUnavailable
 from api.utils import generate_app_name, apply_tasks
 from scheduler import KubeHTTPException, KubeException
 from scheduler.resources.pod import DEFAULT_CONTAINER_PORT
-from .gateway import Gateway, Route, DEFAULT_HTTP_PORT
+from .gateway import Gateway, Route
 from .limit import LimitPlan
 from .config import Config
 from .service import Service
@@ -33,12 +33,10 @@ from .release import Release
 from .tls import TLS
 from .appsettings import AppSettings
 from .volume import Volume
-from .base import UuidAuditedModel
+from .base import UuidAuditedModel, PROCFILE_TYPE_WEB, PROCFILE_TYPE_RUN, DEFAULT_HTTP_PORT
 
 User = get_user_model()
 logger = logging.getLogger(__name__)
-PROCFILE_TYPE_WEB = "web"
-PROCFILE_TYPE_RUN = "run"
 
 
 # http://kubernetes.io/v1.1/docs/design/identifiers.html

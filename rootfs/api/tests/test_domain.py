@@ -8,7 +8,7 @@ from unittest import mock
 from django.contrib.auth import get_user_model
 from django.core.cache import cache
 
-from api.models.app import PROCFILE_TYPE_WEB
+from api.models.base import PROCFILE_TYPE_WEB
 from api.models.domain import Domain
 from api.tests import DryccTestCase
 

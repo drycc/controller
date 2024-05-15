@@ -1,7 +1,7 @@
 from django.db import models
 from django.db import transaction
 from django.contrib.auth import get_user_model
-from .base import AuditedModel
+from .base import AuditedModel, PROCFILE_TYPE_MAX_LENGTH
 
 User = get_user_model()
 
@@ -21,7 +21,7 @@ class Domain(AuditedModel):
         blank=True,
         null=True
     )
-    procfile_type = models.TextField()
+    procfile_type = models.CharField(max_length=PROCFILE_TYPE_MAX_LENGTH)
 
     class Meta:
         ordering = ['domain', 'certificate']

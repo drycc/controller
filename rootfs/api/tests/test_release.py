@@ -10,7 +10,8 @@ from django.core.cache import cache
 from django.test.utils import override_settings
 from unittest import mock
 
-from api.models.app import App, PROCFILE_TYPE_WEB
+from api.models.app import App
+from api.models.base import PROCFILE_TYPE_WEB
 from api.models.build import Build
 from api.models.release import Release
 from scheduler import KubeHTTPException
