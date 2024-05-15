@@ -39,19 +39,10 @@ ROUTE_PROTOCOL_MISMATCH_MSG = (
     "the route kind only supports: %s" % ROUTE_PROTOCOL_MATCH.pattern)
 PROCTYPE_MATCH = re.compile(PROCTYPE_REGEX)
 PROCTYPE_MISMATCH_MSG = "Process types can only supports: %s" % PROCTYPE_MATCH.pattern
-MEMLIMIT_MATCH = re.compile(r'^(?P<mem>([1-9][0-9]*[mgMG]))$', re.IGNORECASE)
-MEMLIMIT_MISMATCH_MSG = (
-    "Memory limit format: <number><unit>, "
-    "where unit = M or G"
-)
-CPUSHARE_MATCH = re.compile(r'^(?P<cpu>([-+]?[1-9][0-9]*[m]?))$')
-CPUSHARE_MISMATCH_MSG = "CPU limit format: <value>, where value must be a numeric"
+
 TAGVAL_MATCH = re.compile(r'^(?:[a-zA-Z\d][-\.\w]{0,61})?[a-zA-Z\d]$')
-CONFIGKEY_MATCH = re.compile(r'^[a-z_]+[a-z0-9_]*$', re.IGNORECASE)
-CONFIGKEY_MISMATCH_MSG = (
-    "Config keys must start with a letter or underscore and "
-    "only contain [A-z0-9_]"
-)
+CONFIGKEY_MATCH = re.compile(r'^[A-z0-9_\-\.]+$', re.IGNORECASE)
+CONFIGKEY_MISMATCH_MSG = ("Config key can only supports: %s" % CONFIGKEY_MATCH.pattern)
 CONFIG_LIMITS_MISMATCH_MSG = "The limit plan {} does not exist"
 
 TERMINATION_GRACE_PERIOD_MATCH = re.compile(r'^[0-9]*$')

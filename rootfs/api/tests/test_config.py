@@ -317,7 +317,7 @@ class ConfigTest(DryccTransactionTestCase):
     def test_invalid_config_keys(self, mock_requests):
         """Test that invalid config keys are rejected.
         """
-        keys = ("123", "../../foo", "FOO/", "FOO-BAR")
+        keys = ("$123", "../../foo", "FOO/", "*FOO-BAR")
         app_id = self.create_app()
         url = f'/v2/apps/{app_id}/config'
         for k in keys:
