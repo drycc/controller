@@ -21,10 +21,11 @@ if exists(MUTATE_KEY_PATH) and exists(MUTATE_TLS_KEY_PATH) and exists(MUTATE_TLS
 else:
     bind = '0.0.0.0:8000'
 
-workers = int(os.environ.get('GUNICORN_WORKERS', 2))
+workers = int(os.environ.get('GUNICORN_WORKERS', 4))
+timeout = int(os.environ.get('GUNICORN_TIMEOUT', 30))
+keepalive = int(os.environ.get('GUNICORN_KEEPALIVE', 60))
 worker_class = "uvicorn.workers.UvicornWorker"
 pythonpath = dirname(dirname(dirname(realpath(__file__))))
-timeout = 1200
 pidfile = '/tmp/gunicorn.pid'
 logger_class = 'drycc.gunicorn.logging.Logging'
 loglevel = 'info'
