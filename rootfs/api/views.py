@@ -311,19 +311,6 @@ class AppViewSet(BaseDryccViewSet):
         scale_app.delay(self.get_object(), request.user, request.data)
         return Response(status=status.HTTP_204_NO_CONTENT)
 
-    def logs(self, request, **kwargs):
-        app = self.get_object()
-        try:
-            logs = app.logs(request.query_params.get('log_lines', str(settings.LOG_LINES)))
-            return HttpResponse(logs, status=status.HTTP_200_OK, content_type='text/plain')
-        except NotFound:
-            return HttpResponse(status=status.HTTP_204_NO_CONTENT)
-        except ServiceUnavailable:
-            # TODO make 503
-            return HttpResponse("Error accessing logs for {}".format(app.id),
-                                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                                content_type='text/plain')
-
     def run(self, request, **kwargs):
         app = self.get_object()
         command = request.data.get('command', '').split()
@@ -691,7 +678,8 @@ class KeyHookViewSet(BaseHookViewSet):
         app = get_object_or_404(models.app.App, id=kwargs['id'])
         request.user = get_object_or_404(User, username=kwargs['username'])
         # check the user is authorized for this app
-        has_permission, message = permissions.has_app_permission(request, app)
+        has_permission, message = permissions.has_app_permission(
+            request.user, app, request.method)
         if not has_permission:
             raise PermissionDenied(message)
 
@@ -721,7 +709,7 @@ class BuildHookViewSet(BaseHookViewSet):
         app = get_object_or_404(models.app.App, id=request.data['receive_repo'])
         self.user = request.user = get_object_or_404(User, username=request.data['receive_user'])
         # check the user is authorized for this app
-        has_permission, message = permissions.has_app_permission(request, app)
+        has_permission, message = permissions.has_app_permission(self.user, app, request.method)
         if not has_permission:
             raise PermissionDenied(message)
         request.data['app'] = app
@@ -748,7 +736,8 @@ class ConfigHookViewSet(BaseHookViewSet):
         app = get_object_or_404(models.app.App, id=request.data['receive_repo'])
         request.user = get_object_or_404(User, username=request.data['receive_user'])
         # check the user is authorized for this app
-        has_permission, message = permissions.has_app_permission(request, app)
+        has_permission, message = permissions.has_app_permission(
+            request.user, app, request.method)
         if not has_permission:
             raise PermissionDenied(message)
         config = app.release_set.filter(failed=False).latest().config

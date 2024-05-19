@@ -17,17 +17,17 @@ def get_app_status(app):
     return True, None
 
 
-def has_app_permission(request, obj):
+def has_app_permission(user, obj, method):
     if isinstance(obj, App) or hasattr(obj, 'app'):
         app = obj if isinstance(obj, App) else obj.app
         is_ok, message = get_app_status(app)
         if is_ok:
-            if request.user.is_superuser:
+            if user.is_superuser:
                 return True, None
-            elif app.owner == request.user:
+            elif app.owner == user:
                 return True, None
-            elif request.user.is_staff or request.user.has_perm('use_app', app):
-                if request.method != 'DELETE':
+            elif user.is_staff or user.has_perm('use_app', app):
+                if method != 'DELETE':
                     return True, None
                 else:
                     return False, "User does not have permission to delete"
@@ -81,7 +81,7 @@ class IsAppUser(permissions.BasePermission):
     an app-related model.
     """
     def has_object_permission(self, request, view, obj):
-        return has_app_permission(request, obj)[0]
+        return has_app_permission(request.user, obj, request.method)[0]
 
 
 class IsAdmin(permissions.BasePermission):

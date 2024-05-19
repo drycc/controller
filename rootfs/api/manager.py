@@ -1,14 +1,19 @@
 import base64
+import logging
 import requests
 from typing import List, Dict
+from django.core.cache import cache
 from requests_toolbelt import user_agent
 from django.conf import settings
 from api import __version__ as drycc_version
 
+logger = logging.getLogger(__name__)
+
 
 class ManagerAPI(object):
 
-    def __init__(self):
+    def __init__(self, timeout=3):
+        self.timeout = timeout
         token = base64.b85encode(b"%s:%s" % (
             settings.WORKFLOW_MANAGER_ACCESS_KEY.encode("utf8"),
             settings.WORKFLOW_MANAGER_SECRET_KEY.encode("utf8"),
@@ -23,6 +28,7 @@ class ManagerAPI(object):
         headers = kwargs.get("headers", {})
         headers.update(self.headers)
         kwargs["headers"] = headers
+        kwargs["timeout"] = self.timeout
         return requests.request(method, url, **kwargs)
 
     def get(self, url, params=None, **kwargs):
@@ -57,8 +63,19 @@ class User(ManagerAPI):
             "message": "The user is in arrears"
         }
         """
-        url = f"{settings.WORKFLOW_MANAGER_URL}/users/{id}/status/"
-        return self.get(url=url).json()
+        key = f"user:status:{id}"
+        status = cache.get(key)
+        if not status:
+            url = f"{settings.WORKFLOW_MANAGER_URL}/users/{id}/status/"
+            try:
+                status = self.get(url=url, timeout=self.timeout).json()
+            except requests.exceptions.Timeout as ex:
+                msg = f"request user {id} timeout, skipping verification."
+                status = {"is_active": True, "message": msg}
+                logger.error(msg)
+                logger.exception(ex)
+            cache.set(key, status, timeout=settings.DRYCC_CACHE_USER_TIME)
+        return status
 
 
 class Measurement(ManagerAPI):

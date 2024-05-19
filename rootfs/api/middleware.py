@@ -3,8 +3,8 @@ HTTP middleware for the Drycc REST API.
 
 See https://docs.djangoproject.com/en/1.11/topics/http/middleware/
 """
-import collections
 from api import __version__
+from django.http.request import HttpRequest
 
 from channels.middleware import BaseMiddleware
 from channels.db import database_sync_to_async
@@ -36,18 +36,20 @@ class ChannelOAuthMiddleware(BaseMiddleware):
     """
     Middleware which populates scope["user"] from a auth2 token.
     """
-    Request = collections.namedtuple('Request', ["META"])
+    authentication = DryccAuthentication()
 
-    async def get_user(self, scope):
+    @database_sync_to_async
+    def get_user(self, scope):
         headers = {}
         for header in scope["headers"]:
-            if header[0] in (b"user-agent", b"authorization"):
+            if header[0] in (b"authorization", ):
                 key = "HTTP_%s" % header[0].decode().replace("-", "_").upper()
                 headers[key] = header[1].decode()
-        if len(headers) != 2:
+        if len(headers) < 1:
             return None
-        request = self.Request(headers)
-        user, _ = await database_sync_to_async(DryccAuthentication().authenticate)(request)
+        request = HttpRequest()
+        request.META = headers
+        user, _ = self.authentication.authenticate(request)
         return user
 
     async def __call__(self, scope, receive, send):

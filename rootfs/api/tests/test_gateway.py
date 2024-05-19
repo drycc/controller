@@ -180,7 +180,8 @@ class GatewayTest(BaseGatewayTest):
                 'allowedRoutes': {'namespaces': {'from': 'All'}},
                 'name': 'tcp-443-1', 'port': 443, 'hostname': domain,
                 'protocol': 'TLS',
-                'tls': {'certificateRefs': [{'kind': 'Secret', 'name': secret_name}]}
+                'tls': {'certificateRefs': [
+                    {'kind': 'Secret', 'name': f"{secret_name}-certificate"}]}
             }],
             'addresses': [{'type': 'IPAddress', 'value': '172.22.108.207'}]
         }]
@@ -207,7 +208,7 @@ class GatewayTest(BaseGatewayTest):
                 'tls': {
                     'certificateRefs': [{
                         'kind': 'Secret',
-                        'name': secret_name
+                        'name': f"{secret_name}-certificate"
                     }]
                 }
             }],
@@ -244,7 +245,8 @@ class GatewayTest(BaseGatewayTest):
                     'port': 443,
                     'hostname': domain,
                     'protocol': 'HTTPS',
-                    'tls': {'certificateRefs': [{'kind': 'Secret', 'name': secret_name}]}
+                    'tls': {'certificateRefs': [
+                        {'kind': 'Secret', 'name': f"{secret_name}-certificate"}]}
                 }
             ],
             'addresses': [{'type': 'IPAddress', 'value': '172.22.108.207'}]

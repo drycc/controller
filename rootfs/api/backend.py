@@ -32,16 +32,27 @@ class DryccOIDC(OpenIdConnectAuth):
         ('scope', 'scope'),
     ]
 
+    def __init__(self, *args, **kwargs):
+        self.timeout = 3  # request timeout
+        super().__init__(*args, **kwargs)
+
     @social_cache(ttl=86400)
     def oidc_config(self):
-        return self.get_json(self.OIDC_ENDPOINT +
-                             '/.well-known/openid-configuration/')
+        return self.get_json(
+            self.OIDC_ENDPOINT + '/.well-known/openid-configuration/',
+            timeout=self.timeout
+        )
 
     def get_user_data(self, access_token):
         """Loads user data from service"""
         url = settings.SOCIAL_AUTH_DRYCC_USERINFO_URL
-        response = self.get_json(url, headers={
-            'authorization': 'Bearer ' + access_token})
+        response = self.get_json(
+            url,
+            headers={
+                'authorization': 'Bearer ' + access_token
+            },
+            timeout=self.timeout,
+        )
         return {
             'id': response.get('id'),
             'username': response.get('username'),
@@ -62,13 +73,13 @@ class DryccOIDC(OpenIdConnectAuth):
                 'client_id': settings.SOCIAL_AUTH_DRYCC_KEY,
                 'refresh_token': refresh_token,
             },
+            timeout=self.timeout,
         )
 
 
 class OauthCacheManager(object):
 
-    def __init__(self, timeout=60 * 10):
-        self.timeout = timeout
+    def __init__(self):
         self.drycc_oauth = DryccOIDC()
 
     def get_user(self, access_token):
@@ -82,13 +93,13 @@ class OauthCacheManager(object):
                 logger.info(e)
                 raise exceptions.AuthenticationFailed(gettext_lazy('Verify token fail.'))
         return cache.get_or_set(
-            access_token, lambda: _get_user(access_token), settings.OAUTH_CACHE_USER_TIME)
+            access_token, lambda: _get_user(access_token), settings.DRYCC_CACHE_USER_TIME)
 
     def set_state(self, key, state):
-        cache.set("oidc_key_" + key, state, self.timeout)
+        cache.set("oidc_key_" + key, state, settings.DRYCC_CACHE_USER_TIME)
 
     def set_token(self, state, data):
-        cache.set("oidc_state_" + state, data, self.timeout)
+        cache.set("oidc_state_" + state, data, settings.DRYCC_CACHE_USER_TIME)
 
     def get_token(self, key):
         state = cache.get("oidc_key_" + key, "")

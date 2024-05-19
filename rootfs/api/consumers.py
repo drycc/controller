@@ -4,8 +4,8 @@ import six
 import ssl
 import aiohttp
 import asyncio
-import collections
 from django.conf import settings
+from django.core.cache import cache
 
 from asgiref.sync import sync_to_async, async_to_sync
 
@@ -22,21 +22,24 @@ from .models.app import App
 from .permissions import has_app_permission
 
 
-Request = collections.namedtuple("Request", ["user", "method"])
-
-
 class BaseAppConsumer(AsyncWebsocketConsumer):
+    timeout = 60 * 60
 
     @database_sync_to_async
     def has_perm(self):
         if self.scope["user"] is None:
             return False, "user not login"
-        request = Request(self.scope["user"], "POST")
-        try:
-            app = App.objects.get(id=self.id)
-            return has_app_permission(request, app)
-        except App.DoesNotExist:
-            return False, "user not exists"
+        key = f"permission:user:{self.scope["user"].id}:app:{self.id}"
+        permission = cache.get(key)
+        if permission is None:
+            try:
+                app = App.objects.get(id=self.id)
+                permission = has_app_permission(self.scope["user"], app, "GET")
+                if permission[0]:
+                    cache.set(key, permission, timeout=self.timeout)
+            except App.DoesNotExist:
+                permission = (False, "user not exists")
+        return permission
 
     async def connect(self):
         self.id = self.scope["url_route"]["kwargs"]["id"]

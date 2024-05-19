@@ -130,6 +130,10 @@ class Certificate(AuditedModel):
 
         return domains
 
+    @property
+    def certname(self):
+        return '%s-certificate' % self.name
+
     def __str__(self):
         return self.name
 
@@ -197,24 +201,23 @@ class Certificate(AuditedModel):
         """Creates the certificate as a kubernetes secret"""
         # only create if it exists - We raise an exception when a secret doesn't exist
         try:
-            name = '%s-certificate' % self.name
             namespace = domain.app.id
             data = {
                 'tls.crt': self.certificate,
                 'tls.key': self.key
             }
 
-            secret = self.scheduler().secret.get(namespace, name).json()['data']
+            secret = self.scheduler().secret.get(namespace, self.certname).json()['data']
         except KubeException:
-            self.scheduler().secret.create(namespace, name, data)
+            self.scheduler().secret.create(namespace, self.certname, data)
         else:
             # update cert secret to the TLS Ingress format if required
             if secret != data:
                 try:
-                    self.scheduler().secret.update(namespace, name, data)
+                    self.scheduler().secret.update(namespace, self.certname, data)
                 except KubeException as e:
                     msg = 'There was a problem updating the certificate secret ' \
-                          '{} for {}'.format(name, namespace)
+                          '{} for {}'.format(self.certname, namespace)
                     raise ServiceUnavailable(msg) from e
 
     def detach(self, *args, **kwargs):
@@ -223,14 +226,15 @@ class Certificate(AuditedModel):
         domain.certificate = None
         domain.save()
 
-        name = '%s-certificate' % self.name
         namespace = domain.app.id
 
         # only delete if it exists and if no other domains depend on secret
         if len(self.domains) == 0:
             try:
                 # We raise an exception when a secret doesn't exist
-                self.scheduler().secret.get(namespace, name)
-                self.scheduler().secret.delete(namespace, name)
+                self.scheduler().secret.get(namespace, self.certname)
+                self.scheduler().secret.delete(namespace, self.certname)
             except KubeException as e:
-                raise ServiceUnavailable("Could not delete certificate secret {} for application {}".format(name, namespace)) from e  # noqa
+                raise ServiceUnavailable(
+                    "Could not delete certificate secret {} for application {}".format(
+                        self.certname, namespace)) from e

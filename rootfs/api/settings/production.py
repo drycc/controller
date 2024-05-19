@@ -457,7 +457,7 @@ SOCIAL_AUTH_PIPELINE = (
     'social_core.pipeline.user.user_details',
 )
 AUTHENTICATION_BACKENDS = ("api.backend.DryccOIDC", ) + AUTHENTICATION_BACKENDS
-OAUTH_CACHE_USER_TIME = int(os.environ.get('OAUTH_CACHE_USER_TIME', 30 * 60))
+DRYCC_CACHE_USER_TIME = int(os.environ.get('DRYCC_CACHE_USER_TIME', 30 * 60))
 
 # Redis Configuration
 DRYCC_REDIS_ADDRS = os.environ.get('DRYCC_REDIS_ADDRS', '127.0.0.1:6379').split(",")

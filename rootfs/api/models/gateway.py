@@ -68,7 +68,7 @@ class Gateway(AuditedModel):
                         "protocol": protocol,
                     }
                     secret_name = f"{self.app.id}-auto-tls" if auto_tls else (
-                        domain.certificate.name if domain.certificate else None)
+                        domain.certificate.certname if domain.certificate else None)
                     if secret_name and protocol in TLS_PROTOCOLS:
                         listener["tls"] = {
                             "certificateRefs": [{"kind": "Secret", "name": secret_name}]}

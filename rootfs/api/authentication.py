@@ -65,7 +65,7 @@ class DryccAuthentication(authentication.BaseAuthentication):
             from api.backend import OauthCacheManager
             token.refresh_token()
             user = OauthCacheManager().get_user(token.oauth['access_token'])
-            cache.set(token, user, timeout=token.oauth['expires_in'])
+            cache.set(key, user, timeout=token.oauth['expires_in'])
             return user, token.key
         return (token.owner, token.key)
 

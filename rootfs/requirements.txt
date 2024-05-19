@@ -2,7 +2,7 @@
 inotify==0.2.10
 backoff==2.2.1
 django==4.2.11
-channels==4.0.0
+channels==4.1.0
 aiohttp==3.9.4
 django-cors-headers==4.3.1
 django-guardian==2.4.0
@@ -10,7 +10,7 @@ djangorestframework==3.15.1
 docker==7.0.0
 gunicorn==22.0.0
 uvicorn[standard]==0.29.0
-asgiref==3.8.0
+asgiref==3.8.1
 idna==3.7
 jsonschema==4.21.1
 morph==0.1.5

@@ -1,4 +1,3 @@
-import backoff
 import base64
 import functools
 import json
@@ -340,33 +339,6 @@ class App(UuidAuditedModel):
                 if name not in names:
                     self.scheduler().deployments.delete(self.id, name, True)
         self.log(f"cleanup old kubernetes deployments for {self.id}")
-
-    @backoff.on_exception(backoff.expo, ServiceUnavailable, max_tries=3)
-    def logs(self, log_lines=str(settings.LOG_LINES)):
-        """Return aggregated log data for this application."""
-        url = "http://{}:{}/logs/{}?log_lines={}".format(
-            settings.LOGGER_HOST, settings.LOGGER_PORT, self.id, log_lines)
-        try:
-            r = requests.get(url)
-        # Handle HTTP request errors
-        except requests.exceptions.RequestException as e:
-            msg = "Error accessing drycc-logger using url '{}': {}".format(url, e)
-            logger.error(msg)
-            raise ServiceUnavailable(msg) from e
-
-        # Handle logs empty or not found
-        if r.status_code == 204 or r.status_code == 404:
-            logger.info("GET {} returned a {} status code".format(url, r.status_code))
-            raise NotFound('Could not locate logs')
-
-        # Handle unanticipated status codes
-        if r.status_code != 200:
-            logger.error("Error accessing drycc-logger: GET {} returned a {} status code"
-                         .format(url, r.status_code))
-            raise ServiceUnavailable('Error accessing drycc-logger')
-
-        # cast content to string since it comes as bytes via the requests object
-        return str(r.content.decode('utf-8'))
 
     def run(self, user, image=None, command=None, args=None, volumes=None,
             timeout=3600, expires=3600, **kwargs):
