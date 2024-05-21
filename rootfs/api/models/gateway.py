@@ -52,9 +52,17 @@ class Gateway(AuditedModel):
         return True, ""
 
     @property
+    def addresses(self):
+        data = self.scheduler().gateways.get(self.app.id, self.name, ignore_exception=True)
+        if data.status_code != 200:
+            return []
+        addresses = data.json()["status"].get("addresses", [])
+        return addresses
+
+    @property
     def listeners(self):
-        listeners = []
         auto_tls = self.app.tls_set.latest().certs_auto_enabled
+        listeners = []
         domains = list(self._get_tls_domain(auto_tls))
         for item in self.ports:
             port, protocol = item["port"], item["protocol"]
@@ -82,34 +90,23 @@ class Gateway(AuditedModel):
                 })
         return listeners
 
-    @property
-    def addresses(self):
-        data = self.scheduler().gateways.get(self.app.id, self.name, ignore_exception=True)
-        if data.status_code != 200:
-            return []
-        addresses = data.json()["status"].get("addresses", [])
-        return addresses
-
     def refresh_to_k8s(self):
+        kwargs = {"listeners": self.listeners, "gateway_class": settings.GATEWAY_CLASS}
+        if self.app.tls_set.latest().certs_auto_enabled:
+            kwargs["annotations"] = {"cert-manager.io/issuer": self.app.id}
         try:
             try:
                 data = self.scheduler().gateways.get(self.app.id, self.name).json()
-                if len(self.listeners) > 0:
-                    self.scheduler().gateways.patch(self.app.id, self.name, **{
-                        "listeners": self.listeners,
-                        "gateway_class": settings.GATEWAY_CLASS,
-                        "version": data["metadata"]["resourceVersion"],
-                    })
+                if len(kwargs["listeners"]) > 0:
+                    kwargs["version"] = data["metadata"]["resourceVersion"]
+                    self.scheduler().gateways.patch(self.app.id, self.name, **kwargs)
                 else:
                     logger.debug("delete k8s resource when listeners are empty")
                     self.scheduler().gateways.delete(
                         self.app.id, self.name, ignore_exception=True)
             except KubeException:
-                if len(self.listeners) > 0:
-                    self.scheduler().gateways.create(self.app.id, self.name, **{
-                        "listeners": self.listeners,
-                        "gateway_class": settings.GATEWAY_CLASS,
-                    })
+                if len(kwargs["listeners"]) > 0:
+                    self.scheduler().gateways.create(self.app.id, self.name, **kwargs)
                 else:
                     logger.debug("skip creating k8s resource when listeners are empty")
         except KubeException as e:

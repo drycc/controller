@@ -13,9 +13,7 @@ class Gateway(Resource):
             "metadata": {
                 "name": name,
                 "namespace": namespace,
-                "annotations": {
-                    "cert-manager.io/issuer": namespace
-                },
+                "annotations": kwargs.get("annotations", {}),
             },
             "spec": {
                 "gatewayClassName": kwargs.get("gateway_class", "default"),
