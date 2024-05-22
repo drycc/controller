@@ -7,7 +7,7 @@ import asyncio
 from django.conf import settings
 from django.core.cache import cache
 
-from asgiref.sync import sync_to_async, async_to_sync
+from asgiref.sync import sync_to_async
 
 from kubernetes.client import Configuration, exceptions
 from kubernetes.client.api import core_v1_api
@@ -67,58 +67,107 @@ class BaseK8sConsumer(BaseAppConsumer):
 
 class AppLogsConsumer(BaseAppConsumer):
 
-    async def receive(self, text_data=None, bytes_data=None):
-        if text_data is not None:
-            kwargs = json.loads(text_data)
-            lines = kwargs.get("lines", 100)
-            follow = kwargs.get("follow", False)
-            timeout = kwargs.get("timeout", 300)
-            url = "http://{}:{}/logs/{}?log_lines={}&follow={}&timeout={}".format(
-                settings.LOGGER_HOST,
-                settings.LOGGER_PORT,
-                self.id,
-                lines,
-                follow,
-                timeout,
-            )
+    async def connect(self):
+        await super().connect()
+        self.session = None
+        self.running = False
+        self.conneted = True
+
+    async def task(self, **kwargs):
+        lines = kwargs.get("lines", 100)
+        follow = kwargs.get("follow", False)
+        timeout = kwargs.get("timeout", 300)
+        url = "http://{}:{}/logs/{}?log_lines={}&follow={}&timeout={}".format(
+            settings.LOGGER_HOST, settings.LOGGER_PORT, self.id, lines, follow, timeout,
+        )
+        try:
             async with aiohttp.ClientSession() as session:
+                self.session = session
                 async with session.get(url) as response:
                     async for data in response.content.iter_any():
+                        if not self.conneted:
+                            break
                         await self.send(text_data=data)
+        except asyncio.TimeoutError:
+            pass
+        finally:
             await self.close(code=1000)
-        else:
-            raise ValueError("text_data cannot be empty!")
+
+    async def receive(self, text_data=None, bytes_data=None):
+        if self.running:
+            return
+        self.running = True
+        kwargs = json.loads(text_data)
+        asyncio.create_task(self.task(**kwargs))
+
+    async def disconnect(self, close_code):
+        if self.session:
+            await self.session.close()
+        self.conneted = False
 
 
 class AppPodLogsConsumer(BaseK8sConsumer):
 
     async def connect(self):
         await super().connect()
+        self.running = False
+        self.response = None
+        self.conneted = True
         self.pod_id = self.scope["url_route"]["kwargs"]["pod_id"]
 
-    @sync_to_async
-    def receive(self, text_data=None, bytes_data=None):
-        kwargs = json.loads(text_data)
+    def reader(self, sock):
         try:
-            stream = self.kubernetes.read_namespaced_pod_log(self.pod_id, self.id, **{
-                "tail_lines": kwargs.get("lines", 100),
-                "follow": kwargs.get("follow", False),
-                "container": kwargs.get("container", ""),
-                "_preload_content": False,
-            }).stream()
-            for line in stream:
-                async_to_sync(self.send)(text_data=line)
-        except exceptions.ApiException as e:
-            async_to_sync(self.send)(text_data=str(e))
-        async_to_sync(self.close)(code=1000)
+            delimiter, buffer = b"\r\n", sock.read()
+            if delimiter in buffer:
+                index = buffer.index(delimiter)
+                length = int(buffer[:index], base=16)
+                if len(buffer) - (index + len(delimiter)) < length:
+                    buffer += sock.read()
+            while buffer and self.conneted:
+                index = buffer.index(delimiter)
+                length = int(buffer[:index], base=16)
+                if length == 0:
+                    asyncio.create_task(self.close(code=1000))
+                    break
+                start_pos = index + len(delimiter)
+                end_pos = start_pos + length + len(delimiter)
+                asyncio.create_task(
+                    self.send(bytes_data=buffer[start_pos:end_pos].strip(delimiter)))
+                buffer = buffer[end_pos:]
+        except BaseException:
+            asyncio.create_task(self.close(code=1000))
+
+    async def receive(self, text_data=None, bytes_data=None):
+        if self.running:
+            return
+        self.running = True
+        data = json.loads(text_data)
+        args = (self.pod_id, self.id)
+        kwargs = {
+            "tail_lines": data.get("lines", 100),
+            "follow": data.get("follow", False),
+            "container": data.get("container", ""),
+            "_preload_content": False,
+        }
+        loop = asyncio.get_event_loop()
+        self.response = await sync_to_async(self.kubernetes.read_namespaced_pod_log)(
+            *args, **kwargs)
+        loop.add_reader(self.response.connection.sock, self.reader, self.response.connection.sock)
+
+    async def disconnect(self, close_code):
+        if self.response:
+            loop = asyncio.get_event_loop()
+            loop.remove_reader(self.response.connection.sock)
+            await sync_to_async(self.response.close)()
+        self.conneted = False
 
 
 class AppPodExecConsumer(BaseK8sConsumer):
 
     async def connect(self):
+        await super().connect()
         self.stream = None
         self.conneted = True
-        await super().connect()
         self.pod_id = self.scope["url_route"]["kwargs"]["pod_id"]
 
     async def send(self, data, channel=STDOUT_CHANNEL):
@@ -131,22 +180,33 @@ class AppPodExecConsumer(BaseK8sConsumer):
         elif isinstance(data, str):
             await super().send(text_data=channel_prefix+data)
 
+    async def wait(self):
+        future, loop = asyncio.Future(), asyncio.get_event_loop()
+        loop.add_reader(self.stream.sock, future.set_result, None)
+        future.add_done_callback(lambda f: loop.remove_reader(self.stream.sock))
+        await future
+
     async def task(self):
-        deadline = time.time() + settings.DRYCC_APP_POD_EXEC_TIMEOUT
-        while self.stream.is_open() and self.conneted and time.time() < deadline:
-            try:
-                await sync_to_async(self.stream.update)(0.1)
-                for channel in (ERROR_CHANNEL, STDOUT_CHANNEL, STDERR_CHANNEL):
-                    if channel in self.stream._channels:
-                        data = self.stream.read_channel(channel)
-                        await self.send(data, channel)
-            except ssl.SSLEOFError:
-                break
-        await self.close(code=1000)
+        try:
+            deadline = time.time() + settings.DRYCC_APP_POD_EXEC_TIMEOUT
+            while self.stream.is_open() and self.conneted and time.time() < deadline:
+                try:
+                    await self.wait()
+                    self.stream.update()
+                    for channel in (ERROR_CHANNEL, STDOUT_CHANNEL, STDERR_CHANNEL):
+                        if channel in self.stream._channels:
+                            data = self.stream.read_channel(channel)
+                            await self.send(data, channel)
+                except ssl.SSLEOFError:
+                    break
+        except exceptions.ApiException as e:
+            await self.send(str(e), STDERR_CHANNEL)
+        finally:
+            await self.close(code=1000)
 
     async def disconnect(self, close_code):
         if self.stream:
-            self.stream.close()
+            await sync_to_async(self.stream.close)()
         self.conneted = False
 
     async def receive(self, text_data=None, bytes_data=None):
@@ -154,13 +214,8 @@ class AppPodExecConsumer(BaseK8sConsumer):
             args = (self.kubernetes.connect_get_namespaced_pod_exec, self.pod_id, self.id)
             kwargs = json.loads(text_data)
             kwargs.update({"stderr": True, "stdout": True, "_preload_content": False})
-            try:
-                self.stream = stream(*args, **kwargs)
-            except exceptions.ApiException as e:
-                await self.send(str(e), STDERR_CHANNEL)
-                await self.close(code=1000)
-            else:
-                asyncio.create_task(self.task())
+            self.stream = await sync_to_async(stream)(*args, **kwargs)
+            asyncio.create_task(self.task())
         elif self.stream is not None:
             data = text_data if text_data else bytes_data
             channel, data = ord(data[0]), data[1:]
