@@ -385,6 +385,35 @@ class App(UuidAuditedModel):
             raise ServiceUnavailable(err) from e
         return name
 
+    def describe_pod(self, pod_name):
+        def get_commands_and_args(pod, container_name):
+            commands, args = [], []
+            for container in pod["spec"]["containers"]:
+                if container["name"] == container_name:
+                    args = container.get("args", [])
+                    commands = container.get("commands", [])
+                    break
+            return commands, args
+        result = []
+        try:
+            pod = self.scheduler().pod.get(self.id, pod_name).json()
+            for status in pod["status"]["containerStatuses"]:
+                commands, args = get_commands_and_args(pod, status["name"])
+                result.append({
+                    "container": status["name"],
+                    "image": status["image"],
+                    "commands": commands,
+                    "args": args,
+                    "state": status["state"],
+                    "lastState": status["lastState"],
+                    "ready": status["ready"],
+                    "restartCount": status["restartCount"],
+                })
+        except KubeHTTPException as e:
+            if e.response.status_code != 404:
+                raise e
+        return result
+
     def list_pods(self, *args, **kwargs):
         """Used to list basic information about pods running for a given application"""
         try:

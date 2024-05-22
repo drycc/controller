@@ -441,6 +441,15 @@ class PodViewSet(AppResourceViewSet):
         restart_app.delay(self.get_app(), **kwargs)
         return Response(status=status.HTTP_204_NO_CONTENT)
 
+    def describe(self, *args, **kwargs):
+        pod_name = kwargs["name"]
+        data = self.get_app().describe_pod(pod_name)
+        if len(data) == 0:
+            return Response(status=status.HTTP_404_NOT_FOUND)
+        # fake out pagination for now
+        pagination = {'results': data, 'count': len(data)}
+        return Response(pagination, status=status.HTTP_200_OK)
+
 
 class AppSettingsViewSet(AppResourceViewSet):
     model = models.appsettings.AppSettings

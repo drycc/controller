@@ -368,6 +368,7 @@ def create_pods(url, labels, base, new_pods):
             'containerStatuses': [
                 {
                     'name': '{}-{}'.format(labels['app'], labels['type']),
+                    'image': '127.0.0.1/{}-{}'.format(labels['app'], labels['type']),
                     # TODO ready can be True / False (boolean)
                     'ready': True,
                     # TODO can be running / terminated / waiting
@@ -375,7 +376,17 @@ def create_pods(url, labels, base, new_pods):
                         'running': {
                             'startedAt': timestamp
                         }
-                    }
+                    },
+                    'lastState': {
+                        "terminated": {
+                            "containerID": f"cri-o://{uuid.uuid4().hex * 2}",
+                            "exitCode": 1,
+                            "finishedAt": timestamp,
+                            "reason": "Error",
+                            "startedAt": timestamp
+                        }
+                    },
+                    'restartCount': 0,
                 }
             ],
         }

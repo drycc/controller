@@ -82,20 +82,6 @@ class PodTest(DryccTransactionTestCase):
         self.assertEqual(response.data['structure']['web'], 4)
         self.assertEqual(response.data['structure']['worker'], 2)
 
-        # test listing/retrieving container info
-        url = f"/v2/apps/{app_id}/pods/web"
-        response = self.client.get(url)
-        self.assertEqual(response.status_code, 200, response.data)
-        self.assertEqual(response.data['count'], 4)
-        self.assertEqual(len(response.data['results']), 4)
-
-        name = response.data['results'][0]['name']
-        url = f"/v2/apps/{app_id}/pods/web/{name}"
-        response = self.client.get(url)
-        self.assertEqual(response.status_code, 200, response.data)
-        self.assertEqual(response.data['count'], 1)
-        self.assertEqual(response.data['results'][0]['name'], name)
-
         # scale down
         url = f"/v2/apps/{app_id}/scale"
         # test setting two proc types at a time
@@ -163,12 +149,6 @@ class PodTest(DryccTransactionTestCase):
         url = f"/v2/apps/{app_id}"
         response = self.client.get(url)
         self.assertEqual(response.status_code, 200, response.data)
-
-        # test listing/retrieving container info
-        url = f"/v2/apps/{app_id}/pods/web"
-        response = self.client.get(url)
-        self.assertEqual(response.status_code, 200, response.data)
-        self.assertEqual(len(response.data['results']), 6)
 
         # scale down
         url = f"/v2/apps/{app_id}/scale"
@@ -263,6 +243,12 @@ class PodTest(DryccTransactionTestCase):
         response = self.client.get(url)
         self.assertEqual(response.status_code, 200, response.data)
         self.assertPodContains(response.data['results'], app_id, "web", 'v4')
+        pod_name = response.data['results'][0]["name"]
+        response = self.client.get(f"/v2/apps/{app_id}/pods/{pod_name}/describe/")
+        self.assertEqual(response.status_code, 200, response.data)
+        pod_name = "no-exists-pod-name"
+        response = self.client.get(f"/v2/apps/{app_id}/pods/{pod_name}/describe/")
+        self.assertEqual(response.status_code, 404, response.data)
 
     def test_container_errors(self, mock_requests):
         app_id = self.create_app()

@@ -230,7 +230,7 @@ class HookTest(DryccTransactionTestCase):
         self.assertEqual(build['procfile'], PROCFILE)
 
         # test listing/retrieving container info
-        url = f"/v2/apps/{app_id}/pods/web"
+        url = f"/v2/apps/{app_id}/pods/"
         response = self.client.get(url)
         self.assertEqual(response.status_code, 200, response.data)
         self.assertPodContains(response.data['results'], app_id, 'web', 'v2')
@@ -270,7 +270,7 @@ class HookTest(DryccTransactionTestCase):
         self.assertEqual(build['sha'], SHA)
         self.assertEqual(build['dockerfile'], DOCKERFILE)
         # test default container
-        url = f"/v2/apps/{app_id}/pods/web"
+        url = f"/v2/apps/{app_id}/pods/"
         response = self.client.get(url)
         self.assertEqual(response.status_code, 200, response.data)
         self.assertPodContains(response.data['results'], app_id, 'web', 'v2')

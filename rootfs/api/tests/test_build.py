@@ -113,7 +113,7 @@ class BuildTest(DryccTransactionTestCase):
         response = self.client.post(url, body)
         self.assertEqual(response.status_code, 201, response.data)
 
-        url = f"/v2/apps/{app_id}/pods/web"
+        url = f"/v2/apps/{app_id}/pods"
         response = self.client.get(url)
         self.assertEqual(response.status_code, 200, response.data)
         self.assertPodContains(response.data['results'], app_id, 'web', "v2", "up")
@@ -132,7 +132,7 @@ class BuildTest(DryccTransactionTestCase):
         response = self.client.post(url, body)
         self.assertEqual(response.status_code, 201, response.data)
 
-        url = f"/v2/apps/{app_id}/pods/web"
+        url = f"/v2/apps/{app_id}/pods/"
         response = self.client.get(url)
         self.assertEqual(response.status_code, 200, response.data)
         self.assertPodContains(response.data['results'], app_id, 'web', "v2", "up")
@@ -150,7 +150,7 @@ class BuildTest(DryccTransactionTestCase):
         response = self.client.post(url, body)
         self.assertEqual(response.status_code, 201, response.data)
 
-        url = f"/v2/apps/{app_id}/pods/web"
+        url = f"/v2/apps/{app_id}/pods/"
         response = self.client.get(url)
         self.assertEqual(response.status_code, 200, response.data)
         self.assertPodContains(response.data['results'], app_id, 'web', "v2", "up")
@@ -171,7 +171,7 @@ class BuildTest(DryccTransactionTestCase):
         response = self.client.post(url, body)
         self.assertEqual(response.status_code, 201, response.data)
 
-        url = f"/v2/apps/{app_id}/pods/web"
+        url = f"/v2/apps/{app_id}/pods/"
         response = self.client.get(url)
         self.assertEqual(response.status_code, 200, response.data)
         self.assertPodContains(response.data['results'], app_id, 'web', "v2", "up")
@@ -192,7 +192,7 @@ class BuildTest(DryccTransactionTestCase):
         response = self.client.post(url, body)
         self.assertEqual(response.status_code, 201, response.data)
 
-        url = f"/v2/apps/{app_id}/pods/web"
+        url = f"/v2/apps/{app_id}/pods/"
         response = self.client.get(url)
         self.assertEqual(response.status_code, 200, response.data)
         self.assertPodContains(response.data['results'], app_id, 'web', "v2", "up")
@@ -238,7 +238,7 @@ class BuildTest(DryccTransactionTestCase):
         response = self.client.post(url, body)
         self.assertEqual(response.status_code, 201, response.data)
         # verify web
-        url = f"/v2/apps/{app_id}/pods/web"
+        url = f"/v2/apps/{app_id}/pods/"
         response = self.client.get(url)
         self.assertEqual(response.status_code, 200, response.data)
         self.assertPodContains(response.data['results'], app_id, 'web', "v2", "up")
@@ -250,7 +250,7 @@ class BuildTest(DryccTransactionTestCase):
         self.assertEqual(response.status_code, 204, response.data)
 
         # verify worker
-        url = f"/v2/apps/{app_id}/pods/worker"
+        url = f"/v2/apps/{app_id}/pods/"
         response = self.client.get(url)
         self.assertEqual(response.status_code, 200, response.data)
 
@@ -263,13 +263,13 @@ class BuildTest(DryccTransactionTestCase):
         self.assertEqual(response.status_code, 201, response.data)
 
         # verify worker is not there
-        url = f"/v2/apps/{app_id}/pods/worker"
+        url = f"/v2/apps/{app_id}/pods/"
         response = self.client.get(url)
         self.assertEqual(response.status_code, 200, response.data)
         self.assertEqual(len(response.data['results']), 0)
 
         # verify web is not there
-        url = f"/v2/apps/{app_id}/pods/web"
+        url = f"/v2/apps/{app_id}/pods/"
         response = self.client.get(url)
         self.assertEqual(response.status_code, 200, response.data)
         self.assertEqual(len(response.data['results']), 0)
@@ -311,7 +311,7 @@ class BuildTest(DryccTransactionTestCase):
         self.assertEqual(response.status_code, 204, response.data)
 
         # verify worker
-        url = f"/v2/apps/{app_id}/pods/worker"
+        url = f"/v2/apps/{app_id}/pods/"
         response = self.client.get(url)
         self.assertEqual(response.status_code, 200, response.data)
         self.assertPodContains(response.data['results'], app_id, 'worker', "v2", "up")
@@ -323,13 +323,13 @@ class BuildTest(DryccTransactionTestCase):
         self.assertEqual(response.status_code, 201, response.data)
 
         # verify worker is still there
-        url = f"/v2/apps/{app_id}/pods/worker"
+        url = f"/v2/apps/{app_id}/pods/"
         response = self.client.get(url)
         self.assertEqual(response.status_code, 200, response.data)
         self.assertPodContains(response.data['results'], app_id, 'worker', "v3", "up")
 
         # verify web is still there
-        url = f"/v2/apps/{app_id}/pods/web"
+        url = f"/v2/apps/{app_id}/pods/"
         response = self.client.get(url)
         self.assertEqual(response.status_code, 200, response.data)
         self.assertPodContains(response.data['results'], app_id, 'web', "v3", "up")
@@ -347,7 +347,7 @@ class BuildTest(DryccTransactionTestCase):
         self.assertEqual(response.status_code, 204, response.data)
 
         # verify worker info
-        url = f"/v2/apps/{app_id}/pods/worker"
+        url = f"/v2/apps/{app_id}/pods/"
         response = self.client.get(url)
         self.assertEqual(response.status_code, 200, response.data)
         self.assertPodContains(response.data['results'], app_id, 'worker', "v3", "up")
@@ -383,7 +383,7 @@ class BuildTest(DryccTransactionTestCase):
         self.assertEqual(response.status_code, 204, response.data)
 
         # verify worker
-        url = f"/v2/apps/{app_id}/pods/worker"
+        url = f"/v2/apps/{app_id}/pods/"
         response = self.client.get(url)
         self.assertEqual(response.status_code, 200, response.data)
         self.assertPodContains(response.data['results'], app_id, 'worker', "v2", "up")
@@ -467,7 +467,7 @@ class BuildTest(DryccTransactionTestCase):
         response = self.client.post(url, body)
         self.assertEqual(response.status_code, 201, response.data)
 
-        url = f"/v2/apps/{app_id}/pods/web"
+        url = f"/v2/apps/{app_id}/pods/"
         response = self.client.get(url)
         self.assertEqual(response.status_code, 200, response.data)
         self.assertPodContains(response.data['results'], app_id, 'web', "v2", "up")
@@ -491,7 +491,7 @@ class BuildTest(DryccTransactionTestCase):
         }
         response = self.client.post(url, body)
         self.assertEqual(response.status_code, 201, response.data)
-        url = f"/v2/apps/{app_id}/pods/web"
+        url = f"/v2/apps/{app_id}/pods/"
         response = self.client.get(url)
         self.assertEqual(response.status_code, 200, response.data)
         self.assertEqual(len(response.data['results']), 0)

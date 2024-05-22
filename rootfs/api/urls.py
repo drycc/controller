@@ -54,15 +54,12 @@ app_urlpatterns = [
         views.PodViewSet.as_view({'post': 'restart'})),
     # list pods
     re_path(
-        r"^apps/(?P<id>{})/pods/(?P<type>[-_\w]+)/(?P<name>[-_\w]+)/?$".format(
-            settings.APP_URL_REGEX),
-        views.PodViewSet.as_view({'get': 'list'})),
-    re_path(
-        r"^apps/(?P<id>{})/pods/(?P<type>[-_\w.]+)/?$".format(settings.APP_URL_REGEX),
-        views.PodViewSet.as_view({'get': 'list'})),
-    re_path(
         r"^apps/(?P<id>{})/pods/?$".format(settings.APP_URL_REGEX),
         views.PodViewSet.as_view({'get': 'list'})),
+    # describe pod
+    re_path(
+        r"^apps/(?P<id>{})/pods/(?P<name>[-_\w]+)/describe/?$".format(settings.APP_URL_REGEX),
+        views.PodViewSet.as_view({'get': 'describe'})),
     # application domains
     re_path(
         r"^apps/(?P<id>{})/domains/(?P<domain>\**\.?[-\._\w]+)/?$".format(settings.APP_URL_REGEX),
