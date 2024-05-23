@@ -386,23 +386,23 @@ class App(UuidAuditedModel):
         return name
 
     def describe_pod(self, pod_name):
-        def get_commands_and_args(pod, container_name):
-            commands, args = [], []
+        def get_command_and_args(pod, container_name):
+            command, args = [], []
             for container in pod["spec"]["containers"]:
                 if container["name"] == container_name:
                     args = container.get("args", [])
-                    commands = container.get("commands", [])
+                    command = container.get("command", [])
                     break
-            return commands, args
+            return command, args
         result = []
         try:
             pod = self.scheduler().pod.get(self.id, pod_name).json()
             for status in pod["status"]["containerStatuses"]:
-                commands, args = get_commands_and_args(pod, status["name"])
+                command, args = get_command_and_args(pod, status["name"])
                 result.append({
                     "container": status["name"],
                     "image": status["image"],
-                    "commands": commands,
+                    "command": command,
                     "args": args,
                     "state": status["state"],
                     "lastState": status["lastState"],
