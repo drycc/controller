@@ -427,19 +427,22 @@ class App(UuidAuditedModel):
                     pods = []
             data = []
             for p in pods:
-                item = {}
                 labels = p['metadata']['labels']
-                item['name'] = p['metadata']['name']
-                item['state'] = str(self.scheduler().pod.state(p))
-                item['release'] = labels['version']
-                item['type'] = labels['type']
-                # set start time
                 if 'startTime' in p['status']:
                     started = p['status']['startTime']
                 else:
                     started = str(
                         datetime.now(timezone.utc).strftime(settings.DRYCC_DATETIME_FORMAT))
-                item['started'] = started
+                item = {
+                    'name': p['metadata']['name'], 'state': str(self.scheduler().pod.state(p)),
+                    'release': labels['version'], 'type': labels['type'], 'started': started,
+                    'ready': "%s/%s" % (
+                        len([1 for s in p["status"]["containerStatuses"] if s['ready']]),
+                        len(p["status"]["containerStatuses"]),
+                    ),
+                    'restarts': sum(
+                        [s['restartCount'] for s in p["status"]["containerStatuses"]]),
+                }
                 data.append(item)
             # sorting so latest start date is first
             data.sort(key=lambda x: x['started'], reverse=True)
