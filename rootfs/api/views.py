@@ -437,8 +437,22 @@ class PodViewSet(AppResourceViewSet):
         pagination = {'results': data, 'count': len(data)}
         return Response(pagination, status=status.HTTP_200_OK)
 
-    def restart(self, *args, **kwargs):
-        restart_app.delay(self.get_app(), **kwargs)
+    def restart(self, request, *args, **kwargs):
+        app = self.get_app()
+        ptypes = []
+        types = request.data.get("types", "").split(",")
+        types = [ptype for ptype in set(types) if ptype != ""]
+        if not types:
+            # all ptypes need to restart
+            ptypes = app.structure.keys()
+        else:
+            ptypes = [ptype for ptype in types if ptype in app.structure]
+            invalid_ptypes = set(types) - set(ptypes)
+            if len(invalid_ptypes) != 0:
+                raise DryccException("process type {} is not included in procfile".
+                                     format(','.join(invalid_ptypes)))
+        for ptype in set(ptypes):
+            restart_app.delay(self.get_app(), **{"type": ptype})
         return Response(status=status.HTTP_204_NO_CONTENT)
 
     def describe(self, *args, **kwargs):
@@ -831,7 +845,7 @@ class AppVolumesViewSet(ReleasableViewSet):
         container_types = [_ for _ in path.keys()
                            if _ not in volume.app.procfile_types]
         if container_types:
-            raise DryccException("process type {} is not included in profile".
+            raise DryccException("process type {} is not included in procfile".
                                  format(','.join(container_types)))
         if set(path.items()).issubset(set(volume.path.items())):
             raise DryccException("mount path not changed")

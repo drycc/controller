@@ -49,9 +49,6 @@ app_urlpatterns = [
     re_path(
         r"^apps/(?P<id>{})/pods/restart/?$".format(settings.APP_URL_REGEX),
         views.PodViewSet.as_view({'post': 'restart'})),
-    re_path(
-        r"^apps/(?P<id>{})/pods/(?P<type>[-_\w.]+)/restart/?$".format(settings.APP_URL_REGEX),
-        views.PodViewSet.as_view({'post': 'restart'})),
     # list pods
     re_path(
         r"^apps/(?P<id>{})/pods/?$".format(settings.APP_URL_REGEX),

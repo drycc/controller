@@ -192,17 +192,10 @@ class App(UuidAuditedModel):
         """
         deployments = []
         app_settings = self.appsettings_set.latest()
-        if 'type' in kwargs and kwargs['type'] in self.structure:
-            if self.structure[kwargs['type']] > 0:
-                if kwargs['type'] in app_settings.canaries:
-                    deployments.append(self._get_job_id(kwargs['type'], True))
-                deployments.append(self._get_job_id(kwargs['type'], False))
-        else:
-            for scale_type, count in self.structure.items():
-                if count > 0:
-                    if scale_type in app_settings.canaries:
-                        deployments.append(self._get_job_id(kwargs['type'], True))
-                    deployments.append(self._get_job_id(scale_type, False))
+        if self.structure[kwargs['type']] > 0:
+            if kwargs['type'] in app_settings.canaries:
+                deployments.append(self._get_job_id(kwargs['type'], True))
+            deployments.append(self._get_job_id(kwargs['type'], False))
         try:
             tasks = [
                 functools.partial(
