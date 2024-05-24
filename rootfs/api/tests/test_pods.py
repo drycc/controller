@@ -773,13 +773,15 @@ class PodTest(DryccTransactionTestCase):
         response = self.client.post('/v2/apps/{}/pods/restart'.format(app_id))
         self.assertEqual(response.status_code, 204, response.data)
 
-        # restart only the workers
-        response = self.client.post('/v2/apps/{}/pods/worker/restart'.format(app_id))
+        # restart web and workers pods
+        body = {"types": "web,worker"}
+        response = self.client.post('/v2/apps/{}/pods/restart'.format(app_id), body)
         self.assertEqual(response.status_code, 204, response.data)
 
-        # restart only the web
-        response = self.client.post('/v2/apps/{}/pods/web/restart'.format(app_id))
-        self.assertEqual(response.status_code, 204, response.data)
+        # restart invalid ptypes
+        body = {"types": "web1"}
+        response = self.client.post('/v2/apps/{}/pods/restart'.format(app_id), body)
+        self.assertEqual(response.status_code, 400, response.data)
 
         # restart only one of the web pods
         pods = application.list_pods(type='web')
