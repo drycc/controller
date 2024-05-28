@@ -113,27 +113,24 @@ class AppPodLogsConsumer(BaseK8sConsumer):
         self.running = False
         self.response = None
         self.conneted = True
+        self.buffer = b''
+        self.delimiter = b"\r\n"
         self.pod_id = self.scope["url_route"]["kwargs"]["pod_id"]
 
     def reader(self, sock):
+        self.buffer += sock.read()
         try:
-            delimiter, buffer = b"\r\n", sock.read()
-            if delimiter in buffer:
-                index = buffer.index(delimiter)
-                length = int(buffer[:index], base=16)
-                if len(buffer) - (index + len(delimiter)) < length:
-                    buffer += sock.read()
-            while buffer and self.conneted:
-                index = buffer.index(delimiter)
-                length = int(buffer[:index], base=16)
+            while self.buffer and self.buffer.endswith(self.delimiter):
+                index = self.buffer.index(self.delimiter)
+                length = int(self.buffer[:index], base=16)
                 if length == 0:
                     asyncio.create_task(self.close(code=1000))
                     break
-                start_pos = index + len(delimiter)
-                end_pos = start_pos + length + len(delimiter)
+                start_pos = index + len(self.delimiter)
+                end_pos = start_pos + length + len(self.delimiter)
                 asyncio.create_task(
-                    self.send(bytes_data=buffer[start_pos:end_pos].strip(delimiter)))
-                buffer = buffer[end_pos:]
+                    self.send(bytes_data=self.buffer[start_pos:end_pos].strip(self.delimiter)))
+                self.buffer = self.buffer[end_pos:]
         except BaseException:
             asyncio.create_task(self.close(code=1000))
 
