@@ -163,54 +163,15 @@ class Release(UuidAuditedModel):
             build=build, version=new_version, summary=summary, canary=canary
         )
 
-    def get_port(self):
+    def get_port(self, procfile_type):
         """
         Get application port for a given release. If pulling from private registry
         then use default port or read from ENV var, otherwise attempt to pull from
         the container image
         """
-        try:
-            envs = self.config.values
-            creds = self.get_registry_auth()
-
-            if self.build.type == "buildpack":
-                self.log(
-                    'buildpack type detected. Defaulting to $PORT %s' % DEFAULT_CONTAINER_PORT)
-                return DEFAULT_CONTAINER_PORT
-
-            # application has registry auth - $PORT is required
-            if (creds is not None) or (settings.REGISTRY_LOCATION != 'on-cluster'):
-                if envs.get('PORT', None) is None:
-                    if not self.app.appsettings_set.latest().routable:
-                        return None
-                    raise DryccException(
-                        'PORT needs to be set in the application config '
-                        'when using a private registry'
-                    )
-
-                # User provided PORT
-                return int(envs.get('PORT'))
-
-            # If the user provides PORT
-            return int(envs.get('PORT', DEFAULT_CONTAINER_PORT))
-
-        except Exception as e:
-            raise DryccException(str(e)) from e
-
-    def get_registry_auth(self):
-        """
-        Gather login information for private registry if needed
-        """
-        auth = None
-        registry = self.config.registry
-        if registry.get('username', None):
-            auth = {
-                'username': registry.get('username', None),
-                'password': registry.get('password', None),
-                'email': self.owner.email
-            }
-
-        return auth
+        return int(self.config.typed_values.get(
+            procfile_type, {}).get(
+                'PORT', self.config.values.get('PORT', DEFAULT_CONTAINER_PORT)))
 
     def previous(self):
         """

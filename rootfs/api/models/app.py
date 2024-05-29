@@ -23,7 +23,6 @@ from api.utils import get_session
 from api.exceptions import AlreadyExists, DryccException, ServiceUnavailable
 from api.utils import generate_app_name, apply_tasks
 from scheduler import KubeHTTPException, KubeException
-from scheduler.resources.pod import DEFAULT_CONTAINER_PORT
 from .gateway import Gateway, Route
 from .limit import LimitPlan
 from .config import Config
@@ -682,9 +681,9 @@ class App(UuidAuditedModel):
             err = '(app::deploy): {}'.format(e)
             self.log(err, logging.ERROR)
             raise ServiceUnavailable(err) from e
-        for procfile_type, value in deploys.items():
+        for procfile_type in deploys.keys():
             if procfile_type == PROCFILE_TYPE_WEB:  # http
-                target_port = int(value.get('envs', {}).get('PORT', DEFAULT_CONTAINER_PORT))
+                target_port = release.get_port(procfile_type)
                 self._create_default_ingress(target_port)
             service = self.service_set.filter(procfile_type=procfile_type).first()
             if not service:
@@ -953,14 +952,13 @@ class App(UuidAuditedModel):
         }
 
         default_env['SOURCE_VERSION'] = release.build.sha
-
-        # fetch application port and inject into ENV vars as needed
-        port = release.get_port()
-        if port:
-            default_env['PORT'] = port
         # merge envs on top of default to make envs win
         default_env.update(release.config.values)
         default_env.update(release.config.typed_values.get(procfile_type, {}))
+        # fetch application port and inject into ENV vars as needed
+        port = release.get_port(procfile_type)
+        if port:
+            default_env['PORT'] = port
         return default_env
 
     def _get_private_registry_config(self, image, registry=None):

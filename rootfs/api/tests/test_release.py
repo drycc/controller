@@ -15,7 +15,6 @@ from api.models.base import PROCFILE_TYPE_WEB
 from api.models.build import Build
 from api.models.release import Release
 from scheduler import KubeHTTPException
-from api.exceptions import DryccException
 from api.tests import adapter, DryccTransactionTestCase
 import requests_mock
 
@@ -443,10 +442,7 @@ class ReleaseTest(DryccTransactionTestCase):
         release = app.release_set.latest()
 
         # when app is not routable, then it still return 5000
-        self.assertEqual(release.get_port(), 5000)
-
-        # when a buildpack type, default to 5000
-        self.assertEqual(release.get_port(), 5000)
+        self.assertEqual(release.get_port('web'), 5000)
 
         # switch to a dockerfile app or else it'll automatically default to 5000
         url = f'/v2/apps/{app_id}/builds'
@@ -459,11 +455,29 @@ class ReleaseTest(DryccTransactionTestCase):
         response = self.client.post(url, body)
         self.assertEqual(response.status_code, 201, response.data)
         release = app.release_set.latest()
+        self.assertEqual(release.get_port('web'), 8080)
 
-        # check that the port number returned is an int, not a string
-        self.assertEqual(release.get_port(), 8080)
+        url = f'/v2/apps/{app_id}/config'
+        body = {'typed_values': json.dumps({"web": {'PORT': '9000'}})}
+        response = self.client.post(url, body)
+        self.assertEqual(response.status_code, 201, response.data)
+        release = app.release_set.latest()
+        self.assertEqual(release.get_port('web'), 9000)
 
-        # TODO(bacongobbler): test dockerfile ports
+        # not web procfile
+        self.assertEqual(release.get_port('task'), 8080)
+        url = f'/v2/apps/{app_id}/config'
+        body = {'values': json.dumps({'PORT': '9000'})}
+        response = self.client.post(url, body)
+        self.assertEqual(response.status_code, 201, response.data)
+        release = app.release_set.latest()
+        self.assertEqual(release.get_port('task'), 9000)
+        # set typed_values port
+        body = {'typed_values': json.dumps({"task": {'PORT': '9001'}})}
+        response = self.client.post(url, body)
+        self.assertEqual(response.status_code, 201, response.data)
+        release = app.release_set.latest()
+        self.assertEqual(release.get_port('task'), 9001)
 
     @override_settings(DRYCC_DEPLOY_HOOK_URLS=['http://drycc.rocks'])
     @mock.patch('api.models.release.logger')
@@ -575,45 +589,15 @@ class ReleaseTest(DryccTransactionTestCase):
         response = self.client.post(url, body)
         self.assertEqual(response.status_code, 201, response.data)
         release = app.release_set.latest()
-
-        self.assertEqual(release.get_port(), 3000)
-
+        self.assertEqual(release.get_port('web'), 3000)
         self.assertEqual(release.get_deploy_image(PROCFILE_TYPE_WEB), 'test/autotest/example')
 
-    @override_settings(REGISTRY_LOCATION="off-cluster")
-    def test_release_external_registry_no_port(self, mock_requests):
-        """
-        Test that an exception is raised when registry if off-cluster but
-        no port is provided.
-        """
-        app_id = self.create_app()
-
-        app = App.objects.get(id=app_id)
-        url = f'/v2/apps/{app_id}/builds'
-        body = {'image': 'test/autotest/example', 'stack': 'container'}
+        url = f'/v2/apps/{app_id}/config'
+        body = {'typed_values': json.dumps({"web": {'PORT': '9000'}})}
         response = self.client.post(url, body)
         self.assertEqual(response.status_code, 201, response.data)
-        data = self.client.get(f"/v2/apps/{app_id}/releases/", body).json()
-        self.assertEqual(data["results"][0]["state"], "crashed", data)
-
-        with self.assertRaises(
-            DryccException,
-            msg='PORT needs to be set in the config when using a private registry'
-        ):
-            release = app.release_set.latest()
-            release.get_port()
-
-        # Set routable to false and port should be None instead of error
-        response = self.client.post(
-            f'/v2/apps/{app.id}/settings',
-            {'routable': False}
-        )
-        self.assertEqual(response.status_code, 201, response.data)
-        self.assertFalse(app.appsettings_set.latest().routable)
-
         release = app.release_set.latest()
-        port = release.get_port()
-        self.assertIsNone(port)
+        self.assertEqual(release.get_port('web'), 9000)
 
     def test_diff_procfile_types(self, mock_requests):
         app_id = self.create_app()
