@@ -55,7 +55,7 @@ VOLUME_SIZE_MISMATCH_MSG = (
     "Volume size limit format: <number><unit> or <number><unit>/<number><unit>, "
     "where unit = G, range: %sG~%sG"
 ) % (settings.KUBERNETES_LIMITS_MAX_VOLUME, settings.KUBERNETES_LIMITS_MIN_VOLUME)
-VOLUME_PATH_MATCH = re.compile(r'^\/(\w+\/?)+$', re.IGNORECASE)
+VOLUME_PATH_MATCH = re.compile(r'^\/([\w]+[\w-]*\/?)+$', re.IGNORECASE)
 METRIC_EVERY_MATCH = re.compile(r'^[1-9][0-9]*m$')
 HEALTHCHECK_MATCH = re.compile(r'^(livenessProbe|readinessProbe|startupProbe)$')
 HEALTHCHECK_MISMATCH_MSG = "Healthcheck pattern: %s" % HEALTHCHECK_MATCH.pattern
