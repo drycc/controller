@@ -295,6 +295,7 @@ resources:
 
 {{/* Generate controller config default metrics */}}
 {{ define "controller.config.defaultMetrics" }}
+container_cpu_load_average_10s: [instance, namespace, pod, container]
 container_cpu_system_seconds_total: [instance, namespace, pod, container]
 container_cpu_usage_seconds_total: [instance, namespace, pod, container]
 container_cpu_user_seconds_total: [instance, namespace, pod, container]
@@ -336,6 +337,7 @@ container_network_transmit_bytes_total: [instance, namespace, pod, container]
 container_network_transmit_errors_total: [instance, namespace, pod, container]
 container_network_transmit_packets_dropped_total: [instance, namespace, pod, container]
 container_network_transmit_packets_total: [instance, namespace, pod, container]
+container_oom_events_total: [instance, namespace, pod, container]
 container_processes: [instance, namespace, pod, container]
 container_sockets: [instance, namespace, pod, container]
 container_file_descriptors: [instance, namespace, pod, container]
@@ -349,6 +351,7 @@ container_spec_memory_limit_bytes: [instance, namespace, pod, container]
 container_spec_memory_reservation_limit_bytes: [instance, namespace, pod, container]
 container_spec_memory_swap_limit_bytes: [instance, namespace, pod, container]
 container_start_time_seconds: [instance, namespace, pod, container]
+container_tasks_state: [instance, namespace, pod, container]
 container_last_seen: [instance, namespace, pod, container]
 container_accelerator_memory_used_bytes: [instance, namespace, pod, container]
 container_accelerator_memory_total_bytes: [instance, namespace, pod, container]
