@@ -256,7 +256,7 @@ resources:
 {{/* Generate controller config default limit plans */}}
 {{ define "controller.config.defaultLimitPlans" }}
 {{- $index := 0 }}
-{{- $cpus := tuple 1 2 4 8 16 32 }}
+{{- $cpus := tuple 1 2 4 8 16 32 64 }}
 {{- $scales := tuple 1 2 4 8 }}
 {{- range $cpu := $cpus }}
 {{- range $scale := $scales }}
