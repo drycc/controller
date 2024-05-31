@@ -9,6 +9,7 @@ from django.core.cache import cache
 
 from asgiref.sync import sync_to_async
 
+from urllib3.response import HTTPResponse
 from kubernetes.client import Configuration, exceptions
 from kubernetes.client.api import core_v1_api
 from kubernetes.stream import stream
@@ -140,19 +141,26 @@ class AppPodLogsConsumer(BaseK8sConsumer):
         self.running = True
         data = json.loads(text_data)
         args = (self.pod_id, self.id)
+        lines = data.get("lines", 100)
+        follow = data.get("follow", False)
         kwargs = {
-            "tail_lines": data.get("lines", 100),
-            "follow": data.get("follow", False),
+            "tail_lines": lines if lines < 1000 else 1000,
+            "follow": follow,
             "container": data.get("container", ""),
-            "_preload_content": False,
+            "_preload_content": not follow,
         }
-        loop = asyncio.get_event_loop()
         self.response = await sync_to_async(self.kubernetes.read_namespaced_pod_log)(
             *args, **kwargs)
-        loop.add_reader(self.response.connection.sock, self.reader, self.response.connection.sock)
+        if follow:
+            loop = asyncio.get_event_loop()
+            loop.add_reader(
+                self.response.connection.sock, self.reader, self.response.connection.sock)
+        else:
+            asyncio.create_task(self.send(text_data=self.response))
+            asyncio.create_task(self.close(code=1000))
 
     async def disconnect(self, close_code):
-        if self.response:
+        if isinstance(self.response, HTTPResponse):
             loop = asyncio.get_event_loop()
             loop.remove_reader(self.response.connection.sock)
             await sync_to_async(self.response.close)()
