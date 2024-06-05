@@ -415,7 +415,7 @@ class ConfigViewSet(ReleasableViewSet):
             if 'release' in locals():
                 release.state = "crashed"
                 release.failed = True
-                release.summary = "{} deployed a config that failed".format(self.request.user)
+                release.summary += "{} deployed a config that failed".format(self.request.user)
                 # Get the exception that has occured
                 release.exception = "error: {}".format(str(e))
                 release.save()
@@ -821,6 +821,9 @@ class AppVolumesViewSet(ReleasableViewSet):
         return get_object_or_404(models.volume.Volume,
                                  app__id=self.kwargs['id'],
                                  name=self.kwargs['name'])
+
+    def client(self, request, **kwargs):
+        pass
 
     def expand(self, request, **kwargs):
         volume = self.get_object()

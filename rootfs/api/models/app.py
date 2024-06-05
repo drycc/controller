@@ -255,7 +255,7 @@ class App(UuidAuditedModel):
         except Exception as e:
             release.state = "crashed"
             release.failed = True
-            release.summary = "{} pipeline a release that failed".format(self.owner)
+            release.summary += "{} pipeline a release that failed".format(self.owner)
             release.exception = "error: {}".format(str(e))
             self.log(f"{prefix} pipeline runtime error: {release.exception}", logging.ERROR)
         release.save()

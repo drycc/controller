@@ -223,7 +223,8 @@ class Release(UuidAuditedModel):
                 new_release = self.app.release_set.latest()
                 new_release.state = "crashed"
                 new_release.failed = True
-                new_release.summary = "{} performed roll back to a release that failed".format(self.owner)  # noqa
+                new_release.summary += "{} performed roll back to a release that failed".format(
+                    self.owner)
                 # Get the exception that has occured
                 new_release.exception = "error: {}".format(str(e))
                 new_release.save()

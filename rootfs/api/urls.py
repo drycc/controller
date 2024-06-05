@@ -110,6 +110,9 @@ app_urlpatterns = [
     re_path(
         r"^apps/(?P<id>{})/volumes/(?P<name>[-_\w]+)/path/?$".format(settings.APP_URL_REGEX),
         views.AppVolumesViewSet.as_view({'patch': 'path'})),
+    re_path(
+        r"^apps/(?P<id>{})/volumes/(?P<name>[-_\w]+)/client/?$".format(settings.APP_URL_REGEX),
+        views.AppVolumesViewSet.as_view({'get': 'client', 'post': 'client'})),
     # application resources
     re_path(r"^resources/services/?$", views.AppResourcesViewSet.as_view({'get': 'services'})),
     re_path(
