@@ -215,6 +215,25 @@ class Pod(Resource):
         data['env'] = data.get('env', [])
 
         if env:
+            metas = {
+                "POD_IP": "status.podIP",
+                "POD_NAME": "metadata.name",
+                "POD_NAMESPACE": "metadata.namespace"
+            }
+            for key, value in metas.items():
+                item = {
+                    "name": key,
+                    "valueFrom": {
+                        "fieldRef": {
+                            "fieldPath": value
+                        }
+                    }
+                }
+                match = next((k for k, e in enumerate(data["env"]) if e['name'] == key), None)
+                if match is not None:
+                    data["env"][match] = item
+                else:
+                    data["env"].append(item)
             # map application configuration (env secret) to env vars
             secret_name = "{}-{}-{}-env".format(
                 namespace, kwargs.get('app_type'), kwargs.get('version'))
