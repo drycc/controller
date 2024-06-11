@@ -221,33 +221,43 @@ class Pod(Resource):
             for key in env.keys():
                 item = {
                     "name": key,
-                    "valueFrom": {
-                        "secretKeyRef": {
-                            "name": secret_name,
-                            # k8s doesn't allow _ so translate to -, see above
-                            "key": key.lower().replace('_', '-')
-                        }
-                    }
+                    "valueFrom": {"secretKeyRef": {
+                        "name": secret_name,
+                        # k8s doesn't allow _ so translate to -, see above
+                        "key": key.lower().replace('_', '-')
+                    }}
                 }
-
                 # add value to env hash. Overwrite hardcoded values if need be
                 match = next((k for k, e in enumerate(data["env"]) if e['name'] == key), None)
                 if match is not None:
                     data["env"][match] = item
                 else:
                     data["env"].append(item)
-
-        # Inject debugging if workflow is in debug mode
-        if os.environ.get("DRYCC_DEBUG", False):
-            data["env"].append({
-                "name": "DRYCC_DEBUG",
-                "value": "1"
-            })
-
+        # set container default env
+        self._set_container_default_env(data)
         # list sorted by dict key name
         data['env'].sort(key=operator.itemgetter('name'))
         self._set_health_checks(data, env, **kwargs)
         self._set_lifecycle_hooks(data, env, **kwargs)
+
+    def _set_container_default_env(self, data):
+        # set fields env
+        fields = {"CONTAINER_IP": "status.podIP"}
+        for key, value in fields.items():
+            item = {
+                "name": key,
+                "valueFrom": {"fieldRef": {"fieldPath": value}}
+            }
+            # add value to env hash. Overwrite hardcoded values if need be
+            match = next((k for k, e in enumerate(data["env"]) if e['name'] == key), None)
+            if match is not None:
+                data["env"][match] = item
+            else:
+                data["env"].append(item)
+        # Inject debugging if workflow is in debug mode
+        if os.environ.get("DRYCC_DEBUG", False):
+            data["env"].append({"name": "DRYCC_DEBUG", "value": "1"})
+        return data
 
     @staticmethod
     def _get_termination_grace_period(kwargs):
