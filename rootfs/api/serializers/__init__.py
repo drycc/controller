@@ -86,19 +86,22 @@ class JSONFieldSerializer(serializers.JSONField):
 
     def to_representation(self, obj):
         """Serialize the field's JSON data, for read operations."""
-        for k, v in obj.items():
-            if v is None:  # NoneType is used to unset a value
-                continue
+        if isinstance(obj, dict):
+            for k, v in obj.items():
+                if v is None:  # NoneType is used to unset a value
+                    continue
 
-            try:
-                if isinstance(v, (dict, list)):
-                    self.to_representation(v)
-                elif self.convert_to_str:
-                    obj[k] = str(v)
-            except ValueError:
-                obj[k] = v
-                # Do nothing, the validator will catch this later
-
+                try:
+                    if isinstance(v, (dict, list)):
+                        self.to_representation(v)
+                    elif self.convert_to_str:
+                        obj[k] = str(v)
+                except ValueError:
+                    obj[k] = v
+                    # Do nothing, the validator will catch this later
+        elif isinstance(obj, list):
+            for i in range(len(obj)):
+                obj[i] = self.to_representation(obj[i])
         return obj
 
 
