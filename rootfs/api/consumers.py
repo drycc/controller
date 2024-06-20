@@ -141,14 +141,15 @@ class AppPodLogsConsumer(BaseK8sConsumer):
         self.running = True
         data = json.loads(text_data)
         args = (self.pod_id, self.id)
-        lines = data.get("lines", 100)
+        lines = data.get("lines", 300)
         follow = data.get("follow", False)
         kwargs = {
-            "tail_lines": lines if lines < 1000 else 1000,
             "follow": follow,
             "container": data.get("container", ""),
             "_preload_content": not follow,
         }
+        if lines > 0:
+            kwargs["tail_lines"] = lines
         self.response = await sync_to_async(self.kubernetes.read_namespaced_pod_log)(
             *args, **kwargs)
         if follow:
