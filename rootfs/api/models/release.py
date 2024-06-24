@@ -185,7 +185,7 @@ class Release(UuidAuditedModel):
 
         try:
             # Get the Release previous to this one
-            prev_release = releases.filter(failed=False).latest()
+            prev_release = releases.filter(failed=False, state="succeed").latest()
         except Release.DoesNotExist:
             prev_release = None
         return prev_release
@@ -223,6 +223,8 @@ class Release(UuidAuditedModel):
                 new_release = self.app.release_set.latest()
                 new_release.state = "crashed"
                 new_release.failed = True
+                if new_release.summary:
+                    new_release.summary += " "
                 new_release.summary += "{} performed roll back to a release that failed".format(
                     self.owner)
                 # Get the exception that has occured

@@ -638,7 +638,8 @@ class ReleaseTest(DryccTransactionTestCase):
             owner=user,
             app=app,
             config=app.config_set.latest(),
-            build=build
+            build=build,
+            state="succeed"
         )
         self.assertIsNone(release.diff_procfile_types())
         # test has image
@@ -669,7 +670,8 @@ class ReleaseTest(DryccTransactionTestCase):
             owner=user,
             app=app,
             config=app.config_set.latest(),
-            build=build
+            build=build,
+            state="succeed"
         )
         self.assertEqual(release.diff_procfile_types(), {'web', 'worker'})
         # test has image
@@ -700,7 +702,8 @@ class ReleaseTest(DryccTransactionTestCase):
             owner=user,
             app=app,
             config=app.config_set.latest(),
-            build=build
+            build=build,
+            state="succeed"
         )
         self.assertEqual(release.diff_procfile_types(), {'web'})
         # test has image
@@ -731,7 +734,8 @@ class ReleaseTest(DryccTransactionTestCase):
             owner=user,
             app=app,
             config=app.config_set.latest(),
-            build=build
+            build=build,
+            state="succeed"
         )
         self.assertEqual(release.diff_procfile_types(), {'worker'})
         # test no image
@@ -771,7 +775,8 @@ class ReleaseTest(DryccTransactionTestCase):
             owner=user,
             app=app,
             config=app.config_set.latest(),
-            build=build
+            build=build,
+            state="succeed"
         )
         self.assertEqual(release.diff_procfile_types(), {'web', 'worker', 'worker-sync'})
         # test has image
@@ -805,7 +810,8 @@ class ReleaseTest(DryccTransactionTestCase):
             owner=user,
             app=app,
             config=app.config_set.latest(),
-            build=build
+            build=build,
+            state="succeed"
         )
         self.assertEqual(release.diff_procfile_types(), {'worker', 'task', 'worker-sync', 'web'})
         # test has image
@@ -839,7 +845,8 @@ class ReleaseTest(DryccTransactionTestCase):
             owner=user,
             app=app,
             config=app.config_set.latest(),
-            build=build
+            build=build,
+            state="succeed"
         )
         self.assertEqual(release.diff_procfile_types(), {'task'})
         # test has image
@@ -873,7 +880,8 @@ class ReleaseTest(DryccTransactionTestCase):
             owner=user,
             app=app,
             config=app.config_set.latest(),
-            build=build
+            build=build,
+            state="succeed"
         )
         self.assertEqual(release.diff_procfile_types(), set())
         with mock.patch('scheduler.resources.pod.Pod.watch') as mock_kube:
