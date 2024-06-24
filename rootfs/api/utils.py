@@ -16,9 +16,13 @@ import requests
 import jsonschema
 from copy import deepcopy
 from django.db import models
+from django.conf import settings
+from django.core.cache import cache
+from requests.auth import HTTPBasicAuth
 from requests_toolbelt import user_agent
 from api import __version__ as drycc_version
 from rest_framework.exceptions import ValidationError
+from scheduler import KubeException
 
 logger = logging.getLogger(__name__)
 
@@ -194,6 +198,78 @@ def validate_json(value, schema, raise_exception=ValidationError):
         except jsonschema.ValidationError as e:
             raise raise_exception("could not validate {}: {}".format(value, e.message))
     return value
+
+
+class VolumeClient(object):
+
+    def __init__(self, app_id, volume, scheduler):
+        self.bind = ":9000"
+        self.path = "/data"
+        self.app_id = app_id
+        self.volume = volume
+        self.scheduler = scheduler
+
+    @property
+    def server(self):
+        _server = cache.get(self.cache_key, None)
+        if not _server or not self.health(_server):
+            self.cleanup()
+            k8s_volume = {"name": self.volume.name}
+            if self.volume.type == "csi":
+                k8s_volume.update({"persistentVolumeClaim": {"claimName": self.volume.name}})
+            else:
+                k8s_volume.update(self.volume.parameters)
+            username, password = random_string(32), random_string(32)
+            self.scheduler.pod.create(self.app_id, self.pod_name, settings.DRYCC_FILER_IMAGE, **{
+                "args": [
+                    "filer",
+                    "--bind", self.bind, "--path", self.path,
+                    "--duration", f"{settings.DRYCC_FILER_DURATION}",
+                    "--waittime", f"{settings.DRYCC_FILER_WAITTIME}",
+                    "--username", f"{username}", "--password", f"{password}",
+                ],
+                "app_type": "filer",
+                "replicas": 1, "deploy_timeout": 120, "volumes": [k8s_volume],
+                "volume_mounts": [{"mountPath": self.path, "name": self.volume.name}],
+                "image_pull_policy": "Always",
+            })
+            address = self.scheduler.pod.get(self.app_id, self.pod_name).json()["status"]["podIP"]
+            _server = {"address": address, "username": username, "password": password}
+            cache.set(self.cache_key, _server, timeout=settings.DRYCC_FILER_DURATION)
+        return _server
+
+    @property
+    def pod_name(self):
+        return f"drycc-filer-{self.volume.name}"
+
+    @property
+    def cache_key(self):
+        return f"filer:{self.pod_name}"
+
+    def health(self, server):
+        try:
+            return self.request(
+                "OPTIONS", server, timeout=2).headers.get('server') == 'drycc-filer'
+        except requests.exceptions.Timeout:
+            return False
+
+    def cleanup(self):
+        try:
+            self.scheduler.pod.delete(self.app_id, self.pod_name)
+        except KubeException:
+            pass
+
+    def request(self, method, server, path="/", **kwargs):
+        cache.touch(self.cache_key, timeout=settings.DRYCC_FILER_DURATION)
+        url = f"http://{server["address"]}:{self.bind.split(":")[1]}/{path}"
+        kwargs["auth"] = HTTPBasicAuth(server["username"], server["password"])
+        return get_session().request(method, url, **kwargs)
+
+    def get(self, path, **kwargs):
+        return self.request("GET", self.server, path, **kwargs)
+
+    def post(self, path, **kwargs):
+        return self.request("POST", self.server, path, **kwargs)
 
 
 if __name__ == "__main__":

@@ -23,6 +23,8 @@ from rest_framework.exceptions import PermissionDenied, NotFound
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.response import Response
 from rest_framework.viewsets import GenericViewSet
+from rest_framework.decorators import parser_classes
+from rest_framework.parsers import MultiPartParser
 
 from api import monitor, models, permissions, serializers, viewsets, authentication
 from api.tasks import scale_app, restart_app, mount_app, downstream_model_owner
@@ -35,7 +37,7 @@ from django.http.response import StreamingHttpResponse
 from social_django.utils import psa
 from social_django.views import _do_login
 from social_core.utils import setting_name
-from api import admissions
+from api import admissions, utils
 from api.backend import OauthCacheManager
 from api.apps_extra.social_core.actions import do_auth, do_complete
 
@@ -824,8 +826,20 @@ class AppVolumesViewSet(ReleasableViewSet):
                                  app__id=self.kwargs['id'],
                                  name=self.kwargs['name'])
 
+    @method_decorator(parser_classes([MultiPartParser]))
     def client(self, request, **kwargs):
-        pass
+        path = self.kwargs.get('path', '')
+        volume = self.get_object()
+        client = utils.VolumeClient(volume.app.id, volume, volume.app.scheduler())
+        if request.method == "GET":
+            response = client.get(path, stream=True)
+            return StreamingHttpResponse(
+                status=response.status_code, streaming_content=response.iter_content(),
+                content_type=response.headers.get('Content-Type', 'application/octet-stream'))
+        elif request.method == "POST":
+            client.post(path, files=request.FILES)
+            return HttpResponse(status=status.HTTP_204_NO_CONTENT)
+        return HttpResponse(status=status.HTTP_405_METHOD_NOT_ALLOWED)
 
     def expand(self, request, **kwargs):
         volume = self.get_object()
