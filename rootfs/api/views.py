@@ -415,6 +415,8 @@ class ConfigViewSet(ReleasableViewSet):
             if 'release' in locals():
                 release.state = "crashed"
                 release.failed = True
+                if release.summary:
+                    release.summary += " "
                 release.summary += "{} deployed a config that failed".format(self.request.user)
                 # Get the exception that has occured
                 release.exception = "error: {}".format(str(e))
