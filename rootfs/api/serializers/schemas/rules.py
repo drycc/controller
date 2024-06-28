@@ -193,6 +193,10 @@ RULES_SCHEMA = {
                     "required": ["name"],
                     "additionalProperties": False
                 }
+            },
+            "timeouts": {
+                "request": {"type": "string"},
+                "backendRequest": {"type": "string"}
             }
         },
         "required": ["backendRefs"],

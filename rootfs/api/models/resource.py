@@ -192,8 +192,9 @@ class Resource(UuidAuditedModel):
                 self.app.id, self.name)
             if resp.status_code != 200:
                 message = ""
-            message = resp.json().get("status", {}).get("conditions", [{}])[-1].\
-                get("message", "")
+            conditions = resp.json().get("status", {}).get("conditions")
+            message = conditions[-1].get("message", "") \
+                if conditions and isinstance(conditions[-1], dict) else ""
             return message
         except KubeException as e:
             logger.info("retrieve instance info error: {}".format(e))
