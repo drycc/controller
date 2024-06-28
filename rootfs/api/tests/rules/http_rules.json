@@ -27,7 +27,11 @@
 		"backendRefs": [{
 			"name": "echo",
 			"port": 8080
-		}]
+		}],
+		"timeouts": {
+			"backendRequest": "60s",
+			"request": "60s"
+		}
 	}],
 	"canary": [{
 		"matches": [{
