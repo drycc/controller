@@ -397,6 +397,7 @@ class ConfigViewSet(ReleasableViewSet):
     def post_save(self, config):
         latest_release = config.app.release_set.filter(failed=False).latest()
         if latest_release.build is not None and latest_release.state == "created":
+            config.delete()
             raise DryccException('There is an executing pipeline, please wait')
         try:
             release = latest_release.new(
