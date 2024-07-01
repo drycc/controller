@@ -2,7 +2,6 @@ from django.contrib.auth import get_user_model
 from django.core.cache import cache
 from django.conf import settings
 
-from api.models.app import App
 from api.tests import DryccTransactionTestCase
 from api.tests.test_gateway import RouteTest
 
@@ -164,25 +163,3 @@ class ServiceTest(DryccTransactionTestCase):
             {'procfile_type': 'test', "protocol": "UDP", "port": 5000}
         )
         self.assertEqual(response.status_code, 404, response.data)
-
-    def test_app_settings_change_canaries(self):
-        procfile_type, app_id, _, _, _, _ = self.test_route.test_route_attach()
-        # Add canaries
-        response = self.client.post(
-            f'/v2/apps/{app_id}/settings',
-            {'canaries': [procfile_type]}
-        )
-        self.assertEqual(response.status_code, 201, response.data)
-        app = App.objects.get(id=app_id)
-        response = app.scheduler().svc.get(app_id)
-        self.assertEqual(response.status_code, 200)
-        self.assertEqual(len(response.json()["items"]), 2)
-        # Remove canaries to false
-        response = self.client.delete(
-            f'/v2/apps/{app_id}/settings',
-            {'canaries': [procfile_type]}
-        )
-        self.assertEqual(response.status_code, 204, response.data)
-        response = app.scheduler().svc.get(app_id)
-        self.assertEqual(response.status_code, 200)
-        self.assertEqual(len(response.json()["items"]), 1)

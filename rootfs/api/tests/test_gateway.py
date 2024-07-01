@@ -608,67 +608,36 @@ class RouteTest(BaseGatewayTest):
         response = self.client.get(
             '/v2/apps/{}/routes/{}/rules/'.format(app_id, route_name),
         )
-        expect = {
-            'canary': [{
-                'backendRefs': [{
-                    'kind': 'Service',
-                    'name': '%s-%s' % (app_id, procfile_type),
-                    'port': 5000,
-                    'weight': 100
-                }, {
-                    'kind': 'Service',
-                    'name': '%s-%s-canary' % (app_id, procfile_type),
-                    'port': 5000,
-                    'weight': 0
-                }]
-            }],
-            'stable': [{
-                'backendRefs': [{
-                    'kind': 'Service',
-                    'name': '%s-%s' % (app_id, procfile_type),
-                    'port': 5000,
-                    'weight': 100
-                }]
+        expect = [{
+            'backendRefs': [{
+                'kind': 'Service',
+                'name': '%s-%s' % (app_id, procfile_type),
+                'port': 5000,
+                'weight': 100
             }]
-        }
-        self.assertEqual(response.data["stable"], expect["stable"])
-        self.assertEqual(response.data["canary"], expect["canary"])
+        }]
+        self.assertEqual(response.data, expect)
 
     def test_schemas(self):
         for rule in os.listdir("{}/rules/".format(TEST_ROOT)):
             with open("{}/rules/{}".format(TEST_ROOT, rule)) as f:
                 data = f.read()
                 try:
-                    validate_json(data, RULES_SCHEMA)
+                    validate_json(json.loads(data), RULES_SCHEMA)
                 except Exception as e:
                     raise self.failureException("validate %s rule error: %s" % (rule, str(e)))
 
     def test_rule_set(self):
         app_id = self.create_app()
         procfile_type, _, route_name = self.create_route(app_id)
-        expect = {
-            "canary": [{
-                "backendRefs": [{
-                    "kind": "Service",
-                    "name": "%s-%s" % (app_id, procfile_type),
-                    "port": 5000,
-                    "weight": 100
-                }, {
-                    "kind": "Service",
-                    "name": "%s-%s-canary" % (app_id, procfile_type),
-                    "port": 5000,
-                    "weight": 0
-                }]
-            }],
-            "stable": [{
-                "backendRefs": [{
-                    "kind": "Service",
-                    "name": "%s-%s" % (app_id, procfile_type),
-                    "port": 5000,
-                    "weight": 100
-                }]
+        expect = [{
+            "backendRefs": [{
+                "kind": "Service",
+                "name": "%s-%s" % (app_id, procfile_type),
+                "port": 5000,
+                "weight": 100
             }]
-        }
+        }]
         response = self.client.put(
             '/v2/apps/{}/routes/{}/rules/'.format(app_id, route_name),
             json.dumps(expect),
@@ -678,29 +647,14 @@ class RouteTest(BaseGatewayTest):
             '/v2/apps/{}/routes/{}/rules/'.format(app_id, route_name),
         )
         self.assertEqual(json.dumps(response.data), json.dumps(expect))
-        expect = {
-            "canary": [{
-                "backendRefs": [{
-                    "kind": "Service",
-                    "name": "%s-%s-noexits" % (app_id, procfile_type),
-                    "port": 5000,
-                    "weight": 100
-                }, {
-                    "kind": "Service",
-                    "name": "%s-%s-noexits-canary" % (app_id, procfile_type),
-                    "port": 5000,
-                    "weight": 0
-                }]
-            }],
-            "stable": [{
-                "backendRefs": [{
-                    "kind": "Service",
-                    "name": "%s-%s-noexits" % (app_id, procfile_type),
-                    "port": 5000,
-                    "weight": 100
-                }]
+        expect = [{
+            "backendRefs": [{
+                "kind": "Service",
+                "name": "%s-%s-noexits" % (app_id, procfile_type),
+                "port": 5000,
+                "weight": 100
             }]
-        }
+        }]
         response = self.client.put(
             '/v2/apps/{}/routes/{}/rules/'.format(app_id, route_name),
             json.dumps(expect),

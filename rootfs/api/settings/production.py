@@ -250,7 +250,6 @@ TEMPDIR = tempfile.mkdtemp(prefix='drycc')
 
 # names which apps cannot reserve for routing
 DRYCC_RESERVED_NAMES = os.environ.get('RESERVED_NAMES', '').replace(' ', '').split(',')
-DRYCC_RESERVED_NAMES.append("canary")
 
 # the k8s namespace in which the controller and workflow were installed.
 WORKFLOW_NAMESPACE = os.environ.get('WORKFLOW_NAMESPACE', 'drycc')

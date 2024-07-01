@@ -1,21 +1,11 @@
-{
-	"stable": [{
-		"backendRefs": [{
-			"name": "echo",
-			"port": 8080
-		}]
-	}],
-	"canary": [{
-		"backendRefs": [{
+[
+	{
+		"backendRefs": [
+			{
 				"name": "echo",
 				"port": 8080,
 				"weight": 10
-			},
-			{
-				"name": "echo-canary",
-				"port": 8080,
-				"weight": 90
 			}
 		]
-	}]
-}
+	}
+]

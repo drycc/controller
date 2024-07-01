@@ -400,8 +400,7 @@ class ConfigViewSet(ReleasableViewSet):
             raise DryccException('There is an executing pipeline, please wait')
         try:
             release = latest_release.new(
-                self.request.user, config=config, build=latest_release.build,
-                canary=latest_release.canary)
+                self.request.user, config=config, build=latest_release.build)
             if release.build is not None:
                 procfile_types = set()
                 for field, diff in config.diff().items():
@@ -473,42 +472,6 @@ class AppSettingsViewSet(AppResourceViewSet):
     model = models.appsettings.AppSettings
     serializer_class = serializers.AppSettingsSerializer
 
-    def remove(self, request, *args, **kwargs):
-        app = self.get_app()
-        app_settings = self.get_object()
-        new_canaries = []
-        remove_canaries = request.data["canaries"]
-        for procfile_tyle in app_settings.canaries:
-            if procfile_tyle not in remove_canaries:
-                new_canaries.append(procfile_tyle)
-        new_app_settings = self.model(app=app, owner=app.owner, canaries=new_canaries)
-        new_app_settings.summary = f"{app.owner} remove canaries {','.join(remove_canaries)}"
-        new_app_settings.save(ignore_update_field=["canaries"])
-        return Response(status=status.HTTP_204_NO_CONTENT)
-
-
-class CanaryViewSet(AppResourceViewSet):
-    model = models.appsettings.AppSettings
-    serializer_class = serializers.AppSettingsSerializer
-
-    def _clean_canaries(self):
-        app = self.get_app()
-        app_settings = self.model(app=app, owner=app.owner, canaries=[])
-        app_settings.summary = "canary release"
-        app_settings.save(ignore_update_field=["canaries"])
-
-    def release(self, request, *args, **kwargs):
-        self._clean_canaries()
-        latest_release = self.get_app().release_set.filter(failed=False).latest()
-        data = {'version': latest_release.rollback(request.user, latest_release.version).version}
-        return Response(data, status=status.HTTP_201_CREATED)
-
-    def rollback(self, request, *args, **kwargs):
-        self._clean_canaries()
-        release = self.get_app().release_set.filter(failed=False, canary=False).latest()
-        data = {'version': release.rollback(request.user, release.version).version}
-        return Response(data, status=status.HTTP_201_CREATED)
-
 
 class DomainViewSet(AppResourceViewSet):
     """A viewset for interacting with Domain objects."""
@@ -562,7 +525,6 @@ class ServiceViewSet(AppResourceViewSet):
             service = self.model(owner=app.owner, app=app, procfile_type=procfile_type)
             http_status = status.HTTP_201_CREATED
         service.add_port(port, protocol, target_port)
-        service.canary = procfile_type in app.appsettings_set.latest().canaries
         service.save()
         return Response(status=http_status)
 
@@ -1037,7 +999,7 @@ class RouteViewSet(AppResourceViewSet):
         rules = request.data
         if isinstance(rules, str):
             rules = json.loads(rules)
-        rules = self.get_serializer().validate_rules(rules)
+        rules = self.get_serializer(route, many=False).validate_rules(rules)
         route.rules = rules
         ok, msg = route.check_rules()
         if not ok:
@@ -1067,7 +1029,7 @@ class RouteViewSet(AppResourceViewSet):
             procfile_type=procfile_type,
         )
         route.rules = route.default_rules
-        if not route.current_rules[0]["backendRefs"]:
+        if route.rules and not route.rules[0]["backendRefs"]:
             return Response(status=status.HTTP_400_BAD_REQUEST, data={
                 "detail": "this route does not match services. please add service first."
             })

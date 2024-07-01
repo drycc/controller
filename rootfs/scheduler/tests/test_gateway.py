@@ -89,11 +89,6 @@ class HTTPRouteTest(TestCase):
                         "name": "tcp-echo-v1",
                         "port": 9000,
                         "weight": 10,
-                    },
-                    {
-                        "name": "tcp-echo-v1-canary",
-                        "port": 9000,
-                        "weight": 90,
                     }
                 ]
             }
@@ -143,11 +138,6 @@ class TCPRouteTest(TestCase):
                         "name": "tcp-echo-v1",
                         "port": 9000,
                         "weight": 10,
-                    },
-                    {
-                        "name": "tcp-echo-v1-canary",
-                        "port": 9000,
-                        "weight": 90,
                     }
                 ]
             }
@@ -197,11 +187,6 @@ class UDPRouteTest(TestCase):
                         "name": "udp-echo-v1",
                         "port": 9000,
                         "weight": 10,
-                    },
-                    {
-                        "name": "udp-echo-v1-canary",
-                        "port": 9000,
-                        "weight": 90,
                     }
                 ]
             }

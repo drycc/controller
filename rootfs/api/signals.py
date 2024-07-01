@@ -203,25 +203,12 @@ def domain_changed_handle(
 @receiver(signal=[post_save, post_delete], sender=AppSettings)
 def appsettings_changed_handle(
         sender, instance: AppSettings, created=False, update_fields=None, **kwargs):
-    prev_settings, action, canaries = instance.diff_canaries()
-    if prev_settings is not None:
-        release = instance.app.release_set.filter(failed=False).latest()
-        if release.canary:
-            if action == "append":
-                instance.app.deploy(release)
-            elif action == "remove":
-                instance.app.cleanup_old()
-        for procfile_type in canaries:
-            canary = (action == "append")
-            service = instance.app.service_set.filter(procfile_type=procfile_type).first()
-            if service is not None and service.canary != canary:
-                service.canary = canary
-                service.save()
-        if prev_settings.routable != instance.routable:
-            for route in instance.app.route_set.all():
-                if route.routable != instance.routable:
-                    route.routable = instance.routable
-                    route.save()
+    prev_settings = instance.previous()
+    if prev_settings and prev_settings.routable != instance.routable:
+        for route in instance.app.route_set.all():
+            if route.routable != instance.routable:
+                route.routable = instance.routable
+                route.save()
 
 
 @receiver(post_save, sender=Config)

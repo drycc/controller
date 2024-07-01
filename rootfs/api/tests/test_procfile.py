@@ -19,14 +19,14 @@ class ProcfileTypeTest(APITestCase):
                 f"Did not throw the expected exception, args: {args}, kwargs: {kwargs}")
 
     def test_procfile_type_error(self):
-        for procfile_type in ["w", "we", "-a", "we-canary", "w" * 64]:
+        for procfile_type in ["w", "we", "-a", "we-new-", "w" * 64]:
             self.assertException(
                 validate_procfile_type, serializers.ValidationError, procfile_type)
 
     def test_procfile_type_ok(self):
         self.assertEqual(validate_procfile_type("web"), "web")
         self.assertEqual(validate_procfile_type("w" * 63), "w" * 63)
-        self.assertEqual(validate_procfile_type("web-canary-be"), "web-canary-be")
+        self.assertEqual(validate_procfile_type("web-new-be"), "web-new-be")
 
     def test_dryccfile_procfile_type(self):
         dryccfile_1 = {
@@ -56,15 +56,15 @@ class ProcfileTypeTest(APITestCase):
         self.assertException(
                 validate_dryccfile, serializers.ValidationError, dryccfile_1)
         del dryccfile_1["deploy"]["w"]
-        dryccfile_1["deploy"]["w-canary"] = {"args": ["python", "-m", "http.server", "5000"]}
+        dryccfile_1["deploy"]["w-new-"] = {"args": ["python", "-m", "http.server", "5000"]}
         self.assertException(
                 validate_dryccfile, serializers.ValidationError, dryccfile_1)
 
     def test_staticmethod_procfile_type(self):
         s_validate_procfile_type = ServiceSerializer().validate_procfile_type
-        for procfile_type in ["w", "we", "-a", "we-canary", "w" * 64]:
+        for procfile_type in ["w", "we", "-a", "we-new-", "w" * 64]:
             self.assertException(
                 s_validate_procfile_type, serializers.ValidationError, procfile_type)
         self.assertEqual(s_validate_procfile_type("web"), "web")
         self.assertEqual(s_validate_procfile_type("w" * 63), "w" * 63)
-        self.assertEqual(s_validate_procfile_type("web-canary-be"), "web-canary-be")
+        self.assertEqual(s_validate_procfile_type("web-new-be"), "web-new-be")

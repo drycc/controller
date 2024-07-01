@@ -42,7 +42,7 @@ def validate_app_id(value):
     """
     Check that the value follows the kubernetes name constraints
     """
-    match = re.match(r'[a-z]([a-z0-9-]*[a-z0-9])?(?<!-canary)$', value)
+    match = re.match(r'[a-z]([a-z0-9-]*[a-z0-9])?$', value)
     if not match:
         raise ValidationError("App name must start with an alphabetic character, cannot end with a"
                               + " hyphen and can only contain a-z (lowercase), 0-9 and hyphens.")
@@ -190,11 +190,8 @@ class App(UuidAuditedModel):
          Restart deployments with the kubectl rollout api
         """
         deployments = []
-        app_settings = self.appsettings_set.latest()
         if self.structure[kwargs['type']] > 0:
-            if kwargs['type'] in app_settings.canaries:
-                deployments.append(self._get_job_id(kwargs['type'], True))
-            deployments.append(self._get_job_id(kwargs['type'], False))
+            deployments.append(self._get_job_id(kwargs['type']))
         try:
             tasks = [
                 functools.partial(
@@ -219,13 +216,6 @@ class App(UuidAuditedModel):
             self.log(err_msg, logging.WARNING)
             raise DryccException(err_msg)
         app_settings = self.appsettings_set.latest()
-        if release.canary:
-            self._scale(
-                user,
-                structure,
-                self.release_set.filter(failed=False, canary=False).latest(),
-                app_settings
-            )
         self._scale(user, structure, release, app_settings)
 
     def pipeline(self, release, force_deploy=False, rollback_on_failure=True):
@@ -293,9 +283,8 @@ class App(UuidAuditedModel):
             if procfile_types is not None and scale_type not in procfile_types:
                 continue
             scale_type_volumes = [_ for _ in volumes if scale_type in _.path.keys()]
-            if not release.canary or scale_type in app_settings.canaries:
-                deploys[scale_type] = self._gather_app_settings(
-                    release, app_settings, scale_type, replicas, volumes=scale_type_volumes)
+            deploys[scale_type] = self._gather_app_settings(
+                release, app_settings, scale_type, replicas, volumes=scale_type_volumes)
         self._deploy(
             deploys, procfile_types, prev_release, release, force_deploy, rollback_on_failure)
         # cleanup old release objects from kubernetes
@@ -307,22 +296,12 @@ class App(UuidAuditedModel):
             raise DryccException('No build associated with this release')
         release = self.release_set.filter(failed=False).latest()
         app_settings = self.appsettings_set.latest()
-        if release.canary:
-            self._mount(
-                user,
-                volume,
-                self.release_set.filter(failed=False, canary=False).latest(),
-                app_settings,
-                structure=structure,
-            )
         self._mount(user, volume, release, app_settings, structure=structure)
 
     def cleanup_old(self, procfile_types=None):
-        names, app_settings = [], self.appsettings_set.latest()
+        names = []
         for scale_type in self.structure.keys():
-            if scale_type in app_settings.canaries:
-                names.append(self._get_job_id(scale_type, True))
-            names.append(self._get_job_id(scale_type, False))
+            names.append(self._get_job_id(scale_type))
         labels = {'heritage': 'drycc'}
         if procfile_types is not None:
             labels["type__in"] = procfile_types
@@ -360,7 +339,7 @@ class App(UuidAuditedModel):
         data['restart_policy'] = 'Never'
         data['active_deadline_seconds'] = timeout
         data['ttl_seconds_after_finished'] = expires
-        name = self._get_job_id(PROCFILE_TYPE_RUN, release.canary) + '-' + pod_name()
+        name = self._get_job_id(PROCFILE_TYPE_RUN) + '-' + pod_name()
         self.log("{} on {} runs '{}'".format(user.username, name, command))
         kwargs.update(data)
         try:
@@ -509,27 +488,21 @@ class App(UuidAuditedModel):
         return name
 
     def state_to_k8s(self):
-        def _load_procfile_types(canary):
-            procfile_types = set()
-            for procfile_type, scale in self.structure.items():
-                response = self.scheduler().deployment.get(
-                    self.id, self._get_job_id(procfile_type, canary),
-                    ignore_exception=True)
-                if response.status_code == 404 and scale > 0:
-                    procfile_types.add(procfile_type)
-                elif response.status_code != 200:
-                    data = response.json()
-                    self.log('get deployment status_code {}, message: {}'.format(
-                        response.status_code, data.get("message", "")), logging.ERROR)
-            return procfile_types
-
         release = self.release_set.filter(failed=False).latest()
         if release.build is None:
             self.log('the last release does not have a build, skipping deployment...')
             return
-        procfile_types = _load_procfile_types(False)
-        if release.canary:
-            procfile_types = procfile_types.union(_load_procfile_types(canary=True))
+        procfile_types = set()
+        for procfile_type, scale in self.structure.items():
+            response = self.scheduler().deployment.get(
+                self.id, self._get_job_id(procfile_type),
+                ignore_exception=True)
+            if response.status_code == 404 and scale > 0:
+                procfile_types.add(procfile_type)
+            elif response.status_code != 200:
+                data = response.json()
+                self.log('get deployment status_code {}, message: {}'.format(
+                    response.status_code, data.get("message", "")), logging.ERROR)
         if len(procfile_types) == 0:
             self.log('the cluster status is the latest, skipping deployment...')
             return
@@ -585,11 +558,8 @@ class App(UuidAuditedModel):
     def __str__(self):
         return self.id
 
-    def _get_job_id(self, container_type, canary):
-        job_id = f"{self.id}-{container_type}"
-        if canary:
-            job_id = f"{job_id}-canary"
-        return job_id
+    def _get_job_id(self, container_type):
+        return f"{self.id}-{container_type}"
 
     def _clean_app_logs(self):
         """Delete application logs stored by the logger component"""
@@ -607,15 +577,14 @@ class App(UuidAuditedModel):
         volumes = Volume.objects.filter(app=self)
         tasks = []
         for scale_type, replicas in structure.items() if structure else self.structure.items():
-            if scale_type != PROCFILE_TYPE_RUN and (
-                    not release.canary or scale_type in app_settings.canaries):
+            if scale_type != PROCFILE_TYPE_RUN:
                 replicas = self.structure.get(scale_type, 0)
                 scale_type_volumes = [
                     volume for volume in volumes if scale_type in volume.path.keys()]
                 data = self._gather_app_settings(
                     release, app_settings, scale_type, replicas, volumes=scale_type_volumes)
                 deployment = self.scheduler().deployment.get(
-                    self.id, self._get_job_id(scale_type, release.canary)).json()
+                    self.id, self._get_job_id(scale_type)).json()
                 spec_annotations = deployment['spec']['template']['metadata'].get(
                     'annotations', {})
                 self.set_application_config(release, scale_type)
@@ -623,7 +592,7 @@ class App(UuidAuditedModel):
                 tasks.append(functools.partial(
                     self.scheduler().deployment.patch,
                     namespace=self.id,
-                    name=self._get_job_id(scale_type, release.canary),
+                    name=self._get_job_id(scale_type),
                     image=release.get_deploy_image(scale_type),
                     command=release.get_deploy_command(scale_type),
                     args=release.get_deploy_args(scale_type),
@@ -653,7 +622,7 @@ class App(UuidAuditedModel):
                 tasks.append(functools.partial(
                     self.scheduler().deploy,
                     namespace=self.id,
-                    name=self._get_job_id(scale_type, release.canary),
+                    name=self._get_job_id(scale_type),
                     image=release.get_deploy_image(scale_type),
                     command=release.get_deploy_command(scale_type),
                     args=release.get_deploy_args(scale_type),
@@ -664,8 +633,7 @@ class App(UuidAuditedModel):
             except KubeException as e:
                 # Don't rollback if the previous release doesn't have a build which means
                 # this is the first build and all the previous releases are just config changes.
-                if (prev_release.canary == release.canary and
-                        rollback_on_failure and prev_release.build is not None):
+                if (rollback_on_failure and prev_release.build is not None):
                     err = 'There was a problem deploying {}. Rolling back to release {}.'.format(
                         release.version_name, prev_release.version_name)
                     # This goes in the log before the rollback starts
@@ -701,7 +669,6 @@ class App(UuidAuditedModel):
         """Scale containers up or down to match requested structure."""
         # use create to make sure minimum resources are created
         self.create()
-
         # Validate structure
         try:
             for target, count in structure.copy().items():
@@ -752,7 +719,7 @@ class App(UuidAuditedModel):
                 functools.partial(
                     self.scheduler().scale,
                     namespace=self.id,
-                    name=self._get_job_id(scale_type, release.canary),
+                    name=self._get_job_id(scale_type),
                     image=release.get_deploy_image(scale_type),
                     command=release.get_deploy_command(scale_type),
                     args=release.get_deploy_args(scale_type),
@@ -905,7 +872,7 @@ class App(UuidAuditedModel):
         if force_deploy:
             return
         for scale_type, kwargs in deploys.items():
-            name = self._get_job_id(scale_type, release.canary)
+            name = self._get_job_id(scale_type)
             # Is there an existing deployment in progress?
             in_progress, deploy_okay = self.scheduler().deployment.in_progress(
                 self.id, name, kwargs.get("deploy_timeout"), kwargs.get("deploy_batches"),

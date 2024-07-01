@@ -1,4 +1,3 @@
-import re
 import logging
 from django.db import models
 from django.conf import settings
@@ -201,35 +200,16 @@ class Route(AuditedModel):
     @property
     def default_rules(self):
         service = get_object_or_404(self.app.service_set, procfile_type=self.procfile_type)
-        stable_backend_refs, canary_backend_refs = [], []
+        backend_refs = []
         for item in service.ports:
             if item["port"] == self.port:
-                stable_backend = {
+                backend_refs.append({
                     "kind": "Service",
                     "name": str(service),
                     "port": item["port"],
                     "weight": 100,
-                }
-                canary_backend = {
-                    "kind": "Service",
-                    "name": "%s-canary" % str(service),
-                    "port": item["port"],
-                    "weight": 0,
-                }
-                stable_backend_refs.append(stable_backend)
-                canary_backend_refs.append(stable_backend)
-                canary_backend_refs.append(canary_backend)
-        return {
-            "stable": [{"backendRefs": stable_backend_refs}],
-            "canary": [{"backendRefs": canary_backend_refs}],
-        }
-
-    @property
-    def current_rules(self):
-        app_settings = self.app.appsettings_set.latest()
-        if self.procfile_type in app_settings.canaries:
-            return self.rules["canary"]
-        return self.rules["stable"]
+                })
+        return [{"backendRefs": backend_refs}]
 
     def log(self, message, level=logging.INFO):
         """Logs a message in the context of this service.
@@ -246,13 +226,11 @@ class Route(AuditedModel):
         service = self.app.service_set.filter(
             procfile_type=self.procfile_type).first()
         ports = [item["port"] for item in service.ports]
-        for rules in self.rules.values():
-            for rule in rules:
-                for backend_ref in rule["backendRefs"]:
-                    port = backend_ref["port"]
-                    name = re.sub(r'(.*)-canary', r'\1', backend_ref["name"])
-                    if port not in ports or name != str(service):
-                        return False, {"detail": "backendRefs associated with incorrect service"}
+        for rule in self.rules:
+            for backend_ref in rule["backendRefs"]:
+                port = backend_ref["port"]
+                if port not in ports or backend_ref["name"] != str(service):
+                    return False, {"detail": "backendRefs associated with incorrect service"}
         return True, ""
 
     def refresh_to_k8s(self):
@@ -266,7 +244,7 @@ class Route(AuditedModel):
                 self.scheduler().httproute.delete(self.app.id, self._https_redirect_name)
             else:
                 parent_refs.extend(http_parent_refs)
-            self._refresh_to_k8s(self.current_rules, parent_refs)
+            self._refresh_to_k8s(self.rules, parent_refs)
         else:
             self.scheduler().httproute.delete(self.app.id, self.name)
             self.scheduler().httproute.delete(self.app.id, self._https_redirect_name)

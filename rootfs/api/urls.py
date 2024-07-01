@@ -79,15 +79,7 @@ app_urlpatterns = [
     # application settings
     re_path(
         r"^apps/(?P<id>{})/settings/?$".format(settings.APP_URL_REGEX),
-        views.AppSettingsViewSet.as_view(
-            {'get': 'retrieve', 'post': 'create', 'delete': 'remove'})),
-    # application canary
-    re_path(
-        r"^apps/(?P<id>{})/canary/release/?$".format(settings.APP_URL_REGEX),
-        views.CanaryViewSet.as_view({'post': 'release'})),
-    re_path(
-        r"^apps/(?P<id>{})/canary/rollback/?$".format(settings.APP_URL_REGEX),
-        views.CanaryViewSet.as_view({'post': 'rollback'})),
+        views.AppSettingsViewSet.as_view({'get': 'retrieve', 'post': 'create'})),
     # application TLS settings
     re_path(
         r"^apps/(?P<id>{})/tls/?$".format(settings.APP_URL_REGEX),

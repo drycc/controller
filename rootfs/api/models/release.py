@@ -32,7 +32,6 @@ class Release(UuidAuditedModel):
     version = models.PositiveIntegerField()
     summary = models.TextField(blank=True, null=True)
     failed = models.BooleanField(default=False)
-    canary = models.BooleanField(default=False)
     exception = models.TextField(blank=True, null=True)
 
     config = models.ForeignKey('Config', on_delete=models.CASCADE)
@@ -148,7 +147,7 @@ class Release(UuidAuditedModel):
         """
         logger.log(level, "[{}]: {}".format(self.app.id, message))
 
-    def new(self, user, config, build, summary=None, canary=False):
+    def new(self, user, config, build, summary=None):
         """
         Create a new application release using the provided Build and Config
         on behalf of a user.
@@ -160,7 +159,7 @@ class Release(UuidAuditedModel):
         # create new release and auto-increment version
         return Release.objects.create(
             owner=user, app=self.app, config=config,
-            build=build, version=new_version, summary=summary, canary=canary
+            build=build, version=new_version, summary=summary
         )
 
     def get_port(self, procfile_type):
@@ -210,7 +209,6 @@ class Release(UuidAuditedModel):
                 build=prev.build,
                 config=prev.config,
                 summary="{} rolled back to v{}".format(user, version),
-                canary=len(app_settings.canaries) > 0,
             )
 
             if self.build is not None:

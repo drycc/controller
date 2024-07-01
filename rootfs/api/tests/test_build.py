@@ -253,7 +253,6 @@ class BuildTest(DryccTransactionTestCase):
         url = f"/v2/apps/{app_id}/pods/"
         response = self.client.get(url)
         self.assertEqual(response.status_code, 200, response.data)
-
         self.assertPodContains(response.data['results'], app_id, 'worker', "v2", "up")
 
         # do another deploy for this time forget Procfile
@@ -798,13 +797,13 @@ class BuildTest(DryccTransactionTestCase):
             response = self.client.post(url, body)
             self.assertEqual(response.status_code, 400, response.data)
             body['dryccfile']['deploy'] = {
-                "web-canary": {
+                "web-new": {
                     'image': "127.0.0.1/cat/cat"
                 }
             }
             response = self.client.post(url, body)
-            self.assertEqual(response.status_code, 400, response.data)
-            del body['dryccfile']['deploy']['web-canary']
+            self.assertEqual(response.status_code, 201, response.data)
+            del body['dryccfile']['deploy']['web-new']
             body['dryccfile']['deploy'] = {
                 "web": {
                     'image': "127.0.0.1/cat/cat"

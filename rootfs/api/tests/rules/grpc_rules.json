@@ -1,56 +1,33 @@
-{
-	"stable": [{
-			"matches": [{
+[
+	{
+		"matches": [
+			{
 				"method": {
 					"service": "com.example.User",
 					"method": "Login"
 				}
-			}],
-			"backendRefs": [{
+			}
+		],
+		"backendRefs": [
+			{
 				"name": "foo-svc",
 				"port": 50051
-			}]
-		},
-		{
-			"matches": [{
+			}
+		]
+	},
+	{
+		"matches": [
+			{
 				"method": {
 					"service": "grpc.reflection.v1.ServerReflection"
 				}
-			}],
-			"backendRefs": [{
+			}
+		],
+		"backendRefs": [
+			{
 				"name": "foo-svc",
 				"port": 50051
-			}]
-		}
-	],
-	"canary": [{
-			"matches": [{
-				"method": {
-					"service": "com.example.User",
-					"method": "Login"
-				}
-			}],
-			"backendRefs": [{
-				"name": "foo-svc",
-				"port": 50051
-			}, {
-				"name": "foo-svc-canary",
-				"port": 50051
-			}]
-		},
-		{
-			"matches": [{
-				"method": {
-					"service": "grpc.reflection.v1.ServerReflection"
-				}
-			}],
-			"backendRefs": [{
-				"name": "foo-svc",
-				"port": 50051
-			}, {
-				"name": "foo-svc-canary",
-				"port": 50051
-			}]
-		}
-	]
-}
+			}
+		]
+	}
+]

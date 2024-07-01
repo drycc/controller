@@ -33,7 +33,6 @@ class Service(AuditedModel):
     app = models.ForeignKey('App', on_delete=models.CASCADE)
     ports = models.JSONField(
         default=list, validators=[partial(validate_json, schema=service_ports_schema)])
-    canary = models.BooleanField(default=False)
     procfile_type = models.CharField(max_length=PROCFILE_TYPE_MAX_LENGTH)
 
     class Meta:
@@ -42,19 +41,18 @@ class Service(AuditedModel):
         ordering = ['-created']
 
     def __str__(self):
-        return self._svc_name(False)
+        return self._svc_name()
 
     @property
     def domain(self):
         return "{}.{}.svc.{}".format(
-            self._svc_name(False), self._namespace(), settings.KUBERNETES_CLUSTER_DOMAIN
+            self._svc_name(), self._namespace(), settings.KUBERNETES_CLUSTER_DOMAIN
         )
 
     def as_dict(self):
         return {
             "domain": self.domain,
             "ports": self.ports,
-            "canary": self.canary,
             "procfile_type": self.procfile_type,
         }
 
@@ -97,22 +95,13 @@ class Service(AuditedModel):
             return True
         return False
 
-    def refresh_k8s_svc(self):
-        if self.canary:
-            self._refresh_k8s_svc(self._svc_name(False))
-        else:
-            self._delete_k8s_svc(self._svc_name(True))
-        self._refresh_k8s_svc(self._svc_name(self.canary))
-
     def save(self, *args, **kwargs):
         service = super(Service, self).save(*args, **kwargs)
         self.refresh_k8s_svc()
         return service
 
     def delete(self, *args, **kwargs):
-        if self.canary:
-            self._delete_k8s_svc(self._svc_name(False))
-        self._delete_k8s_svc(self._svc_name(self.canary))
+        self._delete_k8s_svc(self._svc_name())
         # Delete from DB
         return super(Service, self).delete(*args, **kwargs)
 
@@ -130,16 +119,15 @@ class Service(AuditedModel):
     def _namespace(self):
         return self.app.id
 
-    def _svc_name(self, canary):
+    def _svc_name(self):
         if self.procfile_type == 'web':
             svc_name = self.app.id
         else:
             svc_name = "{}-{}".format(self.app.id, self.procfile_type)
-        if canary:
-            svc_name = "%s-canary" % svc_name
         return svc_name
 
-    def _refresh_k8s_svc(self, svc_name):
+    def refresh_k8s_svc(self):
+        svc_name = self._svc_name()
         namespace = self._namespace()
         self.log('creating service: {}'.format(svc_name), level=logging.DEBUG)
         try:

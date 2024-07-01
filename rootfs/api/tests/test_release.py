@@ -188,7 +188,7 @@ class ReleaseTest(DryccTransactionTestCase):
         response = self.client.get(url)
         for key in response.data.keys():
             self.assertIn(key, ['uuid', 'owner', 'created', 'updated', 'app', 'build', 'config',
-                                'summary', 'canary', 'version', 'state', 'failed', 'exception'])
+                                'summary', 'version', 'state', 'failed', 'exception'])
         expected = {
             'owner': self.user.username,
             'app': app_id,
@@ -220,7 +220,7 @@ class ReleaseTest(DryccTransactionTestCase):
         self.assertEqual(response.status_code, 201, response.data)
         # create another release with a different build
         url = f'/v2/apps/{app_id}/builds'
-        body = {'image': 'autotest/example:canary', 'stack': 'container'}
+        body = {'image': 'autotest/example:latest', 'stack': 'container'}
         response = self.client.post(url, body)
         self.assertEqual(response.status_code, 201, response.data)
         # rollback and check to see that a 5th release was created

@@ -19,7 +19,6 @@ class AppSettings(UuidAuditedModel):
 
     owner = models.ForeignKey(User, on_delete=models.PROTECT)
     app = models.ForeignKey('App', on_delete=models.CASCADE)
-    canaries = models.JSONField(default=list)
     routable = models.BooleanField(default=True)
     autoscale = models.JSONField(default=dict, blank=True)
     label = models.JSONField(default=dict, blank=True)
@@ -62,20 +61,6 @@ class AppSettings(UuidAuditedModel):
         except AppSettings.DoesNotExist:
             prev_app_settings = None
         return prev_app_settings
-
-    def _update_canaries(self, previous_settings):
-        old = getattr(previous_settings, 'canaries', [])
-        new = getattr(self, 'canaries', [])
-        data = old.copy()
-        if data and not new:
-            setattr(self, 'canaries', data)
-        elif data != new:
-            for procfile_type in new:
-                if procfile_type not in data:
-                    data.append(procfile_type)
-            setattr(self, 'canaries', data)
-            self.summary += [
-                "{} add canaries for process types {}".format(self.owner, ','.join(new))]
 
     def _update_routable(self, previous_settings):
         old = getattr(previous_settings, 'routable', None)
@@ -164,7 +149,7 @@ class AppSettings(UuidAuditedModel):
             previous_settings = self.app.appsettings_set.latest()
         except AppSettings.DoesNotExist:
             pass
-        update_fields = ["canaries", "routable", "autoscale", "label"]
+        update_fields = ["routable", "autoscale", "label"]
         try:
             for update_field in update_fields:
                 if ignore_update_fields is None or update_field not in ignore_update_fields:
@@ -180,23 +165,6 @@ class AppSettings(UuidAuditedModel):
             raise AlreadyExists("{} changed nothing".format(self.owner))
         summary = ' '.join(self.summary)
         self.log('summary of app setting changes: {}'.format(summary), logging.DEBUG)
-
-    def diff_canaries(self):
-        prev_app_settings = self.previous()
-        action, canaries = None, []
-        if prev_app_settings is not None:
-            if prev_app_settings.canaries != self.canaries:
-                for procfile_type in self.canaries:  # add canary
-                    if procfile_type not in prev_app_settings.canaries:
-                        if action is None:
-                            action = "append"
-                        canaries.append(procfile_type)
-                for procfile_type in prev_app_settings.canaries:  # delete canary
-                    if procfile_type not in self.canaries:
-                        if action is None:
-                            action = "remove"
-                        canaries.append(procfile_type)
-        return prev_app_settings, action, canaries
 
     @transaction.atomic
     def save(self, ignore_update_field=None, *args, **kwargs):

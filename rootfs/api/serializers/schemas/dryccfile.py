@@ -1,4 +1,4 @@
-PROCTYPE_REGEX = r'^(?P<type>[a-z0-9]+(\-[a-z0-9]+)*)(?<!-canary)$'
+PROCTYPE_REGEX = r'^(?P<type>[a-z0-9]+(\-[a-z0-9]+)*)$'
 
 SCHEMA = {
     "$schema": "http://json-schema.org/schema#",

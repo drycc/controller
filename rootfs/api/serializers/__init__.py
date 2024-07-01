@@ -19,7 +19,7 @@ from api.utils import validate_json
 from api.exceptions import DryccException
 from api.models.base import PROCFILE_TYPE_MIN_LENGTH, PROCFILE_TYPE_MAX_LENGTH
 from scheduler.resources.pod import DEFAULT_CONTAINER_PORT
-from .schemas.rules import SCHEMA as RULES_SCHEMA
+from .schemas import rules
 from .schemas.volumes import SCHEMA as VOLUMES_SCHEMA
 from .schemas.autoscale import SCHEMA as AUTOSCALE_SCHEMA
 from .schemas.healthcheck import SCHEMA as HEALTHCHECK_SCHEMA
@@ -545,7 +545,6 @@ class AppSettingsSerializer(serializers.ModelSerializer):
 
     app = serializers.SlugRelatedField(slug_field='id', queryset=models.app.App.objects.all())
     owner = serializers.ReadOnlyField(source='owner.username')
-    canaries = serializers.JSONField(required=False)
     autoscale = JSONFieldSerializer(convert_to_str=False, required=False, binary=True)
     label = JSONFieldSerializer(convert_to_str=False, required=False, binary=True)
 
@@ -746,6 +745,10 @@ class RouteSerializer(serializers.Serializer):
 
     validate_procfile_type = staticmethod(validate_procfile_type)
 
-    @staticmethod
-    def validate_rules(value):
-        return validate_json(value, RULES_SCHEMA, serializers.ValidationError)
+    def validate_rules(self, value):
+        kind = getattr(self, "initial_data", getattr(self, "data", {})).get("kind", None)
+        if kind:
+            schema = getattr(rules, f"{kind.replace("Route", "")}_RULES_SCHEMA", "SCHEMA")
+        else:
+            schema = rules.SCHEMA
+        return validate_json(value, schema, serializers.ValidationError)

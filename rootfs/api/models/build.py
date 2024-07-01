@@ -71,7 +71,6 @@ class Build(UuidAuditedModel):
         return default_image if default_image else self.image
 
     def create_release(self, user, *args, **kwargs):
-        app_settings = self.app.appsettings_set.latest()
         latest_release = self.app.release_set.filter(failed=False).latest()
         latest_version = self.app.release_set.latest().version
         try:
@@ -79,7 +78,6 @@ class Build(UuidAuditedModel):
                 user,
                 build=self,
                 config=latest_release.config,
-                canary=len(app_settings.canaries) > 0,
             )
             run_pipeline.delay(new_release)
             return new_release
