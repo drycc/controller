@@ -23,7 +23,6 @@ from rest_framework.exceptions import PermissionDenied, NotFound
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.response import Response
 from rest_framework.viewsets import GenericViewSet
-from rest_framework.decorators import parser_classes
 from rest_framework.parsers import MultiPartParser
 
 from api import monitor, models, permissions, serializers, viewsets, authentication
@@ -33,11 +32,11 @@ from api.exceptions import AlreadyExists, ServiceUnavailable, DryccException
 from django.views.decorators.cache import never_cache
 from django.contrib.auth import REDIRECT_FIELD_NAME
 from django.views.decorators.csrf import csrf_exempt
-from django.http.response import StreamingHttpResponse
+from django.http.response import FileResponse, StreamingHttpResponse
 from social_django.utils import psa
 from social_django.views import _do_login
 from social_core.utils import setting_name
-from api import admissions, utils
+from api import admissions, utils, filer
 from api.backend import OauthCacheManager
 from api.apps_extra.social_core.actions import do_auth, do_complete
 
@@ -827,21 +826,6 @@ class AppVolumesViewSet(ReleasableViewSet):
                                  app__id=self.kwargs['id'],
                                  name=self.kwargs['name'])
 
-    @method_decorator(parser_classes([MultiPartParser]))
-    def client(self, request, **kwargs):
-        path = self.kwargs.get('path', '')
-        volume = self.get_object()
-        client = utils.VolumeClient(volume.app.id, volume, volume.app.scheduler())
-        if request.method == "GET":
-            response = client.get(path, stream=True)
-            return StreamingHttpResponse(
-                status=response.status_code, streaming_content=response.iter_content(),
-                content_type=response.headers.get('Content-Type', 'application/octet-stream'))
-        elif request.method == "POST":
-            client.post(path, files=request.FILES)
-            return HttpResponse(status=status.HTTP_204_NO_CONTENT)
-        return HttpResponse(status=status.HTTP_405_METHOD_NOT_ALLOWED)
-
     def expand(self, request, **kwargs):
         volume = self.get_object()
         volume.expand(request.data['size'])
@@ -875,6 +859,46 @@ class AppVolumesViewSet(ReleasableViewSet):
         mount_app.delay(app, self.request.user, volume, path)
         serializer = self.get_serializer(volume, many=False)
         return Response(serializer.data)
+
+
+class AppFilerClientViewSet(BaseDryccViewSet):
+    """RESTful views for volumes apps with collaborators."""
+    model = models.volume.Volume
+    parser_classes = [MultiPartParser]
+
+    def get_client(self):
+        volume = get_object_or_404(
+            models.volume.Volume, app__id=self.kwargs['id'], name=self.kwargs['name'])
+        return filer.FilerClient(volume.app.id, volume, volume.app.scheduler())
+
+    def list(self, request, **kwargs):
+        path = request.query_params.get('path', '')
+        client = self.get_client()
+        results = client.get(path, params={"action": "list"}).json()
+        # fake out pagination for now
+        pagination = {'results': results, 'count': len(results)}
+        return Response(data=pagination)
+
+    def retrieve(self, request, **kwargs):
+        path = self.kwargs.get('path', '')
+        client = self.get_client()
+        response = client.get(path, stream=True, params={"action": "get"})
+        return FileResponse(
+            status=response.status_code,
+            streaming_content=utils.iter_to_aiter(response.iter_content()),
+        )
+
+    def create(self, request, **kwargs):
+        path = request.data.get('path', '')
+        client = self.get_client()
+        response = client.post(path, files=request.FILES)
+        return Response(data=response.content, status=response.status_code)
+
+    def destroy(self, request, **kwargs):
+        path = self.kwargs.get('path', '')
+        client = self.get_client()
+        response = client.delete(path)
+        return Response(data=response.content, status=response.status_code)
 
 
 class AppResourcesViewSet(AppResourceViewSet):
@@ -1193,8 +1217,6 @@ class MetricView(BaseDryccViewSet):
     @method_decorator(vary_on_headers("Authorization"))
     def metric(self, request, **kwargs):
         app_id = self._get_app().id
-        streaming_content = monitor.last_metrics(app_id)
         return StreamingHttpResponse(
-            content_type='application/json',
-            streaming_content=streaming_content
+            streaming_content=monitor.last_metrics(app_id)
         )

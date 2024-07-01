@@ -134,12 +134,9 @@ class Pod(Resource):
         app_type = kwargs.get('app_type')
 
         # labels that represent the pod(s)
-        labels = {
-            'app': namespace,
-            'version': kwargs.get('version'),
-            'type': app_type,
-            'heritage': 'drycc',
-        }
+        default_labels = {'app': namespace, 'version': kwargs.get('version'), 'heritage': 'drycc'}
+        labels = kwargs.get('labels', default_labels)
+        labels.update({'type': app_type})
 
         # create base pod structure
         manifest = {

@@ -1,4 +1,5 @@
 import time
+import aiohttp
 import requests
 from typing import Iterator, Dict
 from contextlib import closing
@@ -114,29 +115,27 @@ last_over_time({__name__=~"%s",namespace="%s"}[%s])
 """
 
 
-def last_metrics(namespace):
+async def last_metrics(namespace):
     if not settings.DRYCC_METRICS_CONFIG:
-        return ()
+        return
     promql = query_last_metrics_promql_tpl % (
-        '|'.join(settings.DRYCC_METRICS_CONFIG.keys()),
-        namespace,
-        '1m'
-    )
+        '|'.join(settings.DRYCC_METRICS_CONFIG.keys()), namespace, '1m')
+    url = urljoin(settings.DRYCC_PROMETHEUS_URL, "/api/v1/query")
     params = {"query": promql, "start": int(time.time() - 60)}
-    response = requests.get(
-        urljoin(settings.DRYCC_PROMETHEUS_URL, "/api/v1/query"),
-        params=params
-    )
-    if response.status_code != 200:
-        return ()
-    return ('%s{%s} %s\n' % (
-        item['metric']['__name__'],
-        ','.join([
-            f'{key}="{value}"' for key, value in item['metric'].items()
-            if key in settings.DRYCC_METRICS_CONFIG[item['metric']['__name__']]
-          ]),
-        item['value'][1],
-    ) for item in response.json()['data']['result'])
+    async with aiohttp.ClientSession() as session:
+        async with session.get(url, params=params) as response:
+            if response.status != 200:
+                return
+            items = await response.json()
+            for item in items['data']['result']:
+                yield '%s{%s} %s\n' % (
+                    item['metric']['__name__'],
+                    ','.join([
+                        f'{key}="{value}"' for key, value in item['metric'].items()
+                        if key in settings.DRYCC_METRICS_CONFIG[item['metric']['__name__']]
+                    ]),
+                    item['value'][1]
+                )
 
 
 def query_loadbalancer(namespaces: Iterator[str],
