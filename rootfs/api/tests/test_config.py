@@ -507,7 +507,7 @@ class ConfigTest(DryccTransactionTestCase):
         self.assertEqual(str(response.data["detail"]), "no-exists does not exist under limits")
         # scale up
         body = {'web': 3}
-        response = self.client.post(f"/v2/apps/{app_id}/scale", body)
+        response = self.client.post(f"/v2/apps/{app_id}/ptypes/scale", body)
         self.assertEqual(response.status_code, 204, response.data)
 
         body = {

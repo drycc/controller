@@ -244,7 +244,7 @@ class BuildTest(DryccTransactionTestCase):
         self.assertPodContains(response.data['results'], app_id, 'web', "v2", "up")
 
         # scale worker
-        url = f"/v2/apps/{app_id}/scale"
+        url = f"/v2/apps/{app_id}/ptypes/scale"
         body = {'worker': 1}
         response = self.client.post(url, body)
         self.assertEqual(response.status_code, 204, response.data)
@@ -304,7 +304,7 @@ class BuildTest(DryccTransactionTestCase):
         self.assertEqual(response.status_code, 201, response.data)
 
         # scale worker
-        url = f"/v2/apps/{app_id}/scale"
+        url = f"/v2/apps/{app_id}/ptypes/scale"
         body = {'worker': 1}
         response = self.client.post(url, body)
         self.assertEqual(response.status_code, 204, response.data)
@@ -340,7 +340,7 @@ class BuildTest(DryccTransactionTestCase):
         self.assertEqual(response.json()['structure'], {'web': 1, 'worker': 1})
 
         # scale worker to make sure no info was lost
-        url = f"/v2/apps/{app_id}/scale"
+        url = f"/v2/apps/{app_id}/ptypes/scale"
         body = {'worker': 2}  # bump from 1 to 2
         response = self.client.post(url, body)
         self.assertEqual(response.status_code, 204, response.data)
@@ -376,7 +376,7 @@ class BuildTest(DryccTransactionTestCase):
         self.assertEqual(response.status_code, 201, response.data)
 
         # scale worker
-        url = f"/v2/apps/{app_id}/scale"
+        url = f"/v2/apps/{app_id}/ptypes/scale"
         body = {'worker': 1}
         response = self.client.post(url, body)
         self.assertEqual(response.status_code, 204, response.data)
@@ -472,7 +472,7 @@ class BuildTest(DryccTransactionTestCase):
         self.assertPodContains(response.data['results'], app_id, 'web', "v2", "up")
 
         # scale to zero
-        url = f"/v2/apps/{app_id}/scale"
+        url = f"/v2/apps/{app_id}/ptypes/scale"
         body = {'web': 0}
         response = self.client.post(url, body)
         self.assertEqual(response.status_code, 204, response.data)

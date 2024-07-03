@@ -484,7 +484,7 @@ class Pod(Resource):
                     return reason, message
 
                 event = events.pop()
-                return event['reason'], event['message']
+                return event['reason'], event['note']
 
             return reason, message
 
@@ -495,17 +495,16 @@ class Pod(Resource):
         """Process events for a given Pod to find if Pulling is happening, among other events"""
         # fetch all events for this pod
         fields = {
-            'involvedObject.name': pod['metadata']['name'],
-            'involvedObject.namespace': pod['metadata']['namespace'],
-            'involvedObject.uid': pod['metadata']['uid']
+            'regarding.name': pod['metadata']['name'],
+            'regarding.namespace': pod['metadata']['namespace'],
+            'regarding.uid': pod['metadata']['uid']
         }
-        events = self.ns.events(
+        events = self.ev.get(
             pod['metadata']['namespace'], fields=fields).json()['items']
         if not events:
             events = []
         # make sure that events are sorted
-        events.sort(
-            key=lambda x: x['lastTimestamp'] if x['lastTimestamp'] else "")
+        events.sort(key=lambda x: x['metadata']['creationTimestamp'] if x['metadata']['creationTimestamp'] else "")  # noqa
         return events
 
     def _handle_pod_errors(self, pod, reason, message):
@@ -547,7 +546,7 @@ class Pod(Resource):
                     # only show a given error once
                     event_errors.pop(event['reason'])
                     # strip out whitespaces on either side
-                    message = "\n".join([x.strip() for x in event['message'].split("\n")])
+                    message = "\n".join([x.strip() for x in event['note'].split("\n")])
                     messages.append(message)
 
         if messages:

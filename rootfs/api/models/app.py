@@ -427,6 +427,107 @@ class App(UuidAuditedModel):
             self.log(err, logging.ERROR)
             raise ServiceUnavailable(err) from e
 
+    def delete_pod(self, **kwargs):
+        """Used to list basic information about pods running for a given application"""
+        pod_name = kwargs.get('pod_name')
+        try:
+            # make sure the pod is manageed by drycc
+            pod = self.scheduler().pod.get(self.id, pod_name).json()
+            if pod['metadata']['labels'].get("heritage") == "drycc":
+                self.scheduler().pod.delete(self.id, pod_name)
+        except KubeHTTPException as e:
+            # Sometimes k8s will manage to remove the pod from under us
+            if e.response.status_code != 404:
+                raise e
+
+    def describe_deployment(self, deployment_name):
+        result = []
+        try:
+            deployment = self.scheduler().deployment.get(self.id, deployment_name).json()
+            for container in deployment["spec"]["template"]['spec']["containers"]:
+                limits = container.get("resources", {}).get("limits", {})
+                result.append({
+                    "container": container["name"],
+                    "image": container["image"],
+                    "command": container.get("command", []),
+                    "args": container.get("args", []),
+                    "liveness_probe": container.get("livenessProbe", {}),
+                    "readiness_probe": container.get("readinessProbe", {}),
+                    "limits": limits,
+                    "volume_mounts": container.get("volumeMounts", []),
+                })
+        except KubeHTTPException as e:
+            if e.response.status_code != 404:
+                raise e
+        return result
+
+    def list_deployments(self, *args, **kwargs):
+        """Used to list basic information about deployments running for a given application"""
+        try:
+            labels = self._scheduler_filter(**kwargs)
+            # in case a singular deployment is requested
+            if 'name' in kwargs:
+                deployments = [self.scheduler().deployment.get(self.id, kwargs['name']).json()]
+            else:
+                deployments = self.scheduler().deployment.get(self.id, labels=labels).json()['items']  # noqa
+                if not deployments:
+                    deployments = []
+            data = []
+            for p in deployments:
+                labels = p['spec']['template']['metadata']['labels']
+                if p['metadata']['creationTimestamp']:
+                    started = p['metadata']['creationTimestamp']
+                else:
+                    started = str(
+                        datetime.now(timezone.utc).strftime(settings.DRYCC_DATETIME_FORMAT))
+                item = {
+                    'name': labels['type'],
+                    'release': labels['version'],
+                    'ready': "%s/%s" % (
+                        p["status"]["readyReplicas"],
+                        p["status"]["replicas"],
+                    ),
+                    'up_to_date': p["status"]["updatedReplicas"],
+                    'available_replicas': p["status"]["availableReplicas"],
+                    'started': started
+                }
+                data.append(item)
+            # sorting so latest start date is first
+            data.sort(key=lambda x: x['started'], reverse=True)
+            return data
+        except KubeHTTPException:
+            pass
+        except Exception as e:
+            err = '(list deployments): {}'.format(e)
+            self.log(err, logging.ERROR)
+            raise ServiceUnavailable(err) from e
+
+    def list_events(self, ref_kind, ref_name, *args, **kwargs):
+        try:
+            fields = {
+                "regarding.kind": ref_kind,
+                "regarding.name": ref_name
+            }
+            kwargs["fields"] = fields
+            events = self.scheduler().events.get(self.id, **kwargs).json()['items']  # noqa
+            data = []
+            for e in events:
+                item = {
+                    'reason': e['reason'],
+                    'message': e['note'],
+                    'created': e['metadata']['creationTimestamp']
+                }
+                data.append(item)
+            # sorting so latest start date is first
+            data.sort(key=lambda x: x['created'], reverse=False)
+            return data
+        except KubeHTTPException:
+            pass
+        except Exception as e:
+            err = '(list event): {}'.format(e)
+            self.log(err, logging.ERROR)
+            raise ServiceUnavailable(err) from e
+
     def autoscale(self, proc_type, autoscale):
         """
         Set autoscale rules for the application

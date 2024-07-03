@@ -26,7 +26,8 @@ from rest_framework.viewsets import GenericViewSet
 from rest_framework.parsers import MultiPartParser
 
 from api import monitor, models, permissions, serializers, viewsets, authentication
-from api.tasks import scale_app, restart_app, mount_app, downstream_model_owner
+from api.tasks import scale_app, restart_app, mount_app, downstream_model_owner, \
+    delete_pod
 from api.exceptions import AlreadyExists, ServiceUnavailable, DryccException
 
 from django.views.decorators.cache import never_cache
@@ -304,14 +305,6 @@ class AppViewSet(BaseDryccViewSet):
         serializer = self.get_serializer(instance, many=True)
         return Response(serializer.data)
 
-    def scale(self, request, **kwargs):
-        app = self.get_object()
-        latest_release = app.release_set.filter(failed=False).latest()
-        if latest_release.build is not None and latest_release.state == "created":
-            raise DryccException('There is an executing pipeline, please wait')
-        scale_app.delay(self.get_object(), request.user, request.data)
-        return Response(status=status.HTTP_204_NO_CONTENT)
-
     def run(self, request, **kwargs):
         app = self.get_object()
         command = request.data.get('command', '').split()
@@ -429,19 +422,59 @@ class ConfigViewSet(ReleasableViewSet):
             raise DryccException(str(e)) from e
 
 
-class PodViewSet(AppResourceViewSet):
+class PodViewSet(BaseDryccViewSet):
     model = models.app.App
     serializer_class = serializers.PodSerializer
 
     def list(self, *args, **kwargs):
-        pods = self.get_app().list_pods(*args, **kwargs)
+        pods = self.get_object().list_pods(*args, **kwargs)
         data = self.get_serializer(pods, many=True).data
         # fake out pagination for now
         pagination = {'results': data, 'count': len(data)}
         return Response(pagination, status=status.HTTP_200_OK)
 
+    def describe(self, *args, **kwargs):
+        pod_name = kwargs["name"]
+        data = self.get_object().describe_pod(pod_name)
+        if len(data) == 0:
+            return Response(status=status.HTTP_404_NOT_FOUND)
+        # fake out pagination for now
+        pagination = {'results': data, 'count': len(data)}
+        return Response(pagination, status=status.HTTP_200_OK)
+
+    def delete(self, request, **kwargs):
+        pod_names = request.data.get("pod_ids")
+        pod_names = pod_names.split(",")
+        for pod_name in set(pod_names):
+            delete_pod.delay(self.get_object(), **{"pod_name": pod_name})
+        return Response(status=status.HTTP_200_OK)
+
+
+class PtypesViewSet(BaseDryccViewSet):
+    model = models.app.App
+    serializer_class = serializers.PtypesSerializer
+
+    def get_queryset(self, *args, **kwargs):
+        return self.model.objects.all(*args, **kwargs)
+
+    def list(self, *args, **kwargs):
+        deploys = self.get_object().list_deployments(*args, **kwargs)
+        data = self.get_serializer(deploys, many=True).data
+        # fake out pagination for now
+        pagination = {'results': data, 'count': len(data)}
+        return Response(pagination, status=status.HTTP_200_OK)
+
+    def describe(self, *args, **kwargs):
+        deployment_name = kwargs["name"]
+        data = self.get_object().describe_deployment(deployment_name)
+        if len(data) == 0:
+            return Response(status=status.HTTP_404_NOT_FOUND)
+        # fake out pagination for now
+        pagination = {'results': data, 'count': len(data)}
+        return Response(pagination, status=status.HTTP_200_OK)
+
     def restart(self, request, *args, **kwargs):
-        app = self.get_app()
+        app = self.get_object()
         ptypes = []
         types = request.data.get("types", "").split(",")
         types = [ptype for ptype in set(types) if ptype != ""]
@@ -455,14 +488,32 @@ class PodViewSet(AppResourceViewSet):
                 raise DryccException("process type {} is not included in procfile".
                                      format(','.join(invalid_ptypes)))
         for ptype in set(ptypes):
-            restart_app.delay(self.get_app(), **{"type": ptype})
+            restart_app.delay(app, **{"type": ptype})
         return Response(status=status.HTTP_204_NO_CONTENT)
 
-    def describe(self, *args, **kwargs):
-        pod_name = kwargs["name"]
-        data = self.get_app().describe_pod(pod_name)
-        if len(data) == 0:
-            return Response(status=status.HTTP_404_NOT_FOUND)
+    def scale(self, request, **kwargs):
+        app = self.get_object()
+        latest_release = app.release_set.filter(failed=False).latest()
+        if latest_release.build is not None and latest_release.state == "created":
+            raise DryccException('There is an executing pipeline, please wait')
+        scale_app.delay(app, request.user, request.data)
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class EventViewSet(AppResourceViewSet):
+    model = models.app.App
+    serializer_class = serializers.EventSerializer
+
+    def list(self, request, **kwargs):
+        ptype_name = request.query_params.get("ptype_name", None)
+        pod_name = request.query_params.get("pod_name", None)
+        if not any([ptype_name, pod_name]):
+            data = []
+        else:
+            ref_kind, ref_name = ("Pod", pod_name) if pod_name else \
+                ("Deployment", ptype_name)
+            events = self.get_app().list_events(ref_kind, ref_name)
+            data = self.get_serializer(events, many=True).data
         # fake out pagination for now
         pagination = {'results': data, 'count': len(data)}
         return Response(pagination, status=status.HTTP_200_OK)
