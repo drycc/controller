@@ -52,11 +52,3 @@ class Namespace(Resource):
             raise KubeHTTPException(response, 'delete Namespace "{}"', namespace)
 
         return response
-
-    def events(self, namespace, **kwargs):
-        url = self.api("/namespaces/{}/events", namespace)
-        response = self.http_get(url, params=self.query_params(**kwargs))
-        if self.unhealthy(response.status_code):
-            raise KubeHTTPException(response, "get Events in Namespace {}", namespace)
-
-        return response

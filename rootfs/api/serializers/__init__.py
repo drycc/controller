@@ -540,6 +540,27 @@ class PodSerializer(serializers.BaseSerializer):
         return obj
 
 
+class EventSerializer(serializers.BaseSerializer):
+    reason = serializers.CharField()
+    message = serializers.CharField()
+    created = serializers.DateTimeField(required=False)
+
+    def to_representation(self, obj):
+        return obj
+
+
+class PtypesSerializer(serializers.BaseSerializer):
+    name = serializers.CharField(required=False)
+    release = serializers.CharField()
+    ready = serializers.CharField()
+    up_to_date = serializers.CharField()
+    available_replicas = serializers.CharField(required=False)
+    started = serializers.DateTimeField(required=False)
+
+    def to_representation(self, obj):
+        return obj
+
+
 class AppSettingsSerializer(serializers.ModelSerializer):
     """Serialize a :class:`~api.models.appsettings.AppSettings` model."""
 

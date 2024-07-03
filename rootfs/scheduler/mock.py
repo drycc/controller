@@ -726,7 +726,9 @@ def post(request, context):
     # Handle RC / RS / Deployments
     if resource_type in ['replicationcontrollers', 'replicasets', 'deployments']:
         data['status'] = {
-            'observedGeneration': 1
+            'observedGeneration': 1,
+            'readyReplicas': 1,
+            'replicas': 1
         }
         data['metadata']['generation'] = 1
 
@@ -992,7 +994,8 @@ def add_cache_item(url, resource_type, data):
 
     # Keep track of what resources exist under other resources (mostly namespace)
     # sneaky way of getting data up to the resource type without too much magic
-    cache_url = ''.join(url.partition(resource_type)[0:2])
+    index = url.rfind(resource_type)
+    cache_url = url[:index + len(resource_type)] if index != -1 else url
     items = cache.get(cache_url, [])
     if url not in items:
         items.append(url)

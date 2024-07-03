@@ -342,20 +342,20 @@ class DeploymentsTest(TestCase):
         deployment = self.scheduler.deployment.get(self.namespace, deploy_name).json()
         response = self.scheduler.rs.get(self.namespace, labels=deployment['metadata']['labels'])
         rs = response.json()
-        involved_object = {
-            'involvedObject.kind': 'ReplicaSet',
-            'involvedObject.name': rs['items'][0]['metadata']['name'],
-            'involvedObject.namespace': self.namespace,
-            'involvedObject.uid': rs['items'][0]['metadata']['uid'],
+        regarding = {
+            'regarding.kind': 'ReplicaSet',
+            'regarding.name': rs['items'][0]['metadata']['name'],
+            'regarding.namespace': self.namespace,
+            'regarding.uid': rs['items'][0]['metadata']['uid'],
         }
         message = 'Quota exeeded'
         self.scheduler.ev.create(self.namespace,
                                  '{}'.format(generate_random_name()),
                                  message,
                                  type='Warning',
-                                 involved_object=involved_object,
+                                 regarding=regarding,
                                  reason='FailedCreate')
         with self.assertRaisesRegex(KubeException,
-                                    'Message:{}.*'.format(message)):
+                                    'Message: {}.*'.format(message)):
             self.scheduler.deployment._check_for_failed_events(self.namespace,
                                                                labels=deployment['metadata']['labels'])  # noqa
