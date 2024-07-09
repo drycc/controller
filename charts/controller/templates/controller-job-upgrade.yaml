@@ -6,6 +6,8 @@ metadata:
     heritage: drycc
   annotations:
     component.drycc.cc/version: {{ .Values.imageTag }}
+    helm.sh/hook: post-install,pre-upgrade,pre-rollback
+    helm.sh/hook-delete-policy: hook-succeeded
 spec:
   template:
     metadata:
@@ -37,11 +39,9 @@ spec:
         - bash
         - -ec
         - |
-          python -u /workspace/manage.py cluster_lock lock
           python -u /workspace/manage.py migrate --noinput
           python -u /workspace/manage.py loaddata /etc/controller/limit-specs.json
           python -u /workspace/manage.py loaddata /etc/controller/limit-plans.json
-          python -u /workspace/manage.py cluster_lock unlock
         {{- end }}
         {{- include "controller.envs" . | indent 8 }}
         volumeMounts:
