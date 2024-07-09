@@ -16,6 +16,10 @@ env:
   value: "{{ .Values.global.registrySecretPrefix }}"
 - name: "IMAGE_PULL_POLICY"
   value: "{{ .Values.appImagePullPolicy }}"
+- name: "DRYCC_FILER_IMAGE"
+  value: "{{ (tpl .Values.filerImage .) }}"
+- name: "DRYCC_FILER_IMAGE_PULL_POLICY"
+  value: "{{ (tpl .Values.filerImagePullPolicy .) }}"
 - name: "KUBERNETES_CLUSTER_DOMAIN"
   value: "{{ .Values.global.clusterDomain }}"
 {{- if (.Values.appStorageClass) }}

@@ -31,6 +31,9 @@ registrationMode: "admin_only"
 k8sApiVerifyTls: "true"
 # Set app image pull policy
 appImagePullPolicy: "Always"
+# Filer settings image and image pull policy
+filerImage: "registry.drycc.cc/drycc/filer:canary"
+filerImagePullPolicy: "Always"
 # Set storageClassName. It is used for application.
 appStorageClass: "{{ .Values.storage.csi.storageClassName }}"
 # Set runtimeClassName. It is used for application.

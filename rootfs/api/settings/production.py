@@ -303,6 +303,7 @@ IMAGE_PULL_POLICY = os.environ.get('IMAGE_PULL_POLICY', "IfNotPresent")
 # Drycc filer image
 # Provide get and put operations for `drycc volumes:client`
 DRYCC_FILER_IMAGE = os.environ.get('DRYCC_FILER_IMAGE', 'registry.drycc.cc/drycc/filer:canary')
+DRYCC_FILER_IMAGE_PULL_POLICY = os.environ.get('DRYCC_FILER_IMAGE_PULL_POLICY', 'IfNotPresent')
 DRYCC_FILER_DURATION = int(os.environ.get('DRYCC_FILER_DURATION', '3600'))
 DRYCC_FILER_WAITTIME = int(os.environ.get('DRYCC_FILER_WAITTIME', '1200'))
 
