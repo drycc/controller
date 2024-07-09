@@ -437,7 +437,7 @@ class PodViewSet(BaseDryccViewSet):
         pod_name = kwargs["name"]
         data = self.get_object().describe_pod(pod_name)
         if len(data) == 0:
-            return Response(status=status.HTTP_404_NOT_FOUND)
+            raise DryccException("this process not found")
         # fake out pagination for now
         pagination = {'results': data, 'count': len(data)}
         return Response(pagination, status=status.HTTP_200_OK)
@@ -468,7 +468,7 @@ class PtypesViewSet(BaseDryccViewSet):
         deployment_name = kwargs["name"]
         data = self.get_object().describe_deployment(deployment_name)
         if len(data) == 0:
-            return Response(status=status.HTTP_404_NOT_FOUND)
+            raise DryccException("this ptype not found")
         # fake out pagination for now
         pagination = {'results': data, 'count': len(data)}
         return Response(pagination, status=status.HTTP_200_OK)

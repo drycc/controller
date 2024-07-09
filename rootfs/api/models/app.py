@@ -484,11 +484,11 @@ class App(UuidAuditedModel):
                     'name': labels['type'],
                     'release': labels['version'],
                     'ready': "%s/%s" % (
-                        p["status"]["readyReplicas"],
-                        p["status"]["replicas"],
+                        p["status"].get("readyReplicas", 0),
+                        p["status"].get("replicas", 0),
                     ),
-                    'up_to_date': p["status"]["updatedReplicas"],
-                    'available_replicas': p["status"]["availableReplicas"],
+                    'up_to_date': p["status"].get("updatedReplicas", 0),
+                    'available_replicas': p["status"].get("availableReplicas", 0),
                     'started': started
                 }
                 data.append(item)
