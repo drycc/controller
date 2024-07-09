@@ -259,7 +259,7 @@ class PodTest(DryccTransactionTestCase):
         # describe no exists pod
         pod_name = "no-exists-pod-name"
         response = self.client.get(f"/v2/apps/{app_id}/pods/{pod_name}/describe/")
-        self.assertEqual(response.status_code, 404, response.data)
+        self.assertEqual(response.status_code, 400, response.data)
 
     def test_container_errors(self, mock_requests):
         app_id = self.create_app()
