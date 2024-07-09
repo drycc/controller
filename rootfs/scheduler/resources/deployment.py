@@ -439,12 +439,12 @@ class Deployment(Resource):
         response = self.rs.get(namespace, labels=labels)
         data = response.json()
         fields = {
-            'involvedObject.kind': 'ReplicaSet',
-            'involvedObject.name': data['items'][0]['metadata']['name'],
-            'involvedObject.namespace': namespace,
-            'involvedObject.uid': data['items'][0]['metadata']['uid'],
+            'regarding.kind': 'ReplicaSet',
+            'regarding.name': data['items'][0]['metadata']['name'],
+            'regarding.namespace': namespace,
+            'regarding.uid': data['items'][0]['metadata']['uid'],
         }
-        events_list = self.ns.events(namespace, fields=fields).json()
+        events_list = self.ev.get(namespace, fields=fields).json()
         events = events_list.get('items', [])
         if events is not None and len(events) != 0:
             for event in events:
@@ -458,10 +458,11 @@ class Deployment(Resource):
         """
         Format each event by string and join all events to one string
         """
-        message_format = 'Message:{message}, lastTimestamp:{lastTimestamp}, reason: {reason}, count: {count}'  # noqa
+        message_format = 'Message: {note}, creationTimestamp: {creation_timestamp}, reason: {reason}'  # noqa
         output = []
         for event in events:
-            output.append(message_format.format(**event))
+            creation_timestamp = event["metadata"]["creationTimestamp"]
+            output.append(message_format.format(creation_timestamp=creation_timestamp, **event))
         return '\n'.join(output)
 
     def _get_deploy_steps(self, batches, tags):

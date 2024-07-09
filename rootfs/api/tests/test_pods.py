@@ -60,7 +60,7 @@ class PodTest(DryccTransactionTestCase):
         self.assertEqual(response.status_code, 201, response.data)
 
         # scale up
-        url = f"/v2/apps/{app_id}/scale"
+        url = f"/v2/apps/{app_id}/ptypes/scale"
         # test setting one proc type at a time
         body = {'web': 4}
         response = self.client.post(url, body)
@@ -83,7 +83,7 @@ class PodTest(DryccTransactionTestCase):
         self.assertEqual(response.data['structure']['worker'], 2)
 
         # scale down
-        url = f"/v2/apps/{app_id}/scale"
+        url = f"/v2/apps/{app_id}/ptypes/scale"
         # test setting two proc types at a time
         body = {'web': 2, 'worker': 1}
         response = self.client.post(url, body)
@@ -102,7 +102,7 @@ class PodTest(DryccTransactionTestCase):
         self.assertEqual(response.data['structure']['worker'], 1)
 
         # scale down to 0
-        url = f"/v2/apps/{app_id}/scale"
+        url = f"/v2/apps/{app_id}/ptypes/scale"
         body = {'web': 0, 'worker': 0}
         response = self.client.post(url, body)
         self.assertEqual(response.status_code, 204, response.data)
@@ -136,7 +136,7 @@ class PodTest(DryccTransactionTestCase):
         self.assertEqual(response.status_code, 201, response.data)
 
         # scale up
-        url = f"/v2/apps/{app_id}/scale"
+        url = f"/v2/apps/{app_id}/ptypes/scale"
         body = {'web': 6}
         response = self.client.post(url, body)
         self.assertEqual(response.status_code, 204, response.data)
@@ -151,7 +151,7 @@ class PodTest(DryccTransactionTestCase):
         self.assertEqual(response.status_code, 200, response.data)
 
         # scale down
-        url = f"/v2/apps/{app_id}/scale"
+        url = f"/v2/apps/{app_id}/ptypes/scale"
         body = {'web': 3}
         response = self.client.post(url, body)
         self.assertEqual(response.status_code, 204, response.data)
@@ -166,7 +166,7 @@ class PodTest(DryccTransactionTestCase):
         self.assertEqual(response.status_code, 200, response.data)
 
         # scale down to 0
-        url = f"/v2/apps/{app_id}/scale"
+        url = f"/v2/apps/{app_id}/ptypes/scale"
         body = {'web': 0}
         response = self.client.post(url, body)
         self.assertEqual(response.status_code, 204, response.data)
@@ -204,7 +204,7 @@ class PodTest(DryccTransactionTestCase):
         self.assertEqual(response.status_code, 201, response.data)
 
         # scale up
-        url = f"/v2/apps/{app_id}/scale"
+        url = f"/v2/apps/{app_id}/ptypes/scale"
         body = {'web': 1}
         response = self.client.post(url, body)
         self.assertEqual(response.status_code, 204, response.data)
@@ -243,9 +243,20 @@ class PodTest(DryccTransactionTestCase):
         response = self.client.get(url)
         self.assertEqual(response.status_code, 200, response.data)
         self.assertPodContains(response.data['results'], app_id, "web", 'v4')
+
+        # describe pod
         pod_name = response.data['results'][0]["name"]
         response = self.client.get(f"/v2/apps/{app_id}/pods/{pod_name}/describe/")
         self.assertEqual(response.status_code, 200, response.data)
+
+        # delete pods
+        response = self.client.delete(
+            f"/v2/apps/{app_id}/pods/",
+            {'pod_ids': pod_name}
+        )
+        self.assertEqual(response.status_code, 200, response.data)
+
+        # describe no exists pod
         pod_name = "no-exists-pod-name"
         response = self.client.get(f"/v2/apps/{app_id}/pods/{pod_name}/describe/")
         self.assertEqual(response.status_code, 404, response.data)
@@ -268,7 +279,7 @@ class PodTest(DryccTransactionTestCase):
         )
         # deploy
         app.pipeline(release)
-        url = f"/v2/apps/{app_id}/scale"
+        url = f"/v2/apps/{app_id}/ptypes/scale"
         body = {'web': 'not_an_int'}
         response = self.client.post(url, body)
         self.assertEqual(response.status_code, 204, response.data)
@@ -298,7 +309,7 @@ class PodTest(DryccTransactionTestCase):
         self.assertEqual(response.status_code, 201, response.data)
 
         # scale up
-        url = f"/v2/apps/{app_id}/scale"
+        url = f"/v2/apps/{app_id}/ptypes/scale"
         body = {'web': 4, 'worker': 2}
         response = self.client.post(url, body)
         self.assertEqual(response.status_code, 204, response.data)
@@ -336,7 +347,7 @@ class PodTest(DryccTransactionTestCase):
         self.assertEqual(response.status_code, 201, response.data)
 
         # scale up
-        url = f"/v2/apps/{app_id}/scale"
+        url = f"/v2/apps/{app_id}/ptypes/scale"
         body = {'web': 1}
         response = self.client.post(url, body)
         self.assertEqual(response.status_code, 204, response.data)
@@ -382,7 +393,7 @@ class PodTest(DryccTransactionTestCase):
         self.assertEqual(response.status_code, 201, response.data)
 
         # scale to a negative number
-        url = f"/v2/apps/{app_id}/scale"
+        url = f"/v2/apps/{app_id}/ptypes/scale"
         body = {'web': -1}
         response = self.client.post(url, body)
         self.assertEqual(response.status_code, 204, response.data)
@@ -390,7 +401,7 @@ class PodTest(DryccTransactionTestCase):
         self.assertEqual(app.structure["web"], 1)
 
         # scale to something other than a number
-        url = f"/v2/apps/{app_id}/scale"
+        url = f"/v2/apps/{app_id}/ptypes/scale"
         body = {'web': 'one'}
         response = self.client.post(url, body)
         app = App.objects.get(id=app_id)
@@ -398,7 +409,7 @@ class PodTest(DryccTransactionTestCase):
         self.assertEqual(app.structure["web"], 1)
 
         # scale to something other than a number
-        url = f"/v2/apps/{app_id}/scale"
+        url = f"/v2/apps/{app_id}/ptypes/scale"
         body = {'web': [1]}
         response = self.client.post(url, body)
         self.assertEqual(response.status_code, 204, response.data)
@@ -406,7 +417,7 @@ class PodTest(DryccTransactionTestCase):
         self.assertEqual(app.structure["web"], 1)
 
         # scale with a non-existent proc type
-        url = f"/v2/apps/{app_id}/scale"
+        url = f"/v2/apps/{app_id}/ptypes/scale"
         body = {'foo': 1}
         response = self.client.post(url, body)
         self.assertEqual(response.status_code, 204, response.data)
@@ -414,7 +425,7 @@ class PodTest(DryccTransactionTestCase):
         self.assertEqual("foo" in app.structure, False)
 
         # scale up to an integer as a sanity check
-        url = f"/v2/apps/{app_id}/scale"
+        url = f"/v2/apps/{app_id}/ptypes/scale"
         body = {'web': 1}
         response = self.client.post(url, body)
         self.assertEqual(response.status_code, 204, response.data)
@@ -423,7 +434,7 @@ class PodTest(DryccTransactionTestCase):
 
         with mock.patch('scheduler.KubeHTTPClient.scale') as mock_kube:
             mock_kube.side_effect = KubeException('Boom!')
-            url = f"/v2/apps/{app_id}/scale"
+            url = f"/v2/apps/{app_id}/ptypes/scale"
             response = self.client.post(url, {'web': 10})
             self.assertEqual(response.status_code, 204, response.data)
             app = App.objects.get(id=app_id)
@@ -454,7 +465,7 @@ class PodTest(DryccTransactionTestCase):
         self.assertEqual(response.status_code, 201, response.data)
 
         # login as admin, scale up
-        url = f"/v2/apps/{app_id}/scale"
+        url = f"/v2/apps/{app_id}/ptypes/scale"
         body = {'web': 4, 'worker': 2}
         response = self.client.post(url, body)
         self.assertEqual(response.status_code, 204, response.data)
@@ -466,7 +477,7 @@ class PodTest(DryccTransactionTestCase):
         body = {'cluster': 'autotest', 'id': app_id}
         response = self.client.post(url, body)
 
-        url = f'/v2/apps/{app_id}/scale'
+        url = f'/v2/apps/{app_id}/ptypes/scale'
         body = {'web': '1'}
         response = self.client.post(url, body)
         self.assertEqual(response.status_code, 204, response.data)
@@ -667,7 +678,7 @@ class PodTest(DryccTransactionTestCase):
         self.assertEqual(response.status_code, 204, response.data)
 
         # scale up
-        url = f"/v2/apps/{app_id}/scale"
+        url = f"/v2/apps/{app_id}/ptypes/scale"
         body = {'web': 3}
         response = self.client.post(url, body)
         self.assertEqual(response.status_code, 204, response.data)
@@ -699,7 +710,7 @@ class PodTest(DryccTransactionTestCase):
         self.client.credentials(HTTP_AUTHORIZATION='Token ' + unauthorized_token)
 
         # scale up with unauthorized user
-        url = f"/v2/apps/{app_id}/scale"
+        url = f"/v2/apps/{app_id}/ptypes/scale"
         body = {'web': 4}
         response = self.client.post(url, body)
         self.assertEqual(response.status_code, 403)
@@ -724,7 +735,7 @@ class PodTest(DryccTransactionTestCase):
         }
         response = self.client.post(build_url, body)
 
-        url = f"/v2/apps/{app_id}/scale"
+        url = f"/v2/apps/{app_id}/ptypes/scale"
         body = {'web': 4}
         response = self.client.post(url, body)
         self.assertEqual(response.status_code, 204, response.data)
@@ -744,48 +755,6 @@ class PodTest(DryccTransactionTestCase):
         application = App.objects.get(id=app_id)
         pods = application.list_pods(type='web')
         self.assertEqual(len(pods), 0)
-
-    def test_restart_pods(self, mock_requests):
-        app_id = self.create_app()
-
-        # post a new build
-        build_url = f"/v2/apps/{app_id}/builds"
-        body = {
-            'image': 'autotest/example',
-            'stack': 'heroku-18',
-            'sha': 'a'*40,
-            'procfile': {
-                'web': 'node server.js',
-                'worker': 'node worker.js'
-            }
-        }
-        response = self.client.post(build_url, body)
-
-        url = f"/v2/apps/{app_id}/scale"
-        body = {'web': 4, 'worker': 8}
-        response = self.client.post(url, body)
-        self.assertEqual(response.status_code, 204, response.data)
-
-        # setup app object
-        application = App.objects.get(id=app_id)
-
-        # restart all pods
-        response = self.client.post('/v2/apps/{}/pods/restart'.format(app_id))
-        self.assertEqual(response.status_code, 204, response.data)
-
-        # restart web and workers pods
-        body = {"types": "web,worker"}
-        response = self.client.post('/v2/apps/{}/pods/restart'.format(app_id), body)
-        self.assertEqual(response.status_code, 204, response.data)
-
-        # restart invalid ptypes
-        body = {"types": "web1"}
-        response = self.client.post('/v2/apps/{}/pods/restart'.format(app_id), body)
-        self.assertEqual(response.status_code, 400, response.data)
-
-        # restart only one of the web pods
-        pods = application.list_pods(type='web')
-        self.assertEqual(len(pods), 4)
 
     def test_list_pods_failure(self, mock_requests):
         """

@@ -45,18 +45,34 @@ app_urlpatterns = [
     re_path(
         r"^apps/(?P<id>{})/releases/?$".format(settings.APP_URL_REGEX),
         views.ReleaseViewSet.as_view({'get': 'list'})),
-    # restart pods
-    re_path(
-        r"^apps/(?P<id>{})/pods/restart/?$".format(settings.APP_URL_REGEX),
-        views.PodViewSet.as_view({'post': 'restart'})),
-    # list pods
+    # list/delete pods
     re_path(
         r"^apps/(?P<id>{})/pods/?$".format(settings.APP_URL_REGEX),
-        views.PodViewSet.as_view({'get': 'list'})),
+        views.PodViewSet.as_view({'get': 'list', 'delete': 'delete'})),
     # describe pod
     re_path(
         r"^apps/(?P<id>{})/pods/(?P<name>[-_\w]+)/describe/?$".format(settings.APP_URL_REGEX),
         views.PodViewSet.as_view({'get': 'describe'})),
+    # restart deployment/ptype's pods
+    re_path(
+        r"^apps/(?P<id>{})/ptypes/restart/?$".format(settings.APP_URL_REGEX),
+        views.PtypesViewSet.as_view({'post': 'restart'})),
+    # scale ptype replcas
+    re_path(
+        r"^apps/(?P<id>{})/ptypes/scale/?$".format(settings.APP_URL_REGEX),
+        views.PtypesViewSet.as_view({'post': 'scale'})),
+    # list ptypes
+    re_path(
+        r"^apps/(?P<id>{})/ptypes/?$".format(settings.APP_URL_REGEX),
+        views.PtypesViewSet.as_view({'get': 'list'})),
+    # describe ptypes
+    re_path(
+        r"^apps/(?P<id>{})/ptypes/(?P<name>[-_\w]+)/describe/?$".format(settings.APP_URL_REGEX),  # noqa
+        views.PtypesViewSet.as_view({'get': 'describe'})),
+    # list events
+    re_path(
+        r"^apps/(?P<id>{})/events/?$".format(settings.APP_URL_REGEX),  # noqa
+        views.EventViewSet.as_view({'get': 'list'})),
     # application domains
     re_path(
         r"^apps/(?P<id>{})/domains/(?P<domain>\**\.?[-\._\w]+)/?$".format(settings.APP_URL_REGEX),
@@ -70,9 +86,6 @@ app_urlpatterns = [
         views.ServiceViewSet.as_view({'post': 'create_or_update',
                                      'get': 'list', 'delete': 'delete'})),
     # application actions
-    re_path(
-        r"^apps/(?P<id>{})/scale/?$".format(settings.APP_URL_REGEX),
-        views.AppViewSet.as_view({'post': 'scale'})),
     re_path(
         r"^apps/(?P<id>{})/run/?$".format(settings.APP_URL_REGEX),
         views.AppViewSet.as_view({'post': 'run'})),
