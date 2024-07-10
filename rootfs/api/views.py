@@ -895,10 +895,12 @@ class AppFilerClientViewSet(BaseDryccViewSet):
     def retrieve(self, request, **kwargs):
         path = self.kwargs.get('path', '')
         client = self.get_client()
+        chunk_size = 1024 * 1024 * 2
         response = client.get(path, stream=True, params={"action": "get"})
         return FileResponse(
             status=response.status_code,
-            streaming_content=utils.iter_to_aiter(response.iter_content()),
+            headers=response.headers,
+            streaming_content=utils.iter_to_aiter(response.iter_content(chunk_size=chunk_size)),
         )
 
     def create(self, request, **kwargs):
