@@ -1,18 +1,13 @@
 apiVersion: batch/v1
 kind: Job
 metadata:
-  name: drycc-controller-job-upgrade-{{ now | date "20060102150405" }}
-  labels:
-    heritage: drycc
+  name: drycc-controller-job-upgrade
   annotations:
     component.drycc.cc/version: {{ .Values.imageTag }}
     helm.sh/hook: post-install,pre-upgrade,pre-rollback
-    helm.sh/hook-delete-policy: hook-succeeded
+    helm.sh/hook-delete-policy: before-hook-creation
 spec:
   template:
-    metadata:
-      labels: {{- include "common.labels.standard" . | nindent 8 }}
-        app: drycc-controller-job-upgrade
     spec:
       initContainers:
       - name: drycc-controller-job-upgrade-init
@@ -53,5 +48,3 @@ spec:
         configMap:
           name: controller-config
       restartPolicy: Never
-  backoffLimit: 0
-  ttlSecondsAfterFinished: 3600

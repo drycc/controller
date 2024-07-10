@@ -324,49 +324,46 @@ class Route(AuditedModel):
         return True, ""
 
     def _refresh_to_k8s(self, rules, parent_refs):
+        manifest = {
+            "rules": rules,
+            "hostnames": self.hostnames,
+            "parent_refs": parent_refs,
+        }
         try:
             k8s_route = getattr(self.scheduler(), self.kind.lower())
             try:
                 data = k8s_route.get(self.app.id, self.name).json()
-                k8s_route.patch(self.app.id, self.name, **{
-                    "rules": rules,
-                    "hostnames": self.hostnames,
-                    "parent_refs": parent_refs,
-                    "version": data["metadata"]["resourceVersion"],
-                })
+                manifest.update({"version": data["metadata"]["resourceVersion"]})
+                k8s_route.patch(self.app.id, self.name, **manifest)
             except KubeException:
-                k8s_route.create(self.app.id, self.name, **{
-                    "rules": rules,
-                    "hostnames": self.hostnames,
-                    "parent_refs": parent_refs,
-                })
+                k8s_route.create(self.app.id, self.name, **manifest)
         except KubeException as e:
             raise ServiceUnavailable(
                 f'Kubernetes {self.kind.lower()} could not be created') from e
 
     def _https_enforced_to_k8s(self, parent_refs):
-        rules = {
-            "filters": [{
-                "type": "RequestRedirect",
-                "requestRedirect": {
-                    "port": DEFAULT_HTTPS_PORT, "scheme": "https", "statusCode": 301
-                }
-            }]
+        manifest = {
+            "rules": [{
+                "filters": [{
+                    "type": "RequestRedirect",
+                    "requestRedirect": {
+                        "port": DEFAULT_HTTPS_PORT, "scheme": "https", "statusCode": 301
+                    }
+                }]
+            }],
+            "hostnames": self.hostnames,
+            "parent_refs": parent_refs,
         }
         try:
             try:
                 data = self.scheduler().httproute.get(
                     self.app.id, self._https_redirect_name).json()
-                self.scheduler().httproute.patch(self.app.id, self._https_redirect_name, **{
-                    "rules": rules,
-                    "parent_refs": parent_refs,
-                    "version": data["metadata"]["resourceVersion"],
-                })
+                manifest.update({"version": data["metadata"]["resourceVersion"]})
+                self.scheduler().httproute.patch(
+                    self.app.id, self._https_redirect_name, **manifest)
             except KubeException:
-                self.scheduler().httproute.create(self.app.id, self._https_redirect_name, **{
-                    "rules": rules,
-                    "parent_refs": parent_refs,
-                })
+                self.scheduler().httproute.create(
+                    self.app.id, self._https_redirect_name, **manifest)
         except KubeException as e:
             raise ServiceUnavailable(
                 f'Kubernetes {self.kind.lower()} could not be created') from e
