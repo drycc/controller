@@ -312,7 +312,11 @@ class ConfigTest(DryccTransactionTestCase):
             url = f'/v2/apps/{app_id}/config'
             body = {'values': json.dumps({'test': "testvalue"})}
             response = self.client.post(url, body)
-            self.assertEqual(response.status_code, 400)
+            self.assertEqual(response.status_code, 201)
+            app = App.objects.get(id=app_id)
+            release = app.release_set.latest()
+            self.assertEqual(release.failed, True)
+            self.assertEqual(release.exception, "error: Boom!")
 
     def test_invalid_config_keys(self, mock_requests):
         """Test that invalid config keys are rejected.
@@ -416,8 +420,10 @@ class ConfigTest(DryccTransactionTestCase):
             url = f'/v2/apps/{app_id}/config'
             body = {'values': json.dumps({'test': "testvalue"})}
             response = self.client.post(url, body)
-            self.assertEqual(response.status_code, 400)
+            self.assertEqual(response.status_code, 201)
             self.assertEqual(app.release_set.latest().version, 4)
+            self.assertEqual(app.release_set.latest().failed, True)
+            self.assertEqual(app.release_set.latest().exception, "error: Boom!")
             self.assertEqual(app.release_set.filter(failed=False).latest().version, 3)
 
         # create a build to see that the new release is created with the last successful config

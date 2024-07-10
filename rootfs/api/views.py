@@ -27,7 +27,7 @@ from rest_framework.parsers import MultiPartParser
 
 from api import monitor, models, permissions, serializers, viewsets, authentication
 from api.tasks import scale_app, restart_app, mount_app, downstream_model_owner, \
-    delete_pod
+    delete_pod, run_deploy
 from api.exceptions import AlreadyExists, ServiceUnavailable, DryccException
 
 from django.views.decorators.cache import never_cache
@@ -394,29 +394,9 @@ class ConfigViewSet(ReleasableViewSet):
         try:
             release = latest_release.new(
                 self.request.user, config=config, build=latest_release.build)
-            if release.build is not None:
-                procfile_types = set()
-                for field, diff in config.diff().items():
-                    if field in config.procfile_fields:
-                        for value in diff.values():
-                            procfile_types.update(value.keys())
-                # all_diff_fields changed, deploy all.
-                procfile_types = procfile_types if procfile_types else None
-                config.app.deploy(release, procfile_types)
-            release.state = "succeed"
-            release.save()
+            run_deploy.delay(release, config)
         except Exception as e:
-            if 'release' in locals():
-                release.state = "crashed"
-                release.failed = True
-                if release.summary:
-                    release.summary += " "
-                release.summary += "{} deployed a config that failed".format(self.request.user)
-                # Get the exception that has occured
-                release.exception = "error: {}".format(str(e))
-                release.save()
-            else:
-                config.delete()
+            config.delete()
             if isinstance(e, AlreadyExists):
                 raise
             raise DryccException(str(e)) from e

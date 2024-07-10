@@ -749,33 +749,41 @@ class Pod(Resource):
                     message = "\n".join([x.strip() for x in event['message'].split("\n")])
                     raise KubeException(message)
 
+    def _get_probe_timeout(self, probe):
+        period_seconds = probe.get('periodSeconds', 10)
+        timeout_seconds = probe.get('timeoutSeconds', 1)
+        failure_threshold = probe.get('failureThreshold', 3)
+        success_threshold = probe.get('successThreshold', 1)
+        initial_delay_seconds = probe.get('initialDelaySeconds', 0)
+        if period_seconds > initial_delay_seconds:
+            timeout = 0
+        else:
+            timeout = initial_delay_seconds
+        timeout += (period_seconds + timeout_seconds) * failure_threshold
+        timeout += (period_seconds + timeout_seconds) * success_threshold
+        return int(timeout)
+
     def deploy_probe_timeout(self, timeout, namespace, labels, containers):
         """
         Added in additional timeouts based on readiness and liveness probe
 
         Uses the max of the two instead of combining them as the checks are stacked.
         """
-
         container_name = '{}-{}'.format(labels['app'], labels['type'])
         container = self.pod.find_container(container_name, containers)
 
         # get health info from container
         added_timeout = []
         if 'readinessProbe' in container:
-            # If there is initial delay on the readiness check then timeout needs to be higher
-            # this is to account for kubernetes having readiness check report as failure until
-            # the initial delay period is up
-            added_timeout.append(int(container['readinessProbe'].get('initialDelaySeconds', 50)))
-
+            added_timeout.append(self._get_probe_timeout(container['readinessProbe']))
         if 'livenessProbe' in container:
-            # If there is initial delay on the readiness check then timeout needs to be higher
-            # this is to account for kubernetes having liveness check report as failure until
-            # the initial delay period is up
-            added_timeout.append(int(container['livenessProbe'].get('initialDelaySeconds', 50)))
-
+            added_timeout.append(self._get_probe_timeout(container['livenessProbe']))
         if added_timeout:
             delay = max(added_timeout)
-            self.log(namespace, "adding {}s on to the original {}s timeout to account for the initial delay specified in the liveness / readiness probe".format(delay, timeout))  # noqa
+            self.log(
+                namespace,
+                "adding {}s on to the original {}s timeout for the probe".format(delay, timeout))
             timeout += delay
-
+        if 'startupProbe' in container:
+            timeout += self._get_probe_timeout(container['startupProbe'])
         return timeout
