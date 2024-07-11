@@ -451,6 +451,7 @@ class App(UuidAuditedModel):
                     "image": container["image"],
                     "command": container.get("command", []),
                     "args": container.get("args", []),
+                    "startup_probe": container.get("startupProbe", {}),
                     "liveness_probe": container.get("livenessProbe", {}),
                     "readiness_probe": container.get("readinessProbe", {}),
                     "limits": limits,
