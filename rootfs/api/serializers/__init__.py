@@ -286,8 +286,7 @@ class ConfigSerializer(serializers.ModelSerializer):
     @classmethod
     def validate_typed_values(cls, data):
         for procfile_type, values in data.items():
-            if not re.match(PROCTYPE_MATCH, procfile_type):
-                raise serializers.ValidationError(PROCTYPE_MISMATCH_MSG)
+            validate_procfile_type(procfile_type)
             if values is None:  # use NoneType to unset an item
                 continue
             cls.validate_values(values)
@@ -297,8 +296,7 @@ class ConfigSerializer(serializers.ModelSerializer):
     def validate_limits(data):
         req_plan_ids = []
         for procfile_type, plan_id in data.items():
-            if not re.match(PROCTYPE_MATCH, procfile_type):
-                raise serializers.ValidationError(PROCTYPE_MISMATCH_MSG)
+            validate_procfile_type(procfile_type)
             if plan_id is not None:
                 req_plan_ids.append(plan_id)
         plan_ids = [plan.id for plan in models.limit.LimitPlan.objects.filter(
@@ -311,8 +309,7 @@ class ConfigSerializer(serializers.ModelSerializer):
     @staticmethod
     def validate_termination_grace_period(data):
         for procfile_type, value in data.items():
-            if not re.match(PROCTYPE_MATCH, procfile_type):
-                raise serializers.ValidationError(PROCTYPE_MISMATCH_MSG)
+            validate_procfile_type(procfile_type)
             if value is None:  # use NoneType to unset an item
                 continue
             timeout = re.match(TERMINATION_GRACE_PERIOD_MATCH, str(value))
@@ -324,37 +321,38 @@ class ConfigSerializer(serializers.ModelSerializer):
 
     @staticmethod
     def validate_tags(data):
-        for key, value in data.items():
-            if value is None:  # use NoneType to unset an item
-                continue
+        for procfile_type, values in data.items():
+            validate_procfile_type(procfile_type)
+            for key, value in values.items():
+                if value is None:  # use NoneType to unset an item
+                    continue
 
-            # split key into a prefix and name
-            if '/' in key:
-                prefix, name = key.split('/')
-            else:
-                prefix, name = None, key
+                # split key into a prefix and name
+                if '/' in key:
+                    prefix, name = key.split('/')
+                else:
+                    prefix, name = None, key
 
-            # validate optional prefix
-            if prefix:
-                if len(prefix) > 253:
-                    raise serializers.ValidationError(
-                        "Tag key prefixes must 253 characters or less.")
-
-                for part in prefix.split('/'):
-                    if not re.match(TAGVAL_MATCH, part):
+                # validate optional prefix
+                if prefix:
+                    if len(prefix) > 253:
                         raise serializers.ValidationError(
-                            "Tag key prefixes must be DNS subdomains.")
+                            "Tag key prefixes must 253 characters or less.")
 
-            # validate required name
-            if not re.match(TAGVAL_MATCH, name):
-                raise serializers.ValidationError(
-                    "Tag keys must be alphanumeric or \"-_.\", and 1-63 characters.")
+                    for part in prefix.split('/'):
+                        if not re.match(TAGVAL_MATCH, part):
+                            raise serializers.ValidationError(
+                                "Tag key prefixes must be DNS subdomains.")
 
-            # validate value if it isn't empty
-            if value and not re.match(TAGVAL_MATCH, str(value)):
-                raise serializers.ValidationError(
-                    "Tag values must be alphanumeric or \"-_.\", and 1-63 characters.")
+                # validate required name
+                if not re.match(TAGVAL_MATCH, name):
+                    raise serializers.ValidationError(
+                        "Tag keys must be alphanumeric or \"-_.\", and 1-63 characters.")
 
+                # validate value if it isn't empty
+                if value and not re.match(TAGVAL_MATCH, str(value)):
+                    raise serializers.ValidationError(
+                        "Tag values must be alphanumeric or \"-_.\", and 1-63 characters.")
         return data
 
     @staticmethod
@@ -371,8 +369,7 @@ class ConfigSerializer(serializers.ModelSerializer):
     @staticmethod
     def validate_healthcheck(data):
         for procfile_type, healthcheck in data.items():
-            if not re.match(PROCTYPE_MATCH, procfile_type):
-                raise serializers.ValidationError(PROCTYPE_MISMATCH_MSG)
+            validate_procfile_type(procfile_type)
             if healthcheck is None:
                 continue
             for key, value in healthcheck.items():
@@ -630,8 +627,7 @@ class VolumeSerializer(serializers.ModelSerializer):
         logger.debug(f"mount validate_path data: {data}")
         new_data = {}
         for key, value in data.items():
-            if not re.match(PROCTYPE_MATCH, key):
-                raise serializers.ValidationError(PROCTYPE_MISMATCH_MSG)
+            validate_procfile_type(key)
             if value is None:  # use NoneType to unset an item
                 new_data[key] = value
                 continue

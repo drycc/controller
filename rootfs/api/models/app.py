@@ -714,7 +714,7 @@ class App(UuidAuditedModel):
         # Sort deploys so routable comes first
         deploys = OrderedDict(sorted(deploys.items(), key=lambda d: d[1].get('routable')))
         # Check if any proc type has a Deployment in progress
-        self._check_deployment_in_progress(deploys, release, force_deploy)
+        self._check_deployment_in_progress(deploys, force_deploy)
 
         try:
             tasks = []
@@ -969,7 +969,7 @@ class App(UuidAuditedModel):
                 else:
                     time.sleep(3)
 
-    def _check_deployment_in_progress(self, deploys, release, force_deploy=False):
+    def _check_deployment_in_progress(self, deploys, force_deploy=False):
         if force_deploy:
             return
         for scale_type, kwargs in deploys.items():
@@ -1127,7 +1127,7 @@ class App(UuidAuditedModel):
         healthcheck = config.healthcheck.get(procfile_type, {})
         volumes, volume_mounts = self._get_volumes_and_mounts(procfile_type, volumes)
         return {
-            'tags': config.tags,
+            'tags': config.tags.get(procfile_type, {}),
             'envs': envs,
             'registry': config.registry,
             'replicas': replicas,

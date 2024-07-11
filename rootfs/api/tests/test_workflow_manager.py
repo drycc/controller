@@ -35,8 +35,6 @@ class ManagerTest(DryccTransactionTestCase):
         self.client.credentials(HTTP_AUTHORIZATION='Token ' + token)
 
     def tearDown(self):
-        # Restore default tags to empty string
-        settings.DRYCC_DEFAULT_CONFIG_TAGS = ''
         # make sure every test has a clean slate for k8s mocking
         cache.clear()
 

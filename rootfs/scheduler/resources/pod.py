@@ -149,7 +149,9 @@ class Pod(Resource):
               'annotations': kwargs.get('annotations', {}),
             },
             'spec': {
-                "affinity": self.affinity(name)
+                "affinity": self.affinity(name),
+                'nodeSelector': kwargs.get('node_selector', {}),
+                'securityContext': kwargs.get('pod_security_context', {}),
             }
         }
         # pod manifest spec
@@ -164,7 +166,7 @@ class Pod(Resource):
         spec['restartPolicy'] = kwargs.get('restart_policy', 'Always')
 
         # apply tags as needed to restrict pod to particular node(s)
-        spec['nodeSelector'] = kwargs.get('tags', {})
+        spec['nodeSelector'].update(kwargs.get('tags', {}))
 
         # How long until a pod is forcefully terminated. 30 is kubernetes default
         spec['terminationGracePeriodSeconds'] = self._get_termination_grace_period(kwargs)  # noqa

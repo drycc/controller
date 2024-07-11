@@ -57,8 +57,6 @@ class Deployment(Resource):
                 'selector': {
                     'matchLabels': labels
                 },
-                'nodeSelector': kwargs.get('node_selector', {}),
-                'securityContext': kwargs.get('pod_security_context', {}),
             }
         }
 

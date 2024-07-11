@@ -6,7 +6,6 @@ Run the tests with "./manage.py test api"
 """
 from django.contrib.auth import get_user_model
 from django.core.cache import cache
-from django.conf import settings
 from api.tests import adapter, DryccTransactionTestCase
 from api.exceptions import DryccException
 import requests_mock
@@ -27,8 +26,6 @@ class ResourceTest(DryccTransactionTestCase):
         self.app_id = self.create_app()
 
     def tearDown(self):
-        # Restore default tags to empty string
-        settings.DRYCC_DEFAULT_CONFIG_TAGS = ''
         # make sure every test has a clean slate for k8s mocking
         cache.clear()
 

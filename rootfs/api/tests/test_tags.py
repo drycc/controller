@@ -38,7 +38,7 @@ class TestTags(DryccTransactionTestCase):
         self.assertEqual(response.data['tags'], {})
 
         # set some tags
-        body = {'tags': json.dumps({'environ': 'dev'})}
+        body = {'tags': json.dumps({'web': {'environ': 'dev'}})}
         response = self.client.post(url, body)
         self.assertEqual(response.status_code, 201, response.data)
         tags1 = response.data
@@ -48,20 +48,19 @@ class TestTags(DryccTransactionTestCase):
         self.assertEqual(response.status_code, 200, response.data)
         self.assertIn('tags', response.data)
         tags = response.data['tags']
-        self.assertIn('environ', tags)
-        self.assertEqual(tags['environ'], 'dev')
+        self.assertIn('web', tags)
+        self.assertEqual(tags['web']['environ'], 'dev')
 
         # set an additional value
-        body = {'tags': json.dumps({'rack': '1'})}
+        body = {'tags': json.dumps({'web': {'rack': '1'}})}
         response = self.client.post(url, body)
         self.assertEqual(response.status_code, 201, response.data)
         tags2 = response.data
         self.assertNotEqual(tags1['uuid'], tags2['uuid'])
         tags = response.data['tags']
-        self.assertIn('rack', tags)
-        self.assertEqual(tags['rack'], '1')
-        self.assertIn('environ', tags)
-        self.assertEqual(tags['environ'], 'dev')
+        self.assertIn('web', tags)
+        self.assertEqual(tags['web']['rack'], '1')
+        self.assertEqual(tags['web']['environ'], 'dev')
 
         # read the limit again
         response = self.client.get(url)
@@ -69,13 +68,12 @@ class TestTags(DryccTransactionTestCase):
         tags3 = response.data
         self.assertEqual(tags2, tags3)
         tags = response.data['tags']
-        self.assertIn('rack', tags)
-        self.assertEqual(tags['rack'], '1')
-        self.assertIn('environ', tags)
-        self.assertEqual(tags['environ'], 'dev')
+        self.assertIn('web', tags)
+        self.assertEqual(tags['web']['rack'], '1')
+        self.assertEqual(tags['web']['environ'], 'dev')
 
         # unset a value
-        body = {'tags': json.dumps({'rack': None})}
+        body = {'tags': json.dumps({'web': {'rack': None}})}
         response = self.client.post(url, body)
         self.assertEqual(response.status_code, 201, response.data)
         tags4 = response.data
@@ -83,16 +81,16 @@ class TestTags(DryccTransactionTestCase):
         self.assertNotIn('rack', json.dumps(response.data['tags']))
 
         # set valid values
-        body = {'tags': json.dumps({'kubernetes.io/hostname': '172.17.8.100'})}
+        body = {'tags': json.dumps({'web': {'kubernetes.io/hostname': '172.17.8.100'}})}
         response = self.client.post(url, body)
         self.assertEqual(response.status_code, 201, response.data)
-        body = {'tags': json.dumps({'is.valid': 'is-also_valid'})}
+        body = {'tags': json.dumps({'web': {'is.valid': 'is-also_valid'}})}
         response = self.client.post(url, body)
         self.assertEqual(response.status_code, 201, response.data)
-        body = {'tags': json.dumps({'host.the-name.com/is.valid': 'valid'})}
+        body = {'tags': json.dumps({'web': {'host.the-name.com/is.valid': 'valid'}})}
         response = self.client.post(url, body)
         self.assertEqual(response.status_code, 201, response.data)
-        body = {'tags': json.dumps({'host.the-name.com/does.no.exist': 'valid'})}
+        body = {'tags': json.dumps({'web': {'host.the-name.com/does.no.exist': 'valid'}})}
         response = self.client.post(url, body)
         self.assertContains(
             response,
@@ -101,23 +99,23 @@ class TestTags(DryccTransactionTestCase):
         )
 
         # set invalid values
-        body = {'tags': json.dumps({'valid': 'in\nvalid'})}
+        body = {'tags': json.dumps({'web': {'valid': 'in\nvalid'}})}
         response = self.client.post(url, body)
         self.assertEqual(response.status_code, 400, response.data)
-        body = {'tags': json.dumps({'host.name.com/notvalid-': 'valid'})}
+        body = {'tags': json.dumps({'web': {'host.name.com/notvalid-': 'valid'}})}
         response = self.client.post(url, body)
         self.assertEqual(response.status_code, 400, response.data)
-        body = {'tags': json.dumps({'valid': 'invalid.'})}
+        body = {'tags': json.dumps({'web': {'valid': 'invalid.'}})}
         response = self.client.post(url, body)
         self.assertEqual(response.status_code, 400, response.data)
-        body = {'tags': json.dumps({'host.name.com/,not.valid': 'valid'})}
+        body = {'tags': json.dumps({'web': {'host.name.com/,not.valid': 'valid'}})}
         response = self.client.post(url, body)
         self.assertEqual(response.status_code, 400, response.data)
         long_tag = 'a' * 300
-        body = {'tags': json.dumps({'{}/not.valid'.format(long_tag): 'valid'})}
+        body = {'tags': json.dumps({'web': {'{}/not.valid'.format(long_tag): 'valid'}})}
         response = self.client.post(url, body)
         self.assertEqual(response.status_code, 400, response.data)
-        body = {'tags': json.dumps({'this&foo.com/not.valid': 'valid'})}
+        body = {'tags': json.dumps({'web': {'this&foo.com/not.valid': 'valid'}})}
         response = self.client.post(url, body)
         self.assertEqual(response.status_code, 400, response.data)
 

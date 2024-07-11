@@ -8,7 +8,6 @@ import json
 from io import StringIO
 from django.contrib.auth import get_user_model
 from django.core.cache import cache
-from django.conf import settings
 from django.core.management import call_command
 
 from unittest import mock
@@ -43,8 +42,6 @@ class ConfigTest(DryccTransactionTestCase):
         self.app = App.objects.all()[0]
 
     def tearDown(self):
-        # Restore default tags to empty string
-        settings.DRYCC_DEFAULT_CONFIG_TAGS = ''
         # make sure every test has a clean slate for k8s mocking
         cache.clear()
 
@@ -128,40 +125,6 @@ class ConfigTest(DryccTransactionTestCase):
         response = self.client.delete(url)
         self.assertEqual(response.status_code, 405, response.data)
         return config5
-
-    def test_default_tags(self, mock_requests):
-        settings.DRYCC_DEFAULT_CONFIG_TAGS = '{"ssd": "true"}'
-        app_id = self.create_app()
-        url = f"/v2/apps/{app_id}/config"
-        response = self.client.get(url)
-        expected = {
-            'owner': self.user.username,
-            'app': app_id,
-            'values': {},
-            'limits': {
-                  PROCFILE_TYPE_RUN: 'std1.large.c1m1',
-                  PROCFILE_TYPE_WEB: 'std1.large.c1m1'
-            },
-            'tags': {'ssd': 'true'},
-            'registry': {}
-        }
-        self.assertEqual(response.data, expected | response.data)
-
-        # make sure changes not drop tags
-        body = {'values': json.dumps({'PORT': '5001'})}
-        response = self.client.post(url, body)
-        expected = {
-            'owner': self.user.username,
-            'app': app_id,
-            'values': {'PORT': '5001'},
-            'limits': {
-                PROCFILE_TYPE_RUN: 'std1.large.c1m1',
-                PROCFILE_TYPE_WEB: 'std1.large.c1m1'
-            },
-            'tags': {'ssd': 'true'},
-            'registry': {}
-        }
-        self.assertEqual(response.data, response.data | expected)
 
     def test_response_data(self, mock_requests):
         """Test that the serialized response contains only relevant data."""

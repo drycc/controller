@@ -1,6 +1,4 @@
-import json
 import logging
-from django.conf import settings
 from django.db import models
 from django.contrib.auth import get_user_model
 from api.utils import dict_diff
@@ -43,20 +41,20 @@ class Config(UuidAuditedModel):
 
     def previous(self):
         """
-        Return the previous Release to this one.
+        Return the previous Config to this one.
 
-        :return: the previous :class:`Release`, or None
+        :return: the previous :class:`Config`, or None
         """
         configs = self.app.config_set
         if self.pk:
             configs = configs.exclude(pk=self.pk)
 
         try:
-            # Get the Release previous to this one
-            prev_release = configs.latest()
-        except Release.DoesNotExist:
-            prev_release = None
-        return prev_release
+            # Get the Config previous to this one
+            prev_config = configs.latest()
+        except Config.DoesNotExist:
+            prev_config = None
+        return prev_config
 
     def diff(self, config=None):
         old_config = config if config else self.previous()
@@ -76,7 +74,7 @@ class Config(UuidAuditedModel):
                 # usually means a totally new app
                 previous_config = self.app.config_set.latest()
 
-            for attr in ['tags', 'registry', 'values', 'lifecycle_post_start',
+            for attr in ['registry', 'values', 'lifecycle_post_start',
                          'lifecycle_pre_stop', 'termination_grace_period']:
                 data = getattr(previous_config, attr, {}).copy()
                 new_data = getattr(self, attr, {}).copy()
@@ -88,7 +86,7 @@ class Config(UuidAuditedModel):
             self._set_registry()
             self._set_tags(previous_config)
         except Config.DoesNotExist:
-            self._set_tags({'tags': {}})
+            self._set_tags(previous_config={'tags': {}})
 
         return super(Config, self).save(**kwargs)
 
@@ -117,34 +115,31 @@ class Config(UuidAuditedModel):
 
     def _set_tags(self, previous_config):
         """verify the tags exist on any nodes as labels"""
-        if not self.tags:
-            if settings.DRYCC_DEFAULT_CONFIG_TAGS:
-                try:
-                    tags = json.loads(settings.DRYCC_DEFAULT_CONFIG_TAGS)
-                    self.tags = tags
-                except json.JSONDecodeError as e:
-                    logger.exception(e)
-                    return
+        data = getattr(previous_config, 'tags', {}).copy()
+        new_data = getattr(self, 'tags', {}).copy()
+        # remove config keys if a null value is provided
+        for procfile_type, values in new_data.items():
+            if not values:
+                # error if unsetting non-existing key
+                if procfile_type not in data:
+                    raise UnprocessableEntity(
+                        '{} does not exist under {}'.format(procfile_type, 'tags'))
+                data.pop(procfile_type)
             else:
-                return
-
-        # Get all nodes with label selectors
-        nodes = self.scheduler().node.get(labels=self.tags).json()
-        if nodes['items']:
-            return
-
-        labels = ['{}={}'.format(key, value) for key, value in self.tags.items()]
-        message = 'No nodes matched the provided labels: {}'.format(', '.join(labels))
-
-        # Find out if there are any other tags around
-        old_tags = getattr(previous_config, 'tags')
-        if old_tags:
-            old = ['{}={}'.format(key, value) for key, value in old_tags.items()]
-            new = set(labels) - set(old)
-            if new:
-                message += ' - Addition of {} is the cause'.format(', '.join(new))
-
-        raise DryccException(message)
+                if not self.scheduler().node.get(labels=values).json()['items']:
+                    labels = ['{}={}'.format(key, value) for key, value in values.items()]
+                    message = 'No nodes matched the provided labels: {}'.format(', '.join(labels))
+                    # Find out if there are any other tags around
+                    old_tags = previous_config.tags.get(procfile_type, {})
+                    if old_tags:
+                        old = ['{}={}'.format(key, value) for key, value in old_tags.items()]
+                        new = set(labels) - set(old)
+                        if new:
+                            message += ' - Addition of {} is the cause'.format(', '.join(new))
+                    raise DryccException(message)
+                data[procfile_type] = self._merge_data(
+                    'tags', data.get(procfile_type, {}), values)
+        setattr(self, 'tags', data)
 
     def _set_limits(self, previous_config):
         data = getattr(previous_config, 'limits', {}).copy()

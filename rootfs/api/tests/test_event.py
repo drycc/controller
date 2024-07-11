@@ -6,7 +6,6 @@ Run the tests with "./manage.py test api"
 """
 from django.contrib.auth import get_user_model
 from django.core.cache import cache
-from django.conf import settings
 
 from api.models.app import App
 
@@ -33,8 +32,6 @@ class EventTest(DryccTransactionTestCase):
         self.app = App.objects.all()[0]
 
     def tearDown(self):
-        # Restore default tags to empty string
-        settings.DRYCC_DEFAULT_CONFIG_TAGS = ''
         # make sure every test has a clean slate for k8s mocking
         cache.clear()
 
