@@ -867,7 +867,10 @@ class AppFilerClientViewSet(BaseDryccViewSet):
     def list(self, request, **kwargs):
         path = request.query_params.get('path', '')
         client = self.get_client()
-        results = client.get(path, params={"action": "list"}).json()
+        response = client.get(path, params={"action": "list"})
+        if response.status_code != 200:
+            raise DryccException(response.text.replace("\n", ""))
+        results = response.json()
         # fake out pagination for now
         pagination = {'results': results, 'count': len(results)}
         return Response(data=pagination)
@@ -877,6 +880,8 @@ class AppFilerClientViewSet(BaseDryccViewSet):
         client = self.get_client()
         chunk_size = 1024 * 1024 * 2
         response = client.get(path, stream=True, params={"action": "get"})
+        if response.status_code != 200:
+            raise DryccException(response.text.replace("\n", ""))
         return FileResponse(
             status=response.status_code,
             headers=response.headers,
