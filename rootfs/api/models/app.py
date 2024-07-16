@@ -381,6 +381,9 @@ class App(UuidAuditedModel):
                     "lastState": status["lastState"],
                     "ready": status["ready"],
                     "restartCount": status["restartCount"],
+                    "status": pod["status"].get("phase", ""),
+                    "reason": pod["status"].get("reason", ""),
+                    "message": pod["status"].get("message", "")
                 })
         except KubeHTTPException as e:
             if e.response.status_code != 404:
@@ -455,6 +458,7 @@ class App(UuidAuditedModel):
                     "readiness_probe": container.get("readinessProbe", {}),
                     "limits": limits,
                     "volume_mounts": container.get("volumeMounts", []),
+                    "node_selector": deployment["spec"]["template"]['spec'].get("nodeSelector", {})  # noqa
                 })
         except KubeHTTPException as e:
             if e.response.status_code != 404:
