@@ -867,10 +867,13 @@ class AppFilerClientViewSet(BaseDryccViewSet):
     def list(self, request, **kwargs):
         path = request.query_params.get('path', '')
         client = self.get_client()
-        results = client.get(path, params={"action": "list"}).json()
-        # fake out pagination for now
-        pagination = {'results': results, 'count': len(results)}
-        return Response(data=pagination)
+        response = client.get(path, params={"action": "list"})
+        if response.status_code == 200:
+            results = response.json()
+            # fake out pagination for now
+            pagination = {'results': results, 'count': len(results)}
+            return Response(data=pagination)
+        return Response(status=response.status_code, data=response.text)
 
     def retrieve(self, request, **kwargs):
         path = self.kwargs.get('path', '')
