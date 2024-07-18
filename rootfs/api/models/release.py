@@ -78,6 +78,21 @@ class Release(UuidAuditedModel):
         """
         return self.build.dryccfile.get('run', {}).get('command', [])
 
+    def get_run_timeout(self):
+        return int(self.build.dryccfile.get('run', {}).get(
+            'timeout', settings.DRYCC_PILELINE_RUN_TIMEOUT))
+
+    def get_run_trigger(self):
+        if 'ptypes' not in self.build.dryccfile.get('run', {}).get('when', {}):
+            return True
+        procfile_types = self.diff_procfile_types()
+        if procfile_types is None:
+            return True
+        for procfile_type in procfile_types:
+            if procfile_type in self.build.dryccfile['run']['when']['ptypes']:
+                return True
+        return False
+
     def get_deploy_image(self, container_type):
         """
         In the deploy phase of dryccfile

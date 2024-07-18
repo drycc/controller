@@ -892,3 +892,56 @@ class ReleaseTest(DryccTransactionTestCase):
                 prefix = f"[{release.app.id}]: [pipeline] release v{release.version}"
                 exp_msg = f"{prefix} no changes, skip executing pipeline.deploy"
                 mock_logger.log.assert_any_call(logging.INFO, exp_msg)
+
+    @override_settings(DRYCC_PILELINE_RUN_TIMEOUT=600)
+    def test_run(self, mock_requests):
+        app_id = self.create_app()
+        app = App.objects.get(id=app_id)
+        user = User.objects.get(username='autotest')
+        dryccfile = {
+            "run": {
+                "args": ["sleep", "60s"],
+                "image": "registry.drycc.cc/drycc/base:bookworm"
+            },
+            "deploy": {
+                "web": {
+                    "image": "registry.drycc.cc/drycc/python-dev",
+                    "args": ["python", "-m", "http.server", "5000"]
+                },
+                "task": {
+                    "image": "docker.io/library/nginx:mainline-bookworm-perl",
+                    "command": ["sleep"],
+                    "args": ["infinity"]
+                }
+            }
+        }
+        build = Build.objects.create(
+            owner=user, app=app, image="qwerty", procfile={},
+            sha='african-swallow', dockerfile={}, dryccfile=dryccfile)
+        release = Release.objects.create(
+            version=2, owner=user, app=app, config=app.config_set.latest(),
+            build=build, state="succeed")
+        self.assertEqual(release.get_run_timeout(), 600)
+        self.assertEqual(release.get_run_trigger(), True)
+        # change timeout
+        dryccfile['run']['when'] = {'ptypes': ['web']}
+        dryccfile['run']['timeout'] = 3600
+        dryccfile['deploy']['web']['image'] = 'registry.drycc.cc/drycc/python-dev:latest'
+        build = Build.objects.create(
+            owner=user, app=app, image="qwerty", procfile={},
+            sha='african-swallow', dockerfile={}, dryccfile=dryccfile)
+        release = Release.objects.create(
+            version=3, owner=user, app=app, config=app.config_set.latest(),
+            build=build, state="succeed")
+        self.assertEqual(release.get_run_timeout(), 3600)
+        self.assertEqual(release.get_run_trigger(), True)
+        # change task image
+        dryccfile['deploy']['task']['image'] = 'docker.io/library/nginx:latest'
+        build = Build.objects.create(
+            owner=user, app=app, image="qwerty", procfile={},
+            sha='african-swallow', dockerfile={}, dryccfile=dryccfile)
+        release = Release.objects.create(
+            version=4, owner=user, app=app, config=app.config_set.latest(),
+            build=build, state="succeed")
+        self.assertEqual(release.get_run_timeout(), 3600)
+        self.assertEqual(release.get_run_trigger(), False)

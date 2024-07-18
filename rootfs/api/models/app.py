@@ -222,20 +222,20 @@ class App(UuidAuditedModel):
         prefix = f"[pipeline] release {release.version_name}"
         try:
             self.log(f"{prefix} starts running...")
+            procfile_types = release.diff_procfile_types()
             if release.build.dryccfile:
-                if 'run' in release.build.dryccfile:
+                if 'run' in release.build.dryccfile and release.get_run_trigger():
                     self.log(f"{prefix} starts running pipeline.run")
                     job_name = self.run(
                         self.owner, release.get_run_image(), command=release.get_run_command(),
-                        args=release.get_run_args(), timeout=settings.DRYCC_PILELINE_RUN_TIMEOUT,
-                        expires=settings.DRYCC_PILELINE_RUN_TIMEOUT)
+                        args=release.get_run_args(), timeout=release.get_run_timeout(),
+                        expires=release.get_run_timeout())
                     state, labels = 'initializing', {'job-name': job_name}
                     for count, state in enumerate(self.scheduler().pod.watch(
                             self.id, labels, settings.DRYCC_PILELINE_RUN_TIMEOUT)):
                         self.log(f"{prefix} waiting for pipeline.run: {state} * {count}")
                     if state != 'down':
                         raise DryccException(f'pipeline run state error: {state}')
-            procfile_types = release.diff_procfile_types()
             if procfile_types is None or len(procfile_types) > 0:
                 self.log(f"{prefix} starts running pipeline.deploy")
                 self.deploy(release, procfile_types, force_deploy, rollback_on_failure)
