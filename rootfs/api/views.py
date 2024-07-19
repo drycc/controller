@@ -854,14 +854,14 @@ class AppVolumesViewSet(ReleasableViewSet):
         return Response(serializer.data)
 
 
-class AppFilerClientViewSet(BaseDryccViewSet):
+class AppFilerClientViewSet(AppResourceViewSet):
     """RESTful views for volumes apps with collaborators."""
     model = models.volume.Volume
     parser_classes = [MultiPartParser]
 
     def get_client(self):
         volume = get_object_or_404(
-            models.volume.Volume, app__id=self.kwargs['id'], name=self.kwargs['name'])
+            models.volume.Volume, app=self.get_app(), name=self.kwargs['name'])
         return filer.FilerClient(volume.app.id, volume, volume.app.scheduler())
 
     def list(self, request, **kwargs):
