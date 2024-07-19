@@ -402,12 +402,12 @@ class ConfigViewSet(ReleasableViewSet):
             raise DryccException(str(e)) from e
 
 
-class PodViewSet(BaseDryccViewSet):
+class PodViewSet(AppResourceViewSet):
     model = models.app.App
     serializer_class = serializers.PodSerializer
 
     def list(self, *args, **kwargs):
-        pods = self.get_object().list_pods(*args, **kwargs)
+        pods = self.get_app().list_pods(*args, **kwargs)
         data = self.get_serializer(pods, many=True).data
         # fake out pagination for now
         pagination = {'results': data, 'count': len(data)}
@@ -415,7 +415,7 @@ class PodViewSet(BaseDryccViewSet):
 
     def describe(self, *args, **kwargs):
         pod_name = kwargs["name"]
-        data = self.get_object().describe_pod(pod_name)
+        data = self.get_app().describe_pod(pod_name)
         if len(data) == 0:
             raise DryccException("this process not found")
         # fake out pagination for now
@@ -426,19 +426,16 @@ class PodViewSet(BaseDryccViewSet):
         pod_names = request.data.get("pod_ids")
         pod_names = pod_names.split(",")
         for pod_name in set(pod_names):
-            delete_pod.delay(self.get_object(), **{"pod_name": pod_name})
+            delete_pod.delay(self.get_app(), **{"pod_name": pod_name})
         return Response(status=status.HTTP_200_OK)
 
 
-class PtypesViewSet(BaseDryccViewSet):
+class PtypesViewSet(AppResourceViewSet):
     model = models.app.App
     serializer_class = serializers.PtypesSerializer
 
-    def get_queryset(self, *args, **kwargs):
-        return self.model.objects.all(*args, **kwargs)
-
     def list(self, *args, **kwargs):
-        deploys = self.get_object().list_deployments(*args, **kwargs)
+        deploys = self.get_app().list_deployments(*args, **kwargs)
         data = self.get_serializer(deploys, many=True).data
         # fake out pagination for now
         pagination = {'results': data, 'count': len(data)}
@@ -446,7 +443,7 @@ class PtypesViewSet(BaseDryccViewSet):
 
     def describe(self, *args, **kwargs):
         deployment_name = kwargs["name"]
-        data = self.get_object().describe_deployment(deployment_name)
+        data = self.get_app().describe_deployment(deployment_name)
         if len(data) == 0:
             raise DryccException("this ptype not found")
         # fake out pagination for now
@@ -454,7 +451,7 @@ class PtypesViewSet(BaseDryccViewSet):
         return Response(pagination, status=status.HTTP_200_OK)
 
     def restart(self, request, *args, **kwargs):
-        app = self.get_object()
+        app = self.get_app()
         ptypes = []
         types = request.data.get("types", "").split(",")
         types = [ptype for ptype in set(types) if ptype != ""]
@@ -472,7 +469,7 @@ class PtypesViewSet(BaseDryccViewSet):
         return Response(status=status.HTTP_204_NO_CONTENT)
 
     def scale(self, request, **kwargs):
-        app = self.get_object()
+        app = self.get_app()
         latest_release = app.release_set.filter(failed=False).latest()
         if latest_release.build is not None and latest_release.state == "created":
             raise DryccException('There is an executing pipeline, please wait')
