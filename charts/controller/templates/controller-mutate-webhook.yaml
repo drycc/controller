@@ -7,16 +7,20 @@ apiVersion: admissionregistration.k8s.io/v1
 kind: MutatingWebhookConfiguration
 metadata:
   name: {{ .Release.Namespace }}-controller-mutate
+  annotations:
+    component.drycc.cc/version: {{ .Values.imageTag }}
+  labels:
+    heritage: drycc
 webhooks:
 - name: mutate.drycc.cc
   sideEffects: None
   admissionReviewVersions: ["v1"]
   clientConfig:
-    caBundle: {{ b64enc $ca.Cert }}
+    caBundle: {{ (include "common.secrets.lookup" (dict "secret" "controller-mutate-cert" "key" "ca.crt" "defaultValue" $ca.Cert "context" $)) }}
     service:
       name: drycc-controller-mutate
       namespace: "{{ .Release.Namespace }}"
-      path: "{{ printf "/v2/mutate/%s/" $key }}"
+      path: "{{ printf "/v2/mutate/%s/" ((include "common.secrets.lookup" (dict "secret" "controller-mutate-cert" "key" "key" "defaultValue" $key "context" $)) | b64dec) }}"
   failurePolicy: Fail
   objectSelector:
     matchLabels:
@@ -40,11 +44,14 @@ apiVersion: v1
 kind: Secret
 metadata:
   name: controller-mutate-cert
+  annotations:
+    component.drycc.cc/version: {{ .Values.imageTag }}
   labels:
-    release: "{{ .Release.Name }}"
-    heritage: "{{ .Release.Service }}"
+    heritage: drycc
 type: Opaque
 data:
-  key: {{ b64enc $key }}
-  tls.crt: {{ b64enc $cert.Cert }}
-  tls.key: {{ b64enc $cert.Key }}
+  key: {{ (include "common.secrets.lookup" (dict "secret" "controller-creds" "key" "key" "defaultValue" $key "context" $)) }}
+  ca.key: {{ (include "common.secrets.lookup" (dict "secret" "controller-creds" "key" "ca.key" "defaultValue" $ca.Key "context" $)) }}
+  ca.crt: {{ (include "common.secrets.lookup" (dict "secret" "controller-creds" "key" "ca.crt" "defaultValue" $ca.Cert "context" $)) }}
+  tls.key: {{ (include "common.secrets.lookup" (dict "secret" "controller-creds" "key" "tls.key" "defaultValue" $cert.Key "context" $)) }}
+  tls.crt: {{ (include "common.secrets.lookup" (dict "secret" "controller-creds" "key" "tls.crt" "defaultValue" $cert.Cert "context" $)) }}
