@@ -50,8 +50,8 @@ metadata:
     heritage: drycc
 type: Opaque
 data:
-  key: {{ (include "common.secrets.lookup" (dict "secret" "controller-creds" "key" "key" "defaultValue" $key "context" $)) }}
-  ca.key: {{ (include "common.secrets.lookup" (dict "secret" "controller-creds" "key" "ca.key" "defaultValue" $ca.Key "context" $)) }}
-  ca.crt: {{ (include "common.secrets.lookup" (dict "secret" "controller-creds" "key" "ca.crt" "defaultValue" $ca.Cert "context" $)) }}
-  tls.key: {{ (include "common.secrets.lookup" (dict "secret" "controller-creds" "key" "tls.key" "defaultValue" $cert.Key "context" $)) }}
-  tls.crt: {{ (include "common.secrets.lookup" (dict "secret" "controller-creds" "key" "tls.crt" "defaultValue" $cert.Cert "context" $)) }}
+  key: {{ (include "common.secrets.lookup" (dict "secret" "controller-mutate-cert" "key" "key" "defaultValue" $key "context" $)) }}
+  ca.key: {{ (include "common.secrets.lookup" (dict "secret" "controller-mutate-cert" "key" "ca.key" "defaultValue" $ca.Key "context" $)) }}
+  ca.crt: {{ (include "common.secrets.lookup" (dict "secret" "controller-mutate-cert" "key" "ca.crt" "defaultValue" $ca.Cert "context" $)) }}
+  tls.key: {{ (include "common.secrets.lookup" (dict "secret" "controller-mutate-cert" "key" "tls.key" "defaultValue" $cert.Key "context" $)) }}
+  tls.crt: {{ (include "common.secrets.lookup" (dict "secret" "controller-mutate-cert" "key" "tls.crt" "defaultValue" $cert.Cert "context" $)) }}
