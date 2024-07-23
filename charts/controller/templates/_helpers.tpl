@@ -279,7 +279,7 @@ resources:
     limits:
       cpu: {{ $cpu }}
       memory: {{ $memory }}Gi
-      ephemeral-storage: 2Gi
+      ephemeral-storage: 4Gi
     requests:
       cpu: {{ divf $cpu 4 }}
       memory: {{ divf $memory 2 }}Gi
@@ -366,4 +366,11 @@ kube_pod_container_status_ready: [container, namespace, node, pod]
 kube_pod_container_status_terminated: [container, namespace, node, pod]
 kube_pod_container_status_waiting: [container, namespace, node, pod]
 kube_pod_container_status_restarts_total: [container, namespace, node, pod]
+kube_pod_spec_volumes_persistentvolumeclaims_info: [namespace, pod, persistentvolumeclaim]
+kubelet_volume_stats_used_bytes: [namespace, persistentvolumeclaim, job]
+kubelet_volume_stats_available_bytes: [namespace, persistentvolumeclaim, job]
+kubelet_volume_stats_capacity_bytes: [namespace, persistentvolumeclaim, job]
+kubelet_volume_stats_inodes: [namespace, persistentvolumeclaim, job]
+kubelet_volume_stats_inodes_free: [namespace, persistentvolumeclaim, job]
+kubelet_volume_stats_inodes_used: [namespace, persistentvolumeclaim, job]
 {{- end }}
