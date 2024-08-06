@@ -6,4 +6,8 @@
 # fail hard and fast even on pipelines
 set -eou pipefail
 
-codecov --required
+coverage report -m > coverage.txt
+
+if [[ -n $CODECOV_TOKEN ]]; then
+  codecov upload-process --plugin=noop -t "$CODECOV_TOKEN"
+fi

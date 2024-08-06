@@ -15,6 +15,8 @@ ENV PGDATA="/opt/drycc/postgresql/data" \
 
 RUN buildDeps='gcc rustc cargo  libffi-dev musl-dev openssl'; \
   install-packages mercurial ca-certificates git inotify-tools $buildDeps \
+  && curl -SsL https://cli.codecov.io/latest/$([ $(dpkg --print-architecture) == "arm64" ] && echo linux-arm64 || echo linux)/codecov -o /usr/local/bin/codecov \
+  && chmod +x /usr/local/bin/codecov \
   && install-stack python $PYTHON_VERSION \
   && install-stack redis $REDIS_VERSION \
   && install-stack rabbitmq $RABBITMQ_VERSION \
