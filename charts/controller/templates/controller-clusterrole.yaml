@@ -80,7 +80,7 @@ rules:
   resources: ["serviceinstances", "servicebindings"]
   verbs: ["get", "list", "watch", "create", "delete", "patch", "update"]
 - apiGroups: ["gateway.networking.k8s.io"]
-  resources: ["gateways", "httproutes", "grocroutes", "tcproutes", "udproutes", "tlsroutes"]
+  resources: ["gateways", "httproutes", "grpcroutes", "tcproutes", "udproutes", "tlsroutes"]
   verbs: ["get", "patch", "list", "create", "update", "delete"]
 - apiGroups: ["batch"]
   resources: ["jobs"]
