@@ -281,6 +281,7 @@ if os.path.exists(DRYCC_METRICS_CONFIG_PATH):
     with open(DRYCC_METRICS_CONFIG_PATH) as fd:
         DRYCC_METRICS_CONFIG = json.load(fd)
 DRYCC_METRICS_EXPIRY = int(os.environ.get('DRYCC_METRICS_EXPIRY', '20'))
+DRYCC_METRICS_INTERVAL = os.environ.get('DRYCC_METRICS_INTERVAL', '5m')
 
 # security keys and auth tokens
 random_secret = 'CHANGEME_sapm$s%upvsw5l_zuy_&29rkywd^78ff(qi*#@&*^'
