@@ -119,7 +119,7 @@ async def last_metrics(namespace):
     if not settings.DRYCC_METRICS_CONFIG:
         return
     promql = query_last_metrics_promql_tpl % (
-        '|'.join(settings.DRYCC_METRICS_CONFIG.keys()), namespace, '1m')
+        '|'.join(settings.DRYCC_METRICS_CONFIG.keys()), namespace, '2m')
     url = urljoin(settings.DRYCC_PROMETHEUS_URL, "/api/v1/query")
     params = {"query": promql, "start": int(time.time() - 60)}
     async with aiohttp.ClientSession() as session:
