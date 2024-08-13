@@ -20,7 +20,7 @@ from channels.exceptions import DenyConnection
 from channels.generic.websocket import AsyncWebsocketConsumer
 
 from .models.app import App
-from .permissions import has_app_permission
+from .permissions import has_object_permission
 
 
 class BaseAppConsumer(AsyncWebsocketConsumer):
@@ -35,7 +35,7 @@ class BaseAppConsumer(AsyncWebsocketConsumer):
         if permission is None:
             try:
                 app = App.objects.get(id=self.id)
-                permission = has_app_permission(self.scope["user"], app, "GET")
+                permission = has_object_permission(self.scope["user"], app, "GET")
                 if permission[0]:
                     cache.set(key, permission, timeout=self.timeout)
             except App.DoesNotExist:

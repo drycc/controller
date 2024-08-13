@@ -3,13 +3,15 @@ from rest_framework import permissions
 from django.conf import settings
 from django.contrib.auth.models import AnonymousUser
 from api import manager
-from api.models.blocklist import Blocklist, App
+from api.models import app
+from api.models import blocklist
+from api.models.base import object_policy_registry
 
 
 def get_app_status(app):
-    blocklist = Blocklist.get_blocklist(app)
-    if blocklist:
-        return False, blocklist.remark
+    block = blocklist.Blocklist.get_blocklist(app)
+    if block:
+        return False, block.remark
     if settings.WORKFLOW_MANAGER_URL:
         status = manager.User().get_status(app.owner.pk)
         if not status["is_active"]:
@@ -17,23 +19,22 @@ def get_app_status(app):
     return True, None
 
 
-def has_app_permission(user, obj, method):
-    if isinstance(obj, App) or hasattr(obj, 'app'):
-        app = obj if isinstance(obj, App) else obj.app
-        is_ok, message = get_app_status(app)
-        if is_ok:
-            if user.is_superuser:
-                return True, None
-            elif app.owner == user:
-                return True, None
-            elif user.is_staff or user.has_perm('use_app', app):
-                if method != 'DELETE':
-                    return True, None
-                else:
-                    return False, "User does not have permission to delete"
+def has_object_permission(user, obj, method):
+    obj = getattr(obj, 'app', obj)
+    object_policy = object_policy_registry.get(obj)[1]
+    has_permission, message = False, f"{obj} object does not exist or does not have permission."
+    if user.is_superuser:
+        has_permission, message = True, None
+    elif getattr(obj, "owner", None) == user:
+        has_permission, message = True, None
+    elif user.is_staff or (object_policy and user.has_perm(object_policy.codename, obj)):
+        if method != 'DELETE':
+            has_permission, message = True, None
         else:
-            return is_ok, message
-    return False, "App object does not exist or does not have permission."
+            has_permission, message = False, "{user} does not have permission to delete."
+    elif has_permission and isinstance(obj, app.App):
+        return get_app_status(obj)
+    return has_permission, message
 
 
 class IsAnonymous(permissions.BasePermission):
@@ -75,13 +76,13 @@ class IsOwnerOrAdmin(permissions.BasePermission):
             return False
 
 
-class IsAppUser(permissions.BasePermission):
+class IsObjectUser(permissions.BasePermission):
     """
     Object-level permission to allow owners or collaborators to access
     an app-related model.
     """
     def has_object_permission(self, request, view, obj):
-        return has_app_permission(request.user, obj, request.method)[0]
+        return has_object_permission(request.user, obj, request.method)[0]
 
 
 class IsAdmin(permissions.BasePermission):

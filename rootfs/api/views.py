@@ -13,13 +13,12 @@ from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.shortcuts import get_object_or_404, redirect
 from guardian.shortcuts import assign_perm, get_objects_for_user, \
-    get_users_with_perms, remove_perm
+    get_users_with_perms, remove_perm, UserObjectPermission
 from django.views.generic import View
 from django.utils.decorators import method_decorator
 from django.views.decorators.cache import cache_page
 from django.views.decorators.vary import vary_on_headers
 from rest_framework import renderers, status, filters
-from rest_framework.exceptions import PermissionDenied, NotFound
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.response import Response
 from rest_framework.viewsets import GenericViewSet
@@ -244,7 +243,7 @@ class BaseDryccViewSet(viewsets.OwnerViewSet):
     the `model` attribute shortcut.
     """
     lookup_field = 'id'
-    permission_classes = [IsAuthenticated, permissions.IsAppUser]
+    permission_classes = [IsAuthenticated, permissions.IsObjectUser]
     renderer_classes = [renderers.JSONRenderer]
 
 
@@ -295,7 +294,7 @@ class AppViewSet(BaseDryccViewSet):
         interact with.
         """
         queryset = super(AppViewSet, self).get_queryset(**kwargs) | \
-            get_objects_for_user(self.request.user, 'api.use_app')
+            get_objects_for_user(self.request.user, f'api.{models.app.app_policy[1]}')
         instance = self.filter_queryset(queryset)
         page = self.paginate_queryset(instance)
         if page is not None:
@@ -327,7 +326,7 @@ class AppViewSet(BaseDryccViewSet):
 
         if request.data.get('owner'):
             if self.request.user != app.owner and not self.request.user.is_superuser:
-                raise PermissionDenied()
+                return Response(status=status.HTTP_403_FORBIDDEN)
             new_owner = get_object_or_404(User, username=request.data['owner'])
             # ensure all downstream objects that are owned by this user and are part of this app
             # is also updated
@@ -575,6 +574,11 @@ class CertificateViewSet(BaseDryccViewSet):
     model = models.certificate.Certificate
     serializer_class = serializers.CertificateSerializer
 
+    def get_queryset(self, **kwargs):
+        return self.model.objects.filter(owner=self.request.user, **kwargs) | \
+            get_objects_for_user(
+                self.request.user, f'api.{models.certificate.cert_policy[1]}')
+
     def get_object(self, **kwargs):
         """Retrieve domain certificate by its name"""
         qs = self.get_queryset(**kwargs)
@@ -598,7 +602,13 @@ class CertificateViewSet(BaseDryccViewSet):
             self.get_object().detach(*args, **kwargs)
         except Http404:
             raise
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
+    def destroy(self, *args, **kwargs):
+        resource = self.get_object()
+        if self.request.user != resource.owner and not self.request.user.is_superuser:
+            return Response(status=status.HTTP_403_FORBIDDEN)
+        resource.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 
@@ -653,7 +663,7 @@ class KeyHookViewSet(BaseHookViewSet):
         key = get_object_or_404(models.key.Key, fingerprint=fingerprint)
 
         queryset = models.app.App.objects.all() | \
-            get_objects_for_user(self.request.user, 'api.use_app')
+            get_objects_for_user(self.request.user, f'api.{models.app.app_policy[1]}')
         items = self.filter_queryset(queryset)
 
         apps = []
@@ -669,10 +679,8 @@ class KeyHookViewSet(BaseHookViewSet):
 
     def app(self, request, *args, **kwargs):
         app = get_object_or_404(models.app.App, id=kwargs['id'])
-
-        perm_name = "api.use_app"
         usernames = [u.id for u in get_users_with_perms(app)
-                     if u.has_perm(perm_name, app)]
+                     if u.has_perm(f"api.{models.app.app_policy[1]}", app)]
 
         data = {}
         result = models.key.Key.objects \
@@ -695,10 +703,10 @@ class KeyHookViewSet(BaseHookViewSet):
         app = get_object_or_404(models.app.App, id=kwargs['id'])
         request.user = get_object_or_404(User, username=kwargs['username'])
         # check the user is authorized for this app
-        has_permission, message = permissions.has_app_permission(
+        has_permission, message = permissions.has_object_permission(
             request.user, app, request.method)
         if not has_permission:
-            raise PermissionDenied(message)
+            return Response(message, status=status.HTTP_403_FORBIDDEN)
 
         data = {request.user.username: []}
         keys = models.key.Key.objects \
@@ -706,7 +714,7 @@ class KeyHookViewSet(BaseHookViewSet):
                      .values('public', 'fingerprint') \
                      .order_by('created')
         if not keys:
-            raise NotFound("No Keys match the given query.")
+            return Response("No Keys match the given query.", status=status.HTTP_404_NOT_FOUND)
 
         for info in keys:
             data[request.user.username].append({
@@ -726,9 +734,9 @@ class BuildHookViewSet(BaseHookViewSet):
         app = get_object_or_404(models.app.App, id=request.data['receive_repo'])
         self.user = request.user = get_object_or_404(User, username=request.data['receive_user'])
         # check the user is authorized for this app
-        has_permission, message = permissions.has_app_permission(self.user, app, request.method)
+        has_permission, message = permissions.has_object_permission(self.user, app, request.method)
         if not has_permission:
-            raise PermissionDenied(message)
+            return Response(message, status=status.HTTP_403_FORBIDDEN)
         request.data['app'] = app
         request.data['owner'] = self.user
         super(BuildHookViewSet, self).create(request, *args, **kwargs)
@@ -753,56 +761,79 @@ class ConfigHookViewSet(BaseHookViewSet):
         app = get_object_or_404(models.app.App, id=request.data['receive_repo'])
         request.user = get_object_or_404(User, username=request.data['receive_user'])
         # check the user is authorized for this app
-        has_permission, message = permissions.has_app_permission(
+        has_permission, message = permissions.has_object_permission(
             request.user, app, request.method)
         if not has_permission:
-            raise PermissionDenied(message)
+            return Response(message, status=status.HTTP_403_FORBIDDEN)
         config = app.release_set.filter(failed=False).latest().config
         serializer = self.get_serializer(config)
         return Response(serializer.data, status=status.HTTP_200_OK)
 
 
-class AppPermsViewSet(BaseDryccViewSet):
+class UserPermViewSet(BaseDryccViewSet):
     """RESTful views for sharing apps with collaborators."""
 
-    model = models.app.App  # models class
-    perm = 'use_app'    # short name for permission
-
-    def get_queryset(self):
-        return self.model.objects.all()
+    def codes(self, request, **kwargs):
+        results = []
+        for _, object_policy in permissions.object_policy_registry.all():
+            results.append({
+                "codename": object_policy.codename,
+                "description": object_policy.description,
+            })
+        # fake out pagination for now
+        pagination = {'results': results, 'count': len(results)}
+        return Response(data=pagination)
 
     def list(self, request, **kwargs):
-        app = self.get_object()
-        perm_name = "api.{}".format(self.perm)
-        usernames = [u.username for u in get_users_with_perms(app)
-                     if u.has_perm(perm_name, app)]
-        return Response({'users': usernames})
+        cls, object_policy = permissions.object_policy_registry.get(
+            request.query_params.get('codename', ''))
+        if object_policy:
+            object_policies = [(cls, object_policy), ]
+        else:
+            object_policies = permissions.object_policy_registry.all()
+        results = []
+        for cls, object_policy in object_policies:
+            user_object_perms = UserObjectPermission.objects.filter(
+                object_pk__in=[obj.pk for obj in cls.objects.filter(owner=request.user)],
+                permission__codename=object_policy.codename
+            )
+            user_object_perms |= UserObjectPermission.objects.filter(
+                user=request.user, permission__codename=object_policy.codename)
+
+            for user_object_perm in user_object_perms:
+                results.append({
+                    "id": user_object_perm.pk,
+                    "codename": user_object_perm.permission.codename,
+                    "uniqueid": getattr(user_object_perm.content_object, object_policy.unique),
+                    "username": user_object_perm.user.username,
+                })
+        # fake out pagination for now
+        pagination = {'results': results, 'count': len(results)}
+        return Response(data=pagination)
 
     def create(self, request, **kwargs):
-        app = self.get_object()
-        if not permissions.IsOwnerOrAdmin.has_object_permission(permissions.IsOwnerOrAdmin(),
-                                                                request, self, app):
-            raise PermissionDenied()
-
-        user = get_object_or_404(User, username=request.data['username'])
-        assign_perm(self.perm, user, app)
-        app.log("User {} was granted access to {}".format(user, app))
+        username = request.data.get('username')
+        codename = request.data.get('codename')
+        uniqueid = request.data.get('uniqueid')
+        cls, object_policy = permissions.object_policy_registry.get(codename)
+        if not cls or not object_policy:
+            return Response(f"User {codename} not found", status=status.HTTP_404_NOT_FOUND)
+        obj = get_object_or_404(cls, **{object_policy.unique: uniqueid})
+        if not permissions.IsOwnerOrAdmin().has_object_permission(request, self, obj):
+            return Response(status=status.HTTP_403_FORBIDDEN)
+        user = get_object_or_404(User, username=username)
+        assign_perm(object_policy.codename, user, obj)
+        getattr(obj, "log", logger.info)("User {} was granted access to {}".format(user, obj))
         return Response(status=status.HTTP_201_CREATED)
 
     def destroy(self, request, **kwargs):
-        app = get_object_or_404(models.app.App, id=self.kwargs['id'])
-        user = get_object_or_404(User, username=kwargs['username'])
-
-        perm_name = "api.{}".format(self.perm)
-        if not user.has_perm(perm_name, app):
-            raise PermissionDenied()
-
-        if (user != request.user and
-            not permissions.IsOwnerOrAdmin.has_object_permission(permissions.IsOwnerOrAdmin(),
-                                                                 request, self, app)):
-            raise PermissionDenied()
-        remove_perm(self.perm, user, app)
-        app.log("User {} was revoked access to {}".format(user, app))
+        user_object_permission = get_object_or_404(UserObjectPermission, id=self.kwargs['id'])
+        obj = user_object_permission.content_object
+        if not (obj.owner == request.user or user_object_permission.user == request.user):
+            return Response(status=status.HTTP_403_FORBIDDEN)
+        perm_name = f"api.{user_object_permission.permission.codename}"
+        remove_perm(perm_name, user_object_permission.user, obj)
+        obj.log("User {} was revoked access to {}".format(user_object_permission.user, obj))
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 
@@ -975,7 +1006,7 @@ class AppResourceBindingViewSet(AppResourceViewSet):
             logger.info("resoruce unbind response data: {}".format(serializer))
             return Response(serializer.data)
         else:
-            return Http404("unknown action")
+            return Response("unknown action", status=status.HTTP_404_NOT_FOUND)
 
 
 class GatewayViewSet(AppResourceViewSet):
@@ -1095,30 +1126,6 @@ class RouteViewSet(AppResourceViewSet):
         app = self.get_app()
         route = get_object_or_404(self.model, app=app, name=kwargs['name'])
         route.delete()
-        return Response(status=status.HTTP_204_NO_CONTENT)
-
-
-class AdminPermsViewSet(BaseDryccViewSet):
-    """RESTful views for sharing admin permissions with other users."""
-
-    model = User
-    serializer_class = serializers.AdminUserSerializer
-    permission_classes = [permissions.IsAdmin]
-
-    def get_queryset(self, **kwargs):
-        self.check_object_permissions(self.request, self.request.user)
-        return self.model.objects.filter(is_active=True, is_superuser=True)
-
-    def create(self, request, **kwargs):
-        user = get_object_or_404(self.model, username=request.data['username'])
-        user.is_superuser = user.is_staff = True
-        user.save(update_fields=['is_superuser', 'is_staff'])
-        return Response(status=status.HTTP_201_CREATED)
-
-    def destroy(self, request, **kwargs):
-        user = get_object_or_404(self.model, username=kwargs['username'])
-        user.is_superuser = user.is_staff = False
-        user.save(update_fields=['is_superuser', 'is_staff'])
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 

@@ -22,6 +22,7 @@ from scheduler import KubeException, KubeHTTPException
 
 from api.exceptions import DryccException
 from api.tests import adapter, DryccTestCase
+from api.models.base import object_policy_registry
 import requests_mock
 
 User = get_user_model()
@@ -358,9 +359,12 @@ class AppTest(DryccTestCase):
         self.assertEqual(config2.owner, collaborator)
 
         # Collaborators can't transfer
-        body = {'username': owner.username}
-        perms_url = url+"/perms/"
-        response = self.client.post(perms_url, body)
+        body = {
+            'username': owner.username,
+            'codename': object_policy_registry.get(App)[1].codename,
+            'uniqueid': app.id,
+        }
+        response = self.client.post('/v2/perms/rules/', body)
         self.assertEqual(response.status_code, 201, response.data)
 
         self.client.credentials(HTTP_AUTHORIZATION='Token ' + owner_token)

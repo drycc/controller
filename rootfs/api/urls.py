@@ -97,13 +97,6 @@ app_urlpatterns = [
     re_path(
         r"^apps/(?P<id>{})/tls/?$".format(settings.APP_URL_REGEX),
         views.TLSViewSet.as_view({'get': 'retrieve', 'post': 'create'})),
-    # apps sharing
-    re_path(
-        r"^apps/(?P<id>{})/perms/(?P<username>[-_\w]+)/?$".format(settings.APP_URL_REGEX),
-        views.AppPermsViewSet.as_view({'delete': 'destroy'})),
-    re_path(
-        r"^apps/(?P<id>{})/perms/?$".format(settings.APP_URL_REGEX),
-        views.AppPermsViewSet.as_view({'get': 'list', 'post': 'create'})),
     # application volumes
     re_path(
         r"^apps/(?P<id>{})/volumes/?$".format(settings.APP_URL_REGEX),
@@ -173,13 +166,6 @@ app_urlpatterns = [
     re_path(
         r'^auth/whoami/?$',
         views.UserManagementViewSet.as_view({'get': 'list'})),
-    # admin sharing
-    re_path(
-        r'^admin/perms/(?P<username>[\w.@+-]+)/?$',
-        views.AdminPermsViewSet.as_view({'delete': 'destroy'})),
-    re_path(
-        r'^admin/perms/?$',
-        views.AdminPermsViewSet.as_view({'get': 'list', 'post': 'create'})),
     # certificates
     re_path(
         r'^certs/(?P<name>[-_*.\w]+)/domain/(?P<domain>\**\.?[-\._\w]+)?/?$',
@@ -233,6 +219,12 @@ app_urlpatterns = [
     re_path(
         r'^manager/(?P<type>[\w.@+-]+)s/(?P<id>{})/unblock/?$'.format(settings.APP_URL_REGEX),
         views.WorkflowManagerViewset.as_view({'delete': 'unblock'})),
+    # user perms
+    re_path(r"^perms/codes/?$", views.UserPermViewSet.as_view({'get': 'codes'})),
+    re_path(
+        r"^perms/rules/?$", views.UserPermViewSet.as_view({'get': 'list', 'post': 'create'})),
+    re_path(
+        r"^perms/rules/(?P<id>[-_\w]+)/?$", views.UserPermViewSet.as_view({'delete': 'destroy'})),
     # tokens
     re_path(r'^tokens/?$', views.TokenViewSet.as_view({'get': 'list'})),
     re_path(r"^tokens/(?P<pk>[-_\w]+)/?$", views.TokenViewSet.as_view({'delete': 'destroy'})),

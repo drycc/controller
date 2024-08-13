@@ -31,10 +31,12 @@ from .release import Release
 from .tls import TLS
 from .appsettings import AppSettings
 from .volume import Volume
-from .base import UuidAuditedModel, PROCFILE_TYPE_WEB, PROCFILE_TYPE_RUN, DEFAULT_HTTP_PORT
+from .base import UuidAuditedModel, PROCFILE_TYPE_WEB, PROCFILE_TYPE_RUN, DEFAULT_HTTP_PORT, \
+    ObjectPolicy, object_policy_registry
 
 User = get_user_model()
 logger = logging.getLogger(__name__)
+app_policy = ObjectPolicy('id', 'use_app', 'Can use app')  # query field, policy, description
 
 
 # http://kubernetes.io/v1.1/docs/design/identifiers.html
@@ -77,7 +79,7 @@ class App(UuidAuditedModel):
 
     class Meta:
         verbose_name = 'Application'
-        permissions = (('use_app', 'Can use app'),)
+        permissions = (app_policy[1:], )
         ordering = ['id']
 
     def save(self, *args, **kwargs):
@@ -1161,3 +1163,7 @@ class App(UuidAuditedModel):
             'pod_security_context': limit_plan.pod_security_context,
             'container_security_context': limit_plan.container_security_context,
         }
+
+
+# Register policy
+object_policy_registry.register(App, app_policy)
