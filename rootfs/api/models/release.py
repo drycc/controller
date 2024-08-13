@@ -2,6 +2,7 @@ import logging
 
 from django.conf import settings
 from django.db import models
+from django.db.models import Q
 from django.contrib.auth import get_user_model
 from api.utils import dict_diff
 from api.tasks import run_pipeline
@@ -9,6 +10,7 @@ from api.exceptions import DryccException, AlreadyExists
 from scheduler import KubeHTTPException
 from scheduler.resources.pod import DEFAULT_CONTAINER_PORT
 from .base import UuidAuditedModel
+from .appsettings import AppSettings
 
 
 User = get_user_model()
@@ -197,9 +199,16 @@ class Release(UuidAuditedModel):
         if self.pk:
             releases = releases.exclude(pk=self.pk)
 
+        q = Q(failed=False, state="succeed")
+        try:
+            app_settings = self.app.appsettings_set.latest()
+            if app_settings.autorollback is False:
+                q = Q(state__in=["crashed", "succeed"])
+        except AppSettings.DoesNotExist:
+            pass
         try:
             # Get the Release previous to this one
-            prev_release = releases.filter(failed=False, state="succeed").latest()
+            prev_release = releases.filter(q).latest()
         except Release.DoesNotExist:
             prev_release = None
         return prev_release
