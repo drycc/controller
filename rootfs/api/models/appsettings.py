@@ -20,6 +20,7 @@ class AppSettings(UuidAuditedModel):
     owner = models.ForeignKey(User, on_delete=models.PROTECT)
     app = models.ForeignKey('App', on_delete=models.CASCADE)
     routable = models.BooleanField(default=True)
+    autorollback = models.BooleanField(default=True)
     autoscale = models.JSONField(default=dict, blank=True)
     label = models.JSONField(default=dict, blank=True)
 
@@ -70,6 +71,15 @@ class AppSettings(UuidAuditedModel):
             setattr(self, 'routable', old)
         elif old != new:
             self.summary += ["{} changed routablity from {} to {}".format(self.owner, old, new)]
+
+    def _update_autorollback(self, previous_settings):
+        old = getattr(previous_settings, 'autorollback', None)
+        new = getattr(self, 'autorollback', None)
+        # if nothing changed copy the settings from previous
+        if new is None and old is not None:
+            setattr(self, 'autorollback', old)
+        elif old != new:
+            self.summary += ["{} changed autorollback from {} to {}".format(self.owner, old, new)]
 
     def _update_autoscale(self, previous_settings):
         data = getattr(previous_settings, 'autoscale', {}).copy()
@@ -149,7 +159,7 @@ class AppSettings(UuidAuditedModel):
             previous_settings = self.app.appsettings_set.latest()
         except AppSettings.DoesNotExist:
             pass
-        update_fields = ["routable", "autoscale", "label"]
+        update_fields = ["routable", "autorollback", "autoscale", "label"]
         try:
             for update_field in update_fields:
                 if ignore_update_fields is None or update_field not in ignore_update_fields:

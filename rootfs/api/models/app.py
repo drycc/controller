@@ -240,6 +240,10 @@ class App(UuidAuditedModel):
                         raise DryccException(f'pipeline run state error: {state}')
             if procfile_types is None or len(procfile_types) > 0:
                 self.log(f"{prefix} starts running pipeline.deploy")
+                app_settings = self.appsettings_set.latest()
+                if app_settings.autorollback is False:
+                    self.log(f"{prefix} deploy do not rollback on failure")
+                    rollback_on_failure = False
                 self.deploy(release, procfile_types, force_deploy, rollback_on_failure)
             else:
                 self.log(f"{prefix} no changes, skip executing pipeline.deploy")
