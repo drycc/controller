@@ -855,7 +855,9 @@ class AppVolumesViewSet(ReleasableViewSet):
 
     def destroy(self, request, **kwargs):
         volume = self.get_object()
-        if volume.path != {}:
+        app = self.get_app()
+        is_subset = set(volume.path.keys()).issubset(set(app.procfile_types))
+        if volume.path != {} and is_subset:
             raise DryccException("this volume is mounting")
         volume.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)

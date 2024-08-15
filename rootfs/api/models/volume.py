@@ -36,8 +36,6 @@ class Volume(UuidAuditedModel):
 
     @transaction.atomic
     def delete(self, *args, **kwargs):
-        if self.path:
-            raise DryccException("the volume is not unmounted")
         # Deatch volume, updates k8s
         if self.type == "csi":
             self._delete_pvc()
