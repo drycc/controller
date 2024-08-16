@@ -387,8 +387,12 @@ class Release(UuidAuditedModel):
         for replica_set in replica_sets:
             # Deployment takes care of this in the API, RS does not
             # Have the RS scale down pods and delete itself
-            self.scheduler().rs.scale(namespace, replica_set['metadata']['name'], 0, timeout)
-            self.scheduler().rs.delete(namespace, replica_set['metadata']['name'])
+            try:
+                self.scheduler().rs.scale(namespace, replica_set['metadata']['name'], 0, timeout)
+                self.scheduler().rs.delete(namespace, replica_set['metadata']['name'])
+            except KubeHTTPException as e:
+                if e.response.status_code != 404:
+                    raise
 
     def save(self, *args, **kwargs):  # noqa
         if not self.summary:
