@@ -119,8 +119,7 @@ class Gateway(AuditedModel):
                            models.Q(certificate__isnull=False)).exists()
         if tls_enabled:
             return self.add(DEFAULT_HTTPS_PORT, "HTTPS")[0]
-        else:
-            return self.remove(DEFAULT_HTTPS_PORT, "HTTPS")[0]
+        return self.remove(DEFAULT_HTTPS_PORT, "HTTPS")[0]
 
     def save(self, *args, **kwargs):
         self.change_default_tls()
