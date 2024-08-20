@@ -833,7 +833,7 @@ class UserPermViewSet(BaseDryccViewSet):
             return Response(status=status.HTTP_403_FORBIDDEN)
         perm_name = f"api.{user_object_permission.permission.codename}"
         remove_perm(perm_name, user_object_permission.user, obj)
-        obj.log("User {} was revoked access to {}".format(user_object_permission.user, obj))
+        getattr(obj, "log", logger.info)("User {} was revoked access to {}".format(user_object_permission.user, obj))  # noqa
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 
