@@ -40,6 +40,9 @@ app_urlpatterns = [
         r"^apps/(?P<id>{})/releases/v(?P<version>[0-9]+)/?$".format(settings.APP_URL_REGEX),
         views.ReleaseViewSet.as_view({'get': 'retrieve'})),
     re_path(
+        r"^apps/(?P<id>{})/releases/deploy/?$".format(settings.APP_URL_REGEX),
+        views.ReleaseViewSet.as_view({'post': 'deploy'})),
+    re_path(
         r"^apps/(?P<id>{})/releases/rollback/?$".format(settings.APP_URL_REGEX),
         views.ReleaseViewSet.as_view({'post': 'rollback'})),
     re_path(

@@ -199,6 +199,35 @@ class ReleaseTest(DryccTransactionTestCase):
         }
         self.assertEqual(response.data, response.data | expected)
 
+    def test_release_deploy(self, mock_requests):
+        app_id = self.create_app()
+        # try to rollback with only 1 release extant, expecting 400
+        url = f"/v2/apps/{app_id}/releases/deploy/"
+        # app.deploy
+        with mock.patch('api.models.app.App.deploy') as mock_deploy:
+            mock_deploy.return_value = None
+            response = self.client.post(url, {"types": "web"})
+            self.assertEqual(response.status_code, 400)
+
+        # post a new build
+        build_url = f"/v2/apps/{app_id}/builds"
+        body = {
+            'image': 'autotest/example',
+            'stack': 'heroku-18',
+            'sha': 'a'*40,
+            'procfile': {
+                'web': 'node server.js',
+                'worker': 'node worker.js'
+            }
+        }
+        response = self.client.post(build_url, body)
+        self.assertEqual(response.status_code, 201)
+        # app.deploy
+        with mock.patch('api.models.app.App.deploy') as mock_deploy:
+            mock_deploy.return_value = None
+            response = self.client.post(url, {"types": "web"})
+            self.assertEqual(response.status_code, 204)
+
     def test_release_rollback(self, mock_requests):
         app_id = self.create_app()
         app = App.objects.get(id=app_id)
@@ -887,7 +916,7 @@ class ReleaseTest(DryccTransactionTestCase):
         with mock.patch('scheduler.resources.pod.Pod.watch') as mock_kube:
             with mock.patch('api.models.app.logger') as mock_logger:
                 mock_kube.return_value = ['up', 'down']
-                app.pipeline(release, False, True)
+                app.pipeline(release, False)
                 self.assertEqual(release.state, "succeed")
                 prefix = f"[{release.app.id}]: [pipeline] release v{release.version}"
                 exp_msg = f"{prefix} no changes, skip executing pipeline.deploy"

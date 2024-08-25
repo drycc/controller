@@ -220,30 +220,35 @@ class App(UuidAuditedModel):
         app_settings = self.appsettings_set.latest()
         self._scale(user, structure, release, app_settings)
 
-    def pipeline(self, release, force_deploy=False, rollback_on_failure=True):
+    def prepare(self, release):
+        prefix = f"[pipeline] prepare {release.version_name}"
+        if release.build.dryccfile:
+            if 'run' in release.build.dryccfile and release.get_run_trigger():
+                self.log(f"{prefix} starts running pipeline.run")
+                job_name = self.run(
+                    self.owner, release.get_run_image(), command=release.get_run_command(),
+                    args=release.get_run_args(), timeout=release.get_run_timeout(),
+                    expires=release.get_run_timeout())
+                state, labels = 'initializing', {'job-name': job_name}
+                for count, state in enumerate(self.scheduler().pod.watch(
+                        self.id, labels, settings.DRYCC_PILELINE_RUN_TIMEOUT)):
+                    self.log(f"{prefix} waiting for pipeline.run: {state} * {count}")
+                if state != 'down':
+                    raise DryccException(f'pipeline run state error: {state}')
+                return True
+        return False
+
+    def pipeline(self, release, force_deploy=False):
         prefix = f"[pipeline] release {release.version_name}"
         try:
             self.log(f"{prefix} starts running...")
             procfile_types = release.diff_procfile_types()
-            if release.build.dryccfile:
-                if 'run' in release.build.dryccfile and release.get_run_trigger():
-                    self.log(f"{prefix} starts running pipeline.run")
-                    job_name = self.run(
-                        self.owner, release.get_run_image(), command=release.get_run_command(),
-                        args=release.get_run_args(), timeout=release.get_run_timeout(),
-                        expires=release.get_run_timeout())
-                    state, labels = 'initializing', {'job-name': job_name}
-                    for count, state in enumerate(self.scheduler().pod.watch(
-                            self.id, labels, settings.DRYCC_PILELINE_RUN_TIMEOUT)):
-                        self.log(f"{prefix} waiting for pipeline.run: {state} * {count}")
-                    if state != 'down':
-                        raise DryccException(f'pipeline run state error: {state}')
+            self.prepare(release)
             if procfile_types is None or len(procfile_types) > 0:
                 self.log(f"{prefix} starts running pipeline.deploy")
-                app_settings = self.appsettings_set.latest()
-                if app_settings.autorollback is False:
+                rollback_on_failure = self.appsettings_set.latest().autorollback
+                if not rollback_on_failure:
                     self.log(f"{prefix} deploy do not rollback on failure")
-                    rollback_on_failure = False
                 self.deploy(release, procfile_types, force_deploy, rollback_on_failure)
             else:
                 self.log(f"{prefix} no changes, skip executing pipeline.deploy")
@@ -617,7 +622,7 @@ class App(UuidAuditedModel):
         if len(procfile_types) == 0:
             self.log('the cluster status is the latest, skipping deployment...')
             return
-        self.deploy(release, procfile_types)
+        self.deploy(release, procfile_types, False, False)
 
     def set_application_config(self, release, procfile_type):
         """
@@ -750,8 +755,7 @@ class App(UuidAuditedModel):
                     # This goes in the log before the rollback starts
                     self.log(err, logging.ERROR)
                     # revert all process types to old release
-                    self.deploy(prev_release, procfile_types,
-                                force_deploy=True, rollback_on_failure=False)
+                    self.deploy(prev_release, procfile_types, True, False)
                     # let it bubble up
                     raise DryccException('{}\n{}'.format(err, str(e))) from e
 

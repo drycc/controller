@@ -66,19 +66,12 @@ def run_pipeline(release, *args, **kwargs):
     autoretry_for=(ServiceUnavailable, ),
     retry_kwargs={'max_retries': None}
 )
-def run_deploy(release, config):
+def run_deploy(release, *args, **kwargs):
     task_id = uuid.uuid4().hex
     signals.request_started.send(sender=task_id)
     try:
         if release.build is not None:
-            procfile_types = set()
-            for field, diff in config.diff().items():
-                if field in config.procfile_fields:
-                    for value in diff.values():
-                        procfile_types.update(value.keys())
-            # all_diff_fields changed, deploy all.
-            procfile_types = procfile_types if procfile_types else None
-            config.app.deploy(release, procfile_types)
+            release.app.deploy(release, *args, **kwargs)
         release.state = "succeed"
         release.save()
     except Exception as e:

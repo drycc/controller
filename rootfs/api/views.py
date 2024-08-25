@@ -387,13 +387,21 @@ class ConfigViewSet(ReleasableViewSet):
 
     def post_save(self, config):
         latest_release = config.app.release_set.filter(failed=False).latest()
-        if latest_release.build is not None and latest_release.state == "created":
+        if latest_release.deploying:
             config.delete()
             raise DryccException('There is an executing pipeline, please wait')
         try:
             release = latest_release.new(
                 self.request.user, config=config, build=latest_release.build)
-            run_deploy.delay(release, config)
+            procfile_types = set()
+            for field, diff in config.diff().items():
+                if field in config.procfile_fields:
+                    for value in diff.values():
+                        procfile_types.update(value.keys())
+            # all_diff_fields changed, deploy all.
+            procfile_types = procfile_types if procfile_types else None
+            rollback_on_failure = config.app.appsettings_set.latest().autorollback
+            run_deploy.delay(release, procfile_types, False, rollback_on_failure)
         except Exception as e:
             config.delete()
             if isinstance(e, AlreadyExists):
@@ -451,15 +459,11 @@ class PtypesViewSet(AppResourceViewSet):
 
     def restart(self, request, *args, **kwargs):
         app = self.get_app()
-        ptypes = []
-        types = request.data.get("types", "").split(",")
-        types = [ptype for ptype in set(types) if ptype != ""]
-        if not types:
-            # all ptypes need to restart
-            ptypes = app.structure.keys()
+        ptypes = set([ptype for ptype in request.data.get("types", "").split(",") if ptype])
+        if not ptypes:
+            ptypes = app.structure.keys()  # all ptypes need to restart
         else:
-            ptypes = [ptype for ptype in types if ptype in app.structure]
-            invalid_ptypes = set(types) - set(ptypes)
+            invalid_ptypes = ptypes.difference(app.structure)
             if len(invalid_ptypes) != 0:
                 raise DryccException("process type {} is not included in procfile".
                                      format(','.join(invalid_ptypes)))
@@ -470,7 +474,7 @@ class PtypesViewSet(AppResourceViewSet):
     def scale(self, request, **kwargs):
         app = self.get_app()
         latest_release = app.release_set.filter(failed=False).latest()
-        if latest_release.build is not None and latest_release.state == "created":
+        if latest_release.deploying:
             raise DryccException('There is an executing pipeline, please wait')
         scale_app.delay(app, request.user, request.data)
         return Response(status=status.HTTP_204_NO_CONTENT)
@@ -629,12 +633,32 @@ class ReleaseViewSet(AppResourceViewSet):
         qs = self.get_queryset(**kwargs)
         return get_object_or_404(qs, version=self.kwargs['version'])
 
+    def deploy(self, request, **kwargs):
+        """Deploy the latest release"""
+        release = self.get_app().release_set.latest()
+        if release.deploying:
+            raise DryccException('There is an executing pipeline, please wait')
+        procfile_types = set(
+            [ptype for ptype in request.data.get("types", "").split(",") if ptype])
+        if not procfile_types:
+            procfile_types = release.app.structure.keys()  # all procfile_types need to deploy
+        else:
+            invalid_procfile_types = procfile_types.difference(release.app.structure)
+            if len(invalid_procfile_types) != 0:
+                raise DryccException("process type {} is not included in procfile".
+                                     format(','.join(invalid_procfile_types)))
+        rollback_on_failure = release.app.appsettings_set.latest().autorollback
+        run_deploy.delay(release, procfile_types, False, rollback_on_failure)
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
     def rollback(self, request, **kwargs):
         """
         Create a new release as a copy of the state of the compiled slug and config vars of a
         previous release.
         """
         latest_release = self.get_app().release_set.filter(failed=False).latest()
+        if latest_release.deploying:
+            raise DryccException('There is an executing pipeline, please wait')
         new_release = latest_release.rollback(request.user, request.data.get('version', None))
         response = {'version': new_release.version}
         return Response(response, status=status.HTTP_201_CREATED)

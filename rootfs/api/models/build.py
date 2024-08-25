@@ -79,7 +79,7 @@ class Build(UuidAuditedModel):
                 build=self,
                 config=latest_release.config,
             )
-            run_pipeline.delay(new_release)
+            run_pipeline.delay(new_release, force_deploy=False)
             return new_release
         except Exception as e:
             # check if the exception is during create or publish

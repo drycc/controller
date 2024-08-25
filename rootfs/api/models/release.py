@@ -48,6 +48,10 @@ class Release(UuidAuditedModel):
         return "{0}-{1}".format(self.app.id, self.version_name)
 
     @property
+    def deploying(self):
+        return self.build is not None and self.state == "created"
+
+    @property
     def procfile_types(self):
         if self.build is not None:
             return self.build.procfile_types
@@ -222,11 +226,9 @@ class Release(UuidAuditedModel):
                 raise DryccException('version cannot be below 0')
             elif version == 1:
                 raise DryccException('Cannot roll back to initial release.')
-
             prev = self.app.release_set.get(version=version)
             if prev.failed:
                 raise DryccException('Cannot roll back to failed release.')
-            app_settings = self.app.appsettings_set.latest()
             latest_version = self.app.release_set.latest().version
             new_release = self.new(
                 user,
@@ -234,7 +236,6 @@ class Release(UuidAuditedModel):
                 config=prev.config,
                 summary="{} rolled back to v{}".format(user, version),
             )
-
             if self.build is not None:
                 run_pipeline.delay(new_release, force_deploy=True)
             return new_release
