@@ -101,12 +101,12 @@ class PtypesTest(DryccTransactionTestCase):
         self.assertEqual(response.status_code, 204, response.data)
 
         # restart web and workers ptype deployments
-        body = {"types": "web,worker"}
+        body = {"ptypes": "web,worker"}
         response = self.client.post('/v2/apps/{}/ptypes/restart'.format(app_id), body)
         self.assertEqual(response.status_code, 204, response.data)
 
         # restart invalid ptypes
-        body = {"types": "web1"}
+        body = {"ptypes": "web1"}
         response = self.client.post('/v2/apps/{}/ptypes/restart'.format(app_id), body)
         self.assertEqual(response.status_code, 400, response.data)
 

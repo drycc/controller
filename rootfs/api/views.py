@@ -459,7 +459,7 @@ class PtypesViewSet(AppResourceViewSet):
 
     def restart(self, request, *args, **kwargs):
         app = self.get_app()
-        ptypes = set([ptype for ptype in request.data.get("types", "").split(",") if ptype])
+        ptypes = set([ptype for ptype in request.data.get("ptypes", "").split(",") if ptype])
         if not ptypes:
             ptypes = app.structure.keys()  # all ptypes need to restart
         else:
@@ -639,7 +639,7 @@ class ReleaseViewSet(AppResourceViewSet):
         if release.deploying:
             raise DryccException('There is an executing pipeline, please wait')
         procfile_types = set(
-            [ptype for ptype in request.data.get("types", "").split(",") if ptype])
+            [ptype for ptype in request.data.get("ptypes", "").split(",") if ptype])
         if not procfile_types:
             procfile_types = release.app.structure.keys()  # all procfile_types need to deploy
         else:

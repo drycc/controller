@@ -206,7 +206,7 @@ class ReleaseTest(DryccTransactionTestCase):
         # app.deploy
         with mock.patch('api.models.app.App.deploy') as mock_deploy:
             mock_deploy.return_value = None
-            response = self.client.post(url, {"types": "web"})
+            response = self.client.post(url, {"ptypes": "web"})
             self.assertEqual(response.status_code, 400)
 
         # post a new build
@@ -225,7 +225,7 @@ class ReleaseTest(DryccTransactionTestCase):
         # app.deploy
         with mock.patch('api.models.app.App.deploy') as mock_deploy:
             mock_deploy.return_value = None
-            response = self.client.post(url, {"types": "web"})
+            response = self.client.post(url, {"ptypes": "web"})
             self.assertEqual(response.status_code, 204)
 
     def test_release_rollback(self, mock_requests):
