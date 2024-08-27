@@ -117,10 +117,12 @@ class ReleaseTest(DryccTransactionTestCase):
                     "docker": {"web": "Dockerfile", "worker": "worker/Dockerfile"},
                     "config": {"RAILS_ENV": "development", "FOO": "bar"}
                 },
-                "run": {
-                    "command": ["./deployment-tasks.sh"],
-                    "image": "worker",
-                },
+                "run": [
+                    {
+                        "command": ["./deployment-tasks.sh"],
+                        "image": "worker",
+                    }
+                ],
                 "deploy": {
                     "web": {
                         "command": ["bash", "-c"],
@@ -157,8 +159,10 @@ class ReleaseTest(DryccTransactionTestCase):
             self.assertEqual(response.status_code, 201, response.data)
             app = App.objects.get(id=app_id)
             release_obj = app.release_set.filter(version=2)[0]
+            runners = release_obj.get_runners(["web"])
+            self.assertEqual(len(runners), 1, release_obj.build.dryccfile)
             self.assertEqual(
-                release_obj.get_run_image(),
+                runners[0]["image"],
                 worker_image, release_obj.build.dryccfile)
             self.assertEqual(
                 release_obj.get_deploy_image("web"),
@@ -628,310 +632,25 @@ class ReleaseTest(DryccTransactionTestCase):
         release = app.release_set.latest()
         self.assertEqual(release.get_port('web'), 9000)
 
-    def test_diff_procfile_types(self, mock_requests):
-        app_id = self.create_app()
-        app = App.objects.get(id=app_id)
-        user = User.objects.get(username='autotest')
-
-        # CNCF Buildpack app
-        build = Build.objects.create(
-            owner=user,
-            app=app,
-            image="qwerty",
-            procfile={},
-            sha='african-swallow',
-            dockerfile={},
-            dryccfile={
-                "build": {
-                    "docker": {
-                        "web": "Dockerfile",
-                        "worker": "worker/Dockerfile",
-                    }
-                },
-                "deploy": {
-                    "web": {
-                        "command": ["bash", "-ec"],
-                        "args": ["bundle exec puma -C config/puma.rb"]
-                    },
-                    "worker": {
-                        "command": ["bash", "-ec"],
-                        "args": ["python myworker.py"]
-                    }
-                }
-            },
-        )
-
-        # create an initial release
-        release = Release.objects.create(
-            version=2,
-            owner=user,
-            app=app,
-            config=app.config_set.latest(),
-            build=build,
-            state="succeed"
-        )
-        self.assertIsNone(release.diff_procfile_types())
-        # test has image
-        build = Build.objects.create(
-            owner=user,
-            app=app,
-            image="qwerty",
-            procfile={},
-            sha='african-swallow',
-            dockerfile={},
-            dryccfile={
-                "deploy": {
-                    "web": {
-                        "image": "docker.io/test/test:v1",
-                        "command": ["bash", "-ec"],
-                        "args": ["bundle exec puma -C config/puma.rb"]
-                    },
-                    "worker": {
-                        "image": "docker.io/test/test:v1",
-                        "command": ["bash", "-ec"],
-                        "args": ["python myworker.py"]
-                    }
-                }
-            },
-        )
-        release = Release.objects.create(
-            version=3,
-            owner=user,
-            app=app,
-            config=app.config_set.latest(),
-            build=build,
-            state="succeed"
-        )
-        self.assertEqual(release.diff_procfile_types(), {'web', 'worker'})
-        # test has image
-        build = Build.objects.create(
-            owner=user,
-            app=app,
-            image="qwerty",
-            procfile={},
-            sha='african-swallow',
-            dockerfile={},
-            dryccfile={
-                "deploy": {
-                    "web": {
-                        "image": "docker.io/test/test:v2",
-                        "command": ["bash", "-ec"],
-                        "args": ["bundle exec puma -C config/puma.rb"]
-                    },
-                    "worker": {
-                        "image": "docker.io/test/test:v1",
-                        "command": ["bash", "-ec"],
-                        "args": ["python myworker.py"]
-                    }
-                }
-            },
-        )
-        release = Release.objects.create(
-            version=4,
-            owner=user,
-            app=app,
-            config=app.config_set.latest(),
-            build=build,
-            state="succeed"
-        )
-        self.assertEqual(release.diff_procfile_types(), {'web'})
-        # test has image
-        build = Build.objects.create(
-            owner=user,
-            app=app,
-            image="qwerty",
-            procfile={},
-            sha='african-swallow',
-            dockerfile={},
-            dryccfile={
-                "deploy": {
-                    "web": {
-                        "image": "docker.io/test/test:v2",
-                        "command": ["bash", "-ec"],
-                        "args": ["bundle exec puma -C config/puma.rb"]
-                    },
-                    "worker": {
-                        "image": "docker.io/test/test:v2",
-                        "command": ["bash", "-ec"],
-                        "args": ["python myworker.py"]
-                    }
-                }
-            },
-        )
-        release = Release.objects.create(
-            version=5,
-            owner=user,
-            app=app,
-            config=app.config_set.latest(),
-            build=build,
-            state="succeed"
-        )
-        self.assertEqual(release.diff_procfile_types(), {'worker'})
-        # test no image
-        build = Build.objects.create(
-            owner=user,
-            app=app,
-            image="qwerty",
-            procfile={},
-            sha='african-swallow',
-            dockerfile={},
-            dryccfile={
-                "build": {
-                    "docker": {
-                        "web": "Dockerfile",
-                        "worker": "worker/Dockerfile",
-                    }
-                },
-                "deploy": {
-                    "web": {
-                        "command": ["bash", "-ec"],
-                        "args": ["bundle exec puma -C config/puma.rb"]
-                    },
-                    "worker": {
-                        "command": ["bash", "-ec"],
-                        "args": ["python myworker.py"]
-                    },
-                    "worker-sync": {
-                        "image": "web",
-                        "command": ["bash", "-ec"],
-                        "args": ["python myworker.py sync"]
-                    },
-                }
-            },
-        )
-        release = Release.objects.create(
-            version=6,
-            owner=user,
-            app=app,
-            config=app.config_set.latest(),
-            build=build,
-            state="succeed"
-        )
-        self.assertEqual(release.diff_procfile_types(), {'web', 'worker', 'worker-sync'})
-        # test has image
-        build = Build.objects.create(
-            owner=user,
-            app=app,
-            image="qwerty",
-            procfile={},
-            sha='african-swallow',
-            dockerfile={},
-            dryccfile={
-                "run": {
-                    "args": ["sleep", "60s"],
-                    "image": "registry.drycc.cc/drycc/base:bookworm"
-                },
-                "deploy": {
-                    "web": {
-                        "image": "registry.drycc.cc/drycc/python-dev",
-                        "args": ["python", "-m", "http.server", "5000"]
-                    },
-                    "task": {
-                        "image": "docker.io/library/nginx",
-                        "command": ["sleep"],
-                        "args": ["infinity"]
-                    }
-                }
-            },
-        )
-        release = Release.objects.create(
-            version=7,
-            owner=user,
-            app=app,
-            config=app.config_set.latest(),
-            build=build,
-            state="succeed"
-        )
-        self.assertEqual(release.diff_procfile_types(), {'worker', 'task', 'worker-sync', 'web'})
-        # test has image
-        build = Build.objects.create(
-            owner=user,
-            app=app,
-            image="qwerty",
-            procfile={},
-            sha='african-swallow',
-            dockerfile={},
-            dryccfile={
-                "run": {
-                    "args": ["sleep", "60s"],
-                    "image": "registry.drycc.cc/drycc/base:bookworm"
-                },
-                "deploy": {
-                    "web": {
-                        "image": "registry.drycc.cc/drycc/python-dev",
-                        "args": ["python", "-m", "http.server", "5000"]
-                    },
-                    "task": {
-                        "image": "docker.io/library/nginx:mainline-bookworm-perl",
-                        "command": ["sleep"],
-                        "args": ["infinity"]
-                    }
-                }
-            },
-        )
-        release = Release.objects.create(
-            version=8,
-            owner=user,
-            app=app,
-            config=app.config_set.latest(),
-            build=build,
-            state="succeed"
-        )
-        self.assertEqual(release.diff_procfile_types(), {'task'})
-        # test has image
-        build = Build.objects.create(
-            owner=user,
-            app=app,
-            image="qwerty",
-            procfile={},
-            sha='african-swallow',
-            dockerfile={},
-            dryccfile={
-                "run": {
-                    "args": ["sleep", "60s"],
-                    "image": "registry.drycc.cc/drycc/base:bookworm"
-                },
-                "deploy": {
-                    "web": {
-                        "image": "registry.drycc.cc/drycc/python-dev",
-                        "args": ["python", "-m", "http.server", "5000"]
-                    },
-                    "task": {
-                        "image": "docker.io/library/nginx:mainline-bookworm-perl",
-                        "command": ["sleep"],
-                        "args": ["infinity"]
-                    }
-                }
-            },
-        )
-        release = Release.objects.create(
-            version=9,
-            owner=user,
-            app=app,
-            config=app.config_set.latest(),
-            build=build,
-            state="succeed"
-        )
-        self.assertEqual(release.diff_procfile_types(), set())
-        with mock.patch('scheduler.resources.pod.Pod.watch') as mock_kube:
-            with mock.patch('api.models.app.logger') as mock_logger:
-                mock_kube.return_value = ['up', 'down']
-                app.pipeline(release, False)
-                self.assertEqual(release.state, "succeed")
-                prefix = f"[{release.app.id}]: [pipeline] release v{release.version}"
-                exp_msg = f"{prefix} no changes, skip executing pipeline.deploy"
-                mock_logger.log.assert_any_call(logging.INFO, exp_msg)
-
     @override_settings(DRYCC_PILELINE_RUN_TIMEOUT=600)
     def test_run(self, mock_requests):
         app_id = self.create_app()
         app = App.objects.get(id=app_id)
         user = User.objects.get(username='autotest')
         dryccfile = {
-            "run": {
-                "args": ["sleep", "60s"],
-                "image": "registry.drycc.cc/drycc/base:bookworm"
-            },
+            "run": [
+                {
+                    "args": ["sleep", "60s"],
+                    "image": "registry.drycc.cc/drycc/base:bookworm-web",
+                    "when": {"ptypes": ["web"]}
+                },
+                {
+                    "args": ["sleep", "60s"],
+                    "image": "registry.drycc.cc/drycc/base:bookworm-task",
+                    "when": {"ptypes": ["task"]},
+                    "timeout": 3000
+                }
+            ],
             "deploy": {
                 "web": {
                     "image": "registry.drycc.cc/drycc/python-dev",
@@ -950,11 +669,16 @@ class ReleaseTest(DryccTransactionTestCase):
         release = Release.objects.create(
             version=2, owner=user, app=app, config=app.config_set.latest(),
             build=build, state="succeed")
-        self.assertEqual(release.get_run_timeout(), 600)
-        self.assertEqual(release.get_run_trigger(), True)
+        runners = release.get_runners(["web"])
+        self.assertEqual(len(runners), 1)
+        self.assertEqual(runners[0]["timeout"], 600)
+
+        runners = release.get_runners(["task"])
+        self.assertEqual(len(runners), 1)
+        self.assertEqual(runners[0]["timeout"], 3000)
+
         # change timeout
-        dryccfile['run']['when'] = {'ptypes': ['web']}
-        dryccfile['run']['timeout'] = 3600
+        dryccfile['run'][0]['timeout'] = 3600
         dryccfile['deploy']['web']['image'] = 'registry.drycc.cc/drycc/python-dev:latest'
         build = Build.objects.create(
             owner=user, app=app, image="qwerty", procfile={},
@@ -962,15 +686,6 @@ class ReleaseTest(DryccTransactionTestCase):
         release = Release.objects.create(
             version=3, owner=user, app=app, config=app.config_set.latest(),
             build=build, state="succeed")
-        self.assertEqual(release.get_run_timeout(), 3600)
-        self.assertEqual(release.get_run_trigger(), True)
-        # change task image
-        dryccfile['deploy']['task']['image'] = 'docker.io/library/nginx:latest'
-        build = Build.objects.create(
-            owner=user, app=app, image="qwerty", procfile={},
-            sha='african-swallow', dockerfile={}, dryccfile=dryccfile)
-        release = Release.objects.create(
-            version=4, owner=user, app=app, config=app.config_set.latest(),
-            build=build, state="succeed")
-        self.assertEqual(release.get_run_timeout(), 3600)
-        self.assertEqual(release.get_run_trigger(), False)
+        runners = release.get_runners(["web"])
+        self.assertEqual(len(runners), 1)
+        self.assertEqual(runners[0]["timeout"], 3600)

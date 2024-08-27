@@ -739,10 +739,12 @@ class BuildTest(DryccTransactionTestCase):
                     "docker": {"web": "Dockerfile", "worker": "worker/Dockerfile"},
                     "config": {"RAILS_ENV": "development", "FOO": "bar"}
                 },
-                "run": {
-                    "command": ["./deployment-tasks.sh"],
-                    "image": run_image,
-                },
+                "run": [
+                    {
+                        "command": ["./deployment-tasks.sh"],
+                        "image": run_image,
+                    }
+                ],
                 "deploy": {
                     "web": {
                         "command": ["bash", "-c"],
@@ -773,7 +775,9 @@ class BuildTest(DryccTransactionTestCase):
             self.assertEqual(release["state"], "succeed", data)
             self.assertEqual(release["version"], 2, data)
             release_obj = app.release_set.filter(version=release["version"])[0]
-            self.assertEqual(release_obj.get_run_image(), run_image, data)
+            runners = release_obj.get_runners(["web"])
+            self.assertEqual(len(runners), 1)
+            self.assertEqual(runners[0]["image"], run_image, data)
             self.assertEqual(release_obj.get_deploy_image("web"), web_image, data)
             self.assertEqual(release_obj.get_deploy_image("worker"), worker_image, data)
             self.assertEqual(release_obj.get_deploy_image("noexist"), default_image, data)
@@ -811,10 +815,12 @@ class BuildTest(DryccTransactionTestCase):
             }
             response = self.client.post(url, body)
             self.assertEqual(response.status_code, 201, response.data)
-            body['dryccfile']['run'] = {
-                'command': ["bash", "-c"],
-                'args': ["ls /"]
-            }
+            body['dryccfile']['run'] = [
+                {
+                    'command': ["bash", "-c"],
+                    'args': ["ls /"]
+                }
+            ]
             response = self.client.post(url, body)
             self.assertEqual(response.status_code, 201, response.data)
             body['dryccfile']['deploy'] = {}

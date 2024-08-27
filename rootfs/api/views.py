@@ -26,7 +26,7 @@ from rest_framework.parsers import MultiPartParser
 
 from api import monitor, models, permissions, serializers, viewsets, authentication
 from api.tasks import scale_app, restart_app, mount_app, downstream_model_owner, \
-    delete_pod, run_deploy
+    delete_pod, run_pipeline
 from api.exceptions import AlreadyExists, ServiceUnavailable, DryccException
 
 from django.views.decorators.cache import never_cache
@@ -306,6 +306,7 @@ class AppViewSet(BaseDryccViewSet):
 
     def run(self, request, **kwargs):
         app = self.get_object()
+        ptype = request.data.get('ptype', 'run')
         command = request.data.get('command', '').split()
         timeout = int(request.data.get('timeout', 3600))
         expires = int(request.data.get('expires', 3600))
@@ -313,11 +314,15 @@ class AppViewSet(BaseDryccViewSet):
             expires = settings.KUBERNETES_JOB_MAX_TTL_SECONDS_AFTER_FINISHED
         if not command:
             raise DryccException('command is a required field, or it can be defined in Procfile')
+        release = app.release_set.filter(failed=False).latest()
+        if release.build is None:
+            raise DryccException('no build available, please deploy a release')
         volumes = request.data.get('volumes', None)
         if volumes:
             volumes = serializers.VolumeSerializer().validate_path(volumes)
-        app.run(self.request.user, args=command,
-                volumes=volumes, timeout=timeout, expires=expires)
+        app.run(self.request.user, release.get_deploy_image(ptype),
+                command=release.get_deploy_command(ptype), args=command, volumes=volumes,
+                timeout=timeout, expires=expires)
         return Response(status=status.HTTP_204_NO_CONTENT)
 
     def update(self, request, **kwargs):
@@ -386,6 +391,8 @@ class ConfigViewSet(ReleasableViewSet):
     serializer_class = serializers.ConfigSerializer
 
     def post_save(self, config):
+        if not config.app.appsettings_set.latest().autorollback:
+            return
         latest_release = config.app.release_set.filter(failed=False).latest()
         if latest_release.deploying:
             config.delete()
@@ -400,8 +407,7 @@ class ConfigViewSet(ReleasableViewSet):
                         procfile_types.update(value.keys())
             # all_diff_fields changed, deploy all.
             procfile_types = procfile_types if procfile_types else None
-            rollback_on_failure = config.app.appsettings_set.latest().autorollback
-            run_deploy.delay(release, procfile_types, False, rollback_on_failure)
+            run_pipeline.delay(release, procfile_types, False)
         except Exception as e:
             config.delete()
             if isinstance(e, AlreadyExists):
@@ -459,16 +465,11 @@ class PtypesViewSet(AppResourceViewSet):
 
     def restart(self, request, *args, **kwargs):
         app = self.get_app()
-        ptypes = set([ptype for ptype in request.data.get("ptypes", "").split(",") if ptype])
-        if not ptypes:
-            ptypes = app.structure.keys()  # all ptypes need to restart
-        else:
-            invalid_ptypes = ptypes.difference(app.structure)
-            if len(invalid_ptypes) != 0:
-                raise DryccException("process type {} is not included in procfile".
-                                     format(','.join(invalid_ptypes)))
-        for ptype in set(ptypes):
-            restart_app.delay(app, **{"type": ptype})
+        procfile_types = set(
+            [ptype for ptype in request.data.get("ptypes", "").split(",") if ptype])
+        procfile_types = app.check_procfile_types(procfile_types)
+        for procfile_type in set(procfile_types):
+            restart_app.delay(app, **{"type": procfile_type})
         return Response(status=status.HTTP_204_NO_CONTENT)
 
     def scale(self, request, **kwargs):
@@ -640,15 +641,8 @@ class ReleaseViewSet(AppResourceViewSet):
             raise DryccException('There is an executing pipeline, please wait')
         procfile_types = set(
             [ptype for ptype in request.data.get("ptypes", "").split(",") if ptype])
-        if not procfile_types:
-            procfile_types = release.app.structure.keys()  # all procfile_types need to deploy
-        else:
-            invalid_procfile_types = procfile_types.difference(release.app.structure)
-            if len(invalid_procfile_types) != 0:
-                raise DryccException("process type {} is not included in procfile".
-                                     format(','.join(invalid_procfile_types)))
-        rollback_on_failure = release.app.appsettings_set.latest().autorollback
-        run_deploy.delay(release, procfile_types, False, rollback_on_failure)
+        procfile_types = release.app.check_procfile_types(procfile_types)
+        run_pipeline.delay(release, procfile_types, False)
         return Response(status=status.HTTP_204_NO_CONTENT)
 
     def rollback(self, request, **kwargs):
@@ -659,7 +653,11 @@ class ReleaseViewSet(AppResourceViewSet):
         latest_release = self.get_app().release_set.filter(failed=False).latest()
         if latest_release.deploying:
             raise DryccException('There is an executing pipeline, please wait')
-        new_release = latest_release.rollback(request.user, request.data.get('version', None))
+        procfile_types = set(
+            [ptype for ptype in request.data.get("ptypes", "").split(",") if ptype])
+        procfile_types = latest_release.app.check_procfile_types(procfile_types)
+        new_release = latest_release.rollback(
+            request.user, procfile_types, request.data.get('version', None))
         response = {'version': new_release.version}
         return Response(response, status=status.HTTP_201_CREATED)
 

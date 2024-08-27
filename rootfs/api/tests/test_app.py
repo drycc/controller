@@ -235,8 +235,8 @@ class AppTest(DryccTestCase):
         body = {'command': 'ls -al'}
         response = self.client.post(url, body)
         self.assertEqual(response.status_code, 400, response.data)
-        self.assertEqual(response.data, {'detail': 'No build associated with this '
-                                                   'release to run this command'})
+        self.assertEqual(
+            str(response.data["detail"]), 'no build available, please deploy a release')
 
     @mock.patch('api.models.app.App.run', _mock_run)
     @mock.patch('api.models.app.App.deploy', mock_none)

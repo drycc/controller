@@ -113,6 +113,19 @@ class App(UuidAuditedModel):
     def procfile_types(self):
         return list(self.structure.keys())
 
+    def check_procfile_types(self, procfile_types):
+        """
+        check available procfile types
+        """
+        if not procfile_types:
+            procfile_types = self.procfile_types
+        else:
+            invalid_procfile_types = procfile_types.difference(self.procfile_types)
+            if len(invalid_procfile_types) != 0:
+                raise DryccException("process type {} is not included in procfile".
+                                     format(','.join(invalid_procfile_types)))
+        return procfile_types
+
     def log(self, message, level=logging.INFO):
         """Logs a message in the context of this application.
 
@@ -220,38 +233,28 @@ class App(UuidAuditedModel):
         app_settings = self.appsettings_set.latest()
         self._scale(user, structure, release, app_settings)
 
-    def prepare(self, release):
-        prefix = f"[pipeline] prepare {release.version_name}"
-        if release.build.dryccfile:
-            if 'run' in release.build.dryccfile and release.get_run_trigger():
-                self.log(f"{prefix} starts running pipeline.run")
-                job_name = self.run(
-                    self.owner, release.get_run_image(), command=release.get_run_command(),
-                    args=release.get_run_args(), timeout=release.get_run_timeout(),
-                    expires=release.get_run_timeout())
-                state, labels = 'initializing', {'job-name': job_name}
-                for count, state in enumerate(self.scheduler().pod.watch(
-                        self.id, labels, settings.DRYCC_PILELINE_RUN_TIMEOUT)):
-                    self.log(f"{prefix} waiting for pipeline.run: {state} * {count}")
-                if state != 'down':
-                    raise DryccException(f'pipeline run state error: {state}')
-                return True
-        return False
-
-    def pipeline(self, release, force_deploy=False):
+    def pipeline(self, release, procfile_types=None, force_deploy=False):
         prefix = f"[pipeline] release {release.version_name}"
         try:
-            self.log(f"{prefix} starts running...")
-            procfile_types = release.diff_procfile_types()
-            self.prepare(release)
-            if procfile_types is None or len(procfile_types) > 0:
-                self.log(f"{prefix} starts running pipeline.deploy")
+            if release.build is not None:
+                if release.build.dryccfile:
+                    for run in release.get_runners(procfile_types):
+                        self.log(f"{prefix} starts running pipeline.run {run['image']}")
+                        job_name = self.run(
+                            self.owner, run['image'], command=run['command'],
+                            args=run['args'], timeout=run['timeout'], expires=run['timeout']
+                        )
+                        state, labels = 'initializing', {'job-name': job_name}
+                        for count, state in enumerate(self.scheduler().pod.watch(
+                                self.id, labels, settings.DRYCC_PILELINE_RUN_TIMEOUT)):
+                            self.log(f"{prefix} waiting for pipeline.run: {state} * {count}")
+                        if state != 'down':
+                            raise DryccException(f'pipeline run state error: {state}')
+                self.log(f"{prefix} starts running...")
                 rollback_on_failure = self.appsettings_set.latest().autorollback
                 if not rollback_on_failure:
                     self.log(f"{prefix} deploy do not rollback on failure")
                 self.deploy(release, procfile_types, force_deploy, rollback_on_failure)
-            else:
-                self.log(f"{prefix} no changes, skip executing pipeline.deploy")
             release.state = "succeed"
         except Exception as e:
             release.state = "crashed"
@@ -356,14 +359,7 @@ class App(UuidAuditedModel):
         try:
             # create application config and build the pod manifest
             self.set_application_config(release, PROCFILE_TYPE_RUN)
-            self.scheduler().job.create(
-                self.id,
-                name,
-                image if image else release.get_run_image(),
-                command if command else release.get_run_command(),
-                args if args else release.get_run_args(),
-                **kwargs
-            )
+            self.scheduler().job.create(self.id, name, image, command, args, **kwargs)
         except Exception as e:
             err = '{} ({}): {}'.format(name, PROCFILE_TYPE_RUN, e)
             raise ServiceUnavailable(err) from e

@@ -64,31 +64,6 @@ def run_pipeline(release, *args, **kwargs):
 
 @shared_task(
     autoretry_for=(ServiceUnavailable, ),
-    retry_kwargs={'max_retries': None}
-)
-def run_deploy(release, *args, **kwargs):
-    task_id = uuid.uuid4().hex
-    signals.request_started.send(sender=task_id)
-    try:
-        if release.build is not None:
-            release.app.deploy(release, *args, **kwargs)
-        release.state = "succeed"
-        release.save()
-    except Exception as e:
-        release.state = "crashed"
-        release.failed = True
-        if release.summary:
-            release.summary += " "
-        release.summary += "{} deployed a config that failed".format(release.owner)
-        # Get the exception that has occured
-        release.exception = "error: {}".format(str(e))
-        release.save()
-    finally:
-        signals.request_finished.send(sender=task_id)
-
-
-@shared_task(
-    autoretry_for=(ServiceUnavailable, ),
     retry_jitter=True,
     retry_kwargs={'max_retries': 3}
 )

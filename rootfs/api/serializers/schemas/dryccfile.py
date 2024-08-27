@@ -18,17 +18,20 @@ SCHEMA = {
             },
         },
         "run": {
-            "type": "object",
-            "properties": {
-                "image": {"type": "string"},
-                "command": {
-                    "type": "array",
-                    "items": {"type": "string"},
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "image": {"type": "string"},
+                    "command": {
+                        "type": "array",
+                        "items": {"type": "string"},
+                    },
+                    "args": {
+                        "type": "array",
+                        "items": {"type": "string"},
+                    }
                 },
-                "args": {
-                    "type": "array",
-                    "items": {"type": "string"},
-                }
             },
         },
         "deploy": {

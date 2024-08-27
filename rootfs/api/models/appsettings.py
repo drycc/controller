@@ -20,6 +20,7 @@ class AppSettings(UuidAuditedModel):
     owner = models.ForeignKey(User, on_delete=models.PROTECT)
     app = models.ForeignKey('App', on_delete=models.CASCADE)
     routable = models.BooleanField(default=True)
+    autodeploy = models.BooleanField(default=True)
     autorollback = models.BooleanField(default=True)
     autoscale = models.JSONField(default=dict, blank=True)
     label = models.JSONField(default=dict, blank=True)
@@ -63,23 +64,14 @@ class AppSettings(UuidAuditedModel):
             prev_app_settings = None
         return prev_app_settings
 
-    def _update_routable(self, previous_settings):
-        old = getattr(previous_settings, 'routable', None)
-        new = getattr(self, 'routable', None)
+    def _update_field(self, field, previous_settings):
+        old = getattr(previous_settings, field, None)
+        new = getattr(self, field, None)
         # if nothing changed copy the settings from previous
         if new is None and old is not None:
-            setattr(self, 'routable', old)
+            setattr(self, field, old)
         elif old != new:
-            self.summary += ["{} changed routablity from {} to {}".format(self.owner, old, new)]
-
-    def _update_autorollback(self, previous_settings):
-        old = getattr(previous_settings, 'autorollback', None)
-        new = getattr(self, 'autorollback', None)
-        # if nothing changed copy the settings from previous
-        if new is None and old is not None:
-            setattr(self, 'autorollback', old)
-        elif old != new:
-            self.summary += ["{} changed autorollback from {} to {}".format(self.owner, old, new)]
+            self.summary += ["{} changed {} from {} to {}".format(self.owner, field, old, new)]
 
     def _update_autoscale(self, previous_settings):
         data = getattr(previous_settings, 'autoscale', {}).copy()
@@ -159,11 +151,15 @@ class AppSettings(UuidAuditedModel):
             previous_settings = self.app.appsettings_set.latest()
         except AppSettings.DoesNotExist:
             pass
-        update_fields = ["routable", "autorollback", "autoscale", "label"]
+        update_fields = ["routable", "autodeploy", "autorollback", "autoscale", "label"]
         try:
             for update_field in update_fields:
                 if ignore_update_fields is None or update_field not in ignore_update_fields:
-                    getattr(self, "_update_%s" % update_field)(previous_settings)
+                    method = getattr(self, "_update_%s" % update_field, None)
+                    if method:
+                        method(previous_settings)
+                    else:
+                        self._update_field(update_field, previous_settings)
         except (UnprocessableEntity, NotFound):
             raise
         except Exception as e:

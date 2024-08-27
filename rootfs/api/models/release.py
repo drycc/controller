@@ -4,7 +4,6 @@ from django.conf import settings
 from django.db import models
 from django.db.models import Q
 from django.contrib.auth import get_user_model
-from api.utils import dict_diff
 from api.tasks import run_pipeline
 from api.exceptions import DryccException, AlreadyExists
 from scheduler import KubeHTTPException
@@ -61,43 +60,22 @@ class Release(UuidAuditedModel):
     def version_name(self):
         return f'v{self.version}'
 
-    def get_run_image(self):
-        """
-        In the run phase of dryccfile
-        Return the kubernetes "container image" to be sent off to the scheduler.
-        """
-        image = self.build.dryccfile.get('run', {}).get(
-            'image', self.build.get_image('run'))
-        return self.build.get_image(image, default_image=image)
-
-    def get_run_args(self):
-        """
-        In the run phase of dryccfile
-        Return the kubernetes "container arguments" to be sent off to the scheduler.
-        """
-        return self.build.dryccfile.get('run', {}).get('args', [])
-
-    def get_run_command(self):
-        """
-        In the run phase of dryccfile
-        Return the kubernetes "container command" to be sent off to the scheduler.
-        """
-        return self.build.dryccfile.get('run', {}).get('command', [])
-
-    def get_run_timeout(self):
-        return int(self.build.dryccfile.get('run', {}).get(
-            'timeout', settings.DRYCC_PILELINE_RUN_TIMEOUT))
-
-    def get_run_trigger(self):
-        if 'ptypes' not in self.build.dryccfile.get('run', {}).get('when', {}):
-            return True
-        procfile_types = self.diff_procfile_types()
-        if procfile_types is None:
-            return True
-        for procfile_type in procfile_types:
-            if procfile_type in self.build.dryccfile['run']['when']['ptypes']:
-                return True
-        return False
+    def get_runners(self, procfile_types):
+        results = []
+        procfile_types = self.procfile_types if not procfile_types else procfile_types
+        for run in self.build.dryccfile.get('run', []):
+            for container_type in procfile_types:
+                when_ptypes = run.get('when', {}).get('ptypes', [])
+                if not when_ptypes or container_type in when_ptypes:
+                    image = run.get('image', self.build.get_image(container_type))
+                    results.append({
+                        'image': self.build.get_image(image, default_image=image),
+                        'args': run.get('args', []),
+                        'command': run.get('command', []),
+                        'timeout': run.get('timeout', settings.DRYCC_PILELINE_RUN_TIMEOUT),
+                    })
+                    break
+        return results
 
     def get_deploy_image(self, container_type):
         """
@@ -132,30 +110,6 @@ class Release(UuidAuditedModel):
         """
         return self.build.dryccfile.get(
             'deploy', {}).get(container_type, {}).get('command', [])
-
-    def diff_procfile_types(self):
-        """
-        If returning None, it indicates that all procfile_types have changed.
-        """
-        def _get_full_deploy(release):
-            deploy = {}
-            for procfile_type, value in release.build.dryccfile['deploy'].items():
-                value['image'] = release.get_deploy_image(procfile_type)
-                value['args'] = release.get_deploy_args(procfile_type)
-                value['command'] = release.get_deploy_command(procfile_type)
-                deploy[procfile_type] = value
-            return deploy
-
-        pre_release = self.previous()
-        if (pre_release and pre_release.build and
-                pre_release.build.dryccfile and self.build and self.build.dryccfile):
-            deploy = _get_full_deploy(self)
-            pre_deploy = _get_full_deploy(pre_release)
-            procfile_types = set()
-            for value in dict_diff(deploy, pre_deploy).values():
-                procfile_types = procfile_types.union(value.keys())
-            return procfile_types
-        return None
 
     def log(self, message, level=logging.INFO):
         """Logs a message in the context of this application.
@@ -217,7 +171,7 @@ class Release(UuidAuditedModel):
             prev_release = None
         return prev_release
 
-    def rollback(self, user, version=None):
+    def rollback(self, user, procfile_types=None, version=None):
         try:
             # if no version is provided then grab version from object
             version = (self.version - 1) if version is None else int(version)
@@ -237,7 +191,7 @@ class Release(UuidAuditedModel):
                 summary="{} rolled back to v{}".format(user, version),
             )
             if self.build is not None:
-                run_pipeline.delay(new_release, force_deploy=True)
+                run_pipeline.delay(new_release, procfile_types, force_deploy=True)
             return new_release
         except Exception as e:
             # check if the exception is during create or publish
