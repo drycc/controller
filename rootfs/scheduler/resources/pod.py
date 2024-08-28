@@ -748,7 +748,7 @@ class Pod(Resource):
             for event in self.events(pod):
                 if event['reason'] == 'Unhealthy':
                     # strip out whitespaces on either side
-                    message = "\n".join([x.strip() for x in event['message'].split("\n")])
+                    message = "\n".join([x.strip() for x in event['note'].split("\n")])
                     raise KubeException(message)
 
     def _get_probe_timeout(self, probe):
