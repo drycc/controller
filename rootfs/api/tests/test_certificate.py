@@ -2,6 +2,7 @@ from django.contrib.auth import get_user_model
 from django.core.cache import cache
 from django.core.exceptions import SuspiciousOperation
 
+from api.models.app import App
 from api.models.certificate import Certificate
 from api.tests import TEST_ROOT, DryccTestCase
 
@@ -18,8 +19,8 @@ class CertificateTest(DryccTestCase):
         self.user = User.objects.get(username='autotest')
         self.token = self.get_or_create_token(self.user)
         self.client.credentials(HTTP_AUTHORIZATION='Token ' + self.token)
-
-        self.url = '/v2/certs'
+        self.app = App.objects.create(owner=self.user, id='test-app-use-case')
+        self.url = f'/v2/apps/{self.app.id}/certs'
         self.domain = 'autotest.example.com'
 
         with open('{}/certs/{}.key'.format(TEST_ROOT, self.domain)) as f:
@@ -144,12 +145,13 @@ class CertificateTest(DryccTestCase):
         """Destroying a certificate should generate a 204 response"""
         Certificate.objects.create(
             name='random-test-cert',
+            app=self.app,
             owner=self.user,
             common_name='autotest.example.com',
             certificate=self.cert,
             key=self.key
         )
-        url = '/v2/certs/random-test-cert'
+        url = f'/v2/apps/{self.app.id}/certs/random-test-cert'
         response = self.client.delete(url)
         self.assertEqual(response.status_code, 204, response.data)
 
@@ -173,6 +175,7 @@ class CertificateTest(DryccTestCase):
         with self.assertRaises(SuspiciousOperation):
             Certificate.objects.create(
                 owner=self.user,
+                app=self.app,
                 name='random-test-cert',
                 certificate='i am bad data',
                 key='i am bad data as well'

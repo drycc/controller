@@ -15,12 +15,11 @@ from rest_framework.exceptions import ValidationError
 from api.utils import validate_label
 from api.exceptions import AlreadyExists, ServiceUnavailable
 from scheduler import KubeException
-from .base import AuditedModel, ObjectPolicy, object_policy_registry
+from .base import AuditedModel
 from .domain import Domain
 
 User = get_user_model()
 logger = logging.getLogger(__name__)
-cert_policy = ObjectPolicy('name', 'use_cert', 'Can use cert')
 
 
 # Note: This is a slightly bug-fixed version of same from ndg-httpsclient.
@@ -104,7 +103,8 @@ class Certificate(AuditedModel):
     Public and private key pair used to secure application traffic at the router.
     """
     owner = models.ForeignKey(User, on_delete=models.PROTECT)
-    name = models.CharField(max_length=253, unique=True, validators=[validate_label])
+    app = models.ForeignKey('App', on_delete=models.CASCADE)
+    name = models.CharField(max_length=253, validators=[validate_label])
     # there is no upper limit on the size of an x.509 certificate
     certificate = models.TextField(validators=[validate_certificate])
     key = models.TextField(validators=[validate_private_key])
@@ -121,8 +121,8 @@ class Certificate(AuditedModel):
     subject = models.TextField(editable=False)
 
     class Meta:
-        permissions = (cert_policy[1:], )
         ordering = ['name', 'common_name', 'expires']
+        unique_together = ('app', 'name')
 
     @property
     def domains(self):
@@ -240,7 +240,3 @@ class Certificate(AuditedModel):
                 raise ServiceUnavailable(
                     "Could not delete certificate secret {} for application {}".format(
                         self.certname, namespace)) from e
-
-
-# Register policy
-object_policy_registry.register(Certificate, cert_policy)

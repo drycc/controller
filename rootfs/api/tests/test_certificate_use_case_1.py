@@ -24,8 +24,8 @@ class CertificateUseCase1Test(DryccTestCase):
         self.token = self.get_or_create_token(self.user)
         self.client.credentials(HTTP_AUTHORIZATION='Token ' + self.token)
 
-        self.url = '/v2/certs'
         self.app = App.objects.create(owner=self.user, id='test-app-use-case-1')
+        self.url = f'/v2/apps/{self.app.id}/certs'
         self.domain = Domain.objects.create(
             owner=self.user, app=self.app, domain='foo.com', procfile_type=PROCFILE_TYPE_WEB)
         self.name = 'foo-com'  # certificate name
@@ -148,12 +148,13 @@ class CertificateUseCase1Test(DryccTestCase):
         """Destroying a certificate should generate a 204 response"""
         Certificate.objects.create(
             owner=self.user,
+            app=self.app,
             name=self.name,
             certificate=self.cert,
             key=self.key
         )
 
-        url = '/v2/certs/{}'.format(self.name)
+        url = f'/v2/apps/{self.app.id}/certs/{self.name}/'
         response = self.client.delete(url)
         self.assertEqual(response.status_code, 204, response.data)
 
@@ -190,7 +191,7 @@ class CertificateUseCase1Test(DryccTestCase):
         self.assertEqual(domain.certificate.name, self.name)
 
         # Delete certificate
-        url = '/v2/certs/{}'.format(self.name)
+        url = f'/v2/apps/{self.app.id}/certs/{self.name}/'
         response = self.client.delete(url)
         self.assertEqual(response.status_code, 204, response.data)
 

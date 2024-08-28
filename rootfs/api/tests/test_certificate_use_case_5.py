@@ -24,8 +24,8 @@ class CertificateUseCase5Test(DryccTestCase):
         self.token = self.get_or_create_token(self.user)
         self.client.credentials(HTTP_AUTHORIZATION='Token ' + self.token)
 
-        self.url = '/v2/certs'
         self.app = App.objects.create(owner=self.user, id='test-app-use-case-5')
+        self.url = f'/v2/apps/{self.app.id}/certs'
         # Done out of scope as it gets the same cert as the wildcard
         Domain.objects.create(
             owner=self.user, app=self.app, domain='foo.com', procfile_type=PROCFILE_TYPE_WEB)
@@ -165,12 +165,13 @@ class CertificateUseCase5Test(DryccTestCase):
             Certificate.objects.create(
                 name=certificate['name'],
                 owner=self.user,
+                app=self.app,
                 common_name=domain,
                 certificate=certificate['cert'],
                 key=certificate['key']
             )
 
             # Remove certificate
-            url = '/v2/certs/{}'.format(certificate['name'])
+            url = f'/v2/apps/{self.app.id}/certs/{certificate['name']}/'
             response = self.client.delete(url)
             self.assertEqual(response.status_code, 204, response.data)

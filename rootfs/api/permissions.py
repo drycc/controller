@@ -5,7 +5,6 @@ from django.contrib.auth.models import AnonymousUser
 from api import manager
 from api.models import app
 from api.models import blocklist
-from api.models.base import object_policy_registry
 
 
 def get_app_status(app):
@@ -19,20 +18,20 @@ def get_app_status(app):
     return True, None
 
 
-def has_object_permission(user, obj, method):
+def has_app_permission(user, obj, method):
     obj = getattr(obj, 'app', obj)
-    object_policy = object_policy_registry.get(obj)[1]
     has_permission, message = False, f"{obj} object does not exist or does not have permission."
     if user.is_superuser:
         has_permission, message = True, None
     elif getattr(obj, "owner", None) == user:
         has_permission, message = True, None
-    elif user.is_staff or (object_policy and user.has_perm(object_policy.codename, obj)):
-        if method != 'DELETE':
+    elif user.is_staff:
+        has_permission, message = True, None
+    else:
+        permission = app.app_permission_registry.get(method)
+        if permission and user.has_perm(permission.codename, obj):
             has_permission, message = True, None
-        else:
-            has_permission, message = False, "{user} does not have permission to delete."
-    elif has_permission and isinstance(obj, app.App):
+    if has_permission and isinstance(obj, app.App):
         return get_app_status(obj)
     return has_permission, message
 
@@ -82,7 +81,7 @@ class IsObjectUser(permissions.BasePermission):
     an app-related model.
     """
     def has_object_permission(self, request, view, obj):
-        return has_object_permission(request.user, obj, request.method)[0]
+        return has_app_permission(request.user, obj, request.method)[0]
 
 
 class IsAdmin(permissions.BasePermission):

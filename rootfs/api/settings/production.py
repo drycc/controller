@@ -405,6 +405,8 @@ DATABASE_ROUTERS = ['api.routers.DefaultReplicaRouter', ]
 
 APP_URL_REGEX = '[a-z0-9-]+'
 
+DOMAIN_URL_REGEX = r'\**\.?[-\._\w]+'
+
 # Oauth settings
 
 DRYCC_PASSPORT_URL = os.environ.get('DRYCC_PASSPORT_URL', 'https://127.0.0.1:8000')

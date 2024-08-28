@@ -72,7 +72,7 @@ class BaseGatewayTest(DryccTransactionTestCase):
         self.assertEqual(response.status_code, 201)
 
     def create_tls_domain(self, app_id):
-        cert_url = '/v2/certs'
+        cert_url = f'/v2/apps/{app_id}/certs'
         secret_name = ''.join(random.choice(string.ascii_lowercase) for _ in range(23))
         domain = 'autotest.example.com'
 
@@ -96,7 +96,6 @@ class BaseGatewayTest(DryccTransactionTestCase):
             {'domain': domain, 'procfile_type': PROCFILE_TYPE_WEB}
         )
         self.assertEqual(response.status_code, 201)
-
         response = self.client.post(
             '{}/{}/domain/'.format(cert_url, secret_name),
             {'domain': domain}
@@ -294,7 +293,7 @@ class GatewayTest(BaseGatewayTest):
         response = self.client.get('/v2/apps/{}/gateways/'.format(app_id))
         self.assertEqual(len(response.data["results"][0]["listeners"]), 1)
         response = self.client.delete(
-            '{}/{}/domain/{}/'.format('/v2/certs', secret_name, domain)
+            '{}/{}/domain/{}/'.format(f'/v2/apps/{app_id}/certs', secret_name, domain)
         )
         self.assertEqual(response.status_code, 204)
         response = self.client.get('/v2/apps/{}/gateways/'.format(app_id))

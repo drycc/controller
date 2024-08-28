@@ -506,6 +506,7 @@ class ServiceSerializer(serializers.ModelSerializer):
 class CertificateSerializer(serializers.ModelSerializer):
     """Serialize a :class:`~api.models.certificate.Certificate` model."""
 
+    app = serializers.SlugRelatedField(slug_field='id', queryset=models.app.App.objects.all())
     owner = serializers.ReadOnlyField(source='owner.username')
     domains = serializers.ReadOnlyField()
     san = serializers.ListField(

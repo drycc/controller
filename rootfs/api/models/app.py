@@ -10,7 +10,7 @@ import time
 import socket
 from contextlib import closing
 from urllib.parse import urljoin
-from collections import OrderedDict
+from collections import OrderedDict, namedtuple
 from datetime import datetime, timezone
 
 from docker import auth as docker_auth
@@ -31,12 +31,51 @@ from .release import Release
 from .tls import TLS
 from .appsettings import AppSettings
 from .volume import Volume
-from .base import UuidAuditedModel, PROCFILE_TYPE_WEB, PROCFILE_TYPE_RUN, DEFAULT_HTTP_PORT, \
-    ObjectPolicy, object_policy_registry
+from .base import UuidAuditedModel, PROCFILE_TYPE_WEB, PROCFILE_TYPE_RUN, DEFAULT_HTTP_PORT
 
 User = get_user_model()
 logger = logging.getLogger(__name__)
-app_policy = ObjectPolicy('id', 'use_app', 'Can use app')  # query field, policy, description
+AppPermission = namedtuple('AppPermission', ['shortname', 'codename', 'description'])
+VIEW_APP_PERMISSION = AppPermission("view", "view_app", "can view app")
+CHANGE_APP_PERMISSION = AppPermission("change", "change_app", "can change app")
+DELETE_APP_PERMISSION = AppPermission("delete", "delete_app", "can delete app")
+
+
+class AppPermissionRegistry(object):
+
+    def __init__(self):
+        self.tags = {}
+        self.permissions = set()
+
+    def get(self, q):
+        permissions = [
+            permission for permission in self.permissions
+            if q == permission.shortname or q == permission.codename
+        ]
+        permissions.extend([
+            permission for permission in self.permissions
+            if permission in self.tags and q in self.tags[permission]
+        ])
+        return permissions[0] if permissions else None
+
+    def register(self, permission, tags=None):
+        if tags:
+            self.tags[permission] = tags
+        self.permissions.add(permission)
+
+    @property
+    def codenames(self):
+        return [permission[1] for permission in self.permissions]
+
+    @property
+    def shortnames(self):
+        return [permission[0] for permission in self.permissions]
+
+
+app_permission_registry = AppPermissionRegistry()
+app_permission_registry.register(VIEW_APP_PERMISSION, ["GET", "HEAD", "OPTION"])
+app_permission_registry.register(CHANGE_APP_PERMISSION, ["POST", "PUT", "PATCH"])
+app_permission_registry.register(DELETE_APP_PERMISSION, ["DELETE"])
 
 
 # http://kubernetes.io/v1.1/docs/design/identifiers.html
@@ -79,7 +118,6 @@ class App(UuidAuditedModel):
 
     class Meta:
         verbose_name = 'Application'
-        permissions = (app_policy[1:], )
         ordering = ['id']
 
     def save(self, *args, **kwargs):
@@ -1168,7 +1206,3 @@ class App(UuidAuditedModel):
             'pod_security_context': limit_plan.pod_security_context,
             'container_security_context': limit_plan.container_security_context,
         }
-
-
-# Register policy
-object_policy_registry.register(App, app_policy)

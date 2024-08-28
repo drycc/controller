@@ -14,7 +14,7 @@ def migration_dryccfile(apps, schema_editor):
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('api', '0011_merge_20240815_0955'),
+        ('api', '0010_appsettings_autorollback'),
     ]
 
     operations = [

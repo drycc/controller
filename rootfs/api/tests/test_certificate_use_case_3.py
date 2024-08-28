@@ -24,8 +24,8 @@ class CertificateUseCase3Test(DryccTestCase):
         self.token = self.get_or_create_token(self.user)
         self.client.credentials(HTTP_AUTHORIZATION='Token ' + self.token)
 
-        self.url = '/v2/certs'
         self.app = App.objects.create(owner=self.user, id='test-app-use-case-3')
+        self.url = f'/v2/apps/{self.app.id}/certs'
         self.domains = {
             'foo.com': Domain.objects.create(
                 owner=self.user, app=self.app, domain='foo.com', procfile_type=PROCFILE_TYPE_WEB),
@@ -134,11 +134,12 @@ class CertificateUseCase3Test(DryccTestCase):
         for domain, certificate in self.certificates.items():
             Certificate.objects.create(
                 name=certificate['name'],
+                app=self.app,
                 owner=self.user,
                 common_name=domain,
                 certificate=certificate['cert'],
                 key=certificate['key']
             )
-            url = '/v2/certs/{}'.format(certificate['name'])
+            url = f'/v2/apps/{self.app.id}/certs/{certificate['name']}/'
             response = self.client.delete(url)
             self.assertEqual(response.status_code, 204, response.data)

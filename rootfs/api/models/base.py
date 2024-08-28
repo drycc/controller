@@ -4,7 +4,6 @@ import random
 import importlib
 from datetime import timedelta
 from functools import partial
-from collections import namedtuple
 from django.db import models
 from django.conf import settings
 from django.utils import timezone
@@ -37,38 +36,6 @@ PROCFILE_TYPE_MAX_LENGTH = 63
 
 
 def get_anonymous_user_instance(user): return user(id=-1, username=settings.ANONYMOUS_USER_NAME)
-
-
-ObjectPolicy = namedtuple('ObjectPolicy', ['unique', 'codename', 'description'])
-
-
-class ObjectPolicyRegistry(object):
-
-    def __init__(self):
-        self.object_permission_policy_table = dict[type, ObjectPolicy]()
-
-    def all(self) -> list[type, ObjectPolicy]:
-        return self.object_permission_policy_table.items()
-
-    def get(self, query) -> tuple[type, ObjectPolicy]:
-        if isinstance(query, str):
-            for key, value in self.object_permission_policy_table.items():
-                if value.codename == query:
-                    return key, value
-        elif isinstance(query, models.Model):
-            query = type(query)
-            value = self.object_permission_policy_table.get(query)
-            return query if value else None, value
-        elif isinstance(query, type):
-            value = self.object_permission_policy_table.get(query)
-            return query if value else None, value
-        return None, None
-
-    def register(self, cls: type, object_policy: ObjectPolicy) -> None:
-        self.object_permission_policy_table[cls] = object_policy
-
-
-object_policy_registry = ObjectPolicyRegistry()
 
 
 class AuditedModel(models.Model):

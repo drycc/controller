@@ -70,15 +70,16 @@ app_urlpatterns = [
         views.PtypesViewSet.as_view({'get': 'list'})),
     # describe ptypes
     re_path(
-        r"^apps/(?P<id>{})/ptypes/(?P<name>[-_\w]+)/describe/?$".format(settings.APP_URL_REGEX),  # noqa
+        r"^apps/(?P<id>{})/ptypes/(?P<name>[-_\w]+)/describe/?$".format(settings.APP_URL_REGEX),
         views.PtypesViewSet.as_view({'get': 'describe'})),
     # list events
     re_path(
-        r"^apps/(?P<id>{})/events/?$".format(settings.APP_URL_REGEX),  # noqa
+        r"^apps/(?P<id>{})/events/?$".format(settings.APP_URL_REGEX),
         views.EventViewSet.as_view({'get': 'list'})),
     # application domains
     re_path(
-        r"^apps/(?P<id>{})/domains/(?P<domain>\**\.?[-\._\w]+)/?$".format(settings.APP_URL_REGEX),
+        r"^apps/(?P<id>{})/domains/(?P<domain>{})/?$".format(
+            settings.APP_URL_REGEX, settings.DOMAIN_URL_REGEX),
         views.DomainViewSet.as_view({'delete': 'destroy'})),
     re_path(
         r"^apps/(?P<id>{})/domains/?$".format(settings.APP_URL_REGEX),
@@ -135,6 +136,20 @@ app_urlpatterns = [
     re_path(
         r"^apps/(?P<id>{})/resources/(?P<name>[-_\w]+)/binding/?$".format(settings.APP_URL_REGEX),
         views.AppResourceBindingViewSet.as_view({'patch': 'binding'})),
+    # certificates
+    re_path(
+        r'^apps/(?P<id>{})/certs/(?P<name>[-_*.\w]+)/domain/(?P<domain>{})?/?$'.format(
+            settings.APP_URL_REGEX, settings.DOMAIN_URL_REGEX),
+        views.CertificateViewSet.as_view({'delete': 'detach', 'post': 'attach'})),
+    re_path(
+        r'^apps/(?P<id>{})/certs/(?P<name>[-_*.\w]+)/?$'.format(settings.APP_URL_REGEX),
+        views.CertificateViewSet.as_view({
+            'get': 'retrieve',
+            'delete': 'destroy'
+        })),
+    re_path(
+        r'^apps/(?P<id>{})/certs/?$'.format(settings.APP_URL_REGEX),
+        views.CertificateViewSet.as_view({'get': 'list', 'post': 'create'})),
     # apps base endpoint
     re_path(
         r"^apps/(?P<id>{})/?$".format(settings.APP_URL_REGEX),
@@ -151,7 +166,7 @@ app_urlpatterns = [
         views.KeyViewSet.as_view({'get': 'list', 'post': 'create'})),
     # hooks
     re_path(
-        r'^hooks/keys/(?P<id>{})/(?P<username>[-_\w]+)/?$'.format(settings.APP_URL_REGEX),
+        r'^hooks/keys/(?P<id>{})/(?P<username>[\w.@+-]+)/?$'.format(settings.APP_URL_REGEX),
         views.KeyHookViewSet.as_view({'get': 'users'})),
     re_path(
         r'^hooks/keys/(?P<id>{})/?$'.format(settings.APP_URL_REGEX),
@@ -169,19 +184,6 @@ app_urlpatterns = [
     re_path(
         r'^auth/whoami/?$',
         views.UserManagementViewSet.as_view({'get': 'list'})),
-    # certificates
-    re_path(
-        r'^certs/(?P<name>[-_*.\w]+)/domain/(?P<domain>\**\.?[-\._\w]+)?/?$',
-        views.CertificateViewSet.as_view({'delete': 'detach', 'post': 'attach'})),
-    re_path(
-        r'^certs/(?P<name>[-_*.\w]+)/?$',
-        views.CertificateViewSet.as_view({
-            'get': 'retrieve',
-            'delete': 'destroy'
-        })),
-    re_path(
-        r'^certs/?$',
-        views.CertificateViewSet.as_view({'get': 'list', 'post': 'create'})),
     # gateways
     re_path(
         r"^apps/(?P<id>{})/gateways/?$".format(settings.APP_URL_REGEX),
@@ -223,11 +225,12 @@ app_urlpatterns = [
         r'^manager/(?P<type>[\w.@+-]+)s/(?P<id>{})/unblock/?$'.format(settings.APP_URL_REGEX),
         views.WorkflowManagerViewset.as_view({'delete': 'unblock'})),
     # user perms
-    re_path(r"^perms/codes/?$", views.UserPermViewSet.as_view({'get': 'codes'})),
     re_path(
-        r"^perms/rules/?$", views.UserPermViewSet.as_view({'get': 'list', 'post': 'create'})),
+        r"^apps/(?P<id>{})/perms/?$".format(settings.APP_URL_REGEX),
+        views.AppPermViewSet.as_view({'get': 'list', 'post': 'create'})),
     re_path(
-        r"^perms/rules/(?P<id>[-_\w]+)/?$", views.UserPermViewSet.as_view({'delete': 'destroy'})),
+        r"^apps/(?P<id>{})/perms/(?P<username>[\w.@+-]+)/?$".format(settings.APP_URL_REGEX),
+        views.AppPermViewSet.as_view({'put': 'update', 'delete': 'destroy'})),
     # tokens
     re_path(r'^tokens/?$', views.TokenViewSet.as_view({'get': 'list'})),
     re_path(r"^tokens/(?P<pk>[-_\w]+)/?$", views.TokenViewSet.as_view({'delete': 'destroy'})),
