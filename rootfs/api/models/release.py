@@ -1,13 +1,19 @@
 import logging
 
+from datetime import datetime
+from django.utils import timezone
 from django.conf import settings
 from django.db import models
 from django.db.models import Q
 from django.contrib.auth import get_user_model
+from django.db.models import F, Func, Value, JSONField
 from api.tasks import run_pipeline
 from api.exceptions import DryccException, AlreadyExists
 from scheduler import KubeHTTPException
 from scheduler.resources.pod import DEFAULT_CONTAINER_PORT
+
+from ..utils import DeployLock
+
 from .base import UuidAuditedModel
 from .appsettings import AppSettings
 
@@ -34,6 +40,7 @@ class Release(UuidAuditedModel):
     summary = models.TextField(blank=True, null=True)
     failed = models.BooleanField(default=False)
     exception = models.TextField(blank=True, null=True)
+    conditions = models.JSONField(default=list)
 
     config = models.ForeignKey('Config', on_delete=models.CASCADE)
     build = models.ForeignKey('Build', null=True, on_delete=models.CASCADE)
@@ -45,10 +52,6 @@ class Release(UuidAuditedModel):
 
     def __str__(self):
         return "{0}-{1}".format(self.app.id, self.version_name)
-
-    @property
-    def deploying(self):
-        return self.build is not None and self.state == "created"
 
     @property
     def procfile_types(self):
@@ -76,6 +79,18 @@ class Release(UuidAuditedModel):
                     })
                     break
         return results
+
+    def add_condition(self, **kwargs):
+        if "created" not in kwargs:
+            kwargs["created"] = datetime.now(timezone.utc).strftime(settings.DRYCC_DATETIME_FORMAT)
+        type(self).objects.filter(pk=self.pk).update(
+            conditions=Func(
+                F("conditions"),
+                Value(["0"]),
+                Value(kwargs, JSONField()),
+                function="jsonb_insert",
+            )
+        )
 
     def get_deploy_image(self, container_type):
         """
@@ -147,6 +162,12 @@ class Release(UuidAuditedModel):
             procfile_type, {}).get(
                 'PORT', self.config.values.get('PORT', DEFAULT_CONTAINER_PORT)))
 
+    def deploy(self, procfile_types=None, force_deploy=False):
+        lock = DeployLock(self.app.pk)
+        if not lock.acquire(procfile_types, force=force_deploy):
+            raise DryccException('there is an executing pipeline, please wait or force deploy')
+        run_pipeline.delay(self, procfile_types, force_deploy)
+
     def previous(self):
         """
         Return the previous Release to this one.
@@ -191,7 +212,7 @@ class Release(UuidAuditedModel):
                 summary="{} rolled back to v{}".format(user, version),
             )
             if self.build is not None:
-                run_pipeline.delay(new_release, procfile_types, force_deploy=True)
+                new_release.deploy(procfile_types, force_deploy=True)
             return new_release
         except Exception as e:
             # check if the exception is during create or publish
@@ -206,7 +227,8 @@ class Release(UuidAuditedModel):
                     self.owner)
                 # Get the exception that has occured
                 new_release.exception = "error: {}".format(str(e))
-                new_release.save()
+                # avoid overwriting other fields
+                new_release.save(update_fields=["state", "failed", "summary", "exception"])
             raise DryccException(str(e)) from e
 
     def cleanup_old(self, procfile_types=None):
@@ -378,5 +400,4 @@ class Release(UuidAuditedModel):
                 else:
                     # There were no changes to this release
                     raise AlreadyExists("{} changed nothing - release stopped".format(self.owner))
-
         super(Release, self).save(*args, **kwargs)

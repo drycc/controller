@@ -3,7 +3,6 @@ from django.conf import settings
 from django.db import models
 from django.contrib.auth import get_user_model
 from api.exceptions import DryccException, Conflict
-from api.tasks import run_pipeline
 from .base import UuidAuditedModel
 
 User = get_user_model()
@@ -79,8 +78,8 @@ class Build(UuidAuditedModel):
                 build=self,
                 config=latest_release.config,
             )
-            if self.app.appsettings_set.latest().autorollback:
-                run_pipeline.delay(new_release, force_deploy=False)
+            if self.app.appsettings_set.latest().autodeploy:
+                new_release.deploy(force_deploy=False)
             return new_release
         except Exception as e:
             # check if the exception is during create or publish
@@ -95,7 +94,8 @@ class Build(UuidAuditedModel):
                     self.owner, str(self.uuid)[:7])
                 # Get the exception that has occured
                 new_release.exception = "error: {}".format(str(e))
-                new_release.save()
+                # avoid overwriting other fields
+                new_release.save(update_fields=["state", "failed", "summary", "exception"])
             if 'new_release' not in locals():
                 self.delete()
             raise DryccException(str(e)) from e

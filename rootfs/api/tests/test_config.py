@@ -279,7 +279,7 @@ class ConfigTest(DryccTransactionTestCase):
             app = App.objects.get(id=app_id)
             release = app.release_set.latest()
             self.assertEqual(release.failed, True)
-            self.assertEqual(release.exception, "error: Boom!")
+            self.assertEqual(release.conditions[0]['exception'], "Boom!")
 
     def test_invalid_config_keys(self, mock_requests):
         """Test that invalid config keys are rejected.
@@ -386,7 +386,7 @@ class ConfigTest(DryccTransactionTestCase):
             self.assertEqual(response.status_code, 201)
             self.assertEqual(app.release_set.latest().version, 4)
             self.assertEqual(app.release_set.latest().failed, True)
-            self.assertEqual(app.release_set.latest().exception, "error: Boom!")
+            self.assertEqual(app.release_set.latest().conditions[0]['exception'], "Boom!")
             self.assertEqual(app.release_set.filter(failed=False).latest().version, 3)
 
         # create a build to see that the new release is created with the last successful config
@@ -464,7 +464,7 @@ class ConfigTest(DryccTransactionTestCase):
             build=build
         )
         # deploy
-        app.pipeline(release)
+        release.deploy()
         # unset error
         body = {
             'limits': {
@@ -542,7 +542,7 @@ class ConfigTest(DryccTransactionTestCase):
             build=build
         )
         # deploy
-        app.pipeline(release)
+        release.deploy()
         body = {
             'values': json.dumps({'PORT': 5000}),
             'limits': {

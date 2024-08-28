@@ -211,16 +211,72 @@ class CacheLock(object):
         value = None
         for _ in range(timeout):
             value = cache.get_or_set(self.key, self.value, timeout)
-            if blocking or value == self.value:
+            if not blocking or value == self.value:
                 break
             time.sleep(1)
         return value == self.value
 
     def release(self):
         value = cache.get(self.key, None)
-        if value == self.value:
+        if value != self.value:
             return
         cache.delete(self.key)
+
+
+class DeployLock(CacheLock):
+
+    def __init__(self, app_id):
+        self.procfile_types_key = f"app:deploy:procfile:types:{app_id}"
+        super(DeployLock, self).__init__(f"app:deploy:lock:{app_id}")
+
+    def locked(self, procfile_types):
+        value = cache.get(self.procfile_types_key, [])
+        # None will locks all
+        if procfile_types is None:
+            if value is None or len(value) > 0:
+                return True
+            elif len(value) == 0:
+                return False
+        else:
+            if value is None:
+                return True
+            for procfile_type in procfile_types:
+                if procfile_type in value:
+                    return True
+        return False
+
+    def acquire(self, procfile_types, force=False):
+        try:
+            if super(DeployLock, self).acquire():
+                value = cache.get(self.procfile_types_key, [])
+                # None will locks all
+                if not force and self.locked(procfile_types):
+                    return False
+                if procfile_types is None:
+                    value = None
+                else:
+                    value.extend(procfile_types)
+                    value = list(set(value))
+                cache.set(self.procfile_types_key, value, timeout=3600)
+                return True
+        finally:
+            super(DeployLock, self).release()
+        return False
+
+    def release(self, procfile_types):
+        try:
+            if super(DeployLock, self).acquire():
+                if procfile_types is None:
+                    cache.delete(self.procfile_types_key)
+                else:
+                    value = cache.get(self.procfile_types_key, [])
+                    if value is None:
+                        return
+                    for procfile_type in procfile_types:
+                        value.remove(procfile_type)
+                    cache.set(self.procfile_types_key, value)
+        finally:
+            super(DeployLock, self).release()
 
 
 class SyncIterToAsyncIter(object):

@@ -26,7 +26,7 @@ from rest_framework.parsers import MultiPartParser
 
 from api import monitor, models, permissions, serializers, viewsets, authentication
 from api.tasks import scale_app, restart_app, mount_app, downstream_model_owner, \
-    delete_pod, run_pipeline
+    delete_pod
 from api.exceptions import AlreadyExists, ServiceUnavailable, DryccException
 
 from django.views.decorators.cache import never_cache
@@ -391,12 +391,9 @@ class ConfigViewSet(ReleasableViewSet):
     serializer_class = serializers.ConfigSerializer
 
     def post_save(self, config):
-        if not config.app.appsettings_set.latest().autorollback:
+        if not config.app.appsettings_set.latest().autodeploy:
             return
         latest_release = config.app.release_set.filter(failed=False).latest()
-        if latest_release.deploying:
-            config.delete()
-            raise DryccException('There is an executing pipeline, please wait')
         try:
             release = latest_release.new(
                 self.request.user, config=config, build=latest_release.build)
@@ -406,9 +403,9 @@ class ConfigViewSet(ReleasableViewSet):
                     for value in diff.values():
                         procfile_types.update(value.keys())
             # all_diff_fields changed, deploy all.
-            procfile_types = procfile_types if procfile_types else None
-            run_pipeline.delay(release, procfile_types, False)
-        except Exception as e:
+            procfile_types = list(procfile_types) if procfile_types else None
+            release.deploy(procfile_types, False)
+        except BaseException as e:
             config.delete()
             if isinstance(e, AlreadyExists):
                 raise
@@ -474,9 +471,6 @@ class PtypesViewSet(AppResourceViewSet):
 
     def scale(self, request, **kwargs):
         app = self.get_app()
-        latest_release = app.release_set.filter(failed=False).latest()
-        if latest_release.deploying:
-            raise DryccException('There is an executing pipeline, please wait')
         scale_app.delay(app, request.user, request.data)
         return Response(status=status.HTTP_204_NO_CONTENT)
 
@@ -636,13 +630,12 @@ class ReleaseViewSet(AppResourceViewSet):
 
     def deploy(self, request, **kwargs):
         """Deploy the latest release"""
-        release = self.get_app().release_set.latest()
-        if release.deploying:
-            raise DryccException('There is an executing pipeline, please wait')
+        latest_release = self.get_app().release_set.latest()
+        force_deploy = request.data.get("force", "false").lower() == "true"
         procfile_types = set(
             [ptype for ptype in request.data.get("ptypes", "").split(",") if ptype])
-        procfile_types = release.app.check_procfile_types(procfile_types)
-        run_pipeline.delay(release, procfile_types, False)
+        procfile_types = latest_release.app.check_procfile_types(procfile_types)
+        latest_release.deploy(procfile_types, force_deploy)
         return Response(status=status.HTTP_204_NO_CONTENT)
 
     def rollback(self, request, **kwargs):
@@ -651,8 +644,6 @@ class ReleaseViewSet(AppResourceViewSet):
         previous release.
         """
         latest_release = self.get_app().release_set.filter(failed=False).latest()
-        if latest_release.deploying:
-            raise DryccException('There is an executing pipeline, please wait')
         procfile_types = set(
             [ptype for ptype in request.data.get("ptypes", "").split(",") if ptype])
         procfile_types = latest_release.app.check_procfile_types(procfile_types)

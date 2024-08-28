@@ -105,6 +105,33 @@ class ReleaseTest(DryccTransactionTestCase):
         self.assertEqual(response.status_code, 405, response.content)
         return release3
 
+    def test_conditions(self, mock_requests):
+        app_id = self.create_app()
+        url = f"/v2/apps/{app_id}/builds"
+        body = {
+            'image': 'autotest/example',
+            'stack': 'heroku-18',
+            'sha': 'a'*40,
+            'procfile': {
+                'web': 'node server.js',
+                'worker-test1': 'node worker.js'
+            }
+        }
+        response = self.client.post(url, body)
+        self.assertEqual(response.status_code, 201, response.data)
+        url = f'/v2/apps/{app_id}/releases/'
+        response = self.client.get(url)
+        self.assertEqual(len(response.data['results'][0]['conditions']), 1)
+
+        with mock.patch('api.models.app.App.deploy') as mock_deploy:
+            mock_deploy.side_effect = Exception('Boom!')
+            url = f"/v2/apps/{app_id}/builds"
+            response = self.client.post(url, body)
+            self.assertEqual(response.status_code, 201, response.data)
+            url = f'/v2/apps/{app_id}/releases/'
+            response = self.client.get(url)
+            self.assertEqual(response.data['results'][0]['conditions'][0]['exception'], 'Boom!')
+
     def test_get_image(self, mock_requests):
         app_id = self.create_app()
         url = f"/v2/apps/{app_id}/builds"
@@ -192,7 +219,8 @@ class ReleaseTest(DryccTransactionTestCase):
         response = self.client.get(url)
         for key in response.data.keys():
             self.assertIn(key, ['uuid', 'owner', 'created', 'updated', 'app', 'build', 'config',
-                                'summary', 'version', 'state', 'failed', 'exception'])
+                                'summary', 'version', 'state', 'failed', 'conditions',
+                                'exception'])
         expected = {
             'owner': self.user.username,
             'app': app_id,

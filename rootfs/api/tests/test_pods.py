@@ -278,16 +278,18 @@ class PodTest(DryccTransactionTestCase):
             build=build
         )
         # deploy
-        app.pipeline(release)
+        release.deploy()
         url = f"/v2/apps/{app_id}/ptypes/scale"
         body = {'web': 'not_an_int'}
         response = self.client.post(url, body)
         self.assertEqual(response.status_code, 204, response.data)
+        app = App.objects.get(id=app_id)
         self.assertEqual(app.structure, {'web': 1})
 
         body = {'invalid': 1}
         response = self.client.post(url, body)
         self.assertEqual(response.status_code, 204, response.data)
+        app = App.objects.get(id=app_id)
         self.assertEqual(app.structure, {'web': 1})
 
     def test_container_str(self, mock_requests):
@@ -512,7 +514,7 @@ class PodTest(DryccTransactionTestCase):
             build=build
         )
         # deploy
-        app.pipeline(release)
+        release.deploy()
 
         # use `start web` for backwards compatibility with buildpacks
         self.assertEqual(release.get_deploy_args('web'), [])
@@ -571,7 +573,7 @@ class PodTest(DryccTransactionTestCase):
             build=build
         )
         # deploy
-        app.pipeline(release)
+        release.deploy()
 
         # create a run pod
         url = f"/v2/apps/{app_id}/run"
@@ -632,7 +634,7 @@ class PodTest(DryccTransactionTestCase):
             build=build
         )
         # deploy
-        app.pipeline(release)
+        release.deploy()
 
         # create a run pod
         url = f"/v2/apps/{app_id}/run"
@@ -669,7 +671,7 @@ class PodTest(DryccTransactionTestCase):
             build=build
         )
         # deploy
-        app.pipeline(release)
+        release.deploy()
 
         # create a run pod
         url = f"/v2/apps/{app_id}/run"

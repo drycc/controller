@@ -21,7 +21,7 @@ from rest_framework.exceptions import ValidationError, NotFound
 
 from api.utils import get_session
 from api.exceptions import AlreadyExists, DryccException, ServiceUnavailable
-from api.utils import generate_app_name, apply_tasks
+from api.utils import DeployLock, generate_app_name, apply_tasks
 from scheduler import KubeHTTPException, KubeException
 from .gateway import Gateway, Route
 from .limit import LimitPlan
@@ -255,16 +255,17 @@ class App(UuidAuditedModel):
                 if not rollback_on_failure:
                     self.log(f"{prefix} deploy do not rollback on failure")
                 self.deploy(release, procfile_types, force_deploy, rollback_on_failure)
-            release.state = "succeed"
+            if release.state == "created":
+                release.state = "succeed"
+            release.add_condition(state="succeed", action="pipeline", ptypes=procfile_types)
         except Exception as e:
-            release.state = "crashed"
-            release.failed = True
-            if release.summary:
-                release.summary += " "
-            release.summary += "{} pipeline a release that failed".format(self.owner)
-            release.exception = "error: {}".format(str(e))
+            release.failed, release.state = True, "crashed"
+            release.add_condition(
+                state="crashed", action="pipeline", ptypes=procfile_types, exception=str(e))
             self.log(f"{prefix} pipeline runtime error: {release.exception}", logging.ERROR)
-        release.save()
+        finally:
+            DeployLock(self.pk).release(procfile_types)
+            release.save(update_fields=["state", "failed"])  # avoid overwriting other fields
         self.log(f"{prefix} run completed...")
 
     def deploy(self, release, procfile_types=None, force_deploy=False, rollback_on_failure=True):

@@ -55,7 +55,7 @@ class BaseGatewayTest(DryccTransactionTestCase):
             build=build
         )
         # deploy
-        app.pipeline(release)
+        release.deploy()
         return app_id
 
     def change_certs_auto(self, app_id, enabled):
