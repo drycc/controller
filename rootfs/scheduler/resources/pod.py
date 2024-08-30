@@ -523,6 +523,7 @@ class Pod(Resource):
             'ImagePullBackOff',
             'RegistryUnavailable',
             'ErrImageInspect',
+            "CreateContainerError",
         ]
         # Image event reason mapping
         event_errors = {
@@ -537,7 +538,7 @@ class Pod(Resource):
 
         # Nicer error than from the event
         # Often this gets to ImageBullBackOff before we can introspect tho
-        if reason == 'ErrImagePull':
+        if reason in ['ErrImagePull', 'CreateContainerError']:
             raise KubeException(message)
 
         # collect all error messages of worth
