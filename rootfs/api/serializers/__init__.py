@@ -17,7 +17,7 @@ from rest_framework import serializers
 from api import models
 from api.utils import validate_json
 from api.exceptions import DryccException
-from api.models.base import PROCFILE_TYPE_MIN_LENGTH, PROCFILE_TYPE_MAX_LENGTH
+from api.models.base import PTYPE_MIN_LENGTH, PTYPE_MAX_LENGTH
 from scheduler.resources.pod import DEFAULT_CONTAINER_PORT
 from .schemas import rules
 from .schemas.volumes import SCHEMA as VOLUMES_SCHEMA
@@ -61,13 +61,13 @@ HEALTHCHECK_MATCH = re.compile(r'^(livenessProbe|readinessProbe|startupProbe)$')
 HEALTHCHECK_MISMATCH_MSG = "Healthcheck pattern: %s" % HEALTHCHECK_MATCH.pattern
 
 
-def validate_procfile_type(value):
+def validate_ptype(value):
     if not re.match(PROCTYPE_MATCH, value):
         raise serializers.ValidationError(PROCTYPE_MISMATCH_MSG)
-    if len(value) < PROCFILE_TYPE_MIN_LENGTH or len(value) > PROCFILE_TYPE_MAX_LENGTH:
+    if len(value) < PTYPE_MIN_LENGTH or len(value) > PTYPE_MAX_LENGTH:
         raise serializers.ValidationError(
-            "The length of procfile_type must be between {} and {}".format(
-                PROCFILE_TYPE_MIN_LENGTH, PROCFILE_TYPE_MAX_LENGTH))
+            "The length of ptype must be between {} and {}".format(
+                PTYPE_MIN_LENGTH, PTYPE_MAX_LENGTH))
     return value
 
 
@@ -204,17 +204,17 @@ class BuildSerializer(serializers.ModelSerializer):
         for key, value in data.items():
             if value is None or value == "":
                 raise serializers.ValidationError("Command can't be empty for process type")
-            validate_procfile_type(key)
+            validate_ptype(key)
         return data
 
     @staticmethod
     def validate_dryccfile(data):
         if data:
             validate_json(data, DRYCCFILE_SCHEMA, serializers.ValidationError)
-            procfile_types = set().union(data.get("deploy", {}).keys())
-            procfile_types = procfile_types.union(data.get("build", {}).get("docker", {}).keys())
-            for procfile_type in procfile_types:
-                validate_procfile_type(procfile_type)
+            ptypes = set().union(data.get("deploy", {}).keys())
+            ptypes = ptypes.union(data.get("build", {}).get("docker", {}).keys())
+            for ptype in ptypes:
+                validate_ptype(ptype)
         return data
 
 
@@ -285,8 +285,8 @@ class ConfigSerializer(serializers.ModelSerializer):
 
     @classmethod
     def validate_typed_values(cls, data):
-        for procfile_type, values in data.items():
-            validate_procfile_type(procfile_type)
+        for ptype, values in data.items():
+            validate_ptype(ptype)
             if values is None:  # use NoneType to unset an item
                 continue
             cls.validate_values(values)
@@ -295,8 +295,8 @@ class ConfigSerializer(serializers.ModelSerializer):
     @staticmethod
     def validate_limits(data):
         req_plan_ids = []
-        for procfile_type, plan_id in data.items():
-            validate_procfile_type(procfile_type)
+        for ptype, plan_id in data.items():
+            validate_ptype(ptype)
             if plan_id is not None:
                 req_plan_ids.append(plan_id)
         plan_ids = [plan.id for plan in models.limit.LimitPlan.objects.filter(
@@ -308,8 +308,8 @@ class ConfigSerializer(serializers.ModelSerializer):
 
     @staticmethod
     def validate_termination_grace_period(data):
-        for procfile_type, value in data.items():
-            validate_procfile_type(procfile_type)
+        for ptype, value in data.items():
+            validate_ptype(ptype)
             if value is None:  # use NoneType to unset an item
                 continue
             timeout = re.match(TERMINATION_GRACE_PERIOD_MATCH, str(value))
@@ -321,8 +321,8 @@ class ConfigSerializer(serializers.ModelSerializer):
 
     @staticmethod
     def validate_tags(data):
-        for procfile_type, values in data.items():
-            validate_procfile_type(procfile_type)
+        for ptype, values in data.items():
+            validate_ptype(ptype)
             for key, value in values.items():
                 if value is None:  # use NoneType to unset an item
                     continue
@@ -368,8 +368,8 @@ class ConfigSerializer(serializers.ModelSerializer):
 
     @staticmethod
     def validate_healthcheck(data):
-        for procfile_type, healthcheck in data.items():
-            validate_procfile_type(procfile_type)
+        for ptype, healthcheck in data.items():
+            validate_ptype(ptype)
             if healthcheck is None:
                 continue
             for key, value in healthcheck.items():
@@ -413,7 +413,7 @@ class DomainSerializer(serializers.ModelSerializer):
     class Meta:
         """Metadata options for a :class:`DomainSerializer`."""
         model = models.domain.Domain
-        fields = ['owner', 'created', 'updated', 'app', 'domain', 'procfile_type']
+        fields = ['owner', 'created', 'updated', 'app', 'domain', 'ptype']
         read_only_fields = ['uuid']
 
     @staticmethod
@@ -463,7 +463,7 @@ class DomainSerializer(serializers.ModelSerializer):
 
         return aceValue
 
-    validate_procfile_type = staticmethod(validate_procfile_type)
+    validate_ptype = staticmethod(validate_ptype)
 
 
 class ServiceSerializer(serializers.ModelSerializer):
@@ -474,12 +474,12 @@ class ServiceSerializer(serializers.ModelSerializer):
     port = serializers.IntegerField(required=True)
     protocol = serializers.CharField(required=True)
     target_port = serializers.IntegerField(default=DEFAULT_CONTAINER_PORT)
-    procfile_type = serializers.CharField(required=True)
+    ptype = serializers.CharField(required=True)
 
     class Meta:
         """Metadata options for a :class:`ServiceSerializer`."""
         model = models.service.Service
-        fields = ['owner', 'created', 'updated', 'app', 'procfile_type']
+        fields = ['owner', 'created', 'updated', 'app', 'ptype']
         read_only_fields = ['uuid']
 
     @staticmethod
@@ -500,7 +500,7 @@ class ServiceSerializer(serializers.ModelSerializer):
     def validate_target_port(cls, value):
         return cls.validate_port(value)
 
-    validate_procfile_type = staticmethod(validate_procfile_type)
+    validate_ptype = staticmethod(validate_ptype)
 
 
 class CertificateSerializer(serializers.ModelSerializer):
@@ -547,7 +547,7 @@ class EventSerializer(serializers.BaseSerializer):
         return obj
 
 
-class PtypesSerializer(serializers.BaseSerializer):
+class PtypeSerializer(serializers.BaseSerializer):
     name = serializers.CharField(required=False)
     release = serializers.CharField()
     ready = serializers.CharField()
@@ -628,7 +628,7 @@ class VolumeSerializer(serializers.ModelSerializer):
         logger.debug(f"mount validate_path data: {data}")
         new_data = {}
         for key, value in data.items():
-            validate_procfile_type(key)
+            validate_ptype(key)
             if value is None:  # use NoneType to unset an item
                 new_data[key] = value
                 continue
@@ -734,7 +734,7 @@ class GatewaySerializer(serializers.Serializer):
             raise serializers.ValidationError(GATEWAY_PROTOCOL_MISMATCH_MSG)
         return value
 
-    validate_procfile_type = staticmethod(validate_procfile_type)
+    validate_ptype = staticmethod(validate_ptype)
 
 
 class RouteSerializer(serializers.Serializer):
@@ -743,7 +743,7 @@ class RouteSerializer(serializers.Serializer):
     kind = serializers.CharField(max_length=15, required=False)
     name = serializers.CharField(max_length=63, required=True)
     port = serializers.IntegerField()
-    procfile_type = serializers.CharField(max_length=63, required=True)
+    ptype = serializers.CharField(max_length=63, required=True)
     rules = serializers.JSONField(required=False)
     parent_refs = serializers.JSONField(required=False)
 
@@ -761,7 +761,7 @@ class RouteSerializer(serializers.Serializer):
             raise serializers.ValidationError(ROUTE_PROTOCOL_MISMATCH_MSG)
         return value
 
-    validate_procfile_type = staticmethod(validate_procfile_type)
+    validate_ptype = staticmethod(validate_ptype)
 
     def validate_rules(self, value):
         kind = getattr(self, "initial_data", getattr(self, "data", {})).get("kind", None)

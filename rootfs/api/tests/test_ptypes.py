@@ -68,8 +68,8 @@ class PtypesTest(DryccTransactionTestCase):
         response = self.client.get(url)
         self.assertEqual(response.status_code, 200, response.data)
 
-        ptype_name = "no-exists-ptype-name"
-        response = self.client.get(f"/v2/apps/{app_id}/ptypes/{ptype_name}/describe/")
+        ptype = "no-exists-ptype-name"
+        response = self.client.get(f"/v2/apps/{app_id}/ptypes/{ptype}/describe/")
         self.assertEqual(response.status_code, 400, response.data)
 
     def test_restart_ptypes(self, mock_requests):

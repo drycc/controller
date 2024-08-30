@@ -28,8 +28,8 @@ class Service(Resource):
         }
         if "version" in kwargs:
             data["metadata"]["resourceVersion"] = kwargs.get("version")
-        if "procfile_type" in kwargs:
-            data["spec"]["selector"]['type'] = kwargs.get("procfile_type")
+        if "ptype" in kwargs:
+            data["spec"]["selector"]['type'] = kwargs.get("ptype")
         return data
 
     def get(self, namespace, name=None, **kwargs):

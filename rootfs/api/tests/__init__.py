@@ -81,16 +81,16 @@ class DryccBaseTestCase(unittest.TestCase):
         )
         return token.key
 
-    def assertPodContains(self, pods, app_id, procfile_type, version, state="up"):
+    def assertPodContains(self, pods, app_id, ptype, version, state="up"):
         for pod in pods:
-            if (pod["type"] == procfile_type and
+            if (pod["type"] == ptype and
                     pod["release"] == version and pod["state"] == state):
-                pod_name = app_id + '-%s-[0-9]{1,10}-[a-z0-9]{5}' % procfile_type
+                pod_name = app_id + '-%s-[0-9]{1,10}-[a-z0-9]{5}' % ptype
                 self.assertRegex(pod['name'], pod_name)
                 return
         raise ValueError(
-            "pod not contains: procfile_type={}, version={}, state={}".format(
-                procfile_type, version, state
+            "pod not contains: ptype={}, version={}, state={}".format(
+                ptype, version, state
             )
         )
 

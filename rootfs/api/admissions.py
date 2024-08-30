@@ -28,8 +28,8 @@ class JobsStatusHandler(BaseHandler):
     def handle(self, request: Request) -> bool:
         app_id = request["object"]["metadata"]["namespace"]
         app = models.app.App.objects.filter(id=app_id).first()
-        container_type = request["object"]["metadata"].get("labels", {}).get("type", "")
-        if app and container_type:
+        ptype = request["object"]["metadata"].get("labels", {}).get("type", "")
+        if app and ptype:
             status = request["object"]["status"]
             replicas = request["object"]["spec"].get("replicas", 0)
             if "active" in status:
@@ -37,11 +37,11 @@ class JobsStatusHandler(BaseHandler):
             elif "succeeded" in status or "failed" in status:
                 replicas -= 1
             replicas = 0 if replicas < 0 else replicas
-            if app.structure.get(container_type, 0) != replicas:
+            if app.structure.get(ptype, 0) != replicas:
                 models.app.App.objects.filter(id=app.id).update(
                     structure=Func(
                         F("structure"),
-                        Value([container_type]),
+                        Value([ptype]),
                         Value(replicas, JSONField()),
                         function="jsonb_set",
                     )
@@ -64,18 +64,18 @@ class DeploymentsScaleHandler(BaseHandler):
     def handle(self, request: Request) -> bool:
         app_id = request["object"]["metadata"]["namespace"]
         app = models.app.App.objects.filter(id=app_id).first()
-        container_type = None
+        ptype = None
         for item in request["object"]["status"]["selector"].split(","):
             key, value = item.split("=")
             if key == "type":
-                container_type = value
-        if app and container_type:
+                ptype = value
+        if app and ptype:
             replicas = request["object"]["spec"].get("replicas", 0)
-            if app.structure.get(container_type, 0) != replicas:
+            if app.structure.get(ptype, 0) != replicas:
                 models.app.App.objects.filter(id=app.id).update(
                     structure=Func(
                         F("structure"),
-                        Value([container_type]),
+                        Value([ptype]),
                         Value(replicas, JSONField()),
                         function="jsonb_set",
                     )

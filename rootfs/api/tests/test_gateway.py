@@ -6,7 +6,7 @@ from django.contrib.auth import get_user_model
 from django.core.cache import cache
 
 from api.models.app import App
-from api.models.base import PROCFILE_TYPE_WEB
+from api.models.base import PTYPE_WEB
 from api.models.build import Build
 from api.models.gateway import Route
 from api.models.release import Release
@@ -33,7 +33,7 @@ class BaseGatewayTest(DryccTransactionTestCase):
         app_id = self.create_app()
         response = self.client.post(
             '/v2/apps/{}/domains'.format(app_id),
-            {'domain': 'test-domain.example.com', 'procfile_type': PROCFILE_TYPE_WEB}
+            {'domain': 'test-domain.example.com', 'ptype': PTYPE_WEB}
         )
         self.assertEqual(response.status_code, 201, response.data)
         # check default gateway route
@@ -93,7 +93,7 @@ class BaseGatewayTest(DryccTransactionTestCase):
 
         response = self.client.post(
             '/v2/apps/{}/domains'.format(app_id),
-            {'domain': domain, 'procfile_type': PROCFILE_TYPE_WEB}
+            {'domain': domain, 'ptype': PTYPE_WEB}
         )
         self.assertEqual(response.status_code, 201)
         response = self.client.post(
@@ -393,7 +393,7 @@ class GatewayTest(BaseGatewayTest):
 class RouteTest(BaseGatewayTest):
 
     def create_route(self, app_id, route_name="test-route",
-                     procfile_type="task", kind="HTTPRoute"):
+                     ptype="task", kind="HTTPRoute"):
         # create service
         port = 5000
         response = self.client.post(
@@ -402,7 +402,7 @@ class RouteTest(BaseGatewayTest):
                 'port': port,
                 'protocol': 'TCP',
                 'target_port': port,
-                'procfile_type': procfile_type
+                'ptype': ptype
             }
         )
         self.assertEqual(response.status_code, 201, response.data)
@@ -411,13 +411,13 @@ class RouteTest(BaseGatewayTest):
             '/v2/apps/{}/routes/'.format(app_id),
             {
                 "port": 5000,
-                "procfile_type": procfile_type,
+                "ptype": ptype,
                 "kind": kind,
                 "name": route_name,
             }
         )
         self.assertEqual(response.status_code, 201, response.data)
-        return procfile_type, port, route_name
+        return ptype, port, route_name
 
     def test_create_route(self):
         app_id = self.create_app()
@@ -427,7 +427,7 @@ class RouteTest(BaseGatewayTest):
             '/v2/apps/{}/routes/'.format(app_id),
             {
                 "port": 5000,
-                "procfile_type": "no-exists",
+                "ptype": "no-exists",
                 "kind": "HTTPRoute",
                 "name": "test-route-1",
             }
@@ -436,10 +436,10 @@ class RouteTest(BaseGatewayTest):
 
     def test_hostnames(self):
         app_id = self.create_app()
-        procfile_type, port, route_name = self.create_route(app_id)
+        ptype, port, route_name = self.create_route(app_id)
         response = self.client.post(
             '/v2/apps/{}/domains'.format(app_id),
-            {'domain': "domain1.test.com", 'procfile_type': procfile_type}
+            {'domain': "domain1.test.com", 'ptype': ptype}
         )
         self.assertEqual(response.status_code, 201)
         route = Route.objects.get(app__id=app_id)
@@ -447,7 +447,7 @@ class RouteTest(BaseGatewayTest):
 
         response = self.client.post(
             '/v2/apps/{}/domains'.format(app_id),
-            {'domain': "domain2.test.com", 'procfile_type': "web-1"}
+            {'domain': "domain2.test.com", 'ptype': "web-1"}
         )
         self.assertEqual(response.status_code, 201)
         route = Route.objects.get(app__id=app_id)
@@ -455,7 +455,7 @@ class RouteTest(BaseGatewayTest):
 
         response = self.client.post(
             '/v2/apps/{}/domains'.format(app_id),
-            {'domain': "domain3.test.com", 'procfile_type': procfile_type}
+            {'domain': "domain3.test.com", 'ptype': ptype}
         )
         self.assertEqual(response.status_code, 201)
         route = Route.objects.get(app__id=app_id)
@@ -463,7 +463,7 @@ class RouteTest(BaseGatewayTest):
 
     def test_route_attach(self):
         app_id = self.create_app()
-        procfile_type, port, route_name = self.create_route(app_id)
+        ptype, port, route_name = self.create_route(app_id)
         gateway_name_1 = 'bing-gateway-1'
         self.create_gateway(app_id, gateway_name_1, 5000, "HTTP")
         self.client.patch(
@@ -486,7 +486,7 @@ class RouteTest(BaseGatewayTest):
         )
         response = self.client.get('/v2/apps/{}/routes/'.format(app_id))
         self.assertEqual(len(response.data["results"][0]["parent_refs"]), 2)
-        return procfile_type, app_id, gateway_name_1, gateway_name_2, port, route_name
+        return ptype, app_id, gateway_name_1, gateway_name_2, port, route_name
 
     def test_route_check_parent_ok(self):
         app_id = self.create_app()
@@ -603,14 +603,14 @@ class RouteTest(BaseGatewayTest):
 
     def test_rule_get(self):
         app_id = self.create_app()
-        procfile_type, _, route_name = self.create_route(app_id)
+        ptype, _, route_name = self.create_route(app_id)
         response = self.client.get(
             '/v2/apps/{}/routes/{}/rules/'.format(app_id, route_name),
         )
         expect = [{
             'backendRefs': [{
                 'kind': 'Service',
-                'name': '%s-%s' % (app_id, procfile_type),
+                'name': '%s-%s' % (app_id, ptype),
                 'port': 5000,
                 'weight': 100
             }]
@@ -628,11 +628,11 @@ class RouteTest(BaseGatewayTest):
 
     def test_rule_set(self):
         app_id = self.create_app()
-        procfile_type, _, route_name = self.create_route(app_id)
+        ptype, _, route_name = self.create_route(app_id)
         expect = [{
             "backendRefs": [{
                 "kind": "Service",
-                "name": "%s-%s" % (app_id, procfile_type),
+                "name": "%s-%s" % (app_id, ptype),
                 "port": 5000,
                 "weight": 100
             }]
@@ -649,7 +649,7 @@ class RouteTest(BaseGatewayTest):
         expect = [{
             "backendRefs": [{
                 "kind": "Service",
-                "name": "%s-%s-noexits" % (app_id, procfile_type),
+                "name": "%s-%s-noexits" % (app_id, ptype),
                 "port": 5000,
                 "weight": 100
             }]

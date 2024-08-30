@@ -7,7 +7,7 @@ from django.contrib.auth import get_user_model
 from api.exceptions import ServiceUnavailable
 from scheduler import KubeException
 
-from .base import AuditedModel, DEFAULT_HTTP_PORT, DEFAULT_HTTPS_PORT, PROCFILE_TYPE_MAX_LENGTH
+from .base import AuditedModel, DEFAULT_HTTP_PORT, DEFAULT_HTTPS_PORT, PTYPE_MAX_LENGTH
 
 User = get_user_model()
 logger = logging.getLogger(__name__)
@@ -183,7 +183,7 @@ class Route(AuditedModel):
     rules = models.JSONField(default=list)
     routable = models.BooleanField(default=True)
     parent_refs = models.JSONField(default=list)
-    procfile_type = models.CharField(max_length=PROCFILE_TYPE_MAX_LENGTH)
+    ptype = models.CharField(max_length=PTYPE_MAX_LENGTH)
 
     @property
     def protocols(self):
@@ -194,11 +194,11 @@ class Route(AuditedModel):
     @property
     def hostnames(self):
         return [domain.domain for domain in self.app.domain_set.filter(
-                procfile_type=self.procfile_type)]
+                ptype=self.ptype)]
 
     @property
     def default_rules(self):
-        service = get_object_or_404(self.app.service_set, procfile_type=self.procfile_type)
+        service = get_object_or_404(self.app.service_set, ptype=self.ptype)
         backend_refs = []
         for item in service.ports:
             if item["port"] == self.port:
@@ -223,7 +223,7 @@ class Route(AuditedModel):
 
     def check_rules(self):
         service = self.app.service_set.filter(
-            procfile_type=self.procfile_type).first()
+            ptype=self.ptype).first()
         ports = [item["port"] for item in service.ports]
         for rule in self.rules:
             for backend_ref in rule["backendRefs"]:

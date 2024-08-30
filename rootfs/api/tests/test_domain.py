@@ -8,7 +8,7 @@ from unittest import mock
 from django.contrib.auth import get_user_model
 from django.core.cache import cache
 
-from api.models.base import PROCFILE_TYPE_WEB
+from api.models.base import PTYPE_WEB
 from api.models.domain import Domain
 from api.tests import DryccTestCase
 
@@ -39,13 +39,13 @@ class DomainTest(DryccTestCase):
 
         response = self.client.post(
             '/v2/apps/{}/domains'.format(app_id),
-            {'domain': 'test-domain.example.com', 'procfile_type': PROCFILE_TYPE_WEB}
+            {'domain': 'test-domain.example.com', 'ptype': PTYPE_WEB}
         )
         self.assertEqual(response.status_code, 201, response.data)
 
         for key in response.data:
             self.assertIn(
-                key, ['uuid', 'owner', 'created', 'updated', 'app', 'domain', 'procfile_type'])
+                key, ['uuid', 'owner', 'created', 'updated', 'app', 'domain', 'ptype'])
 
         expected = {
             'owner': self.user.username,
@@ -61,7 +61,7 @@ class DomainTest(DryccTestCase):
         url = '/v2/apps/{app_id}/domains'.format(app_id=self.app_id)
 
         # Create
-        response = self.client.post(url, {'domain': domain, 'procfile_type': PROCFILE_TYPE_WEB})
+        response = self.client.post(url, {'domain': domain, 'ptype': PTYPE_WEB})
         self.assertEqual(response.status_code, 201, msg)
 
         # Fetch
@@ -99,7 +99,7 @@ class DomainTest(DryccTestCase):
 
             # Create
             response = self.client.post(
-                url, {'domain': domain, 'procfile_type': PROCFILE_TYPE_WEB})
+                url, {'domain': domain, 'ptype': PTYPE_WEB})
             self.assertEqual(response.status_code, 201, msg)
 
             # Fetch
@@ -111,13 +111,13 @@ class DomainTest(DryccTestCase):
             # Verify creation failure for same domain with different encoding
             if ace_domain != domain:
                 response = self.client.post(
-                    url, {'domain': ace_domain, 'procfile_type': PROCFILE_TYPE_WEB})
+                    url, {'domain': ace_domain, 'ptype': PTYPE_WEB})
                 self.assertEqual(response.status_code, 400, msg)
 
             # Verify creation failure for same domain with different encoding
             if unicode_domain != domain:
                 response = self.client.post(
-                    url, {'domain': unicode_domain, 'procfile_type': PROCFILE_TYPE_WEB})
+                    url, {'domain': unicode_domain, 'ptype': PTYPE_WEB})
                 self.assertEqual(response.status_code, 400, msg)
 
             # Delete
@@ -139,7 +139,7 @@ class DomainTest(DryccTestCase):
             if ace_domain != domain:
                 # Create
                 response = self.client.post(
-                    url, {'domain': domain, 'procfile_type': PROCFILE_TYPE_WEB})
+                    url, {'domain': domain, 'ptype': PTYPE_WEB})
                 self.assertEqual(response.status_code, 201, msg)
 
                 # Fetch
@@ -167,7 +167,7 @@ class DomainTest(DryccTestCase):
             if unicode_domain != domain:
                 # Create
                 response = self.client.post(
-                    url, {'domain': domain, 'procfile_type': PROCFILE_TYPE_WEB})
+                    url, {'domain': domain, 'ptype': PTYPE_WEB})
                 self.assertEqual(response.status_code, 201, msg)
 
                 # Fetch
@@ -213,7 +213,7 @@ class DomainTest(DryccTestCase):
 
             # Create
             response = self.client.post(
-                url, {'domain': domain, 'procfile_type': PROCFILE_TYPE_WEB})
+                url, {'domain': domain, 'ptype': PTYPE_WEB})
             self.assertEqual(response.status_code, 201, msg)
 
             # Fetch
@@ -253,7 +253,7 @@ class DomainTest(DryccTestCase):
         ]
         for domain in test_domains:
             response = self.client.post(
-                url, {'domain': domain, 'procfile_type': PROCFILE_TYPE_WEB})
+                url, {'domain': domain, 'ptype': PTYPE_WEB})
             self.assertEqual(response.status_code, 201, response.data)
 
         url = '/v2/apps/{app_id}/domains/{domain}'.format(domain=test_domains[0],
@@ -272,7 +272,7 @@ class DomainTest(DryccTestCase):
         # Create domain
         url = '/v2/apps/{app_id}/domains'.format(app_id="this-app-does-not-exist")
         response = self.client.post(
-            url, {'domain': 'test-domain.example.com', 'procfile_type': PROCFILE_TYPE_WEB})
+            url, {'domain': 'test-domain.example.com', 'ptype': PTYPE_WEB})
         self.assertEqual(response.status_code, 404)
 
         # verify
@@ -295,7 +295,7 @@ class DomainTest(DryccTestCase):
         for domain in test_domains:
             msg = "failed on \"{}\"".format(domain)
             response = self.client.post(
-                url, {'domain': domain, 'procfile_type': PROCFILE_TYPE_WEB})
+                url, {'domain': domain, 'ptype': PTYPE_WEB})
             self.assertEqual(response.status_code, 400, msg)
 
     def test_admin_can_add_domains_to_other_apps(self):
@@ -311,7 +311,7 @@ class DomainTest(DryccTestCase):
         self.client.credentials(HTTP_AUTHORIZATION='Token ' + self.token)
         url = '/v2/apps/{}/domains'.format(app_id)
         response = self.client.post(
-            url, {'domain': 'example.drycc.example.com', 'procfile_type': PROCFILE_TYPE_WEB})
+            url, {'domain': 'example.drycc.example.com', 'ptype': PTYPE_WEB})
         self.assertEqual(response.status_code, 201, response.data)
 
     def test_unauthorized_user_cannot_modify_domain(self):
@@ -329,7 +329,7 @@ class DomainTest(DryccTestCase):
 
         url = '/v2/apps/{}/domains'.format(app_id)
         response = self.client.post(
-            url, {'domain': 'example.com', 'procfile_type': PROCFILE_TYPE_WEB})
+            url, {'domain': 'example.com', 'ptype': PTYPE_WEB})
         self.assertEqual(response.status_code, 403)
 
     def test_kubernetes_service_failure(self):
@@ -343,5 +343,5 @@ class DomainTest(DryccTestCase):
             domain = 'foo.com'
             url = '/v2/apps/{}/domains'.format(app_id)
             response = self.client.post(
-                url, {'domain': domain, 'procfile_type': PROCFILE_TYPE_WEB})
+                url, {'domain': domain, 'ptype': PTYPE_WEB})
             self.assertEqual(response.status_code, 201, response.data)

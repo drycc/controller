@@ -11,7 +11,7 @@ from django.test.utils import override_settings
 from unittest import mock
 
 from api.models.app import App
-from api.models.base import PROCFILE_TYPE_WEB
+from api.models.base import PTYPE_WEB
 from api.models.build import Build
 from api.models.release import Release
 from scheduler import KubeHTTPException
@@ -301,7 +301,7 @@ class ReleaseTest(DryccTransactionTestCase):
         self.assertEqual(release5.build, release3.build)
         self.assertEqual(release5.config.values, release3.config.values)
         # double-check to see that the current build and config is the same as v3
-        self.assertEqual(release5.get_deploy_image(PROCFILE_TYPE_WEB), 'autotest/example')
+        self.assertEqual(release5.get_deploy_image(PTYPE_WEB), 'autotest/example')
         self.assertEqual(release5.config.values, {'NEW_URL1': 'http://localhost:8080/'})
         # try to rollback to v1 and verify that the rollback failed
         # (v1 is an initial release with no build)
@@ -316,7 +316,7 @@ class ReleaseTest(DryccTransactionTestCase):
         self.assertEqual(response.status_code, 201, response.data)
         self.assertEqual(Release.objects.count(), 6)
         release6 = Release.objects.get(app=app, version=6)
-        self.assertEqual(release6.get_deploy_image(PROCFILE_TYPE_WEB), 'autotest/example')
+        self.assertEqual(release6.get_deploy_image(PTYPE_WEB), 'autotest/example')
         self.assertEqual(release6.config.values, {})
 
     def test_release_str(self, mock_requests):
@@ -651,7 +651,7 @@ class ReleaseTest(DryccTransactionTestCase):
         self.assertEqual(response.status_code, 201, response.data)
         release = app.release_set.latest()
         self.assertEqual(release.get_port('web'), 3000)
-        self.assertEqual(release.get_deploy_image(PROCFILE_TYPE_WEB), 'test/autotest/example')
+        self.assertEqual(release.get_deploy_image(PTYPE_WEB), 'test/autotest/example')
 
         url = f'/v2/apps/{app_id}/config'
         body = {'typed_values': json.dumps({"web": {'PORT': '9000'}})}

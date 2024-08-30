@@ -161,9 +161,9 @@ def query_network_flow(namespaces: Iterator[str],
         yield from cursor
 
 
-def query_container_count(namespace: str, container_type: str, start: int, stop: int) -> int:
+def query_container_count(namespace: str, ptype: str, start: int, stop: int) -> int:
     with closing(connections['monitor'].cursor()) as cursor:
-        container_name = "%s-%s" % (namespace, container_type)
+        container_name = "%s-%s" % (namespace, ptype)
         sql = query_container_count_sql_tpl.format(
             namespace=namespace, container_name=container_name, start=start, stop=stop)
         cursor.execute(sql)
@@ -171,11 +171,11 @@ def query_container_count(namespace: str, container_type: str, start: int, stop:
         return row[0] if row else 0
 
 
-def query_cpu_usage(namespace: str, container_type: str,
+def query_cpu_usage(namespace: str, ptype: str,
                     start: int, stop: int, every: str
                     ) -> Iterator[tuple[str, str, str, int, int, int]]:
     with closing(connections['monitor'].cursor()) as cursor:
-        container_name = "%s-%s" % (namespace, container_type)
+        container_name = "%s-%s" % (namespace, ptype)
         sql = query_cpu_usage_sql_tpl.format(
             namespace=namespace, container_name=container_name,
             start=start, stop=stop, every=every)
@@ -183,11 +183,11 @@ def query_cpu_usage(namespace: str, container_type: str,
         yield from cursor
 
 
-def query_memory_usage(namespace: str, container_type: str,
+def query_memory_usage(namespace: str, ptype: str,
                        start: int, stop: int, every: str
                        ) -> Iterator[tuple[str, str, str, int, int, int]]:
     with closing(connections['monitor'].cursor()) as cursor:
-        container_name = "%s-%s" % (namespace, container_type)
+        container_name = "%s-%s" % (namespace, ptype)
         sql = query_memory_usage_sql_tpl.format(
             namespace=namespace, container_name=container_name,
             start=start, stop=stop, every=every)
@@ -195,11 +195,11 @@ def query_memory_usage(namespace: str, container_type: str,
         yield from cursor
 
 
-def query_network_usage(namespace: str, container_type: str,
+def query_network_usage(namespace: str, ptype: str,
                         start: int, stop: int, every: str
                         ) -> Iterator[tuple[str, str, int, int, int]]:
     with closing(connections['monitor'].cursor()) as cursor:
-        pod_name_prefix = "%s-%s" % (namespace, container_type)
+        pod_name_prefix = "%s-%s" % (namespace, ptype)
         sql = query_network_usage_sql_tpl.format(
             namespace=namespace, pod_name_prefix=pod_name_prefix,
             start=start, stop=stop, every=every)

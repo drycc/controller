@@ -398,14 +398,14 @@ class ConfigViewSet(ReleasableViewSet):
         try:
             release = latest_release.new(
                 self.request.user, config=config, build=latest_release.build)
-            procfile_types = set()
+            ptypes = set()
             for field, diff in config.diff().items():
-                if field in config.procfile_fields:
+                if field in config.ptype_fields:
                     for value in diff.values():
-                        procfile_types.update(value.keys())
-            # all_diff_fields changed, deploy all.
-            procfile_types = list(procfile_types) if procfile_types else None
-            release.deploy(procfile_types, False)
+                        ptypes.update(value.keys())
+            # allof_fields changed, deploy all.
+            ptypes = list(ptypes) if ptypes else None
+            release.deploy(ptypes, False)
         except BaseException as e:
             config.delete()
             if isinstance(e, AlreadyExists):
@@ -441,9 +441,9 @@ class PodViewSet(AppResourceViewSet):
         return Response(status=status.HTTP_200_OK)
 
 
-class PtypesViewSet(AppResourceViewSet):
+class PtypeViewSet(AppResourceViewSet):
     model = models.app.App
-    serializer_class = serializers.PtypesSerializer
+    serializer_class = serializers.PtypeSerializer
 
     def list(self, *args, **kwargs):
         deploys = self.get_app().list_deployments(*args, **kwargs)
@@ -456,18 +456,18 @@ class PtypesViewSet(AppResourceViewSet):
         deployment_name = kwargs["name"]
         data = self.get_app().describe_deployment(deployment_name)
         if len(data) == 0:
-            raise DryccException("this ptype not found")
+            raise DryccException("this procfile type not found")
         # fake out pagination for now
         pagination = {'results': data, 'count': len(data)}
         return Response(pagination, status=status.HTTP_200_OK)
 
     def restart(self, request, *args, **kwargs):
         app = self.get_app()
-        procfile_types = set(
+        ptypes = set(
             [ptype for ptype in request.data.get("ptypes", "").split(",") if ptype])
-        procfile_types = app.check_procfile_types(procfile_types)
-        for procfile_type in set(procfile_types):
-            restart_app.delay(app, **{"type": procfile_type})
+        ptypes = app.check_ptypes(ptypes)
+        for ptype in set(ptypes):
+            restart_app.delay(app, **{"type": ptype})
         return Response(status=status.HTTP_204_NO_CONTENT)
 
     def scale(self, request, **kwargs):
@@ -481,13 +481,13 @@ class EventViewSet(AppResourceViewSet):
     serializer_class = serializers.EventSerializer
 
     def list(self, request, **kwargs):
-        ptype_name = request.query_params.get("ptype_name", None)
+        ptype = request.query_params.get("ptype", None)
         pod_name = request.query_params.get("pod_name", None)
-        if not any([ptype_name, pod_name]):
+        if not any([ptype, pod_name]):
             data = []
         else:
             ref_kind, ref_name = ("Pod", pod_name) if pod_name else \
-                ("Deployment", ptype_name)
+                ("Deployment", ptype)
             events = self.get_app().list_events(ref_kind, ref_name)
             data = self.get_serializer(events, many=True).data
         # fake out pagination for now
@@ -539,17 +539,17 @@ class ServiceViewSet(AppResourceViewSet):
         app = self.get_app()
         port = self.get_serializer().validate_port(request.data.get('port'))
         protocol = self.get_serializer().validate_protocol(request.data.get('protocol'))
-        procfile_type = self.get_serializer().validate_procfile_type(request.data.get(
-            'procfile_type'))
+        ptype = self.get_serializer().validate_ptype(request.data.get(
+            'ptype'))
         target_port = self.get_serializer().validate_target_port(request.data.get('target_port'))
-        service = app.service_set.filter(procfile_type=procfile_type).first()
+        service = app.service_set.filter(ptype=ptype).first()
         if service:
             for item in service.ports:
                 if item["port"] == port:
                     return Response(status=status.HTTP_400_BAD_REQUEST, data={"detail": "port is occupied"})  # noqa
             http_status = status.HTTP_204_NO_CONTENT
         else:
-            service = self.model(owner=app.owner, app=app, procfile_type=procfile_type)
+            service = self.model(owner=app.owner, app=app, ptype=ptype)
             http_status = status.HTTP_201_CREATED
         service.add_port(port, protocol, target_port)
         service.save()
@@ -558,9 +558,9 @@ class ServiceViewSet(AppResourceViewSet):
     def delete(self, request, **kwargs):
         port = self.get_serializer().validate_port(request.data.get('port'))
         protocol = self.get_serializer().validate_protocol(request.data.get('protocol'))
-        procfile_type = self.get_serializer().validate_procfile_type(
-            request.data.get('procfile_type'))
-        service = get_object_or_404(self.get_queryset(**kwargs), procfile_type=procfile_type)
+        ptype = self.get_serializer().validate_ptype(
+            request.data.get('ptype'))
+        service = get_object_or_404(self.get_queryset(**kwargs), ptype=ptype)
         removed = service.remove_port(port, protocol)
         if len(service.ports) == 0:
             service.delete()
@@ -620,11 +620,11 @@ class ReleaseViewSet(AppResourceViewSet):
     def deploy(self, request, **kwargs):
         """Deploy the latest release"""
         latest_release = self.get_app().release_set.latest()
-        force_deploy = request.data.get("force", "false").lower() == "true"
-        procfile_types = set(
+        force_deploy = request.data.get("force", False)
+        ptypes = set(
             [ptype for ptype in request.data.get("ptypes", "").split(",") if ptype])
-        procfile_types = latest_release.app.check_procfile_types(procfile_types)
-        latest_release.deploy(procfile_types, force_deploy)
+        ptypes = latest_release.app.check_ptypes(ptypes)
+        latest_release.deploy(ptypes, force_deploy)
         return Response(status=status.HTTP_204_NO_CONTENT)
 
     def rollback(self, request, **kwargs):
@@ -633,11 +633,11 @@ class ReleaseViewSet(AppResourceViewSet):
         previous release.
         """
         latest_release = self.get_app().release_set.filter(failed=False).latest()
-        procfile_types = set(
+        ptypes = set(
             [ptype for ptype in request.data.get("ptypes", "").split(",") if ptype])
-        procfile_types = latest_release.app.check_procfile_types(procfile_types)
+        ptypes = latest_release.app.check_ptypes(ptypes)
         new_release = latest_release.rollback(
-            request.user, procfile_types, request.data.get('version', None))
+            request.user, ptypes, request.data.get('version', None))
         response = {'version': new_release.version}
         return Response(response, status=status.HTTP_201_CREATED)
 
@@ -860,7 +860,7 @@ class AppVolumesViewSet(ReleasableViewSet):
     def destroy(self, request, **kwargs):
         volume = self.get_object()
         app = self.get_app()
-        is_subset = set(volume.path.keys()).issubset(set(app.procfile_types))
+        is_subset = set(volume.path.keys()).issubset(set(app.ptypes))
         if volume.path != {} and is_subset:
             raise DryccException("this volume is mounting")
         volume.delete()
@@ -873,11 +873,10 @@ class AppVolumesViewSet(ReleasableViewSet):
         else:
             path = serializers.VolumeSerializer().validate_path(path)
         volume = self.get_object()
-        container_types = [_ for _ in path.keys()
-                           if _ not in volume.app.procfile_types]
-        if container_types:
+        ptypes = [_ for _ in path.keys() if _ not in volume.app.ptypes]
+        if ptypes:
             raise DryccException("process type {} is not included in procfile".
-                                 format(','.join(container_types)))
+                                 format(','.join(ptypes)))
         if set(path.items()).issubset(set(volume.path.items())):
             raise DryccException("mount path not changed")
         volume.check_path(path)
@@ -1081,8 +1080,8 @@ class RouteViewSet(AppResourceViewSet):
         app = self.get_app()
         port = self.get_serializer().validate_port(request.data.get('port'))
         app_settings = app.appsettings_set.latest()
-        procfile_type = self.get_serializer().validate_procfile_type(
-            request.data.get('procfile_type'))
+        ptype = self.get_serializer().validate_ptype(
+            request.data.get('ptype'))
         kind = self.get_serializer().validate_kind(request.data.get('kind'))
         name = request.data['name']
         route = app.route_set.filter(name=name).first()
@@ -1096,7 +1095,7 @@ class RouteViewSet(AppResourceViewSet):
             name=name,
             port=port,
             routable=app_settings.routable,
-            procfile_type=procfile_type,
+            ptype=ptype,
         )
         route.rules = route.default_rules
         if route.rules and not route.rules[0]["backendRefs"]:
@@ -1169,10 +1168,10 @@ class MetricView(BaseDryccViewSet):
         self.check_object_permissions(self.request, app)
         return app
 
-    def _get_cpus(self, app_id, container_type, start, stop, every):
+    def _get_cpus(self, app_id, ptype, start, stop, every):
         avg_list, max_list = [], []
         for _, _, _, timestamp, max, avg in monitor.query_cpu_usage(
-                app_id, container_type, start, stop, every):
+                app_id, ptype, start, stop, every):
             max_list.append((timestamp, max))
             avg_list.append((timestamp, avg))
         return {
@@ -1180,10 +1179,10 @@ class MetricView(BaseDryccViewSet):
             "avg": avg_list,
         }
 
-    def _get_memory(self, app_id, container_type, start, stop, every):
+    def _get_memory(self, app_id, ptype, start, stop, every):
         max_list, avg_list = [], []
         for _, _, _, timestamp, max, avg in monitor.query_memory_usage(
-                app_id, container_type, start, stop, every):
+                app_id, ptype, start, stop, every):
             max_list.append((timestamp, max))
             avg_list.append((timestamp, avg))
         return {
@@ -1191,10 +1190,10 @@ class MetricView(BaseDryccViewSet):
             "avg": avg_list,
         }
 
-    def _get_networks(self, app_id, container_type, start, stop, every):
+    def _get_networks(self, app_id, ptype, start, stop, every):
         networks = []
         for _, _, timestamp, rx_bytes, tx_bytes in monitor.query_network_usage(
-                app_id, container_type, start, stop, every):
+                app_id, ptype, start, stop, every):
             networks.append((timestamp, rx_bytes, tx_bytes))
         return networks
 
@@ -1209,15 +1208,15 @@ class MetricView(BaseDryccViewSet):
             'stop'], data.validated_data["every"]
         return Response({
             "id": app_id,
-            "type": kwargs['type'],
-            "count": monitor.query_container_count(app_id, kwargs['type'], start, stop),
+            "ptype": kwargs['ptype'],
+            "count": monitor.query_container_count(app_id, kwargs['ptype'], start, stop),
             "status": {
                 "cpus": self._get_cpus(
-                    app_id, kwargs['type'], start, stop, every),
+                    app_id, kwargs['ptype'], start, stop, every),
                 "memory": self._get_memory(
-                    app_id, kwargs['type'], start, stop, every),
+                    app_id, kwargs['ptype'], start, stop, every),
                 "networks": self._get_networks(
-                    app_id, kwargs['type'], start, stop, every),
+                    app_id, kwargs['ptype'], start, stop, every),
             }
         })
 

@@ -70,5 +70,5 @@ class EventTest(DryccTransactionTestCase):
 
         # list events of deployment
         url = f"/v2/apps/{app_id}/events"
-        response = self.client.get(url, {"ptype_name": f"{app_id}-web"})
+        response = self.client.get(url, {"ptype": f"{app_id}-web"})
         self.assertEqual(response.status_code, 200, response.data)

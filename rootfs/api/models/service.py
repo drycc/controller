@@ -6,7 +6,7 @@ from django.contrib.auth import get_user_model
 from api.utils import validate_json
 from api.exceptions import ServiceUnavailable
 from scheduler import KubeException
-from .base import AuditedModel, PROCFILE_TYPE_MAX_LENGTH
+from .base import AuditedModel, PTYPE_MAX_LENGTH
 
 
 User = get_user_model()
@@ -33,11 +33,11 @@ class Service(AuditedModel):
     app = models.ForeignKey('App', on_delete=models.CASCADE)
     ports = models.JSONField(
         default=list, validators=[partial(validate_json, schema=service_ports_schema)])
-    procfile_type = models.CharField(max_length=PROCFILE_TYPE_MAX_LENGTH)
+    ptype = models.CharField(max_length=PTYPE_MAX_LENGTH)
 
     class Meta:
         get_latest_by = 'created'
-        unique_together = (('app', 'procfile_type'), )
+        unique_together = (('app', 'ptype'), )
         ordering = ['-created']
 
     def __str__(self):
@@ -53,7 +53,7 @@ class Service(AuditedModel):
         return {
             "domain": self.domain,
             "ports": self.ports,
-            "procfile_type": self.procfile_type,
+            "ptype": self.ptype,
         }
 
     def port_name(self, port, protocol):
@@ -120,10 +120,10 @@ class Service(AuditedModel):
         return self.app.id
 
     def _svc_name(self):
-        if self.procfile_type == 'web':
+        if self.ptype == 'web':
             svc_name = self.app.id
         else:
-            svc_name = "{}-{}".format(self.app.id, self.procfile_type)
+            svc_name = "{}-{}".format(self.app.id, self.ptype)
         return svc_name
 
     def refresh_k8s_svc(self):
@@ -136,12 +136,12 @@ class Service(AuditedModel):
                 self.scheduler().svc.patch(namespace, svc_name, **{
                     "ports": self.ports,
                     "version": data["metadata"]["resourceVersion"],
-                    "procfile_type": self.procfile_type,
+                    "ptype": self.ptype,
                 })
             except KubeException:
                 self.scheduler().svc.create(namespace, svc_name, **{
                     "ports": self.ports,
-                    "procfile_type": self.procfile_type,
+                    "ptype": self.ptype,
                 })
         except KubeException as e:
             raise ServiceUnavailable('Kubernetes service could not be created') from e

@@ -59,19 +59,19 @@ app_urlpatterns = [
     # restart deployment/ptype's pods
     re_path(
         r"^apps/(?P<id>{})/ptypes/restart/?$".format(settings.APP_URL_REGEX),
-        views.PtypesViewSet.as_view({'post': 'restart'})),
+        views.PtypeViewSet.as_view({'post': 'restart'})),
     # scale ptype replcas
     re_path(
         r"^apps/(?P<id>{})/ptypes/scale/?$".format(settings.APP_URL_REGEX),
-        views.PtypesViewSet.as_view({'post': 'scale'})),
+        views.PtypeViewSet.as_view({'post': 'scale'})),
     # list ptypes
     re_path(
         r"^apps/(?P<id>{})/ptypes/?$".format(settings.APP_URL_REGEX),
-        views.PtypesViewSet.as_view({'get': 'list'})),
+        views.PtypeViewSet.as_view({'get': 'list'})),
     # describe ptypes
     re_path(
         r"^apps/(?P<id>{})/ptypes/(?P<name>[-_\w]+)/describe/?$".format(settings.APP_URL_REGEX),
-        views.PtypesViewSet.as_view({'get': 'describe'})),
+        views.PtypeViewSet.as_view({'get': 'describe'})),
     # list events
     re_path(
         r"^apps/(?P<id>{})/events/?$".format(settings.APP_URL_REGEX),
@@ -215,7 +215,7 @@ app_urlpatterns = [
         r'^apps/(?P<id>{})/metrics/?$'.format(settings.APP_URL_REGEX),
         views.MetricView.as_view({'get': 'metric'})),
     re_path(
-        r'^apps/(?P<id>{})/metrics/(?P<type>[a-z0-9]+(\-[a-z0-9]+)*)/status/?$'.format(
+        r'^apps/(?P<id>{})/metrics/(?P<ptype>[a-z0-9]+(\-[a-z0-9]+)*)/status/?$'.format(
             settings.APP_URL_REGEX),
         views.MetricView.as_view({'get': 'status'})),
     re_path(

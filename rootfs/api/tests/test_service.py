@@ -41,7 +41,7 @@ class ServiceTest(DryccTransactionTestCase):
                 'port': 5000,
                 'protocol': 'UDP',
                 'target_port': 5000,
-                'procfile_type': 'test'
+                'ptype': 'test'
             }
         )
         self.assertEqual(response.status_code, 201, response.data)
@@ -58,7 +58,7 @@ class ServiceTest(DryccTransactionTestCase):
                 'protocol': 'UDP',
                 'targetPort': 5000,
             }],
-            "procfile_type": "test"
+            "ptype": "test"
         }
         self.assertEqual(response.data['services'][0], expected0 | response.data['services'][0])
         # port is occupied
@@ -68,7 +68,7 @@ class ServiceTest(DryccTransactionTestCase):
                 'port': 5000,
                 'protocol': 'UDP',
                 'target_port': 5000,
-                'procfile_type': 'test'
+                'ptype': 'test'
             }
         )
         self.assertEqual(response.status_code, 400, response.data)
@@ -91,7 +91,7 @@ class ServiceTest(DryccTransactionTestCase):
                     'targetPort': 6000,
                 }
             ],
-            "procfile_type": "test"
+            "ptype": "test"
         }
         response = self.client.post(
             '/v2/apps/{}/services'.format(app_id),
@@ -99,7 +99,7 @@ class ServiceTest(DryccTransactionTestCase):
                 'port': 6000,
                 'protocol': 'TCP',
                 'target_port': 6000,
-                'procfile_type': 'test'
+                'ptype': 'test'
             }
         )
         self.assertEqual(response.status_code, 204, response.data)
@@ -115,7 +115,7 @@ class ServiceTest(DryccTransactionTestCase):
                 'port': 5000,
                 'protocol': 'UDP',
                 'target_port': 5000,
-                'procfile_type': 'test2'
+                'ptype': 'test2'
             }
         )
         self.assertEqual(response.status_code, 201, response.data)
@@ -132,27 +132,27 @@ class ServiceTest(DryccTransactionTestCase):
                 'protocol': 'UDP',
                 'targetPort': 5000,
             }],
-            "procfile_type": "test2"
+            "ptype": "test2"
         }
         self.assertEqual(response.data['services'][0], expected2 | response.data['services'][0])
         self.assertEqual(response.data['services'][1], expected1 | response.data['services'][1])
         # delete port
         response = self.client.delete(
             '/v2/apps/{}/services'.format(app_id),
-            {'procfile_type': 'test', "protocol": "TCP", "port": 6000}
+            {'ptype': 'test', "protocol": "TCP", "port": 6000}
         )
         response = self.client.get('/v2/apps/{}/services'.format(app_id))
         self.assertEqual(response.data['services'][1], expected0 | response.data['services'][1])
         # delete 1st
         response = self.client.delete(
             '/v2/apps/{}/services'.format(app_id),
-            {'procfile_type': 'test', "protocol": "UDP", "port": 5000}
+            {'ptype': 'test', "protocol": "UDP", "port": 5000}
         )
         self.assertEqual(response.status_code, 204, response.data)
         # delete 2nd
         response = self.client.delete(
             '/v2/apps/{}/services'.format(app_id),
-            {'procfile_type': 'test2',  "protocol": "UDP", "port": 5000}
+            {'ptype': 'test2',  "protocol": "UDP", "port": 5000}
         )
         self.assertEqual(response.status_code, 204, response.data)
         response = self.client.get('/v2/apps/{}/services'.format(app_id))
@@ -160,6 +160,6 @@ class ServiceTest(DryccTransactionTestCase):
         # delete non-existing (1st again)
         response = self.client.delete(
             '/v2/apps/{}/services'.format(app_id),
-            {'procfile_type': 'test', "protocol": "UDP", "port": 5000}
+            {'ptype': 'test', "protocol": "UDP", "port": 5000}
         )
         self.assertEqual(response.status_code, 404, response.data)

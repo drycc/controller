@@ -75,7 +75,7 @@ class HTTPRouteTest(TestCase):
             name,
             name,
             port=5000,
-            procfile_type="web",
+            ptype="web",
             rules={},
             parent_refs={},
         )
@@ -97,7 +97,7 @@ class HTTPRouteTest(TestCase):
             "test-gateway",
             "test-gateway",
             port=8000,
-            procfile_type="cmd",
+            ptype="cmd",
             version=1,
             rules=rules,
             parent_refs={},
@@ -124,7 +124,7 @@ class TCPRouteTest(TestCase):
             name,
             name,
             port=5000,
-            procfile_type="celery",
+            ptype="celery",
             rules={},
             parent_refs={},
         )
@@ -146,7 +146,7 @@ class TCPRouteTest(TestCase):
             "test-tcp-route",
             "test-tcp-route",
             port=8000,
-            procfile_type="cmd",
+            ptype="cmd",
             version=1,
             rules=rules,
             parent_refs={},
@@ -173,7 +173,7 @@ class UDPRouteTest(TestCase):
             name,
             name,
             port=5000,
-            procfile_type="celery",
+            ptype="celery",
             rules={},
             parent_refs={}
         )
@@ -195,7 +195,7 @@ class UDPRouteTest(TestCase):
             "test-udp-route",
             "test-udp-route",
             port=8000,
-            procfile_type="cmd",
+            ptype="cmd",
             version=1,
             rules=rules,
             parent_refs={}

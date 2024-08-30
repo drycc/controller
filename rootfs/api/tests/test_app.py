@@ -16,7 +16,7 @@ from django.core.cache import cache
 from django.test.utils import override_settings
 
 from api.models.app import App, app_permission_registry
-from api.models.base import PROCFILE_TYPE_WEB
+from api.models.base import PTYPE_WEB
 from api.models.config import Config
 from scheduler import KubeException, KubeHTTPException
 
@@ -587,14 +587,14 @@ class AppTest(DryccTestCase):
         app = App.objects.create(owner=self.user)
         # Make sure an exception is raised when calling without a build available
         with self.assertRaises(DryccException):
-            app._build_env_vars(app.release_set.latest(), PROCFILE_TYPE_WEB)
+            app._build_env_vars(app.release_set.latest(), PTYPE_WEB)
         data = {'image': 'autotest/example', 'stack': 'heroku-18'}
         url = f"/v2/apps/{app.id}/builds"
         response = self.client.post(url, data)
         self.assertEqual(response.status_code, 201, response.data)
         time_created = app.release_set.latest().created
         self.assertEqual(
-            app._build_env_vars(app.release_set.latest(), PROCFILE_TYPE_WEB),
+            app._build_env_vars(app.release_set.latest(), PTYPE_WEB),
             {
                 'DRYCC_APP': app.id,
                 'WORKFLOW_RELEASE': 'v2',
@@ -609,7 +609,7 @@ class AppTest(DryccTestCase):
         self.assertEqual(response.status_code, 201, response.data)
         time_created = app.release_set.latest().created
         self.assertEqual(
-            app._build_env_vars(app.release_set.latest(), PROCFILE_TYPE_WEB),
+            app._build_env_vars(app.release_set.latest(), PTYPE_WEB),
             {
                 'DRYCC_APP': app.id,
                 'WORKFLOW_RELEASE': 'v3',

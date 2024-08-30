@@ -42,7 +42,7 @@ class Build(UuidAuditedModel):
             return 'image'
 
     @property
-    def procfile_types(self):
+    def ptypes(self):
         if self.dryccfile:
             return list(self.dryccfile['deploy'].keys())
         return list(self.procfile.keys())
@@ -60,13 +60,13 @@ class Build(UuidAuditedModel):
     def version(self):
         return 'git-{}'.format(self.sha) if self.source_based else 'latest'
 
-    def get_image(self, procfile_type, default_image=None):
+    def get_image(self, ptype, default_image=None):
         docker = self.dryccfile.get('build', {}).get('docker', {})
-        if procfile_type in docker:
-            if procfile_type == 'web':
+        if ptype in docker:
+            if ptype == 'web':
                 return self.image
             else:
-                return f'{self.image}-{procfile_type}'
+                return f'{self.image}-{ptype}'
         return default_image if default_image else self.image
 
     def create_release(self, user, *args, **kwargs):
@@ -108,8 +108,8 @@ class Build(UuidAuditedModel):
             # previous release had a Procfile and the current one does not
             (
                 previous_release.build is not None and
-                len(previous_release.procfile_types) > 0 and
-                len(self.procfile_types) == 0
+                len(previous_release.ptypes) > 0 and
+                len(self.ptypes) == 0
             )
         ):
             # Reject deployment
@@ -125,16 +125,16 @@ class Build(UuidAuditedModel):
             # previous release had a Procfile and the current one does as well
             (
                 previous_release.build is not None and
-                len(previous_release.procfile_types) > 0 and
-                len(self.procfile_types) > 0
+                len(previous_release.ptypes) > 0 and
+                len(self.ptypes) > 0
             )
         )
 
         # spin down any proc type removed between the last procfile and the newest one
         if remove_procs and previous_release.build is not None:
             removed = {}
-            for proc in previous_release.procfile_types:
-                if proc not in self.procfile_types and self.app.structure.get(proc, 0) > 0:
+            for proc in previous_release.ptypes:
+                if proc not in self.ptypes and self.app.structure.get(proc, 0) > 0:
                     # Scale proc type down to 0
                     removed[proc] = 0
 
@@ -145,8 +145,8 @@ class Build(UuidAuditedModel):
         if (
             settings.DRYCC_DEPLOY_PROCFILE_MISSING_REMOVE is False and
             previous_release.build is not None and
-            len(previous_release.procfile_types) > 0 and
-            len(self.procfile_types) == 0
+            len(previous_release.ptypes) > 0 and
+            len(self.ptypes) == 0
         ):
             self.procfile = previous_release.build.procfile
             self.dryccfile = previous_release.build.dryccfile

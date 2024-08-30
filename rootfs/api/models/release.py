@@ -54,23 +54,23 @@ class Release(UuidAuditedModel):
         return "{0}-{1}".format(self.app.id, self.version_name)
 
     @property
-    def procfile_types(self):
+    def ptypes(self):
         if self.build is not None:
-            return self.build.procfile_types
+            return self.build.ptypes
         return []
 
     @property
     def version_name(self):
         return f'v{self.version}'
 
-    def get_runners(self, procfile_types):
+    def get_runners(self, ptypes):
         results = []
-        procfile_types = self.procfile_types if not procfile_types else procfile_types
+        ptypes = self.ptypes if not ptypes else ptypes
         for run in self.build.dryccfile.get('run', []):
-            for container_type in procfile_types:
+            for ptype in ptypes:
                 when_ptypes = run.get('when', {}).get('ptypes', [])
-                if not when_ptypes or container_type in when_ptypes:
-                    image = run.get('image', self.build.get_image(container_type))
+                if not when_ptypes or ptype in when_ptypes:
+                    image = run.get('image', self.build.get_image(ptype))
                     results.append({
                         'image': self.build.get_image(image, default_image=image),
                         'args': run.get('args', []),
@@ -92,39 +92,39 @@ class Release(UuidAuditedModel):
             )
         )
 
-    def get_deploy_image(self, container_type):
+    def get_deploy_image(self, ptype):
         """
         In the deploy phase of dryccfile
         Return the kubernetes "container image" to be sent off to the scheduler.
         """
-        image = self.build.dryccfile.get('deploy', {}).get(container_type, {}).get(
-            'image', self.build.get_image(container_type))
+        image = self.build.dryccfile.get('deploy', {}).get(ptype, {}).get(
+            'image', self.build.get_image(ptype))
         return self.build.get_image(image, default_image=image)
 
-    def get_deploy_args(self, container_type):
+    def get_deploy_args(self, ptype):
         """
         In the deploy phase of dryccfile
         Return the kubernetes "container arguments" to be sent off to the scheduler.
         """
         if self.build is not None:
             if self.build.dryccfile:
-                return self.build.dryccfile['deploy'].get(container_type, {}).get('args', [])
+                return self.build.dryccfile['deploy'].get(ptype, {}).get('args', [])
             else:
                 # dockerfile or container image
                 if self.build.dockerfile or not self.build.sha:
                     # has profile
-                    if self.build.procfile and container_type in self.build.procfile:
-                        args = self.build.procfile[container_type]
+                    if self.build.procfile and ptype in self.build.procfile:
+                        args = self.build.procfile[ptype]
                         return args.split()
         return []
 
-    def get_deploy_command(self, container_type):
+    def get_deploy_command(self, ptype):
         """
         In the deploy phase of dryccfile
         Return the kubernetes "container command" to be sent off to the scheduler.
         """
         return self.build.dryccfile.get(
-            'deploy', {}).get(container_type, {}).get('command', [])
+            'deploy', {}).get(ptype, {}).get('command', [])
 
     def log(self, message, level=logging.INFO):
         """Logs a message in the context of this application.
@@ -152,21 +152,21 @@ class Release(UuidAuditedModel):
             build=build, version=new_version, summary=summary
         )
 
-    def get_port(self, procfile_type):
+    def get_port(self, ptype):
         """
         Get application port for a given release. If pulling from private registry
         then use default port or read from ENV var, otherwise attempt to pull from
         the container image
         """
         return int(self.config.typed_values.get(
-            procfile_type, {}).get(
+            ptype, {}).get(
                 'PORT', self.config.values.get('PORT', DEFAULT_CONTAINER_PORT)))
 
-    def deploy(self, procfile_types=None, force_deploy=False):
+    def deploy(self, ptypes=None, force_deploy=False):
         lock = DeployLock(self.app.pk)
-        if not lock.acquire(procfile_types, force=force_deploy):
+        if not lock.acquire(ptypes, force=force_deploy):
             raise DryccException('there is an executing pipeline, please wait or force deploy')
-        run_pipeline.delay(self, procfile_types, force_deploy)
+        run_pipeline.delay(self, ptypes, force_deploy)
 
     def previous(self):
         """
@@ -192,7 +192,7 @@ class Release(UuidAuditedModel):
             prev_release = None
         return prev_release
 
-    def rollback(self, user, procfile_types=None, version=None):
+    def rollback(self, user, ptypes=None, version=None):
         try:
             # if no version is provided then grab version from object
             version = (self.version - 1) if version is None else int(version)
@@ -212,7 +212,7 @@ class Release(UuidAuditedModel):
                 summary="{} rolled back to v{}".format(user, version),
             )
             if self.build is not None:
-                new_release.deploy(procfile_types, force_deploy=True)
+                new_release.deploy(ptypes, force_deploy=True)
             return new_release
         except Exception as e:
             # check if the exception is during create or publish
@@ -231,7 +231,7 @@ class Release(UuidAuditedModel):
                 new_release.save(update_fields=["state", "failed", "summary", "exception"])
             raise DryccException(str(e)) from e
 
-    def cleanup_old(self, procfile_types=None):
+    def cleanup_old(self, ptypes=None):
         """
         Cleanup any old resources from Kubernetes
 
@@ -245,8 +245,8 @@ class Release(UuidAuditedModel):
         )
         # base labels
         labels = {'heritage': 'drycc'}
-        if procfile_types is not None:
-            labels['type__in'] = procfile_types
+        if ptypes is not None:
+            labels['type__in'] = ptypes
         # Cleanup controllers
         replica_sets_removal = []
         replica_sets = self.scheduler().rs.get(self.app.id, labels=labels).json()['items']
@@ -270,16 +270,16 @@ class Release(UuidAuditedModel):
             )
         # this is RC related
         for version_name in replica_sets_removal:
-            self._delete_release_in_scheduler(self.app.id, procfile_types, version_name)
+            self._delete_release_in_scheduler(self.app.id, ptypes, version_name)
         # handle Deployments specific cleanups
-        self._cleanup_deployment_secrets_and_configs(self.app.id, procfile_types)
+        self._cleanup_deployment_secrets_and_configs(self.app.id, ptypes)
         # Remove stray pods
-        self._cleanup_stray_pods(self.app.id, procfile_types, self.version_name)
+        self._cleanup_stray_pods(self.app.id, ptypes, self.version_name)
 
-    def _cleanup_stray_pods(self, namespace, procfile_types, latest_version_name):
+    def _cleanup_stray_pods(self, namespace, ptypes, latest_version_name):
         labels = {'heritage': 'drycc'}
-        if procfile_types is not None:
-            labels['type__in'] = procfile_types
+        if ptypes is not None:
+            labels['type__in'] = ptypes
         pods = self.scheduler().pod.get(namespace, labels=labels).json()['items']
         if not pods:
             pods = []
@@ -299,7 +299,7 @@ class Release(UuidAuditedModel):
                 if e.response.status_code == 404:
                     continue
 
-    def _cleanup_deployment_secrets_and_configs(self, namespace, procfile_types=None):
+    def _cleanup_deployment_secrets_and_configs(self, namespace, ptypes=None):
         """
         Clean up any environment secrets (and in the future ConfigMaps) that
         are tied to a release Deployments no longer track
@@ -332,8 +332,8 @@ class Release(UuidAuditedModel):
             # http://kubernetes.io/docs/user-guide/labels/#set-based-requirement
             'version__notin': version_names
         }
-        if procfile_types is not None:
-            labels['type__in'] = procfile_types
+        if ptypes is not None:
+            labels['type__in'] = ptypes
         self.log('Cleaning up orphaned env var secrets for application {}'.format(namespace), level=logging.DEBUG)  # noqa
         secrets = self.scheduler().secret.get(namespace, labels=labels).json()['items']
         if not secrets:
@@ -341,7 +341,7 @@ class Release(UuidAuditedModel):
         for secret in secrets:
             self.scheduler().secret.delete(namespace, secret['metadata']['name'])
 
-    def _delete_release_in_scheduler(self, namespace, procfile_types, version_name):
+    def _delete_release_in_scheduler(self, namespace, ptypes, version_name):
         """
         Deletes a specific release in k8s based on ReplicationController
 
@@ -353,8 +353,8 @@ class Release(UuidAuditedModel):
             'app': namespace,
             'version': version_name
         }
-        if procfile_types is not None:
-            labels['type__in'] = procfile_types
+        if ptypes is not None:
+            labels['type__in'] = ptypes
         # see if the app config has deploy timeout preference, otherwise use global
         timeout = self.config.values.get('DRYCC_DEPLOY_TIMEOUT', settings.DRYCC_DEPLOY_TIMEOUT)
 

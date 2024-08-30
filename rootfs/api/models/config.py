@@ -15,9 +15,9 @@ class Config(UuidAuditedModel):
     Set of configuration values applied as environment variables
     during runtime execution of the Application.
     """
-    procfile_fields = ("lifecycle_post_start", "lifecycle_pre_stop", "tags", "limits",
-                       "typed_values", "healthcheck", "termination_grace_period")
-    all_diff_fields = ("values", "registry") + procfile_fields
+    ptype_fields = ("lifecycle_post_start", "lifecycle_pre_stop", "tags", "limits",
+                    "typed_values", "healthcheck", "termination_grace_period")
+    allof_fields = ("values", "registry") + ptype_fields
 
     owner = models.ForeignKey(User, on_delete=models.PROTECT)
     app = models.ForeignKey('App', on_delete=models.CASCADE)
@@ -59,7 +59,7 @@ class Config(UuidAuditedModel):
     def diff(self, config=None):
         old_config = config if config else self.previous()
         result = {}
-        for field in self.all_diff_fields:
+        for field in self.allof_fields:
             result[field] = dict_diff(getattr(self, field), getattr(old_config, field))
         return result
 
@@ -118,27 +118,27 @@ class Config(UuidAuditedModel):
         data = getattr(previous_config, 'tags', {}).copy()
         new_data = getattr(self, 'tags', {}).copy()
         # remove config keys if a null value is provided
-        for procfile_type, values in new_data.items():
+        for ptype, values in new_data.items():
             if not values:
                 # error if unsetting non-existing key
-                if procfile_type not in data:
+                if ptype not in data:
                     raise UnprocessableEntity(
-                        '{} does not exist under {}'.format(procfile_type, 'tags'))
-                data.pop(procfile_type)
+                        '{} does not exist under {}'.format(ptype, 'tags'))
+                data.pop(ptype)
             else:
                 if not self.scheduler().node.get(labels=values).json()['items']:
                     labels = ['{}={}'.format(key, value) for key, value in values.items()]
                     message = 'No nodes matched the provided labels: {}'.format(', '.join(labels))
                     # Find out if there are any other tags around
-                    old_tags = previous_config.tags.get(procfile_type, {})
+                    old_tags = previous_config.tags.get(ptype, {})
                     if old_tags:
                         old = ['{}={}'.format(key, value) for key, value in old_tags.items()]
                         new = set(labels) - set(old)
                         if new:
                             message += ' - Addition of {} is the cause'.format(', '.join(new))
                     raise DryccException(message)
-                data[procfile_type] = self._merge_data(
-                    'tags', data.get(procfile_type, {}), values)
+                data[ptype] = self._merge_data(
+                    'tags', data.get(ptype, {}), values)
         setattr(self, 'tags', data)
 
     def _set_limits(self, previous_config):
@@ -147,7 +147,7 @@ class Config(UuidAuditedModel):
         # check procfile
         for key, value in new_data.items():
             if value is None:
-                if key in self.app.procfile_types:
+                if key in self.app.ptypes:
                     raise UnprocessableEntity(
                         "the %s has already been used and cannot be deleted" % key)
         self._merge_data('limits', data, new_data)
@@ -172,14 +172,14 @@ class Config(UuidAuditedModel):
         data = getattr(previous_config, 'typed_values', {}).copy()
         new_data = getattr(self, 'typed_values', {}).copy()
         # remove config keys if a null value is provided
-        for procfile_type, values in new_data.items():
+        for ptype, values in new_data.items():
             if not values:
                 # error if unsetting non-existing key
-                if procfile_type not in data:
+                if ptype not in data:
                     raise UnprocessableEntity(
-                        '{} does not exist under {}'.format(procfile_type, 'typed_values'))
-                data.pop(procfile_type)
+                        '{} does not exist under {}'.format(ptype, 'typed_values'))
+                data.pop(ptype)
             else:
-                data[procfile_type] = self._merge_data(
-                    'typed_values', data.get(procfile_type, {}), values)
+                data[ptype] = self._merge_data(
+                    'typed_values', data.get(ptype, {}), values)
         setattr(self, 'typed_values', data)

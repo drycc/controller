@@ -12,7 +12,7 @@ from unittest import mock
 
 from api.models.build import Build
 from api.models.app import App
-from api.models.base import PROCFILE_TYPE_WEB
+from api.models.base import PTYPE_WEB
 from scheduler import KubeException
 
 from api.tests import adapter, DryccTransactionTestCase
@@ -508,7 +508,7 @@ class BuildTest(DryccTransactionTestCase):
 
         build = Build.objects.get(uuid=response.data['uuid'])
         release = build.app.release_set.latest()
-        self.assertEqual(release.get_deploy_image(PROCFILE_TYPE_WEB), image)
+        self.assertEqual(release.get_deploy_image(PTYPE_WEB), image)
 
         # post an image as a build using registry hostname + port
         url = f"/v2/apps/{app_id}/builds"
@@ -519,7 +519,7 @@ class BuildTest(DryccTransactionTestCase):
 
         build = Build.objects.get(uuid=response.data['uuid'])
         release = build.app.release_set.latest()
-        self.assertEqual(release.get_deploy_image(PROCFILE_TYPE_WEB), image)
+        self.assertEqual(release.get_deploy_image(PTYPE_WEB), image)
 
     def test_build_image_in_registry_with_auth(self, mock_requests):
         """add authentication to the build"""

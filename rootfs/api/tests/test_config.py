@@ -13,7 +13,7 @@ from django.core.management import call_command
 from unittest import mock
 
 from api.models.app import App
-from api.models.base import PROCFILE_TYPE_RUN, PROCFILE_TYPE_WEB
+from api.models.base import PTYPE_RUN, PTYPE_WEB
 from api.models.config import Config
 from api.serializers import CONFIG_LIMITS_MISMATCH_MSG
 from api.models.build import Build
@@ -145,8 +145,8 @@ class ConfigTest(DryccTransactionTestCase):
             'app': app_id,
             'values': {'PORT': '5000'},
             'limits': {
-                PROCFILE_TYPE_RUN: 'std1.large.c1m1',
-                PROCFILE_TYPE_WEB: 'std1.large.c1m1'
+                PTYPE_RUN: 'std1.large.c1m1',
+                PTYPE_WEB: 'std1.large.c1m1'
             },
             'tags': {},
             'registry': {}
@@ -162,7 +162,7 @@ class ConfigTest(DryccTransactionTestCase):
         body = {
             'values': json.dumps({'PORT': 5000}),
             'limits': {
-                PROCFILE_TYPE_WEB: 'std1.large.c1m2',
+                PTYPE_WEB: 'std1.large.c1m2',
             }
         }
         response = self.client.post(url, body)
@@ -177,15 +177,15 @@ class ConfigTest(DryccTransactionTestCase):
             'app': app_id,
             'values': {'PORT': '5000'},
             'limits': {
-                PROCFILE_TYPE_RUN: 'std1.large.c1m1',
-                PROCFILE_TYPE_WEB: 'std1.large.c1m2'
+                PTYPE_RUN: 'std1.large.c1m1',
+                PTYPE_WEB: 'std1.large.c1m2'
             },
             'tags': {},
             'registry': {}
         }
         self.assertEqual(response.data, expected | response.data)
 
-        body = {'limits': {PROCFILE_TYPE_WEB: "not-exist"}}
+        body = {'limits': {PTYPE_WEB: "not-exist"}}
         response = self.client.post(url, body)
         self.assertEqual(response.status_code, 400, response.data)
         self.assertEqual(
@@ -405,8 +405,8 @@ class ConfigTest(DryccTransactionTestCase):
             'values': json.dumps({'PORT': 5000}),
             'limits': {
                 "task": 'std1.large.c2m4',
-                PROCFILE_TYPE_RUN: 'std1.large.c2m4',
-                PROCFILE_TYPE_WEB: 'std1.large.c2m4',
+                PTYPE_RUN: 'std1.large.c2m4',
+                PTYPE_WEB: 'std1.large.c2m4',
             },
         }
         response = self.client.post(url, body)
@@ -425,7 +425,7 @@ class ConfigTest(DryccTransactionTestCase):
         response = self.client.get(url)
         self.assertEqual(
             response.data["limits"],
-            {PROCFILE_TYPE_RUN: 'std1.large.c2m4', PROCFILE_TYPE_WEB: 'std1.large.c2m4'},
+            {PTYPE_RUN: 'std1.large.c2m4', PTYPE_WEB: 'std1.large.c2m4'},
         )
 
     def test_unset_limits_error(self, mock_requests):
@@ -435,8 +435,8 @@ class ConfigTest(DryccTransactionTestCase):
             'values': json.dumps({'PORT': 5000}),
             'limits': {
                 "task": 'std1.large.c2m4',
-                PROCFILE_TYPE_RUN: 'std1.large.c2m4',
-                PROCFILE_TYPE_WEB: 'std1.large.c2m4',
+                PTYPE_RUN: 'std1.large.c2m4',
+                PTYPE_WEB: 'std1.large.c2m4',
             },
         }
         response = self.client.post(url, body)
@@ -481,7 +481,7 @@ class ConfigTest(DryccTransactionTestCase):
 
         body = {
             'limits': {
-                  PROCFILE_TYPE_WEB: None,
+                  PTYPE_WEB: None,
             },
         }
         response = self.client.post(url, body)
@@ -507,8 +507,8 @@ class ConfigTest(DryccTransactionTestCase):
         body = {
             'values': json.dumps({'PORT': 5000}),
             'limits': {
-                  PROCFILE_TYPE_RUN: 'std1.large.c2m4',
-                  PROCFILE_TYPE_WEB: 'std1.large.c2m4',
+                  PTYPE_RUN: 'std1.large.c2m4',
+                  PTYPE_WEB: 'std1.large.c2m4',
             },
         }
         response = self.client.post(url, body)
@@ -546,8 +546,8 @@ class ConfigTest(DryccTransactionTestCase):
         body = {
             'values': json.dumps({'PORT': 5000}),
             'limits': {
-                  PROCFILE_TYPE_RUN: 'std1.large.c2m4',
-                  PROCFILE_TYPE_WEB: 'std1.large.c2m4',
+                  PTYPE_RUN: 'std1.large.c2m4',
+                  PTYPE_WEB: 'std1.large.c2m4',
             },
         }
         url = f"/v2/apps/{app_id}/config"

@@ -27,12 +27,12 @@ token_manager_oauth_schema = {
         "access_token", "expires_in", "token_type", "scope", "refresh_token"
     ],
 }
-PROCFILE_TYPE_WEB = "web"
-PROCFILE_TYPE_RUN = "run"
+PTYPE_WEB = "web"
+PTYPE_RUN = "run"
 DEFAULT_HTTP_PORT = 80
 DEFAULT_HTTPS_PORT = 443
-PROCFILE_TYPE_MIN_LENGTH = 3
-PROCFILE_TYPE_MAX_LENGTH = 63
+PTYPE_MIN_LENGTH = 3
+PTYPE_MAX_LENGTH = 63
 
 
 def get_anonymous_user_instance(user): return user(id=-1, username=settings.ANONYMOUS_USER_NAME)

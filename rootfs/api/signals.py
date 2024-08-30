@@ -182,7 +182,7 @@ def gateway_changed_handle(
 def service_changed_handle(
         sender, instance: Service, created=False, update_fields=None, **kwargs):
     if kwargs['signal'] == post_delete:
-        instance.app.route_set.filter(procfile_type=instance.procfile_type).delete()
+        instance.app.route_set.filter(ptype=instance.ptype).delete()
 
 
 @receiver(signal=[post_save, post_delete], sender=Domain)
