@@ -492,7 +492,9 @@ class ServiceSerializer(serializers.ModelSerializer):
 
     @staticmethod
     def validate_protocol(value):
-        if not re.match(SERVICE_PROTOCOL_MATCH, value):
+        if value is None or value == "":
+            value = "TCP"
+        elif not re.match(SERVICE_PROTOCOL_MATCH, value):
             raise serializers.ValidationError(SERVICE_PROTOCOL_MISMATCH_MSG)
         return value
 
