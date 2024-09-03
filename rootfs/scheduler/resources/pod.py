@@ -290,7 +290,7 @@ class Pod(Resource):
                 healthchecks['livenessProbe']['httpGet']['port'] = env.get(
                     'PORT', DEFAULT_CONTAINER_PORT)
             container.update(healthchecks)
-        elif kwargs.get('routable', False):
+        if kwargs.get('routable', False) and healthchecks.get('readinessProbe') is None:
             # If routable, set the default probe
             container.update(
                 self._default_container_readiness_probe(env.get('PORT', DEFAULT_CONTAINER_PORT)))
