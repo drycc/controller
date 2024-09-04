@@ -23,6 +23,7 @@ from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.response import Response
 from rest_framework.viewsets import GenericViewSet
 from rest_framework.parsers import MultiPartParser
+from rest_framework.exceptions import PermissionDenied
 
 from api import monitor, models, permissions, serializers, viewsets, authentication
 from api.tasks import scale_app, restart_app, mount_app, downstream_model_owner, \
@@ -392,20 +393,19 @@ class ConfigViewSet(ReleasableViewSet):
     serializer_class = serializers.ConfigSerializer
 
     def post_save(self, config):
-        if not config.app.appsettings_set.latest().autodeploy:
-            return
         latest_release = config.app.release_set.filter(failed=False).latest()
         try:
             release = latest_release.new(
                 self.request.user, config=config, build=latest_release.build)
-            ptypes = set()
-            for field, diff in config.diff().items():
-                if field in config.ptype_fields:
-                    for value in diff.values():
-                        ptypes.update(value.keys())
-            # allof_fields changed, deploy all.
-            ptypes = list(ptypes) if ptypes else None
-            release.deploy(ptypes, False)
+            if config.app.appsettings_set.latest().autodeploy:
+                ptypes = set()
+                for field, diff in config.diff().items():
+                    if field in config.ptype_fields:
+                        for value in diff.values():
+                            ptypes.update(value.keys())
+                # allof_fields changed, deploy all.
+                ptypes = list(ptypes) if ptypes else None
+                release.deploy(ptypes, False)
         except BaseException as e:
             config.delete()
             if isinstance(e, AlreadyExists):
@@ -774,8 +774,15 @@ class ConfigHookViewSet(BaseHookViewSet):
 class AppPermViewSet(AppResourceViewSet):
     """RESTful views for sharing apps with collaborators."""
 
+    def get_app(self, request):
+        app = get_object_or_404(models.app.App, id=self.kwargs['id'])
+        if not permissions.IsOwnerOrAdmin().has_object_permission(request, self, app):
+            raise PermissionDenied()
+        self.check_object_permissions(self.request, app)
+        return app
+
     def list(self, request, **kwargs):
-        app = self.get_app()
+        app = self.get_app(request)
         results = [
             {
                 "app": app.id,
@@ -792,7 +799,7 @@ class AppPermViewSet(AppResourceViewSet):
         return Response(data=pagination)
 
     def create(self, request, **kwargs):
-        app = self.get_app()
+        app = self.get_app(request)
         username = request.data.get('username')
         shortnames = set([perm for perm in request.data.get("permissions", "").split(",") if perm])
         all_shortnames = models.app.app_permission_registry.shortnames
@@ -810,7 +817,7 @@ class AppPermViewSet(AppResourceViewSet):
         return Response(status=status.HTTP_201_CREATED)
 
     def update(self, request, **kwargs):
-        app = self.get_app()
+        app = self.get_app(request)
         user = get_object_or_404(User, username=kwargs['username'])
         shortnames = set([perm for perm in request.data.get("permissions", "").split(",") if perm])
         all_shortnames = models.app.app_permission_registry.shortnames
@@ -832,7 +839,7 @@ class AppPermViewSet(AppResourceViewSet):
         return Response(status=status.HTTP_204_NO_CONTENT)
 
     def destroy(self, request, **kwargs):
-        app = self.get_app()
+        app = self.get_app(request)
         username = kwargs['username']
         user = get_object_or_404(User, username=username)
         for codename in get_user_perms(user, app):
