@@ -18,16 +18,12 @@ def migration_permission(apps, schema_editor):
 def migration_certificate(apps, schema_editor):
     for domain in Domain.objects.all():
         if domain.certificate:
-            if domain.certificate.app == None:
-                domain.certificate.app = domain.app
-                domain.certificate.save()
-            else:
-                certificate = domain.certificate
-                certificate.pk = None
-                certificate.app = domain.app
-                certificate.save()
-                domain.certificate = certificate
-                domain.save()
+            certificate = domain.certificate
+            certificate.pk = None
+            certificate.app = domain.app
+            certificate.save()
+            domain.certificate = certificate
+            domain.save()
     Certificate.objects.filter(app=None).delete()
 
 

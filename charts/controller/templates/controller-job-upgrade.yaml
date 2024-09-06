@@ -9,6 +9,7 @@ metadata:
 spec:
   template:
     spec:
+      serviceAccount: drycc-controller
       initContainers:
       - name: drycc-controller-job-upgrade-init
         image: {{.Values.imageRegistry}}/{{.Values.imageOrg}}/python-dev:latest
