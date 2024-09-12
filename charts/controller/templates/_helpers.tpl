@@ -170,7 +170,7 @@ env:
       name: rabbitmq-creds
       key: password
 - name: "DRYCC_RABBITMQ_URL"
-  value: "amqp://$(DRYCC_RABBITMQ_USERNAME):$(DRYCC_RABBITMQ_PASSWORD)@drycc-rabbitmq.{{$.Release.Namespace}}.svc.{{$.Values.global.clusterDomain}}:5672/drycc"
+  value: "amqp://$(DRYCC_RABBITMQ_USERNAME):$(DRYCC_RABBITMQ_PASSWORD)@drycc-rabbitmq.{{$.Release.Namespace}}.svc.{{$.Values.global.clusterDomain}}:5672/controller"
 {{- end }}
 {{- if eq .Values.global.passportLocation "on-cluster"}}
 - name: "DRYCC_PASSPORT_URL"

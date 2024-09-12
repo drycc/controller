@@ -33,53 +33,41 @@ app.conf.update(
     task_routes={
         'api.tasks.scale_app': {
             'queue': 'controller.high',
-            'exchange': 'controller.priority',
-            'routing_key': 'controller.priority.high',
+            'exchange': 'controller.priority', 'routing_key': 'controller.priority.high',
         },
         'api.tasks.mount_app': {
             'queue': 'controller.high',
-            'exchange': 'controller.priority',
-            'routing_key': 'controller.priority.high',
+            'exchange': 'controller.priority', 'routing_key': 'controller.priority.high',
         },
         'api.tasks.restart_app': {
             'queue': 'controller.high',
-            'exchange': 'controller.priority',
-            'routing_key': 'controller.priority.high',
+            'exchange': 'controller.priority', 'routing_key': 'controller.priority.high',
         },
         'api.tasks.run_pipeline': {
             'queue': 'controller.high',
-            'exchange': 'controller.priority',
-            'routing_key': 'controller.priority.high',
+            'exchange': 'controller.priority', 'routing_key': 'controller.priority.high',
         },
         'api.tasks.downstream_model_owner': {
             'queue': 'controller.high',
-            'exchange': 'controller.priority',
-            'routing_key': 'controller.priority.high',
+            'exchange': 'controller.priority', 'routing_key': 'controller.priority.high',
         },
         'api.tasks.send_measurements': {
             'queue': 'controller.middle',
-            'exchange': 'controller.priority',
-            'routing_key': 'controller.priority.middle',
+            'exchange': 'controller.priority', 'routing_key': 'controller.priority.middle',
         },
     },
     task_queues=(
         Queue(
-            'controller.low',
-            exchange=Exchange('controller.priority', type="direct"),
-            routing_key='controller.priority.low',
-            queue_arguments={'x-max-priority': 16},
+            'controller.low', exchange=Exchange('controller.priority', type="direct"),
+            routing_key='controller.priority.low', queue_arguments={'x-queue-type': 'quorum'},
         ),
         Queue(
-            'controller.high',
-            exchange=Exchange('controller.priority', type="direct"),
-            routing_key='controller.priority.high',
-            queue_arguments={'x-max-priority': 64},
+            'controller.high', exchange=Exchange('controller.priority', type="direct"),
+            routing_key='controller.priority.high', queue_arguments={'x-queue-type': 'quorum'},
         ),
         Queue(
-            'controller.middle',
-            exchange=Exchange('controller.priority', type="direct"),
-            routing_key='controller.priority.middle',
-            queue_arguments={'x-max-priority': 32},
+            'controller.middle', exchange=Exchange('controller.priority', type="direct"),
+            routing_key='controller.priority.middle', queue_arguments={'x-queue-type': 'quorum'},
         ),
     ),
 )

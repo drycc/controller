@@ -22,7 +22,7 @@ ndg-httpsclient==0.5.1
 pytz==2024.1
 requests==2.32.0
 requests-toolbelt==1.0.0
-celery==5.3.6
+celery==5.5.0b3
 hiredis==2.3.2
 django_redis==5.4.0
 dj-database-url==2.1.0
