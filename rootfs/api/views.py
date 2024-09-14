@@ -623,7 +623,17 @@ class ReleaseViewSet(AppResourceViewSet):
         force_deploy = request.data.get("force", False)
         ptypes = set(
             [ptype for ptype in request.data.get("ptypes", "").split(",") if ptype])
-        ptypes = latest_release.app.check_ptypes(ptypes)
+        if not ptypes:
+            ptypes = latest_release.ptypes
+        else:
+            previous_release = latest_release.previous()
+            all_ptypes = latest_release.ptypes
+            if previous_release:
+                all_ptypes += previous_release.ptypes
+            invalid_ptypes = ptypes.difference(all_ptypes)
+            if len(invalid_ptypes) != 0:
+                raise DryccException("process type {} is not exists".
+                                     format(','.join(invalid_ptypes)))
         latest_release.deploy(ptypes, force_deploy)
         return Response(status=status.HTTP_204_NO_CONTENT)
 
