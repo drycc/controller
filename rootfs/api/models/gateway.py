@@ -3,6 +3,7 @@ from django.db import models
 from django.conf import settings
 from django.shortcuts import get_object_or_404
 from django.contrib.auth import get_user_model
+from django.db.models import Q
 
 from api.exceptions import ServiceUnavailable
 from scheduler import KubeException
@@ -197,6 +198,15 @@ class Route(AuditedModel):
                 ptype=self.ptype)]
 
     @property
+    def tls_force_hostnames(self):
+        tls = self.app.tls_set.latest()
+        q = Q(ptype=self.ptype)
+        if not tls.certs_auto_enabled:
+            q &= Q(certificate__isnull=False)
+        domains = self.app.domain_set.filter(q)
+        return [domain.domain for domain in domains]
+
+    @property
     def default_rules(self):
         service = get_object_or_404(self.app.service_set, ptype=self.ptype)
         backend_refs = []
@@ -350,7 +360,7 @@ class Route(AuditedModel):
                     }
                 }]
             }],
-            "hostnames": self.hostnames,
+            "hostnames": self.tls_force_hostnames,
             "parent_refs": parent_refs,
         }
         try:
