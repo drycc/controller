@@ -22,7 +22,6 @@ from rest_framework import renderers, status, filters
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.response import Response
 from rest_framework.viewsets import GenericViewSet
-from rest_framework.parsers import MultiPartParser
 from rest_framework.exceptions import PermissionDenied
 
 from api import monitor, models, permissions, serializers, viewsets, authentication
@@ -40,6 +39,7 @@ from social_core.utils import setting_name
 from api import admissions, utils, filer
 from api.backend import OauthCacheManager
 from api.apps_extra.social_core.actions import do_auth, do_complete
+from api.files.parsers import FilerUploadParser
 
 User = get_user_model()
 logger = logging.getLogger(__name__)
@@ -896,7 +896,7 @@ class AppVolumesViewSet(ReleasableViewSet):
 class AppFilerClientViewSet(AppResourceViewSet):
     """RESTful views for volumes apps with collaborators."""
     model = models.volume.Volume
-    parser_classes = [MultiPartParser]
+    parser_classes = [FilerUploadParser]
 
     def get_client(self):
         volume = get_object_or_404(
@@ -926,9 +926,9 @@ class AppFilerClientViewSet(AppResourceViewSet):
         )
 
     def create(self, request, **kwargs):
-        path = request.data.get('path', '')
         client = self.get_client()
-        response = client.post(path, files=request.FILES)
+        file = request.data['file']
+        response = client.post(file.filepath, files=request.FILES)
         return Response(data=response.content, status=response.status_code)
 
     def destroy(self, request, **kwargs):
