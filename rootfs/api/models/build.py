@@ -131,7 +131,8 @@ class Build(UuidAuditedModel):
         )
 
         # spin down any proc type removed between the last procfile and the newest one
-        if remove_procs and previous_release.build is not None:
+        if remove_procs and previous_release.build is not None and \
+                self.app.appsettings_set.latest().autodeploy:
             removed = {}
             for proc in previous_release.ptypes:
                 if proc not in self.ptypes and self.app.structure.get(proc, 0) > 0:

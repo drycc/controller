@@ -151,7 +151,7 @@ class App(UuidAuditedModel):
     def ptypes(self):
         return list(self.structure.keys())
 
-    def check_ptypes(self, ptypes):
+    def check_ptypes(self, ptypes: set):
         """
         check available procfile types
         """
