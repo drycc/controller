@@ -72,7 +72,7 @@ class ReleaseTest(DryccTransactionTestCase):
         self.assertEqual(release1['build'], release2['build'])
         self.assertEqual(release2['version'], 2)
         # check that updating the build rolls a new release
-        url = f'/v2/apps/{app_id}/builds'
+        url = f'/v2/apps/{app_id}/build'
         body = {'image': 'autotest/example', 'stack': 'container'}
         response = self.client.post(url, body)
         self.assertEqual(response.status_code, 201, response.data)
@@ -107,7 +107,7 @@ class ReleaseTest(DryccTransactionTestCase):
 
     def test_conditions(self, mock_requests):
         app_id = self.create_app()
-        url = f"/v2/apps/{app_id}/builds"
+        url = f"/v2/apps/{app_id}/build"
         body = {
             'image': 'autotest/example',
             'stack': 'heroku-18',
@@ -125,7 +125,7 @@ class ReleaseTest(DryccTransactionTestCase):
 
         with mock.patch('api.models.app.App.deploy') as mock_deploy:
             mock_deploy.side_effect = Exception('Boom!')
-            url = f"/v2/apps/{app_id}/builds"
+            url = f"/v2/apps/{app_id}/build"
             response = self.client.post(url, body)
             self.assertEqual(response.status_code, 201, response.data)
             url = f'/v2/apps/{app_id}/releases/'
@@ -134,7 +134,7 @@ class ReleaseTest(DryccTransactionTestCase):
 
     def test_get_image(self, mock_requests):
         app_id = self.create_app()
-        url = f"/v2/apps/{app_id}/builds"
+        url = f"/v2/apps/{app_id}/build"
         body = {
             'image': '127.0.0.1:5555/autotest/example:git-fadf1231',
             'stack': 'heroku-18',
@@ -242,7 +242,7 @@ class ReleaseTest(DryccTransactionTestCase):
             self.assertEqual(response.status_code, 400)
 
         # post a new build
-        build_url = f"/v2/apps/{app_id}/builds"
+        build_url = f"/v2/apps/{app_id}/build"
         body = {
             'image': 'autotest/example',
             'stack': 'heroku-18',
@@ -270,7 +270,7 @@ class ReleaseTest(DryccTransactionTestCase):
         self.assertEqual(response.data, {'detail': 'version cannot be below 0'})
         self.assertEqual(response.get('content-type'), 'application/json')
         # update the build to roll a new release
-        url = f'/v2/apps/{app_id}/builds'
+        url = f'/v2/apps/{app_id}/build'
         body = {'image': 'autotest/example', 'stack': 'container'}
         response = self.client.post(url, body)
         self.assertEqual(response.status_code, 201, response.data)
@@ -280,7 +280,7 @@ class ReleaseTest(DryccTransactionTestCase):
         response = self.client.post(url, body)
         self.assertEqual(response.status_code, 201, response.data)
         # create another release with a different build
-        url = f'/v2/apps/{app_id}/builds'
+        url = f'/v2/apps/{app_id}/build'
         body = {'image': 'autotest/example:latest', 'stack': 'container'}
         response = self.client.post(url, body)
         self.assertEqual(response.status_code, 201, response.data)
@@ -373,7 +373,7 @@ class ReleaseTest(DryccTransactionTestCase):
         app_id = self.create_app()
 
         # push a new build
-        url = f'/v2/apps/{app_id}/builds'
+        url = f'/v2/apps/{app_id}/build'
         body = {'image': 'test', 'stack': 'container'}
         response = self.client.post(url, body)
 
@@ -397,7 +397,7 @@ class ReleaseTest(DryccTransactionTestCase):
         app_id = self.create_app()
 
         # deploy app to get a build
-        url = "/v2/apps/{}/builds".format(app_id)
+        url = "/v2/apps/{}/build".format(app_id)
         body = {'image': 'autotest/example', 'stack': 'container'}
         response = self.client.post(url, body)
         self.assertEqual(response.status_code, 201, response.data)
@@ -496,7 +496,7 @@ class ReleaseTest(DryccTransactionTestCase):
         app_id = self.create_app()
         app = App.objects.get(id=app_id)
 
-        url = f'/v2/apps/{app_id}/builds'
+        url = f'/v2/apps/{app_id}/build'
         body = {'sha': '123456', 'image': 'autotest/example', 'stack': 'heroku-18'}
         response = self.client.post(url, body)
         self.assertEqual(response.status_code, 201, response.data)
@@ -506,7 +506,7 @@ class ReleaseTest(DryccTransactionTestCase):
         self.assertEqual(release.get_port('web'), 5000)
 
         # switch to a dockerfile app or else it'll automatically default to 5000
-        url = f'/v2/apps/{app_id}/builds'
+        url = f'/v2/apps/{app_id}/build'
         body = {'image': 'autotest/example', 'stack': 'container'}
         response = self.client.post(url, body)
         self.assertEqual(response.status_code, 201, response.data)
@@ -559,7 +559,7 @@ class ReleaseTest(DryccTransactionTestCase):
 
         # override DRYCC_DEPLOY_HOOK_URLS again, ensuring that the new deploy hooks get the same
         # treatment
-        url = f'/v2/apps/{app_id}/builds'
+        url = f'/v2/apps/{app_id}/build'
         with self.settings(DRYCC_DEPLOY_HOOK_URLS=['http://drycc.ninja', 'http://cat.dog']):
             mr_ninja = mock_requests.post(f"http://drycc.ninja?app={app_id}&user={self.user.username}&sha=123456&release=v2&release_summary={self.user.username}+deployed+123456")  # noqa
             mr_catdog = mock_requests.post(f"http://cat.dog?app={app_id}&user={self.user.username}&sha=123456&release=v2&release_summary={self.user.username}+deployed+123456")  # noqa
@@ -645,7 +645,7 @@ class ReleaseTest(DryccTransactionTestCase):
         self.assertEqual(config_response.status_code, 201, config_response.data)
 
         app = App.objects.get(id=app_id)
-        url = f'/v2/apps/{app_id}/builds'
+        url = f'/v2/apps/{app_id}/build'
         body = {'image': 'test/autotest/example', 'stack': 'container'}
         response = self.client.post(url, body)
         self.assertEqual(response.status_code, 201, response.data)

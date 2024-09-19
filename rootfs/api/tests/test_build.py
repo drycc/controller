@@ -44,28 +44,26 @@ class BuildTest(DryccTransactionTestCase):
         app_id = self.create_app()
 
         # check to see that no initial build was created
-        url = f"/v2/apps/{app_id}/builds"
+        url = f"/v2/apps/{app_id}/build"
         response = self.client.get(url)
         self.assertEqual(response.status_code, 200, response.data)
-        self.assertEqual(response.data['count'], 0)
 
         # post a new build
         body = {'image': 'autotest/example', 'stack': 'container'}
         response = self.client.post(url, body)
         self.assertEqual(response.status_code, 201, response.data)
-        build_id = str(response.data['uuid'])
         build1 = response.data
         self.assertEqual(response.data['image'], body['image'])
 
         # read the build
-        url = f"/v2/apps/{app_id}/builds/{build_id}"
+        url = f"/v2/apps/{app_id}/build"
         response = self.client.get(url)
         self.assertEqual(response.status_code, 200, response.data)
         build2 = response.data
         self.assertEqual(build1, build2)
 
         # post a new build
-        url = f"/v2/apps/{app_id}/builds"
+        url = f"/v2/apps/{app_id}/build"
         body = {'image': 'autotest/example', 'stack': 'container'}
         response = self.client.post(url, body)
         self.assertEqual(response.status_code, 201, response.data)
@@ -86,7 +84,7 @@ class BuildTest(DryccTransactionTestCase):
         app_id = self.create_app()
 
         # post an image as a build
-        url = f"/v2/apps/{app_id}/builds"
+        url = f"/v2/apps/{app_id}/build"
         body = {'image': 'autotest/example', 'stack': 'container'}
         response = self.client.post(url, body)
 
@@ -108,7 +106,7 @@ class BuildTest(DryccTransactionTestCase):
         app_id = self.create_app()
 
         # post an image as a build
-        url = f"/v2/apps/{app_id}/builds"
+        url = f"/v2/apps/{app_id}/build"
         body = {'image': 'autotest/example', 'stack': 'container'}
         response = self.client.post(url, body)
         self.assertEqual(response.status_code, 201, response.data)
@@ -121,7 +119,7 @@ class BuildTest(DryccTransactionTestCase):
         # post an image as a build with a procfile
         app_id = self.create_app()
         # post an image as a build
-        url = f"/v2/apps/{app_id}/builds"
+        url = f"/v2/apps/{app_id}/build"
         body = {
             'image': 'autotest/example',
             'stack': 'heroku-18',
@@ -140,7 +138,7 @@ class BuildTest(DryccTransactionTestCase):
         # start with a new app
         app_id = self.create_app()
         # post a new build with procfile
-        url = f"/v2/apps/{app_id}/builds"
+        url = f"/v2/apps/{app_id}/build"
         body = {
             'image': 'autotest/example',
             'sha': 'a'*40,
@@ -158,7 +156,7 @@ class BuildTest(DryccTransactionTestCase):
         app_id = self.create_app()
 
         # post a new build with procfile
-        url = f"/v2/apps/{app_id}/builds"
+        url = f"/v2/apps/{app_id}/build"
         body = {
             'image': 'autotest/example',
             'sha': 'a'*40,
@@ -179,7 +177,7 @@ class BuildTest(DryccTransactionTestCase):
         app_id = self.create_app()
         # post a new build with procfile
 
-        url = f"/v2/apps/{app_id}/builds"
+        url = f"/v2/apps/{app_id}/build"
         body = {
             'image': 'autotest/example',
             'sha': 'a'*40,
@@ -201,7 +199,7 @@ class BuildTest(DryccTransactionTestCase):
         app_id = self.create_app()
         # post a new build with procfile and no routable type
 
-        url = f"/v2/apps/{app_id}/builds"
+        url = f"/v2/apps/{app_id}/build"
         body = {
             'image': 'autotest/example',
             'sha': 'a'*40,
@@ -225,7 +223,7 @@ class BuildTest(DryccTransactionTestCase):
         app_id = self.create_app()
 
         # post a new build with procfile
-        url = f"/v2/apps/{app_id}/builds"
+        url = f"/v2/apps/{app_id}/build"
         body = {
             'image': 'autotest/example',
             'sha': 'a'*40,
@@ -256,7 +254,7 @@ class BuildTest(DryccTransactionTestCase):
         self.assertPodContains(response.data['results'], app_id, 'worker', "v2", "up")
 
         # do another deploy for this time forget Procfile
-        url = f"/v2/apps/{app_id}/builds"
+        url = f"/v2/apps/{app_id}/build"
         body = {'image': 'autotest/example', 'stack': 'container'}
         response = self.client.post(url, body)
         self.assertEqual(response.status_code, 201, response.data)
@@ -290,7 +288,7 @@ class BuildTest(DryccTransactionTestCase):
         app_id = self.create_app()
 
         # post a new build with procfile
-        url = f"/v2/apps/{app_id}/builds"
+        url = f"/v2/apps/{app_id}/build"
         body = {
             'image': 'autotest/example',
             'sha': 'a'*40,
@@ -316,7 +314,7 @@ class BuildTest(DryccTransactionTestCase):
         self.assertPodContains(response.data['results'], app_id, 'worker', "v2", "up")
 
         # do another deploy for this time forget Procfile
-        url = f"/v2/apps/{app_id}/builds"
+        url = f"/v2/apps/{app_id}/build"
         body = {'image': 'autotest/example', 'stack': 'container'}
         response = self.client.post(url, body)
         self.assertEqual(response.status_code, 201, response.data)
@@ -362,7 +360,7 @@ class BuildTest(DryccTransactionTestCase):
         app_id = self.create_app()
 
         # post a new build with procfile
-        url = f"/v2/apps/{app_id}/builds"
+        url = f"/v2/apps/{app_id}/build"
         body = {
             'image': 'autotest/example',
             'stack': 'heroku-18',
@@ -388,7 +386,7 @@ class BuildTest(DryccTransactionTestCase):
         self.assertPodContains(response.data['results'], app_id, 'worker', "v2", "up")
 
         # do another deploy for this time forget Procfile
-        url = f"/v2/apps/{app_id}/builds"
+        url = f"/v2/apps/{app_id}/build"
         body = {'image': 'autotest/example', 'stack': 'container'}
         response = self.client.post(url, body)
         self.assertEqual(response.status_code, 409, response.data)
@@ -398,7 +396,7 @@ class BuildTest(DryccTransactionTestCase):
         app_id = self.create_app()
 
         # post a new build
-        url = f"/v2/apps/{app_id}/builds"
+        url = f"/v2/apps/{app_id}/build"
         body = {'image': 'autotest/example', 'stack': 'container'}
         response = self.client.post(url, body)
         self.assertEqual(response.status_code, 201, response.data)
@@ -419,7 +417,7 @@ class BuildTest(DryccTransactionTestCase):
 
         # post a new build as admin
         self.client.credentials(HTTP_AUTHORIZATION='Token ' + self.token)
-        url = f"/v2/apps/{app_id}/builds"
+        url = f"/v2/apps/{app_id}/build"
         body = {'image': 'autotest/example', 'stack': 'container'}
         response = self.client.post(url, body)
         self.assertEqual(response.status_code, 201, response.data)
@@ -440,7 +438,7 @@ class BuildTest(DryccTransactionTestCase):
         unauthorized_user = User.objects.get(username='autotest2')
         unauthorized_token = self.get_or_create_token(unauthorized_user)
         self.client.credentials(HTTP_AUTHORIZATION='Token ' + unauthorized_token)
-        url = '/v2/apps/{}/builds'.format(app_id)
+        url = '/v2/apps/{}/build'.format(app_id)
         body = {'image': 'foo'}
         response = self.client.post(url, body)
         self.assertEqual(response.status_code, 403)
@@ -453,7 +451,7 @@ class BuildTest(DryccTransactionTestCase):
         app_id = self.create_app()
 
         # post a new build
-        url = f"/v2/apps/{app_id}/builds"
+        url = f"/v2/apps/{app_id}/build"
         body = {
             'image': 'autotest/example',
             'sha': 'a'*40,
@@ -478,7 +476,7 @@ class BuildTest(DryccTransactionTestCase):
         self.assertEqual(response.status_code, 204, response.data)
 
         # post another build
-        url = f"/v2/apps/{app_id}/builds"
+        url = f"/v2/apps/{app_id}/build"
         body = {
             'image': 'autotest/example',
             'sha': 'a'*40,
@@ -500,7 +498,7 @@ class BuildTest(DryccTransactionTestCase):
         app_id = self.create_app()
 
         # post an image as a build using registry hostname
-        url = f"/v2/apps/{app_id}/builds"
+        url = f"/v2/apps/{app_id}/build"
         image = '127.0.0.1:5000/autotest/example'
         body = {'image': image, 'stack': 'container'}
         response = self.client.post(url, body)
@@ -511,7 +509,7 @@ class BuildTest(DryccTransactionTestCase):
         self.assertEqual(release.get_deploy_image(PTYPE_WEB), image)
 
         # post an image as a build using registry hostname + port
-        url = f"/v2/apps/{app_id}/builds"
+        url = f"/v2/apps/{app_id}/build"
         image = '127.0.0.1:5000/autotest/example'
         body = {'image': image, 'stack': 'container'}
         response = self.client.post(url, body)
@@ -526,7 +524,7 @@ class BuildTest(DryccTransactionTestCase):
         app_id = self.create_app()
 
         # post an image as a build using registry hostname
-        url = f"/v2/apps/{app_id}/builds"
+        url = f"/v2/apps/{app_id}/build"
         image = 'autotest/example'
         response = self.client.post(url, {'image': image, 'stack': 'container'})
         self.assertEqual(response.status_code, 201, response.data)
@@ -548,7 +546,7 @@ class BuildTest(DryccTransactionTestCase):
         app_id = self.create_app()
 
         # post an image as a build using registry hostname
-        url = f"/v2/apps/{app_id}/builds"
+        url = f"/v2/apps/{app_id}/build"
         image = 'autotest/example'
         response = self.client.post(url, {'image': image, 'stack': 'container'})
         self.assertEqual(response.status_code, 201, response.data)
@@ -566,7 +564,7 @@ class BuildTest(DryccTransactionTestCase):
         app_id = self.create_app()
 
         # deploy app to get a build
-        url = f"/v2/apps/{app_id}/builds"
+        url = f"/v2/apps/{app_id}/build"
         body = {'image': 'autotest/example', 'stack': 'container'}
         response = self.client.post(url, body)
         self.assertEqual(response.status_code, 201, response.data)
@@ -575,7 +573,7 @@ class BuildTest(DryccTransactionTestCase):
         with mock.patch('api.models.app.App.deploy') as mock_deploy:
             mock_deploy.side_effect = Exception('Boom!')
 
-            url = f"/v2/apps/{app_id}/builds"
+            url = f"/v2/apps/{app_id}/build"
             body = {'image': 'autotest/example'}
             response = self.client.post(url, body)
             self.assertEqual(response.status_code, 400, response.data)
@@ -589,7 +587,7 @@ class BuildTest(DryccTransactionTestCase):
         with mock.patch('scheduler.KubeHTTPClient.deploy') as mock_deploy:
             mock_deploy.side_effect = KubeException('Boom!')
 
-            url = f"/v2/apps/{app_id}/builds"
+            url = f"/v2/apps/{app_id}/build"
             body = {'image': 'autotest/example', 'stack': 'container'}
             response = self.client.post(url, body)
             self.assertEqual(response.status_code, 201, response.data)
@@ -601,7 +599,7 @@ class BuildTest(DryccTransactionTestCase):
         app = App.objects.get(id=app_id)
 
         # deploy app to get a build
-        url = f"/v2/apps/{app_id}/builds"
+        url = f"/v2/apps/{app_id}/build"
         body = {'image': 'autotest/example', 'stack': 'container'}
         response = self.client.post(url, body)
         self.assertEqual(response.status_code, 201, response.data)
@@ -612,7 +610,7 @@ class BuildTest(DryccTransactionTestCase):
         with mock.patch('api.models.app.App.deploy') as mock_deploy:
             mock_deploy.side_effect = Exception('Boom!')
 
-            url = f"/v2/apps/{app_id}/builds"
+            url = f"/v2/apps/{app_id}/build"
             body = {'image': 'autotest/example', 'stack': 'container'}
             response = self.client.post(url, body)
             self.assertEqual(response.status_code, 201, response.data)
@@ -633,7 +631,7 @@ class BuildTest(DryccTransactionTestCase):
         app_id = self.create_app()
 
         # deploy app with incorrect proctype
-        url = f"/v2/apps/{app_id}/builds"
+        url = f"/v2/apps/{app_id}/build"
         body = {
             'image': 'autotest/example',
             'stack': 'heroku-18',
@@ -646,7 +644,7 @@ class BuildTest(DryccTransactionTestCase):
         response = self.client.post(url, body)
         self.assertEqual(response.status_code, 400, response.data)
 
-        url = f"/v2/apps/{app_id}/builds"
+        url = f"/v2/apps/{app_id}/build"
         body = {
             'image': 'autotest/example',
             'stack': 'heroku-18',
@@ -659,7 +657,7 @@ class BuildTest(DryccTransactionTestCase):
         response = self.client.post(url, body)
         self.assertEqual(response.status_code, 400, response.data)
 
-        url = f"/v2/apps/{app_id}/builds"
+        url = f"/v2/apps/{app_id}/build"
         body = {
             'image': 'autotest/example',
             'stack': 'heroku-18',
@@ -672,7 +670,7 @@ class BuildTest(DryccTransactionTestCase):
         response = self.client.post(url, body)
         self.assertEqual(response.status_code, 400, response.data)
 
-        url = f"/v2/apps/{app_id}/builds"
+        url = f"/v2/apps/{app_id}/build"
         body = {
             'image': 'autotest/example',
             'stack': 'heroku-18',
@@ -684,7 +682,7 @@ class BuildTest(DryccTransactionTestCase):
         }
         response = self.client.post(url, body)
         self.assertEqual(response.status_code, 400, response.data)
-        url = f"/v2/apps/{app_id}/builds"
+        url = f"/v2/apps/{app_id}/build"
         body = {
             'image': 'autotest/example',
             'stack': 'heroku-18',
@@ -697,7 +695,7 @@ class BuildTest(DryccTransactionTestCase):
         response = self.client.post(url, body)
         self.assertEqual(response.status_code, 400, response.data)
         # deploy app with empty command
-        url = f"/v2/apps/{app_id}/builds"
+        url = f"/v2/apps/{app_id}/build"
         body = {
             'image': 'autotest/example',
             'stack': 'heroku-18',
@@ -710,7 +708,7 @@ class BuildTest(DryccTransactionTestCase):
         response = self.client.post(url, body)
         self.assertEqual(response.status_code, 400, response.data)
 
-        url = f"/v2/apps/{app_id}/builds"
+        url = f"/v2/apps/{app_id}/build"
         body = {
             'image': 'autotest/example',
             'stack': 'heroku-18',
@@ -725,7 +723,7 @@ class BuildTest(DryccTransactionTestCase):
 
     def test_dryccfile_ok(self, mock_requests):
         app_id = self.create_app()
-        url = f"/v2/apps/{app_id}/builds"
+        url = f"/v2/apps/{app_id}/build"
         default_image = "autotest/example"
         run_image = "127.0.0.1:7070/myapp/run:git-123fsa1"
         web_image = "127.0.0.1:7070/myapp/web:git-123fsa1"
@@ -797,7 +795,7 @@ class BuildTest(DryccTransactionTestCase):
         with mock.patch('scheduler.resources.pod.Pod.watch') as mock_kube:
             mock_kube.return_value = ['up', 'down']
             app_id = self.create_app()
-            url = f"/v2/apps/{app_id}/builds"
+            url = f"/v2/apps/{app_id}/build"
             response = self.client.post(url, body)
             self.assertEqual(response.status_code, 400, response.data)
             body['dryccfile']['deploy'] = {

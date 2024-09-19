@@ -228,7 +228,7 @@ class VolumeTest(DryccTransactionTestCase):
 
     def build_deploy(self, app_id):
         # post a new build with procfile
-        url = "/v2/apps/{app_id}/builds".format(app_id=app_id)
+        url = "/v2/apps/{app_id}/build".format(app_id=app_id)
         body = {
             'image': 'autotest/example',
             'sha': 'a'*40,

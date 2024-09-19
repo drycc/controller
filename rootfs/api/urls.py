@@ -28,14 +28,11 @@ app_urlpatterns = [
         views.LimitPlanViewSet.as_view({'get': 'retrieve'})),
     # application release components
     re_path(
+        r"^apps/(?P<id>{})/build/?$".format(settings.APP_URL_REGEX),
+        views.BuildViewSet.as_view({'get': 'retrieve', 'post': 'create'})),
+    re_path(
         r"^apps/(?P<id>{})/config/?$".format(settings.APP_URL_REGEX),
         views.ConfigViewSet.as_view({'get': 'retrieve', 'post': 'create'})),
-    re_path(
-        r"^apps/(?P<id>{})/builds/(?P<uuid>[-_\w]+)/?$".format(settings.APP_URL_REGEX),
-        views.BuildViewSet.as_view({'get': 'retrieve'})),
-    re_path(
-        r"^apps/(?P<id>{})/builds/?$".format(settings.APP_URL_REGEX),
-        views.BuildViewSet.as_view({'get': 'list', 'post': 'create'})),
     re_path(
         r"^apps/(?P<id>{})/releases/v(?P<version>[0-9]+)/?$".format(settings.APP_URL_REGEX),
         views.ReleaseViewSet.as_view({'get': 'retrieve'})),

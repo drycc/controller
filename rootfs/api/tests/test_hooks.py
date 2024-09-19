@@ -225,11 +225,10 @@ class HookTest(DryccTransactionTestCase):
         self.assertIn('version', response.data['release'])
 
         # make sure build fields were populated
-        url = f'/v2/apps/{app_id}/builds'
+        url = f'/v2/apps/{app_id}/build'
         response = self.client.get(url)
         self.assertEqual(response.status_code, 200, response.data)
-        self.assertIn('results', response.data)
-        build = response.data['results'][0]
+        build = response.data
         self.assertEqual(build['sha'], SHA)
         self.assertEqual(build['procfile'], PROCFILE)
 
@@ -266,11 +265,10 @@ class HookTest(DryccTransactionTestCase):
         self.assertIn('release', response.data)
         self.assertIn('version', response.data['release'])
         # make sure build fields were populated
-        url = f'/v2/apps/{app_id}/builds'
+        url = f'/v2/apps/{app_id}/build'
         response = self.client.get(url)
         self.assertEqual(response.status_code, 200, response.data)
-        self.assertIn('results', response.data)
-        build = response.data['results'][0]
+        build = response.data
         self.assertEqual(build['sha'], SHA)
         self.assertEqual(build['dockerfile'], DOCKERFILE)
         # test default container

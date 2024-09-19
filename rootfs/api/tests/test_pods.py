@@ -46,7 +46,7 @@ class PodTest(DryccTransactionTestCase):
         self.assertEqual(len(response.data['results']), 0)
 
         # post a new build
-        url = f"/v2/apps/{app_id}/builds"
+        url = f"/v2/apps/{app_id}/build"
         body = {
             'image': 'autotest/example',
             'stack': 'heroku-18',
@@ -126,7 +126,7 @@ class PodTest(DryccTransactionTestCase):
         self.assertEqual(len(response.data['results']), 0)
 
         # post a new build
-        url = f"/v2/apps/{app_id}/builds"
+        url = f"/v2/apps/{app_id}/build"
         body = {
             'image': 'autotest/example',
             'stack': 'container',
@@ -190,7 +190,7 @@ class PodTest(DryccTransactionTestCase):
         self.assertEqual(len(response.data['results']), 0)
 
         # post a new build
-        url = f"/v2/apps/{app_id}/builds"
+        url = f"/v2/apps/{app_id}/build"
         body = {
             'image': 'autotest/example',
             'stack': 'heroku-18',
@@ -215,7 +215,7 @@ class PodTest(DryccTransactionTestCase):
         self.assertPodContains(response.data['results'], app_id, "web", "v2")
 
         # post a new build
-        url = f"/v2/apps/{app_id}/builds"
+        url = f"/v2/apps/{app_id}/build"
         # a web proctype must exist on the second build or else the container will be removed
         body = {
             'image': 'autotest/example',
@@ -297,7 +297,7 @@ class PodTest(DryccTransactionTestCase):
         app_id = self.create_app()
 
         # post a new build
-        url = f"/v2/apps/{app_id}/builds"
+        url = f"/v2/apps/{app_id}/build"
         body = {
             'image': 'autotest/example',
             'stack': 'heroku-18',
@@ -335,7 +335,7 @@ class PodTest(DryccTransactionTestCase):
         app_id = self.create_app()
 
         # post a new build
-        url = f"/v2/apps/{app_id}/builds"
+        url = f"/v2/apps/{app_id}/build"
         body = {
             'image': 'autotest/example',
             'stack': 'heroku-18',
@@ -381,7 +381,7 @@ class PodTest(DryccTransactionTestCase):
         self.assertEqual(len(response.data['results']), 0)
 
         # post a new build
-        url = f"/v2/apps/{app_id}/builds"
+        url = f"/v2/apps/{app_id}/build"
         body = {
             'image': 'autotest/example',
             'stack': 'heroku-18',
@@ -453,7 +453,7 @@ class PodTest(DryccTransactionTestCase):
         app_id = self.create_app()
 
         # post a new build
-        url = f"/v2/apps/{app_id}/builds"
+        url = f"/v2/apps/{app_id}/build"
         body = {
             'image': 'autotest/example',
             'stack': 'heroku-18',
@@ -700,7 +700,7 @@ class PodTest(DryccTransactionTestCase):
         app_id = self.create_app()
 
         # post a new build
-        url = f"/v2/apps/{app_id}/builds"
+        url = f"/v2/apps/{app_id}/build"
         body = {
             'image': 'autotest/example',
             'sha': 'a'*40,
@@ -725,7 +725,7 @@ class PodTest(DryccTransactionTestCase):
         app_id = self.create_app()
 
         # post a new build
-        build_url = f"/v2/apps/{app_id}/builds"
+        build_url = f"/v2/apps/{app_id}/build"
         body = {
             'image': 'autotest/example',
             'stack': 'heroku-18',
