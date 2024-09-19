@@ -587,3 +587,44 @@ class ConfigTest(DryccTransactionTestCase):
         response = self.client.post(url, body)
         self.assertEqual(response.status_code, 201, response.data)
         self.assertEqual(response.data['typed_values'], {}, response.data)
+
+    def test_config_version(self, mock_requests):
+        """
+        Test that config sets on the same key function properly
+        """
+        app_id = self.create_app()
+        url = f"/v2/apps/{app_id}/config"
+
+        # set an initial config value
+        body = {'values': {'PORT': '5000'}}
+        response = self.client.post(url, body)
+        self.assertEqual(response.status_code, 201, response.data)
+        self.assertIn('PORT', response.data['values'])
+        url = f"/v2/apps/{app_id}/config"
+
+        # set config NAME
+        body = {'values': {'NAME': 'drycc'}}
+        response = self.client.post(url, body)
+        self.assertEqual(response.status_code, 201, response.data)
+        self.assertIn('NAME', response.data['values'])
+
+        # set config WEBSITE
+        body = {'values': {'WEBSITE': 'www.drycc.cc'}}
+        response = self.client.post(url, body)
+        self.assertEqual(response.status_code, 201, response.data)
+        self.assertIn('WEBSITE', response.data['values'])
+
+        url = f"/v2/apps/{app_id}/config/?version=v2"
+        response = self.client.get(url)
+        self.assertEqual(response.data['values'], {'PORT': '5000'}, response.data)
+
+        url = f"/v2/apps/{app_id}/config/?version=v3"
+        response = self.client.get(url)
+        self.assertEqual(
+            response.data['values'], {'PORT': '5000', 'NAME': 'drycc'}, response.data)
+
+        url = f"/v2/apps/{app_id}/config/?version=v4"
+        response = self.client.get(url)
+        self.assertEqual(
+            response.data['values'],
+            {'PORT': '5000', 'NAME': 'drycc', 'WEBSITE': 'www.drycc.cc'}, response.data)

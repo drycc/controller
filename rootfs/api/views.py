@@ -272,10 +272,13 @@ class ReleasableViewSet(AppResourceViewSet):
     """A viewset for application resources which affect the release cycle."""
     def get_object(self):
         """Retrieve the object based on the latest release's value"""
-        return getattr(
-            self.get_app().release_set.filter(failed=False).latest(),
-            self.model.__name__.lower()
-        )
+        version = self.request.query_params.get('version', '').lower().strip('v')
+        if re.search("^[0-9]+", version):
+            release = get_object_or_404(
+                models.release.Release, app=self.get_app(), version=version)
+        else:
+            release = self.get_app().release_set.filter(failed=False).latest()
+        return getattr(release, self.model.__name__.lower())
 
 
 class AppViewSet(BaseDryccViewSet):
