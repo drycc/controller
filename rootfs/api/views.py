@@ -858,7 +858,7 @@ class AppPermViewSet(AppResourceViewSet):
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 
-class AppVolumesViewSet(ReleasableViewSet):
+class AppVolumesViewSet(AppResourceViewSet):
     """RESTful views for volumes apps with collaborators."""
     model = models.volume.Volume
     serializer_class = serializers.VolumeSerializer
