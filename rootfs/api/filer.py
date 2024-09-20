@@ -54,6 +54,7 @@ class FilerClient(object):
             "app_type": "filer", "replicas": 1, "deploy_timeout": 120, "volumes": [k8s_volume],
             "volume_mounts": [{"mountPath": self.path, "name": self.volume.name}],
             "restart_policy": "Never", "image_pull_policy": settings.DRYCC_FILER_IMAGE_PULL_POLICY,
+            "pod_security_context": {"fsGroup": 1001, "runAsGroup": 1001, "runAsUser": 1001},
         })
         address = self.scheduler.pod.get(self.app_id, pod_name).json()["status"]["podIP"]
         return {"address": address, "username": username, "password": password}
