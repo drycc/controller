@@ -24,7 +24,7 @@ class TestAppSettings(DryccTransactionTestCase):
         # make sure every test has a clean slate for k8s mocking
         cache.clear()
 
-    def test_settings_routable(self, mock_requests):
+    def test_settings_bool(self, mock_requests):
         """
         Create an application with the routable flag turned on or off
         """
@@ -32,6 +32,8 @@ class TestAppSettings(DryccTransactionTestCase):
         app_id = self.create_app()
         app = App.objects.get(id=app_id)
         self.assertTrue(app.appsettings_set.latest().routable)
+        self.assertTrue(app.appsettings_set.latest().autodeploy)
+        self.assertTrue(app.appsettings_set.latest().autorollback)
         # Set routable to false
         response = self.client.post(
             f'/v2/apps/{app.id}/settings',
@@ -39,38 +41,58 @@ class TestAppSettings(DryccTransactionTestCase):
         )
         self.assertEqual(response.status_code, 201, response.data)
         self.assertFalse(app.appsettings_set.latest().routable)
-
-    def test_settings_autodeploy(self, mock_requests):
-        """
-        Create an application with the autorollback flag turned on or off
-        """
-        # create app, expecting autodeploy to be true
-        app_id = self.create_app()
-        app = App.objects.get(id=app_id)
         self.assertTrue(app.appsettings_set.latest().autodeploy)
+        self.assertTrue(app.appsettings_set.latest().autorollback)
+
         # Set autodeploy to false
         response = self.client.post(
             f'/v2/apps/{app.id}/settings',
             {'autodeploy': False}
         )
         self.assertEqual(response.status_code, 201, response.data)
+        self.assertFalse(app.appsettings_set.latest().routable)
         self.assertFalse(app.appsettings_set.latest().autodeploy)
-
-    def test_settings_autorollback(self, mock_requests):
-        """
-        Create an application with the autorollback flag turned on or off
-        """
-        # create app, expecting autorollback to be true
-        app_id = self.create_app()
-        app = App.objects.get(id=app_id)
         self.assertTrue(app.appsettings_set.latest().autorollback)
+
         # Set autorollback to false
         response = self.client.post(
             f'/v2/apps/{app.id}/settings',
             {'autorollback': False}
         )
         self.assertEqual(response.status_code, 201, response.data)
+        self.assertFalse(app.appsettings_set.latest().routable)
+        self.assertFalse(app.appsettings_set.latest().autodeploy)
         self.assertFalse(app.appsettings_set.latest().autorollback)
+
+        # Set autorollback to true
+        response = self.client.post(
+            f'/v2/apps/{app.id}/settings',
+            {'autorollback': True}
+        )
+        self.assertEqual(response.status_code, 201, response.data)
+        self.assertFalse(app.appsettings_set.latest().routable)
+        self.assertFalse(app.appsettings_set.latest().autodeploy)
+        self.assertTrue(app.appsettings_set.latest().autorollback)
+
+        # Set autodeploy to true
+        response = self.client.post(
+            f'/v2/apps/{app.id}/settings',
+            {'autodeploy': True}
+        )
+        self.assertEqual(response.status_code, 201, response.data)
+        self.assertFalse(app.appsettings_set.latest().routable)
+        self.assertTrue(app.appsettings_set.latest().autodeploy)
+        self.assertTrue(app.appsettings_set.latest().autorollback)
+
+        # Set routable to false
+        response = self.client.post(
+            f'/v2/apps/{app.id}/settings',
+            {'routable': True}
+        )
+        self.assertEqual(response.status_code, 201, response.data)
+        self.assertTrue(app.appsettings_set.latest().routable)
+        self.assertTrue(app.appsettings_set.latest().autodeploy)
+        self.assertTrue(app.appsettings_set.latest().autorollback)
 
     def test_autoscale(self, mock_requests):
         """
