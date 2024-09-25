@@ -19,9 +19,9 @@ class AppSettings(UuidAuditedModel):
 
     owner = models.ForeignKey(User, on_delete=models.PROTECT)
     app = models.ForeignKey('App', on_delete=models.CASCADE)
-    routable = models.BooleanField(default=True)
-    autodeploy = models.BooleanField(default=True)
-    autorollback = models.BooleanField(default=True)
+    routable = models.BooleanField(default=None)
+    autodeploy = models.BooleanField(default=None)
+    autorollback = models.BooleanField(default=None)
     autoscale = models.JSONField(default=dict, blank=True)
     label = models.JSONField(default=dict, blank=True)
 
@@ -70,6 +70,8 @@ class AppSettings(UuidAuditedModel):
         # if nothing changed copy the settings from previous
         if new is None and old is not None:
             setattr(self, field, old)
+        elif new is None and isinstance(self._meta.get_field(field), models.BooleanField):
+            setattr(self, field, True)
         elif old != new:
             self.summary += ["{} changed {} from {} to {}".format(self.owner, field, old, new)]
 

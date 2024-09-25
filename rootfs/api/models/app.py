@@ -204,7 +204,8 @@ class App(UuidAuditedModel):
         try:
             self.appsettings_set.latest()
         except AppSettings.DoesNotExist:
-            AppSettings.objects.create(owner=self.owner, app=self)
+            AppSettings.objects.create(
+                owner=self.owner, app=self, routable=True, autodeploy=True, autorollback=True)
         try:
             self.tls_set.latest()
         except TLS.DoesNotExist:
