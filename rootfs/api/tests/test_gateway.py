@@ -410,10 +410,16 @@ class RouteTest(BaseGatewayTest):
         response = self.client.post(
             '/v2/apps/{}/routes/'.format(app_id),
             {
-                "port": 5000,
-                "ptype": ptype,
                 "kind": kind,
                 "name": route_name,
+                "rules": [{
+                    "backendRefs": [{
+                        "kind": "Service",
+                        "name": f"{app_id}-{ptype}",
+                        "port": 5000,
+                        "weight": 100,
+                    }],
+                }],
             }
         )
         self.assertEqual(response.status_code, 201, response.data)
@@ -433,6 +439,9 @@ class RouteTest(BaseGatewayTest):
             }
         )
         self.assertEqual(response.status_code, 404)
+        response = self.client.get('/v2/apps/{}/routes/'.format(app_id))
+        self.assertEqual(response.data["count"], 1)
+        self.assertEqual(len(response.data["results"][0]["rules"]), 1)
 
     def test_hostnames(self):
         app_id = self.create_app()
@@ -493,13 +502,14 @@ class RouteTest(BaseGatewayTest):
         _, port, route_name = self.create_route(app_id, "myroute1", "test")
         gateway_name_1 = 'bing-gateway-1'
         self.create_gateway(app_id, gateway_name_1, 5000, "HTTP")
-        self.client.patch(
+        response = self.client.patch(
             '/v2/apps/{}/routes/{}/attach/'.format(app_id, route_name),
             {
                 "gateway": gateway_name_1,
                 "port": port
             }
         )
+        self.assertEqual(response.status_code, 204, response.data)
         response = self.client.get('/v2/apps/{}/routes/'.format(app_id))
         self.assertEqual(len(response.data["results"][0]["parent_refs"]), 1)
         # create other route

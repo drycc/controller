@@ -938,8 +938,8 @@ class App(UuidAuditedModel):
                 route.save()
         except Route.DoesNotExist:
             route = Route(app=self, owner=self.owner, kind="HTTPRoute", name=self.id,
-                          port=DEFAULT_HTTP_PORT, ptype=service.ptype)
-            route.rules = route.default_rules
+                          rules=[{"backendRefs": [{"kind": "Service", "name": service.name,
+                                                   "port": DEFAULT_HTTP_PORT, "weight": 100}]}])
             attached, msg = route.attach(gateway.name, DEFAULT_HTTP_PORT)
             if not attached:
                 raise DryccException(msg)

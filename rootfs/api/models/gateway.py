@@ -1,14 +1,15 @@
 import logging
+import threading
 from django.db import models
 from django.conf import settings
-from django.shortcuts import get_object_or_404
 from django.contrib.auth import get_user_model
 from django.db.models import Q
+from django.http import Http404
 
 from api.exceptions import ServiceUnavailable
 from scheduler import KubeException
 
-from .base import AuditedModel, DEFAULT_HTTP_PORT, DEFAULT_HTTPS_PORT, PTYPE_MAX_LENGTH
+from .base import AuditedModel, DEFAULT_HTTP_PORT, DEFAULT_HTTPS_PORT
 
 User = get_user_model()
 logger = logging.getLogger(__name__)
@@ -167,6 +168,7 @@ class Gateway(AuditedModel):
 
 
 class Route(AuditedModel):
+    CACHE = threading.local()
     PROTOCOLS_CHOICES = {
         "TLSRoute": ("TCP", ),
         "TCPRoute": ("TCP", ),
@@ -180,11 +182,21 @@ class Route(AuditedModel):
     kind = models.CharField(max_length=15, choices=[
         (key, '/'.join(value)) for key, value in PROTOCOLS_CHOICES.items()])
     name = models.CharField(max_length=63, db_index=True)
-    port = models.PositiveIntegerField()
     rules = models.JSONField(default=list)
     routable = models.BooleanField(default=True)
     parent_refs = models.JSONField(default=list)
-    ptype = models.CharField(max_length=PTYPE_MAX_LENGTH)
+
+    @property
+    def services(self):
+        key = f"{self.app.id}_{self.name}"
+        if not hasattr(self.CACHE, key):
+            service_names = set()
+            for rule in self.rules:
+                for backend in rule['backendRefs']:
+                    service_names.add(backend['name'])
+            setattr(self.CACHE, key,
+                    [s for s in self.app.service_set.all() if s.name in service_names])
+        return getattr(self.CACHE, key)
 
     @property
     def protocols(self):
@@ -195,30 +207,47 @@ class Route(AuditedModel):
     @property
     def hostnames(self):
         return [domain.domain for domain in self.app.domain_set.filter(
-                ptype=self.ptype)]
+                ptype__in=[s.ptype for s in self.services])]
+
+    @property
+    def cleaned_rules(self):
+        services, rules = self.services, []
+        for rule in self.rules:
+            backend_refs = []
+            for backend_ref in rule["backendRefs"]:
+                for service in services:
+                    ports = [item["port"] for item in service.ports]
+                    if backend_ref["port"] in ports and backend_ref["name"] == service.name:
+                        backend_refs.append(backend_ref)
+            if backend_refs:
+                rule['backendRefs'] = backend_refs
+                rules.append(rule)
+        return rules
 
     @property
     def tls_force_hostnames(self):
         tls = self.app.tls_set.latest()
-        q = Q(ptype=self.ptype)
+        q = Q(ptype__int=[s.ptype for s in self.services])
         if not tls.certs_auto_enabled:
             q &= Q(certificate__isnull=False)
         domains = self.app.domain_set.filter(q)
         return [domain.domain for domain in domains]
 
-    @property
-    def default_rules(self):
-        service = get_object_or_404(self.app.service_set, ptype=self.ptype)
-        backend_refs = []
-        for item in service.ports:
-            if item["port"] == self.port:
-                backend_refs.append({
-                    "kind": "Service",
-                    "name": str(service),
-                    "port": item["port"],
-                    "weight": 100,
-                })
-        return [{"backendRefs": backend_refs}]
+    def check_rules(self, rules):
+        for rule in rules:
+            for backend_ref in rule["backendRefs"]:
+                kind = backend_ref.get("kind", "Service")
+                if kind != "Service":
+                    return False, {"detail": "BackendRef only supports service kind"}
+                has_service = False
+                for service in self.services:
+                    ports = [item["port"] for item in service.ports]
+                    if backend_ref["port"] in ports and backend_ref["name"] == service.name:
+                        has_service = True
+                        break
+                if not has_service:
+                    return False, {"detail": f"service {backend_ref['name']} not exists"}
+        return True, ""
 
     def log(self, message, level=logging.INFO):
         """Logs a message in the context of this service.
@@ -230,17 +259,6 @@ class Route(AuditedModel):
         accordingly.
         """
         logger.log(level, "[{}]: {}".format(self.app.id, message))
-
-    def check_rules(self):
-        service = self.app.service_set.filter(
-            ptype=self.ptype).first()
-        ports = [item["port"] for item in service.ports]
-        for rule in self.rules:
-            for backend_ref in rule["backendRefs"]:
-                port = backend_ref["port"]
-                if port not in ports or backend_ref["name"] != str(service):
-                    return False, {"detail": "backendRefs associated with incorrect service"}
-        return True, ""
 
     def refresh_to_k8s(self):
         if self.routable:
@@ -290,9 +308,12 @@ class Route(AuditedModel):
 
     def save(self, *args, **kwargs):
         self.change_default_tls()
-        ok, msg = self.check_rules()
-        if not ok:
-            raise ValueError(msg)
+        cleaned_rules = self.cleaned_rules
+        if not cleaned_rules:
+            msg = f"route {self.name} no available backend"
+            self.log(msg, level=logging.ERROR)
+            raise Http404(msg)
+        self.rules = cleaned_rules
         super().save(*args, **kwargs)
         self.refresh_to_k8s()
 

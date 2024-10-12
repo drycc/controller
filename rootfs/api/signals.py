@@ -182,7 +182,11 @@ def gateway_changed_handle(
 def service_changed_handle(
         sender, instance: Service, created=False, update_fields=None, **kwargs):
     if kwargs['signal'] == post_delete:
-        instance.app.route_set.filter(ptype=instance.ptype).delete()
+        for route in instance.app.route_set.all():
+            if route.cleaned_rules:
+                route.save()
+            else:
+                route.delete()
 
 
 @receiver(signal=[post_save, post_delete], sender=Domain)

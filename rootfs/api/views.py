@@ -1086,45 +1086,16 @@ class RouteViewSet(AppResourceViewSet):
         if isinstance(rules, str):
             rules = json.loads(rules)
         rules = self.get_serializer(route, many=False).validate_rules(rules)
-        route.rules = rules
-        ok, msg = route.check_rules()
+        ok, msg = route.check_rules(rules)
         if not ok:
             return Response(status=status.HTTP_400_BAD_REQUEST, data=msg)
+        route.rules = rules
         route.save()
         return Response(status=status.HTTP_204_NO_CONTENT)
 
-    def create(self, request, *args, **kwargs):
-        app = self.get_app()
-        port = self.get_serializer().validate_port(request.data.get('port'))
-        app_settings = app.appsettings_set.latest()
-        ptype = self.get_serializer().validate_ptype(
-            request.data.get('ptype'))
-        kind = self.get_serializer().validate_kind(request.data.get('kind'))
-        name = request.data['name']
-        route = app.route_set.filter(name=name).first()
-        if route:
-            return Response(status=status.HTTP_400_BAD_REQUEST, data={
-                "detail": f"this route {name} already exists"})
-        route = self.model(
-            app=app,
-            owner=app.owner,
-            kind=kind,
-            name=name,
-            port=port,
-            routable=app_settings.routable,
-            ptype=ptype,
-        )
-        route.rules = route.default_rules
-        if route.rules and not route.rules[0]["backendRefs"]:
-            return Response(status=status.HTTP_400_BAD_REQUEST, data={
-                "detail": "this route does not match services. please add service first."
-            })
-        route.save()
-        return Response(status=status.HTTP_201_CREATED)
-
     def attach(self, request, *args, **kwargs):
         app = self.get_app()
-        port = self.get_serializer().validate_port(request.data.get('port'))
+        port = serializers.validate_port(request.data.get('port'))
         gateway_name = request.data['gateway']
         route = get_object_or_404(self.model, app=app, name=kwargs['name'])
         attached, msg = route.attach(gateway_name, port)
@@ -1135,7 +1106,7 @@ class RouteViewSet(AppResourceViewSet):
 
     def detach(self, request, *args, **kwargs):
         app = self.get_app()
-        port = self.get_serializer().validate_port(request.data.get('port'))
+        port = serializers.validate_port(request.data.get('port'))
         gateway_name = request.data['gateway']
         route = get_object_or_404(self.model, app=app, name=kwargs['name'])
         detached, msg = route.detach(gateway_name, port)

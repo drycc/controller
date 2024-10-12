@@ -61,6 +61,14 @@ HEALTHCHECK_MATCH = re.compile(r'^(livenessProbe|readinessProbe|startupProbe)$')
 HEALTHCHECK_MISMATCH_MSG = "Healthcheck pattern: %s" % HEALTHCHECK_MATCH.pattern
 
 
+def validate_port(value):
+    if not str(value).isnumeric():
+        raise serializers.ValidationError('port can only be a numeric value')
+    elif int(value) not in range(1, 65536):
+        raise serializers.ValidationError('port needs to be between 1 and 65535')
+    return value
+
+
 def validate_ptype(value):
     if not re.match(PROCTYPE_MATCH, value):
         raise serializers.ValidationError(PROCTYPE_MISMATCH_MSG)
@@ -483,14 +491,6 @@ class ServiceSerializer(serializers.ModelSerializer):
         read_only_fields = ['uuid']
 
     @staticmethod
-    def validate_port(value):
-        if not str(value).isnumeric():
-            raise serializers.ValidationError('port can only be a numeric value')
-        elif int(value) not in range(1, 65536):
-            raise serializers.ValidationError('port needs to be between 1 and 65535')
-        return value
-
-    @staticmethod
     def validate_protocol(value):
         if value is None or value == "":
             value = "TCP"
@@ -502,6 +502,7 @@ class ServiceSerializer(serializers.ModelSerializer):
     def validate_target_port(cls, value):
         return cls.validate_port(value)
 
+    validate_port = staticmethod(validate_port)
     validate_ptype = staticmethod(validate_ptype)
 
 
@@ -723,39 +724,27 @@ class GatewaySerializer(serializers.Serializer):
         return representation
 
     @staticmethod
-    def validate_port(value):
-        if not str(value).isnumeric():
-            raise serializers.ValidationError('port can only be a numeric value')
-        elif int(value) not in range(1, 65536):
-            raise serializers.ValidationError('port needs to be between 1 and 65535')
-        return value
-
-    @staticmethod
     def validate_protocol(value):
         if not re.match(GATEWAY_PROTOCOL_MATCH, value):
             raise serializers.ValidationError(GATEWAY_PROTOCOL_MISMATCH_MSG)
         return value
 
+    validate_port = staticmethod(validate_port)
     validate_ptype = staticmethod(validate_ptype)
 
 
-class RouteSerializer(serializers.Serializer):
+class RouteSerializer(serializers.ModelSerializer):
     app = serializers.SlugRelatedField(slug_field='id', queryset=models.app.App.objects.all())
     owner = serializers.ReadOnlyField(source='owner.username')
     kind = serializers.CharField(max_length=15, required=False)
     name = serializers.CharField(max_length=63, required=True)
-    port = serializers.IntegerField()
-    ptype = serializers.CharField(max_length=63, required=True)
     rules = serializers.JSONField(required=False)
     parent_refs = serializers.JSONField(required=False)
 
-    @staticmethod
-    def validate_port(value):
-        if not str(value).isnumeric():
-            raise serializers.ValidationError('port can only be a numeric value')
-        elif int(value) not in range(1, 65536):
-            raise serializers.ValidationError('port needs to be between 1 and 65535')
-        return value
+    class Meta:
+        """Metadata options for a :class:`RouteSerializer`."""
+        model = models.gateway.Route
+        fields = '__all__'
 
     @staticmethod
     def validate_kind(value):
@@ -763,10 +752,8 @@ class RouteSerializer(serializers.Serializer):
             raise serializers.ValidationError(ROUTE_PROTOCOL_MISMATCH_MSG)
         return value
 
-    validate_ptype = staticmethod(validate_ptype)
-
     def validate_rules(self, value):
-        kind = getattr(self, "initial_data", getattr(self, "data", {})).get("kind", None)
+        kind = getattr(self, "initial_data", {}).get("kind", None)
         if kind:
             schema = getattr(rules, f"{kind.replace("Route", "")}_RULES_SCHEMA", "SCHEMA")
         else:
