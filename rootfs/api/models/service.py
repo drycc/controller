@@ -41,16 +41,36 @@ class Service(AuditedModel):
         ordering = ['-created']
 
     def __str__(self):
-        return self._svc_name()
+        return self.name
+
+    @property
+    def name(self):
+        if self.ptype == 'web':
+            svc_name = self.app.id
+        else:
+            svc_name = "{}-{}".format(self.app.id, self.ptype)
+        return svc_name
 
     @property
     def domain(self):
         return "{}.{}.svc.{}".format(
-            self._svc_name(), self._namespace(), settings.KUBERNETES_CLUSTER_DOMAIN
+            self.name, self.namespace, settings.KUBERNETES_CLUSTER_DOMAIN
         )
+
+    @property
+    def namespace(self):
+        return self.app.id
+
+    @classmethod
+    def get(cls, app, name):
+        for service in cls.objects.filter(app=app):
+            if service.name == name:
+                return service
+        raise cls.DoesNotExist()
 
     def as_dict(self):
         return {
+            "name": self.name,
             "domain": self.domain,
             "ports": self.ports,
             "ptype": self.ptype,
@@ -101,7 +121,7 @@ class Service(AuditedModel):
         return service
 
     def delete(self, *args, **kwargs):
-        self._delete_k8s_svc(self._svc_name())
+        self._delete_k8s_svc(self.name)
         # Delete from DB
         return super(Service, self).delete(*args, **kwargs)
 
@@ -116,30 +136,18 @@ class Service(AuditedModel):
         """
         logger.log(level, "[{}]: {}".format(self.app.id, message))
 
-    def _namespace(self):
-        return self.app.id
-
-    def _svc_name(self):
-        if self.ptype == 'web':
-            svc_name = self.app.id
-        else:
-            svc_name = "{}-{}".format(self.app.id, self.ptype)
-        return svc_name
-
     def refresh_k8s_svc(self):
-        svc_name = self._svc_name()
-        namespace = self._namespace()
-        self.log('creating service: {}'.format(svc_name), level=logging.DEBUG)
+        self.log('creating service: {}'.format(self.name), level=logging.DEBUG)
         try:
             try:
-                data = self.scheduler().svc.get(namespace, svc_name).json()
-                self.scheduler().svc.patch(namespace, svc_name, **{
+                data = self.scheduler().svc.get(self.namespace, self.name).json()
+                self.scheduler().svc.patch(self.namespace, self.name, **{
                     "ports": self.ports,
                     "version": data["metadata"]["resourceVersion"],
                     "ptype": self.ptype,
                 })
             except KubeException:
-                self.scheduler().svc.create(namespace, svc_name, **{
+                self.scheduler().svc.create(self.namespace, self.name, **{
                     "ports": self.ports,
                     "ptype": self.ptype,
                 })
@@ -148,4 +156,4 @@ class Service(AuditedModel):
 
     def _delete_k8s_svc(self, svc_name):
         self.log('deleting Service: {}'.format(svc_name), level=logging.DEBUG)
-        self.scheduler().svc.delete(self._namespace(), svc_name, ignore_exception=True)
+        self.scheduler().svc.delete(self.namespace, svc_name, ignore_exception=True)
