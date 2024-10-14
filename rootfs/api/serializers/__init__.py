@@ -736,7 +736,7 @@ class GatewaySerializer(serializers.Serializer):
 class RouteSerializer(serializers.ModelSerializer):
     app = serializers.SlugRelatedField(slug_field='id', queryset=models.app.App.objects.all())
     owner = serializers.ReadOnlyField(source='owner.username')
-    kind = serializers.CharField(max_length=15, required=False)
+    kind = serializers.CharField(max_length=15, required=True)
     name = serializers.CharField(max_length=63, required=True)
     rules = serializers.JSONField(required=False)
     parent_refs = serializers.JSONField(required=False)

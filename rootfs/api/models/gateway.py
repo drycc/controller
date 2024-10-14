@@ -246,7 +246,8 @@ class Route(AuditedModel):
                         has_service = True
                         break
                 if not has_service:
-                    return False, {"detail": f"service {backend_ref['name']} not exists"}
+                    msg = f"service {backend_ref['name']}:{backend_ref['port']} does not exist"
+                    return False, {"detail": msg}
         return True, ""
 
     def log(self, message, level=logging.INFO):
