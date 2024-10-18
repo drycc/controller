@@ -16,10 +16,11 @@ from datetime import datetime, timezone
 from docker import auth as docker_auth
 from django.conf import settings
 from django.db import models
+from django.db.models import F, Func, Value, JSONField
 from django.contrib.auth import get_user_model
 from rest_framework.exceptions import ValidationError, NotFound
 
-from api.utils import get_session
+from api.utils import get_session, dict_diff
 from api.exceptions import AlreadyExists, DryccException, ServiceUnavailable
 from api.utils import DeployLock, generate_app_name, apply_tasks
 from scheduler import KubeHTTPException, KubeException
@@ -828,29 +829,36 @@ class App(UuidAuditedModel):
                 structure[target] = int(count)
             validate_app_structure(structure)
         except (TypeError, ValueError, ValidationError) as e:
-            raise DryccException('Invalid scaling format: {}'.format(e))
+            err_msg = 'Invalid scaling format: {}'.format(e)
+            self.log(err_msg)
+            raise DryccException(err_msg)
 
         # test for available process types
         for ptype in structure:
             if ptype not in (PTYPE_WEB, PTYPE_RUN) and \
                     ptype not in release.ptypes:
-                raise NotFound(
-                    'Container type {} does not exist in application'.format(ptype))
+                err_msg = 'Container type {} does not exist in application'.format(ptype)
+                self.log(err_msg)
+                raise NotFound(err_msg)
 
-        # merge current structure and the new items together
-        old_structure = self.structure
-        new_structure = old_structure.copy()
-        new_structure.update(structure)
-        if new_structure != self.structure:
+        new_scale = dict_diff(structure, self.structure).get("changed", {})
+        old_scale = dict_diff(self.structure, structure).get("changed", {})
+
+        if new_scale:
             try:
-                self._scale_pods(structure, release, app_settings)
+                self._scale_pods(new_scale, release, app_settings)
             except ServiceUnavailable:
                 # scaling failed, go back to old scaling numbers
-                self._scale_pods(old_structure, release, app_settings)
+                self._scale_pods(old_scale, release, app_settings)
                 raise
             # save new structure to the database
-            self.structure = new_structure
-            self.save()
+            App.objects.filter(id=self.id).update(
+                structure=Func(
+                    F("structure"),
+                    Value(new_scale, JSONField()),
+                    function="jsonb_concat",
+                )
+            )
             msg = '{} scaled pods '.format(user.username) + ' '.join(
                 "{}={}".format(k, v) for k, v in list(structure.items()))
             self.log(msg)
