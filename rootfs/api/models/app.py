@@ -16,6 +16,7 @@ from datetime import datetime, timezone
 from docker import auth as docker_auth
 from django.conf import settings
 from django.db import models
+from django.db.models import F, Func, Value, JSONField
 from django.contrib.auth import get_user_model
 from rest_framework.exceptions import ValidationError, NotFound
 
@@ -849,8 +850,13 @@ class App(UuidAuditedModel):
                 self._scale_pods(old_structure, release, app_settings)
                 raise
             # save new structure to the database
-            self.structure = new_structure
-            self.save()
+            App.objects.filter(id=self.id).update(
+                structure=Func(
+                    F("structure"),
+                    Value(structure, JSONField()),
+                    function="jsonb_concat",
+                )
+            )
             msg = '{} scaled pods '.format(user.username) + ' '.join(
                 "{}={}".format(k, v) for k, v in list(structure.items()))
             self.log(msg)
