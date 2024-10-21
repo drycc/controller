@@ -12,7 +12,7 @@ from api.exceptions import DryccException, AlreadyExists
 from scheduler import KubeHTTPException
 from scheduler.resources.pod import DEFAULT_CONTAINER_PORT
 
-from ..utils import DeployLock
+from ..utils import CacheLock, DeployLock
 
 from .base import UuidAuditedModel
 from .appsettings import AppSettings
@@ -41,6 +41,7 @@ class Release(UuidAuditedModel):
     failed = models.BooleanField(default=False)
     exception = models.TextField(blank=True, null=True)
     conditions = models.JSONField(default=list)
+    deployed_ptypes = models.JSONField(default=list)
 
     config = models.ForeignKey('Config', on_delete=models.CASCADE)
     build = models.ForeignKey('Build', null=True, on_delete=models.CASCADE)
@@ -163,9 +164,23 @@ class Release(UuidAuditedModel):
                 'PORT', self.config.values.get('PORT', DEFAULT_CONTAINER_PORT)))
 
     def deploy(self, ptypes=None, force_deploy=False):
-        lock = DeployLock(self.app.pk)
-        if not lock.acquire(ptypes, force=force_deploy):
-            raise DryccException('there is an executing pipeline, please wait or force deploy')
+        msg = 'there is an executing pipeline, please wait or force deploy'
+        # change deployed_ptypes lock
+        lock = CacheLock("release:%s" % self.pk)
+        try:
+            if lock.acquire() or force_deploy:
+                if ptypes is None:
+                    deployed_ptypes = self.ptypes
+                else:
+                    deployed_ptypes = list(set(self.deployed_ptypes).union(ptypes))
+                type(self).objects.filter(pk=self.pk).update(deployed_ptypes=deployed_ptypes)
+            else:
+                raise DryccException(msg)
+        finally:
+            lock.release()
+        # deploy lock
+        if not DeployLock(self.app.pk).acquire(ptypes, force=force_deploy):
+            raise DryccException(msg)
         run_pipeline.delay(self, ptypes, force_deploy)
 
     def previous(self):

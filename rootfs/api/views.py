@@ -621,6 +621,15 @@ class ReleaseViewSet(AppResourceViewSet):
         qs = self.get_queryset(**kwargs)
         return get_object_or_404(qs, version=self.kwargs['version'])
 
+    def get_queryset(self, **kwargs):
+        ptypes = self.request.query_params.get('ptypes', '').strip()
+        queryset = super(ReleaseViewSet, self).get_queryset(**kwargs)
+        if ptypes:
+            queryset = queryset.filter(Q(
+                deployed_ptypes__contains=[
+                    ptype.lower() for ptype in re.split(r"\W+", ptypes)]))
+        return queryset
+
     def deploy(self, request, **kwargs):
         """Deploy the latest release"""
         latest_release = self.get_app().release_set.latest()

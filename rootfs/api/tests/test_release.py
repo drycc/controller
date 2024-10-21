@@ -220,7 +220,7 @@ class ReleaseTest(DryccTransactionTestCase):
         for key in response.data.keys():
             self.assertIn(key, ['uuid', 'owner', 'created', 'updated', 'app', 'build', 'config',
                                 'summary', 'version', 'state', 'failed', 'conditions',
-                                'exception'])
+                                'exception', 'deployed_ptypes'])
         expected = {
             'owner': self.user.username,
             'app': app_id,
@@ -259,6 +259,16 @@ class ReleaseTest(DryccTransactionTestCase):
             mock_deploy.return_value = None
             response = self.client.post(url, {"ptypes": "web"})
             self.assertEqual(response.status_code, 204)
+
+        url = f'/v2/apps/{app_id}/releases/?ptypes=web'
+        response = self.client.get(url)
+        self.assertEqual(response.data['count'], 1)
+        url = f'/v2/apps/{app_id}/releases/?ptypes=web,worker'
+        response = self.client.get(url)
+        self.assertEqual(response.data['count'], 1)
+        url = f'/v2/apps/{app_id}/releases/?ptypes=web,worker,noexists'
+        response = self.client.get(url)
+        self.assertEqual(response.data['count'], 0)
 
     def test_release_rollback(self, mock_requests):
         app_id = self.create_app()
