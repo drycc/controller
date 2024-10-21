@@ -259,23 +259,23 @@ class BuildTest(DryccTransactionTestCase):
         response = self.client.post(url, body)
         self.assertEqual(response.status_code, 201, response.data)
 
-        # verify worker is not there
+        # verify worker is not there, only web
         url = f"/v2/apps/{app_id}/pods/"
         response = self.client.get(url)
         self.assertEqual(response.status_code, 200, response.data)
-        self.assertEqual(len(response.data['results']), 0)
+        self.assertEqual(len(response.data['results']), 1)
 
-        # verify web is not there
+        # verify web is in there
         url = f"/v2/apps/{app_id}/pods/"
         response = self.client.get(url)
         self.assertEqual(response.status_code, 200, response.data)
-        self.assertEqual(len(response.data['results']), 0)
+        self.assertEqual(len(response.data['results']), 1)
 
         # look at the app structure
         url = f"/v2/apps/{app_id}"
         response = self.client.get(url)
         self.assertEqual(response.status_code, 200, response.data)
-        self.assertEqual(response.json()['structure'], {'web': 0})
+        self.assertEqual(response.json()['structure'], {'web': 1})
 
     @override_settings(DRYCC_DEPLOY_PROCFILE_MISSING_REMOVE=False)
     def test_build_no_remove_process(self, mock_requests):
