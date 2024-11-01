@@ -73,8 +73,8 @@ SELECT
   pod_name,
   container_name,
   round(EXTRACT(EPOCH FROM time_bucket('{every}', time))) as timestamp,
-  max(memory_usage_bytes) as max,
-  round(avg(memory_usage_bytes)) as avg
+  max(memory_working_set_bytes) as max,
+  round(avg(memory_working_set_bytes)) as avg
 FROM kubernetes_pod_container
 LEFT OUTER JOIN kubernetes_pod_container_tag
 ON kubernetes_pod_container.tag_id = kubernetes_pod_container_tag.tag_id
