@@ -3,7 +3,7 @@ from django.conf import settings
 from django.db import models
 from django.contrib.auth import get_user_model
 from api.exceptions import DryccException, Conflict
-from .base import UuidAuditedModel
+from .base import UuidAuditedModel, PTYPE_WEB
 
 User = get_user_model()
 logger = logging.getLogger(__name__)
@@ -45,7 +45,9 @@ class Build(UuidAuditedModel):
     def ptypes(self):
         if self.dryccfile:
             return list(self.dryccfile['deploy'].keys())
-        return list(self.procfile.keys())
+        if self.procfile:
+            return list(self.procfile.keys())
+        return [PTYPE_WEB]
 
     @property
     def source_based(self):

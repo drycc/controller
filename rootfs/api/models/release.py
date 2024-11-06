@@ -164,23 +164,26 @@ class Release(UuidAuditedModel):
                 'PORT', self.config.values.get('PORT', DEFAULT_CONTAINER_PORT)))
 
     def deploy(self, ptypes=None, force_deploy=False):
-        msg = 'there is an executing pipeline, please wait or force deploy'
+        ptypes = set(ptypes).intersection(self.ptypes) if ptypes else self.ptypes
+        if not ptypes:
+            self.log(f'skip deploy, ptypes are not within the optional range: {self.ptypes}')
+            return
         # change deployed_ptypes lock
+        msg = 'there is an executing pipeline, please wait or force deploy'
         lock = CacheLock("release:%s" % self.pk)
         try:
             if lock.acquire() or force_deploy:
-                if ptypes is None:
-                    deployed_ptypes = self.ptypes
-                else:
-                    deployed_ptypes = list(set(self.deployed_ptypes).union(ptypes))
-                type(self).objects.filter(pk=self.pk).update(deployed_ptypes=deployed_ptypes)
+                deployed_ptypes = list(set(self.deployed_ptypes).union(ptypes))
+                if deployed_ptypes:
+                    type(self).objects.filter(pk=self.pk).update(deployed_ptypes=deployed_ptypes)
             else:
                 raise DryccException(msg)
         finally:
             lock.release()
         # deploy lock
-        if not DeployLock(self.app.pk).acquire(ptypes, force=force_deploy):
-            raise DryccException(msg)
+        lock = DeployLock(self.app.pk)
+        if not lock.acquire(ptypes, force=force_deploy):
+            raise DryccException(f"{msg}: {lock.locked(ptypes)}")
         run_pipeline.delay(self, ptypes, force_deploy)
 
     def previous(self):

@@ -160,7 +160,8 @@ def apply_tasks(tasks):
         return
 
     executor = concurrent.futures.ThreadPoolExecutor(5)
-    for future in [executor.submit(task) for task in tasks]:
+    for future, callback in [(executor.submit(task[0]), task[1]) for task in tasks]:
+        future.add_done_callback(callback)
         error = future.exception()
         if error is not None:
             raise error
@@ -231,32 +232,20 @@ class DeployLock(CacheLock):
 
     def locked(self, ptypes):
         value = cache.get(self.ptypes_key, [])
-        # None will locks all
-        if ptypes is None:
-            if value is None or len(value) > 0:
-                return True
-            elif len(value) == 0:
-                return False
-        else:
-            if value is None:
-                return True
-            for ptype in ptypes:
-                if ptype in value:
-                    return True
-        return False
+        locked_ptypes = []
+        for ptype in ptypes:
+            if ptype in value:
+                locked_ptypes.append(ptype)
+        return locked_ptypes
 
     def acquire(self, ptypes, force=False):
         try:
             if super(DeployLock, self).acquire():
                 value = cache.get(self.ptypes_key, [])
-                # None will locks all
-                if not force and self.locked(ptypes):
+                if not force and len(self.locked(ptypes)) > 0:
                     return False
-                if ptypes is None:
-                    value = None
-                else:
-                    value.extend(ptypes)
-                    value = list(set(value))
+                value.extend(ptypes)
+                value = list(set(value))
                 cache.set(self.ptypes_key, value, timeout=3600)
                 return True
         finally:
@@ -266,15 +255,13 @@ class DeployLock(CacheLock):
     def release(self, ptypes):
         try:
             if super(DeployLock, self).acquire():
-                if ptypes is None:
-                    cache.delete(self.ptypes_key)
-                else:
-                    value = cache.get(self.ptypes_key, [])
-                    if value is None:
-                        return
-                    for ptype in ptypes:
+                value = cache.get(self.ptypes_key, [])
+                if value is None:
+                    return
+                for ptype in ptypes:
+                    if ptype in value:
                         value.remove(ptype)
-                    cache.set(self.ptypes_key, value)
+                cache.set(self.ptypes_key, value)
         finally:
             super(DeployLock, self).release()
 

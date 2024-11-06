@@ -249,10 +249,14 @@ class App(UuidAuditedModel):
             deployments.append(self._get_job_id(kwargs['type']))
         try:
             tasks = [
-                functools.partial(
-                    self.scheduler().deployment.restart,
-                    self.id,
-                    deployment
+                (
+                    functools.partial(
+                        self.scheduler().deployment.restart,
+                        self.id,
+                        deployment
+                    ),
+                    lambda future: self.log(
+                        f'restart {kwargs['type']} callback: {future.result()}'),
                 ) for deployment in deployments
             ]
             apply_tasks(tasks)
@@ -273,7 +277,7 @@ class App(UuidAuditedModel):
         app_settings = self.appsettings_set.latest()
         self._scale(user, structure, release, app_settings)
 
-    def pipeline(self, release, ptypes=None, force_deploy=False):
+    def pipeline(self, release, ptypes, force_deploy=False):
         prefix = f"[pipeline] release {release.version_name}"
         try:
             if release.build is not None:
@@ -306,7 +310,7 @@ class App(UuidAuditedModel):
                 state="crashed", action="pipeline", ptypes=ptypes, exception=str(e))
             self.log(f"{prefix} pipeline runtime error: {release.exception}", logging.ERROR)
         finally:
-            DeployLock(self.pk).release(ptypes)
+            DeployLock(self.pk).release(ptypes)  # release all locks
             release.save(update_fields=["state", "failed"])  # avoid overwriting other fields
         self.log(f"{prefix} run completed...")
 
@@ -744,16 +748,20 @@ class App(UuidAuditedModel):
                     'annotations', {})
                 self.set_application_config(release, scale_type)
                 # gather volume proc types to be deployed
-                tasks.append(functools.partial(
-                    self.scheduler().deployment.patch,
-                    namespace=self.id,
-                    name=self._get_job_id(scale_type),
-                    image=release.get_deploy_image(scale_type),
-                    command=release.get_deploy_command(scale_type),
-                    args=release.get_deploy_args(scale_type),
-                    spec_annotations=spec_annotations,
-                    resource_version=deployment["metadata"]["resourceVersion"],
-                    **data
+                tasks.append((
+                    functools.partial(
+                        self.scheduler().deployment.patch,
+                        namespace=self.id,
+                        name=self._get_job_id(scale_type),
+                        image=release.get_deploy_image(scale_type),
+                        command=release.get_deploy_command(scale_type),
+                        args=release.get_deploy_args(scale_type),
+                        spec_annotations=spec_annotations,
+                        resource_version=deployment["metadata"]["resourceVersion"],
+                        **data
+                    ),
+                    lambda future: self.log(
+                        f'mount {volume} for {scale_type} callback: {future.result()}'),
                 ))
         try:
             apply_tasks(tasks)
@@ -769,19 +777,24 @@ class App(UuidAuditedModel):
         deploys = OrderedDict(sorted(deploys.items(), key=lambda d: d[1].get('routable')))
         # Check if any proc type has a Deployment in progress
         self._check_deployment_in_progress(deploys, force_deploy)
-
         try:
             tasks = []
+            lock = DeployLock(self.pk)
             for scale_type, kwargs in deploys.items():
                 self.set_application_config(release, scale_type)
-                tasks.append(functools.partial(
-                    self.scheduler().deploy,
-                    namespace=self.id,
-                    name=self._get_job_id(scale_type),
-                    image=release.get_deploy_image(scale_type),
-                    command=release.get_deploy_command(scale_type),
-                    args=release.get_deploy_args(scale_type),
-                    **kwargs
+                tasks.append((
+                    functools.partial(
+                        self.scheduler().deploy,
+                        namespace=self.id,
+                        name=self._get_job_id(scale_type),
+                        image=release.get_deploy_image(scale_type),
+                        command=release.get_deploy_command(scale_type),
+                        args=release.get_deploy_args(scale_type),
+                        **kwargs
+                    ),
+                    lambda future: self.log(
+                        f'deploy and unlock callback: {[
+                            future.result(), lock.release([scale_type])]}'),
                 ))
             try:
                 apply_tasks(tasks)
@@ -797,7 +810,6 @@ class App(UuidAuditedModel):
                     self.deploy(prev_release, ptypes, True, False)
                     # let it bubble up
                     raise DryccException('{}\n{}'.format(err, str(e))) from e
-
                 # otherwise just re-raise
                 raise
         except Exception as e:
@@ -876,7 +888,7 @@ class App(UuidAuditedModel):
             # create the application config in k8s (secret in this case) for all deploy objects
             self.set_application_config(release, scale_type)
             # gather all proc types to be deployed
-            tasks.append(
+            tasks.append((
                 functools.partial(
                     self.scheduler().scale,
                     namespace=self.id,
@@ -885,8 +897,9 @@ class App(UuidAuditedModel):
                     command=release.get_deploy_command(scale_type),
                     args=release.get_deploy_args(scale_type),
                     **data
-                )
-            )
+                ),
+                lambda future: self.log(f'scale {scale_type} callback: {future.result()}'),
+            ))
         try:
             apply_tasks(tasks)
         except Exception as e:
@@ -1046,10 +1059,9 @@ class App(UuidAuditedModel):
     @staticmethod
     def _default_structure(release):
         """Scale to default structure based on release type"""
-        structure = {PTYPE_WEB: 1}
+        structure = {}
         for ptype in release.ptypes:
-            if ptype != PTYPE_WEB:
-                structure[ptype] = 0
+            structure[ptype] = 1 if ptype == PTYPE_WEB else 0
         return structure
 
     def _scheduler_filter(self, **kwargs):

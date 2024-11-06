@@ -752,10 +752,12 @@ class PodTest(DryccTransactionTestCase):
         }
         response = self.client.post(build_url, body)
         self.assertEqual(response.status_code, 201, response.data)
-        # web is default ptype
+        # check web pods
         application = App.objects.get(id=app_id)
         pods = application.list_pods(type='web')
-        self.assertEqual(len(pods), 4)
+        self.assertEqual(len(pods), 0)
+        pods = application.list_pods(type='worker')
+        self.assertEqual(len(pods), 0)
 
     def test_list_pods_failure(self, mock_requests):
         """

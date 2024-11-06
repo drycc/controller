@@ -172,7 +172,7 @@ class BuildTest(DryccTransactionTestCase):
         url = f"/v2/apps/{app_id}/pods/"
         response = self.client.get(url)
         self.assertEqual(response.status_code, 200, response.data)
-        self.assertPodContains(response.data['results'], app_id, 'web', "v2", "up")
+        self.assertEqual(response.data['results'], [])
         # start with a new app
         app_id = self.create_app()
         # post a new build with procfile
@@ -263,13 +263,7 @@ class BuildTest(DryccTransactionTestCase):
         url = f"/v2/apps/{app_id}/pods/"
         response = self.client.get(url)
         self.assertEqual(response.status_code, 200, response.data)
-        self.assertEqual(len(response.data['results']), 1)
-
-        # verify web is in there
-        url = f"/v2/apps/{app_id}/pods/"
-        response = self.client.get(url)
-        self.assertEqual(response.status_code, 200, response.data)
-        self.assertEqual(len(response.data['results']), 1)
+        self.assertEqual([item for item in response.data['results'] if item["type"] != "web"], [])
 
         # look at the app structure
         url = f"/v2/apps/{app_id}"
@@ -319,35 +313,18 @@ class BuildTest(DryccTransactionTestCase):
         response = self.client.post(url, body)
         self.assertEqual(response.status_code, 201, response.data)
 
-        # verify worker is still there
+        # verify web
         url = f"/v2/apps/{app_id}/pods/"
         response = self.client.get(url)
         self.assertEqual(response.status_code, 200, response.data)
-        self.assertPodContains(response.data['results'], app_id, 'worker', "v3", "up")
-
-        # verify web is still there
-        url = f"/v2/apps/{app_id}/pods/"
-        response = self.client.get(url)
-        self.assertEqual(response.status_code, 200, response.data)
+        self.assertEqual([item for item in response.data['results'] if item["type"] != "web"], [])
         self.assertPodContains(response.data['results'], app_id, 'web', "v3", "up")
 
         # look at the app structure
         url = f"/v2/apps/{app_id}"
         response = self.client.get(url)
         self.assertEqual(response.status_code, 200, response.data)
-        self.assertEqual(response.json()['structure'], {'web': 1, 'worker': 1})
-
-        # scale worker to make sure no info was lost
-        url = f"/v2/apps/{app_id}/ptypes/scale"
-        body = {'worker': 2}  # bump from 1 to 2
-        response = self.client.post(url, body)
-        self.assertEqual(response.status_code, 204, response.data)
-
-        # verify worker info
-        url = f"/v2/apps/{app_id}/pods/"
-        response = self.client.get(url)
-        self.assertEqual(response.status_code, 200, response.data)
-        self.assertPodContains(response.data['results'], app_id, 'worker', "v3", "up")
+        self.assertEqual(response.json()['structure'], {'web': 1})
 
     @override_settings(DRYCC_DEPLOY_REJECT_IF_PROCFILE_MISSING=True)
     def test_build_forgotten_procfile_reject(self, mock_requests):
@@ -389,7 +366,12 @@ class BuildTest(DryccTransactionTestCase):
         url = f"/v2/apps/{app_id}/build"
         body = {'image': 'autotest/example', 'stack': 'container'}
         response = self.client.post(url, body)
-        self.assertEqual(response.status_code, 409, response.data)
+        self.assertEqual(response.status_code, 201, response.data)
+        # verify web
+        url = f"/v2/apps/{app_id}/pods/"
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, 200, response.data)
+        self.assertPodContains(response.data['results'], app_id, 'web', "v3", "up")
 
     def test_build_str(self, mock_requests):
         """Test the text representation of a build."""
