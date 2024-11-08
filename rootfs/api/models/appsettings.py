@@ -1,4 +1,6 @@
 import logging
+
+from functools import partial
 from django.db import models
 from django.db import transaction
 
@@ -147,7 +149,8 @@ class AppSettings(UuidAuditedModel):
                     self.summary += ' and '
                 self.summary += ["{} {}".format(self.owner, changes)]
 
-    def _update_fields(self, ignore_update_fields=None):
+    @transaction.atomic
+    def save(self, ignore_update_fields=None, *args, **kwargs):
         previous_settings = None
         try:
             previous_settings = self.app.appsettings_set.latest()
@@ -155,13 +158,13 @@ class AppSettings(UuidAuditedModel):
             pass
         update_fields = ["routable", "autodeploy", "autorollback", "autoscale", "label"]
         try:
-            for update_field in update_fields:
-                if ignore_update_fields is None or update_field not in ignore_update_fields:
-                    method = getattr(self, "_update_%s" % update_field, None)
-                    if method:
-                        method(previous_settings)
-                    else:
-                        self._update_field(update_field, previous_settings)
+            for field in update_fields:
+                if ignore_update_fields is None or field not in ignore_update_fields:
+                    getattr(
+                        self,
+                        "_update_%s" % field,
+                        partial(self._update_field, field)
+                    )(previous_settings)
         except (UnprocessableEntity, NotFound):
             raise
         except Exception as e:
@@ -171,10 +174,6 @@ class AppSettings(UuidAuditedModel):
         if not self.summary and previous_settings:
             self.delete()
             raise AlreadyExists("{} changed nothing".format(self.owner))
+        super(AppSettings, self).save(**kwargs)
         summary = ' '.join(self.summary)
         self.log('summary of app setting changes: {}'.format(summary), logging.DEBUG)
-
-    @transaction.atomic
-    def save(self, ignore_update_field=None, *args, **kwargs):
-        self._update_fields(ignore_update_field)
-        super(AppSettings, self).save(**kwargs)

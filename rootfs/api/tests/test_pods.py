@@ -4,7 +4,6 @@ Unit tests for the Drycc api app.
 Run the tests with "./manage.py test api"
 """
 import os
-import json
 
 from django.contrib.auth import get_user_model
 from django.core.cache import cache
@@ -235,7 +234,7 @@ class PodTest(DryccTransactionTestCase):
 
         # post new config
         url = f"/v2/apps/{app_id}/config"
-        body = {'values': json.dumps({'KEY': 'value'})}
+        body = {'values': [{'name': 'KEY', 'value': 'value', 'group': 'global'}]}
         response = self.client.post(url, body)
         self.assertEqual(response.status_code, 201, response.data)
 

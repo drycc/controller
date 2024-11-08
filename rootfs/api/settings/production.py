@@ -308,29 +308,6 @@ DRYCC_FILER_IMAGE_PULL_POLICY = os.environ.get('DRYCC_FILER_IMAGE_PULL_POLICY', 
 DRYCC_FILER_DURATION = int(os.environ.get('DRYCC_FILER_DURATION', '3600'))
 DRYCC_FILER_WAITTIME = int(os.environ.get('DRYCC_FILER_WAITTIME', '1200'))
 
-# True, true, yes, y and more evaluate to True
-# False, false, no, n and more evaluate to False
-# see the above for all available options
-#
-# If a user deploys one build with a Procfile but then forgets to in the next one
-# then let that go through without scaling the missing process types down
-#
-# If the user has a Procfile in both deploys then processes are scaled up / down as per usual
-#
-# By default the process types are scaled down unless this setting is turned on
-DRYCC_DEPLOY_PROCFILE_MISSING_REMOVE = os.environ.get(
-    'DRYCC_DEPLOY_PROCFILE_MISSING_REMOVE', 'true').lower() == "true"
-
-# True, true, yes, y and more evaluate to True
-# False, false, no, n and more evaluate to False
-# see the above for all available options
-#
-# If a previous deploy had a Procfile but then the following deploy has no Procfile then it will
-# result in a 406 - Not Acceptable
-# Has priority over DRYCC_DEPLOY_PROCFILE_MISSING_REMOVE
-DRYCC_DEPLOY_REJECT_IF_PROCFILE_MISSING = os.environ.get(
-    'DRYCC_DEPLOY_REJECT_IF_PROCFILE_MISSING', 'false').lower() == "true"
-
 # Define a global default on how many pods to bring up and then
 # take down sequentially during a deploy
 # Defaults to None, the default is to deploy to as many nodes as

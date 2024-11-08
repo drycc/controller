@@ -18,11 +18,11 @@ from django.conf import settings
 from django.db import models
 from django.db.models import F, Func, Value, JSONField
 from django.contrib.auth import get_user_model
-from rest_framework.exceptions import ValidationError, NotFound
+from rest_framework.exceptions import ValidationError
 
 from api.utils import get_session, dict_diff
 from api.exceptions import AlreadyExists, DryccException, ServiceUnavailable
-from api.utils import DeployLock, generate_app_name, apply_tasks
+from api.utils import CacheLock, DeployLock, generate_app_name, apply_tasks
 from scheduler import KubeHTTPException, KubeException
 from .gateway import Gateway, Route
 from .limit import LimitPlan
@@ -148,6 +148,9 @@ class App(UuidAuditedModel):
 
         return application
 
+    def lock(self):
+        return CacheLock(f"app:lock:{self.id}")
+
     @property
     def ptypes(self):
         return list(self.structure.keys())
@@ -246,7 +249,7 @@ class App(UuidAuditedModel):
         """
         deployments = []
         if self.structure[kwargs['type']] > 0:
-            deployments.append(self._get_job_id(kwargs['type']))
+            deployments.append(self._get_deployment_name(kwargs['type']))
         try:
             tasks = [
                 (
@@ -326,16 +329,7 @@ class App(UuidAuditedModel):
         self.create()
         # Previous release
         prev_release = release.previous()
-
-        default_structure = self._default_structure(release)
-        if (self.structure != default_structure) or (
-            prev_release and prev_release.build and prev_release.build.type != release.build.type
-        ):
-            # structure {} or build type change, merge old structure if exists
-            for ptype, scale in default_structure.items():
-                default_structure[ptype] = self.structure.get(ptype, scale)
-            self.structure = default_structure
-            self.save()
+        self._merge_structure(release, prev_release)
         # deploy application to k8s. Also handles initial scaling
         app_settings = self.appsettings_set.latest()
         volumes = self.volume_set.all()
@@ -349,8 +343,9 @@ class App(UuidAuditedModel):
         self._deploy(
             deploys, ptypes, prev_release, release, force_deploy, rollback_on_failure)
         # cleanup old release objects from kubernetes
-        self.cleanup_old(ptypes)
-        release.cleanup_old(ptypes)
+        if app_settings.autodeploy:
+            self.clean(release=release)
+        release.clean(ptypes)
 
     def mount(self, user, volume, structure=None):
         if self.release_set.filter(failed=False).latest().build is None:
@@ -359,20 +354,32 @@ class App(UuidAuditedModel):
         app_settings = self.appsettings_set.latest()
         self._mount(user, volume, release, app_settings, structure=structure)
 
-    def cleanup_old(self, ptypes=None):
-        names = []
-        for scale_type in self.structure.keys():
-            names.append(self._get_job_id(scale_type))
+    def clean(self, release=None, ptypes=None):
+        release = release if release else self.release_set.latest()
+        # scale ptype down to 0, the next deploy will delete
+        pre_release = release.previous(None)
+        if pre_release is not None:
+            removed = {}
+            for ptype in pre_release.ptypes:
+                if ptype not in release.ptypes and self.structure.get(ptype, 0) > 0:
+                    if ptypes is None or ptype in ptypes:
+                        removed[ptype] = 0
+            self.scale(self.owner, removed)
+        self._merge_structure(release, pre_release)
+        # clean k8s resources, ptype not in structure
         labels = {'heritage': 'drycc'}
-        if ptypes is not None:
+        if ptypes:
             labels["type__in"] = ptypes
-        deployments = self.scheduler().deployments.get(self.id, labels=labels).json()["items"]
-        if deployments is not None:
-            for deployment in deployments:
-                name = deployment['metadata']['name']
-                if name not in names:
-                    self.scheduler().deployments.delete(self.id, name, True)
-        self.log(f"cleanup old kubernetes deployments for {self.id}")
+        resource_apis = [self.scheduler().deployments, self.scheduler().secret]
+        for api in resource_apis:
+            resources = api.get(self.id, labels=labels).json()["items"]
+            if resources is not None:
+                for resource in resources:
+                    name = resource['metadata']['name']
+                    ptype = resource['metadata'].get("labels", {}).get("type")
+                    if (ptype and ptype not in self.structure):
+                        api.delete(self.id, name, True)
+        self.log(f"cleanup old kubernetes resources for {self.id}")
 
     def run(self, user, image=None, command=None, args=None, volumes=None,
             timeout=3600, expires=3600, **kwargs):
@@ -400,7 +407,7 @@ class App(UuidAuditedModel):
         data['restart_policy'] = 'Never'
         data['active_deadline_seconds'] = timeout
         data['ttl_seconds_after_finished'] = expires
-        name = self._get_job_id(PTYPE_RUN) + '-' + pod_name()
+        name = self._get_deployment_name(PTYPE_RUN) + '-' + pod_name()
         self.log("{} on {} runs '{}'".format(user.username, name, command))
         kwargs.update(data)
         try:
@@ -521,6 +528,7 @@ class App(UuidAuditedModel):
 
     def list_deployments(self, *args, **kwargs):
         """Used to list basic information about deployments running for a given application"""
+        ptypes = self.release_set.latest().ptypes
         try:
             labels = self._scheduler_filter(**kwargs)
             # in case a singular deployment is requested
@@ -545,6 +553,7 @@ class App(UuidAuditedModel):
                         p["status"].get("readyReplicas", 0),
                         p["status"].get("replicas", 0),
                     ),
+                    'garbage': False if labels['type'] in ptypes else True,
                     'up_to_date': p["status"].get("updatedReplicas", 0),
                     'available_replicas': p["status"].get("availableReplicas", 0),
                     'started': started
@@ -654,7 +663,7 @@ class App(UuidAuditedModel):
         ptypes = set()
         for ptype, scale in self.structure.items():
             response = self.scheduler().deployment.get(
-                self.id, self._get_job_id(ptype),
+                self.id, self._get_deployment_name(ptype),
                 ignore_exception=True)
             if response.status_code == 404 and scale > 0:
                 ptypes.add(ptype)
@@ -717,7 +726,7 @@ class App(UuidAuditedModel):
     def __str__(self):
         return self.id
 
-    def _get_job_id(self, ptype):
+    def _get_deployment_name(self, ptype):
         return f"{self.id}-{ptype}"
 
     def _clean_app_logs(self):
@@ -743,7 +752,7 @@ class App(UuidAuditedModel):
                 data = self._gather_app_settings(
                     release, app_settings, scale_type, replicas, volumes=scale_type_volumes)
                 deployment = self.scheduler().deployment.get(
-                    self.id, self._get_job_id(scale_type)).json()
+                    self.id, self._get_deployment_name(scale_type)).json()
                 spec_annotations = deployment['spec']['template']['metadata'].get(
                     'annotations', {})
                 self.set_application_config(release, scale_type)
@@ -752,7 +761,7 @@ class App(UuidAuditedModel):
                     functools.partial(
                         self.scheduler().deployment.patch,
                         namespace=self.id,
-                        name=self._get_job_id(scale_type),
+                        name=self._get_deployment_name(scale_type),
                         image=release.get_deploy_image(scale_type),
                         command=release.get_deploy_command(scale_type),
                         args=release.get_deploy_args(scale_type),
@@ -786,7 +795,7 @@ class App(UuidAuditedModel):
                     functools.partial(
                         self.scheduler().deploy,
                         namespace=self.id,
-                        name=self._get_job_id(scale_type),
+                        name=self._get_deployment_name(scale_type),
                         image=release.get_deploy_image(scale_type),
                         command=release.get_deploy_command(scale_type),
                         args=release.get_deploy_args(scale_type),
@@ -845,14 +854,6 @@ class App(UuidAuditedModel):
             self.log(err_msg)
             raise DryccException(err_msg)
 
-        # test for available process types
-        for ptype in structure:
-            if ptype not in (PTYPE_WEB, PTYPE_RUN) and \
-                    ptype not in release.ptypes:
-                err_msg = 'Container type {} does not exist in application'.format(ptype)
-                self.log(err_msg)
-                raise NotFound(err_msg)
-
         new_scale = dict_diff(structure, self.structure).get("changed", {})
         old_scale = dict_diff(self.structure, structure).get("changed", {})
 
@@ -892,7 +893,7 @@ class App(UuidAuditedModel):
                 functools.partial(
                     self.scheduler().scale,
                     namespace=self.id,
-                    name=self._get_job_id(scale_type),
+                    name=self._get_deployment_name(scale_type),
                     image=release.get_deploy_image(scale_type),
                     command=release.get_deploy_command(scale_type),
                     args=release.get_deploy_args(scale_type),
@@ -1046,7 +1047,7 @@ class App(UuidAuditedModel):
         if force_deploy:
             return
         for scale_type, kwargs in deploys.items():
-            name = self._get_job_id(scale_type)
+            name = self._get_deployment_name(scale_type)
             # Is there an existing deployment in progress?
             in_progress, deploy_okay = self.scheduler().deployment.in_progress(
                 self.id, name, kwargs.get("deploy_timeout"), kwargs.get("deploy_batches"),
@@ -1056,13 +1057,29 @@ class App(UuidAuditedModel):
             if in_progress and not deploy_okay:
                 raise AlreadyExists('Deployment for {} is already in progress'.format(name))
 
-    @staticmethod
-    def _default_structure(release):
+    def _merge_structure(self, release, prev_release):
         """Scale to default structure based on release type"""
-        structure = {}
-        for ptype in release.ptypes:
-            structure[ptype] = 1 if ptype == PTYPE_WEB else 0
-        return structure
+        lock = self.lock()
+        try:
+            lock.acquire()
+            self.refresh_from_db()
+            default_structure = {}
+            for ptype in release.ptypes:
+                default_structure[ptype] = 1 if ptype == PTYPE_WEB else 0
+            if (self.structure != default_structure) or (
+                prev_release and prev_release.build and
+                prev_release.build.type != release.build.type
+            ):
+                for ptype, scale in self.structure.items():
+                    # clean old ptype
+                    if ptype not in release.ptypes and scale == 0:
+                        continue
+                    default_structure[ptype] = scale
+                self.structure = default_structure
+                self.save()
+        finally:
+            lock.release()
+        return self.structure
 
     def _scheduler_filter(self, **kwargs):
         labels = {'app': self.id, 'heritage': 'drycc'}
@@ -1095,8 +1112,7 @@ class App(UuidAuditedModel):
 
         default_env['SOURCE_VERSION'] = release.build.sha
         # merge envs on top of default to make envs win
-        default_env.update(release.config.values)
-        default_env.update(release.config.typed_values.get(ptype, {}))
+        default_env.update(release.config.envs(ptype))
         # fetch application port and inject into ENV vars as needed
         port = release.get_port(ptype)
         if port:
@@ -1168,28 +1184,29 @@ class App(UuidAuditedModel):
         limit_plan = LimitPlan.objects.get(id=config.limits.get(ptype))
 
         # see if the app config has deploy batch preference, otherwise use global
-        batches = int(config.values.get('DRYCC_DEPLOY_BATCHES', settings.DRYCC_DEPLOY_BATCHES))
+        batches = int(envs.get('DRYCC_DEPLOY_BATCHES', settings.DRYCC_DEPLOY_BATCHES))
 
         # see if the app config has deploy timeout preference, otherwise use global
-        deploy_timeout = int(
-            config.values.get('DRYCC_DEPLOY_TIMEOUT', settings.DRYCC_DEPLOY_TIMEOUT))
+        deploy_timeout = int(envs.get('DRYCC_DEPLOY_TIMEOUT', settings.DRYCC_DEPLOY_TIMEOUT))
 
         # configures how many ReplicaSets to keep beside the latest version
-        deployment_history = config.values.get(
+        deployment_history = envs.get(
             'KUBERNETES_DEPLOYMENTS_REVISION_HISTORY_LIMIT',
             settings.KUBERNETES_DEPLOYMENTS_REVISION_HISTORY_LIMIT)
 
         # get application level pod termination grace period
-        pod_termination_grace_period_seconds = int(config.values.get(
+        pod_termination_grace_period_seconds = int(envs.get(
             'KUBERNETES_POD_TERMINATION_GRACE_PERIOD_SECONDS',
             settings.KUBERNETES_POD_TERMINATION_GRACE_PERIOD_SECONDS))
 
         # set the image pull policy that is associated with the application container
-        image_pull_policy = config.values.get('IMAGE_PULL_POLICY', settings.IMAGE_PULL_POLICY)
+        image_pull_policy = envs.get('IMAGE_PULL_POLICY', settings.IMAGE_PULL_POLICY)
 
+        # set registry
+        registry = config.registry.get(ptype, {})
         # create image pull secret if needed
         image_pull_secret_name = self.image_pull_secret(
-            self.id, config.registry, release.get_deploy_image(ptype))
+            self.id, registry, release.get_deploy_image(ptype))
 
         # only web is routable
         # https://www.drycc.cc/applications/managing-app-processes/#default-process-types
@@ -1201,7 +1218,7 @@ class App(UuidAuditedModel):
         return {
             'tags': config.tags.get(ptype, {}),
             'envs': envs,
-            'registry': config.registry,
+            'registry': registry,
             'replicas': replicas,
             'version': release.version_name,
             'app_type': ptype,

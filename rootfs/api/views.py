@@ -396,20 +396,32 @@ class ConfigViewSet(ReleasableViewSet):
     model = models.config.Config
     serializer_class = serializers.ConfigSerializer
 
+    def delete(self, request, **kwargs):
+        values_refs = self.get_serializer().validate_values_refs(request.data.get('values_refs'))
+        if not values_refs or not values_refs.values():
+            raise DryccException("ptype or groups is required")
+
+        config = self.model(app=self.get_app(), owner=self.request.user, values_refs={})
+        old_values_refs = config.previous().values_refs.copy()
+        for ptype, groups in values_refs.items():
+            for group in old_values_refs.get(ptype, []):
+                if group not in groups:
+                    if ptype not in config.values_refs:
+                        config.values_refs[ptype] = [group]
+                    elif group not in config.values_refs[ptype]:
+                        config.values_refs[ptype].append(group)
+        config.save(ignore_update_fields=["values_refs"])
+
+        self.post_save(config)
+        return Response(status=status.HTTP_200_OK)
+
     def post_save(self, config):
         latest_release = config.app.release_set.filter(failed=False).latest()
         try:
             release = latest_release.new(
                 self.request.user, config=config, build=latest_release.build)
-            if config.app.appsettings_set.latest().autodeploy:
-                ptypes = set()
-                for field, diff in config.diff().items():
-                    if field in config.ptype_fields:
-                        for value in diff.values():
-                            ptypes.update(value.keys())
-                # allof_fields changed, deploy all.
-                ptypes = list(ptypes) if ptypes else None
-                release.deploy(ptypes, False)
+            if release.build and config.app.appsettings_set.latest().autodeploy:
+                release.deploy(release.ptypes, False)
         except BaseException as e:
             config.delete()
             if isinstance(e, AlreadyExists):
@@ -472,6 +484,14 @@ class PtypeViewSet(AppResourceViewSet):
         ptypes = app.check_ptypes(ptypes)
         for ptype in set(ptypes):
             restart_app.delay(app, **{"type": ptype})
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+    def clean(self, request, *args, **kwargs):
+        app = self.get_app()
+        ptypes = set(
+            [ptype for ptype in request.data.get("ptypes", "").split(",") if ptype])
+        ptypes = app.check_ptypes(ptypes)
+        app.clean(ptypes=ptypes)
         return Response(status=status.HTTP_204_NO_CONTENT)
 
     def scale(self, request, **kwargs):

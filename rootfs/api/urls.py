@@ -57,6 +57,10 @@ app_urlpatterns = [
     re_path(
         r"^apps/(?P<id>{})/ptypes/restart/?$".format(settings.APP_URL_REGEX),
         views.PtypeViewSet.as_view({'post': 'restart'})),
+    # clean old k8s resource
+    re_path(
+        r"^apps/(?P<id>{})/ptypes/clean/?$".format(settings.APP_URL_REGEX),
+        views.PtypeViewSet.as_view({'post': 'clean'})),
     # scale ptype replcas
     re_path(
         r"^apps/(?P<id>{})/ptypes/scale/?$".format(settings.APP_URL_REGEX),

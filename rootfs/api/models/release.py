@@ -12,9 +12,9 @@ from api.exceptions import DryccException, AlreadyExists
 from scheduler import KubeHTTPException
 from scheduler.resources.pod import DEFAULT_CONTAINER_PORT
 
-from ..utils import CacheLock, DeployLock
+from ..utils import DeployLock, dict_diff
 
-from .base import UuidAuditedModel
+from .base import UuidAuditedModel, PTYPE_WEB
 from .appsettings import AppSettings
 
 
@@ -58,7 +58,7 @@ class Release(UuidAuditedModel):
     def ptypes(self):
         if self.build is not None:
             return self.build.ptypes
-        return []
+        return [PTYPE_WEB]
 
     @property
     def version_name(self):
@@ -159,18 +159,40 @@ class Release(UuidAuditedModel):
         then use default port or read from ENV var, otherwise attempt to pull from
         the container image
         """
-        return int(self.config.typed_values.get(
-            ptype, {}).get(
-                'PORT', self.config.values.get('PORT', DEFAULT_CONTAINER_PORT)))
+        return int(self.config.envs(ptype).get('PORT', DEFAULT_CONTAINER_PORT))
+
+    def diff_ptypes(self, ptypes):
+        def _get_full_deploy(release, ptypes):
+            deploy = {}
+            for ptype in ptypes:
+                deploy[ptype] = {
+                    'image': release.get_deploy_image(ptype),
+                    'args': release.get_deploy_args(ptype),
+                    'command': release.get_deploy_command(ptype),
+                }
+            return deploy
+
+        pre_release = self.previous()
+        if pre_release is None:
+            return ptypes
+        changed_ptypes = set(self.config.diff_ptypes(pre_release.config, ptypes))
+        if pre_release.build and self.build:
+            deploy = _get_full_deploy(self, ptypes)
+            pre_deploy = _get_full_deploy(pre_release, ptypes)
+            for value in dict_diff(deploy, pre_deploy).values():
+                changed_ptypes = changed_ptypes.union(value.keys())
+        return list(changed_ptypes)
 
     def deploy(self, ptypes=None, force_deploy=False):
+        if not self.build:
+            raise DryccException("there are no builds available for deploy")
         ptypes = set(ptypes).intersection(self.ptypes) if ptypes else self.ptypes
         if not ptypes:
-            self.log(f'skip deploy, ptypes are not within the optional range: {self.ptypes}')
-            return
+            raise DryccException(
+                f'skip deploy, ptypes are not within the optional range: {self.ptypes}')
         # change deployed_ptypes lock
         msg = 'there is an executing pipeline, please wait or force deploy'
-        lock = CacheLock("release:%s" % self.pk)
+        lock = self.app.lock()
         try:
             if lock.acquire() or force_deploy:
                 deployed_ptypes = list(set(self.deployed_ptypes).union(ptypes))
@@ -180,13 +202,16 @@ class Release(UuidAuditedModel):
                 raise DryccException(msg)
         finally:
             lock.release()
+        # diff ptypes
+        if not force_deploy and self.app.appsettings_set.latest().autodeploy:
+            ptypes = self.diff_ptypes(ptypes)
         # deploy lock
         lock = DeployLock(self.app.pk)
         if not lock.acquire(ptypes, force=force_deploy):
             raise DryccException(f"{msg}: {lock.locked(ptypes)}")
         run_pipeline.delay(self, ptypes, force_deploy)
 
-    def previous(self):
+    def previous(self, state="succeed"):
         """
         Return the previous Release to this one.
 
@@ -195,8 +220,7 @@ class Release(UuidAuditedModel):
         releases = self.app.release_set
         if self.pk:
             releases = releases.exclude(pk=self.pk)
-
-        q = Q(failed=False, state="succeed")
+        q = Q(failed=False, state="succeed") if state else Q(failed=False)
         try:
             app_settings = self.app.appsettings_set.latest()
             if app_settings.autorollback is False:
@@ -249,7 +273,7 @@ class Release(UuidAuditedModel):
                 new_release.save(update_fields=["state", "failed", "summary", "exception"])
             raise DryccException(str(e)) from e
 
-    def cleanup_old(self, ptypes=None):
+    def clean(self, ptypes=None):
         """
         Cleanup any old resources from Kubernetes
 
@@ -373,13 +397,14 @@ class Release(UuidAuditedModel):
         }
         if ptypes is not None:
             labels['type__in'] = ptypes
-        # see if the app config has deploy timeout preference, otherwise use global
-        timeout = self.config.values.get('DRYCC_DEPLOY_TIMEOUT', settings.DRYCC_DEPLOY_TIMEOUT)
-
         replica_sets = self.scheduler().rs.get(namespace, labels=labels).json()['items']
         if not replica_sets:
             replica_sets = []
         for replica_set in replica_sets:
+            # see if the app config has deploy timeout preference, otherwise use global
+            ptype = replica_set['metadata'].get("labels", {}).get("type", PTYPE_WEB)
+            timeout = self.config.envs(ptype).get(
+                'DRYCC_DEPLOY_TIMEOUT', settings.DRYCC_DEPLOY_TIMEOUT)
             # Deployment takes care of this in the API, RS does not
             # Have the RS scale down pods and delete itself
             try:
@@ -408,7 +433,7 @@ class Release(UuidAuditedModel):
                 for field, diff in self.config.diff(old_config).items():
                     diff_list = []
                     for diff_type, values in diff.items():
-                        diff_list.append(f'{diff_type} {field} {", ".join(values.keys())}')
+                        diff_list.append(f'{diff_type} {field} {", ".join(values)}')
                     if diff_list:
                         changes = ', '.join(diff_list)
                         self.summary += "{} {}".format(self.config.owner, changes)

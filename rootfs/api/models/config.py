@@ -1,4 +1,5 @@
 import logging
+from functools import partial
 from django.db import models
 from django.contrib.auth import get_user_model
 from api.utils import dict_diff
@@ -16,13 +17,13 @@ class Config(UuidAuditedModel):
     during runtime execution of the Application.
     """
     ptype_fields = ("lifecycle_post_start", "lifecycle_pre_stop", "tags", "limits",
-                    "typed_values", "healthcheck", "termination_grace_period")
-    allof_fields = ("values", "registry") + ptype_fields
+                    "values_refs", "healthcheck", "termination_grace_period", "registry")
+    allof_fields = ("values", ) + ptype_fields
 
     owner = models.ForeignKey(User, on_delete=models.PROTECT)
     app = models.ForeignKey('App', on_delete=models.CASCADE)
-    values = models.JSONField(default=dict, blank=True)
-    typed_values = models.JSONField(default=dict, blank=True)
+    values = models.JSONField(default=list, blank=True)
+    values_refs = models.JSONField(default=dict, blank=True)
     lifecycle_post_start = models.JSONField(default=dict, blank=True)
     lifecycle_pre_stop = models.JSONField(default=dict, blank=True)
     tags = models.JSONField(default=dict, blank=True)
@@ -56,14 +57,71 @@ class Config(UuidAuditedModel):
             prev_config = None
         return prev_config
 
-    def diff(self, config=None):
-        old_config = config if config else self.previous()
+    def envs(self, ptype):
+        envs = {}
+        # group env
+        groups = ['global']
+        groups.extend(self.values_refs.get(ptype, []))
+        for group in groups:
+            for value in self.values:
+                if group == value.get('group'):
+                    envs[value['name']] = value['value']
+        # ptype env, repetition will replace the previous env
+        for value in self.values:
+            if value.get('ptype') == ptype:
+                envs[value['name']] = value['value']
+        return envs
+
+    def diff(self, old_config):
+        def flat_values(values):
+            ptype_envs, group_envs = {}, {}
+            for value in values:
+                ptype, group = value.get('ptype'), value.get('group')
+                if ptype:
+                    ptype_envs[ptype] = ptype_envs.get(ptype, {})
+                    ptype_envs[ptype][value['name']] = value['value']
+                if group:
+                    group_envs[group] = group_envs.get(group, {})
+                    group_envs[group][value['name']] = value['value']
+            return ptype_envs, group_envs
+
+        old_config = old_config if old_config else self.previous()
+        # ptype field diff
         result = {}
-        for field in self.allof_fields:
-            result[field] = dict_diff(getattr(self, field), getattr(old_config, field))
+        for field in self.ptype_fields:
+            new_value = getattr(self, field)
+            old_value = getattr(old_config, field)
+            result[field] = dict_diff(new_value, old_value)
+        values_diff = {}
+        (new_ptype_envs, new_group_envs), (old_ptype_envs, old_group_envs) = (
+            flat_values(self.values), flat_values(old_config.values))
+        # diff ptype env
+        for ptype in set(new_ptype_envs.keys()).union(old_ptype_envs.keys()):
+            values_diff.update(
+                dict_diff(new_ptype_envs.get(ptype, {}), old_ptype_envs.get(ptype, {})))
+        # diff group env
+        for group in set(new_group_envs.keys()).union(old_group_envs.keys()):
+            values_diff.update(
+                dict_diff(new_group_envs.get(group, {}), old_group_envs.get(group, {})))
+        result["values"] = values_diff
         return result
 
-    def save(self, **kwargs):
+    def diff_ptypes(self, old_config, include_ptypes):
+        old_config = old_config if old_config else self.previous()
+        ptypes = set()
+        for ptype in include_ptypes:
+            for field in self.ptype_fields:
+                new_value = getattr(self, field).get(ptype, None)
+                old_value = getattr(old_config, field).get(ptype, None)
+                if (new_value or old_value) and new_value != old_value:
+                    ptypes.add(ptype)
+            new_env = self.envs(ptype)
+            old_env = old_config.envs(ptype)
+            if new_env != old_env:
+                ptypes.add(ptype)
+        return ptypes
+
+    def save(self, ignore_update_fields=None, *args, **kwargs):
         """merge the old config with the new"""
         try:
             # Get config from the latest available release
@@ -73,22 +131,69 @@ class Config(UuidAuditedModel):
                 # If that doesn't exist then fallback on app config
                 # usually means a totally new app
                 previous_config = self.app.config_set.latest()
-
-            for attr in ['registry', 'values', 'lifecycle_post_start',
-                         'lifecycle_pre_stop', 'termination_grace_period']:
-                data = getattr(previous_config, attr, {}).copy()
-                new_data = getattr(self, attr, {}).copy()
-                self._merge_data(attr, data, new_data)
-                setattr(self, attr, data)
-            self._set_typed_values(previous_config)
-            self._set_limits(previous_config)
-            self._set_healthcheck(previous_config)
-            self._set_registry()
-            self._set_tags(previous_config)
+            for field in self.allof_fields:
+                if ignore_update_fields is None or field not in ignore_update_fields:
+                    getattr(
+                        self,
+                        "_update_%s" % field,
+                        partial(self._update_field, field)
+                    )(previous_config)
         except Config.DoesNotExist:
-            self._set_tags(previous_config={'tags': {}})
+            self._update_tags(previous_config={'tags': {}})
+        return super(Config, self).save(*args, **kwargs)
 
-        return super(Config, self).save(**kwargs)
+    def _update_field(self, field, previous_config):
+        data = getattr(previous_config, field, {}).copy()
+        new_data = getattr(self, field, {}).copy()
+        # remove config keys if a null value is provided
+        for key, value in new_data.items():
+            if value is None:
+                # error if unsetting non-existing key
+                if key not in data:
+                    raise UnprocessableEntity(
+                        '{} does not exist under {}'.format(key, field))
+                data.pop(key)
+            else:
+                data[key] = self._merge_data(field, data.get(key, {}), value)
+        setattr(self, field, data)
+
+    def _update_values(self, previous_config):
+        data = getattr(previous_config, 'values', []).copy()
+        new_data = getattr(self, 'values', []).copy()
+        for new_item in new_data:
+            added = True
+            for index, item in enumerate(data):
+                if (
+                    item['name'] == new_item['name'] and
+                    item.get('ptype') == new_item.get('ptype') and
+                    item.get('group') == new_item.get('group')
+                ):
+                    data.pop(index)
+                    if not new_item['value']:
+                        added = False
+                    else:  # force to string
+                        new_item['value'] = str(new_item['value'])
+                    break
+            if added:
+                data.append(new_item)
+        setattr(self, 'values', data)
+
+    def _update_values_refs(self, previous_config):
+        data = getattr(previous_config, 'values_refs', {}).copy()
+        new_data = getattr(self, 'values_refs', {}).copy()
+        # remove config keys if a null value is provided
+        for ptype, values in new_data.items():
+            if not values:
+                # error if unsetting non-existing key
+                if ptype not in data:
+                    raise UnprocessableEntity(
+                        '{} does not exist under {}'.format(ptype, 'values_refs'))
+                data.pop(ptype)
+            else:
+                values_refs = data.get(ptype, [])
+                values_refs.extend(new_data.get(ptype, []))
+                data[ptype] = list(set(values_refs))
+        setattr(self, 'values_refs', data)
 
     def _merge_data(self, field, data, new_data):
         # remove config keys if a null value is provided
@@ -102,18 +207,7 @@ class Config(UuidAuditedModel):
                 data[key] = value
         return data
 
-    def _set_registry(self):
-        # lower case all registry options for consistency
-        self.registry = {key.lower(): value for key, value in self.registry.copy().items()}
-
-        # PORT must be set if private registry is being used
-        if self.registry and self.values.get('PORT', None) is None:
-            # only thing that can get past post_save in the views
-            raise DryccException(
-                'PORT needs to be set in the config '
-                'when using a private registry')
-
-    def _set_tags(self, previous_config):
+    def _update_tags(self, previous_config):
         """verify the tags exist on any nodes as labels"""
         data = getattr(previous_config, 'tags', {}).copy()
         new_data = getattr(self, 'tags', {}).copy()
@@ -141,7 +235,7 @@ class Config(UuidAuditedModel):
                     'tags', data.get(ptype, {}), values)
         setattr(self, 'tags', data)
 
-    def _set_limits(self, previous_config):
+    def _update_limits(self, previous_config):
         data = getattr(previous_config, 'limits', {}).copy()
         new_data = getattr(self, 'limits', {}).copy()
         # check procfile
@@ -152,34 +246,3 @@ class Config(UuidAuditedModel):
                         "the %s has already been used and cannot be deleted" % key)
         self._merge_data('limits', data, new_data)
         setattr(self, 'limits', data)
-
-    def _set_healthcheck(self, previous_config):
-        data = getattr(previous_config, 'healthcheck', {}).copy()
-        new_data = getattr(self, 'healthcheck', {}).copy()
-        # remove config keys if a null value is provided
-        for key, value in new_data.items():
-            if value is None:
-                # error if unsetting non-existing key
-                if key not in data:
-                    raise UnprocessableEntity(
-                        '{} does not exist under {}'.format(key, 'healthcheck'))
-                data.pop(key)
-            else:
-                data[key] = self._merge_data('healthcheck', data.get(key, {}), value)
-        setattr(self, 'healthcheck', data)
-
-    def _set_typed_values(self, previous_config):
-        data = getattr(previous_config, 'typed_values', {}).copy()
-        new_data = getattr(self, 'typed_values', {}).copy()
-        # remove config keys if a null value is provided
-        for ptype, values in new_data.items():
-            if not values:
-                # error if unsetting non-existing key
-                if ptype not in data:
-                    raise UnprocessableEntity(
-                        '{} does not exist under {}'.format(ptype, 'typed_values'))
-                data.pop(ptype)
-            else:
-                data[ptype] = self._merge_data(
-                    'typed_values', data.get(ptype, {}), values)
-        setattr(self, 'typed_values', data)

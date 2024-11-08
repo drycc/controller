@@ -5,7 +5,7 @@ from api.models.release import Release
 
 
 def migration_deployed_ptypes(apps, schema_editor):
-    for release in Release.objects.all():
+    for release in Release.objects.all().using("default"):
         deployed_ptypes = set()
         for condition in release.conditions:
             if condition["ptypes"] is None:

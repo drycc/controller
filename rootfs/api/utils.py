@@ -193,7 +193,7 @@ def unit_to_bytes(size):
     return round(_)
 
 
-def validate_json(value, schema, raise_exception=ValidationError):
+def validate_json(value, schema, raise_exception=jsonschema.ValidationError):
     if value is not None:
         try:
             jsonschema.validate(value, schema)

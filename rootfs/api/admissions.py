@@ -30,22 +30,27 @@ class JobsStatusHandler(BaseHandler):
         app = models.app.App.objects.filter(id=app_id).first()
         ptype = request["object"]["metadata"].get("labels", {}).get("type", "")
         if app and ptype:
-            status = request["object"]["status"]
-            replicas = request["object"]["spec"].get("replicas", 0)
-            if "active" in status:
-                replicas += 1
-            elif "succeeded" in status or "failed" in status:
-                replicas -= 1
-            replicas = 0 if replicas < 0 else replicas
-            if app.structure.get(ptype, 0) != replicas:
-                models.app.App.objects.filter(id=app.id).update(
-                    structure=Func(
-                        F("structure"),
-                        Value([ptype]),
-                        Value(replicas, JSONField()),
-                        function="jsonb_set",
+            lock = app.lock()
+            try:
+                lock.acquire()
+                status = request["object"]["status"]
+                replicas = request["object"]["spec"].get("replicas", 0)
+                if "active" in status:
+                    replicas += 1
+                elif "succeeded" in status or "failed" in status:
+                    replicas -= 1
+                replicas = 0 if replicas < 0 else replicas
+                if app.structure.get(ptype, 0) != replicas:
+                    models.app.App.objects.filter(id=app.id).update(
+                        structure=Func(
+                            F("structure"),
+                            Value([ptype]),
+                            Value(replicas, JSONField()),
+                            function="jsonb_set",
+                        )
                     )
-                )
+            finally:
+                lock.release()
         return True
 
 
@@ -70,16 +75,21 @@ class DeploymentsScaleHandler(BaseHandler):
             if key == "type":
                 ptype = value
         if app and ptype:
-            replicas = request["object"]["spec"].get("replicas", 0)
-            if app.structure.get(ptype, 0) != replicas:
-                models.app.App.objects.filter(id=app.id).update(
-                    structure=Func(
-                        F("structure"),
-                        Value([ptype]),
-                        Value(replicas, JSONField()),
-                        function="jsonb_set",
+            lock = app.lock()
+            try:
+                lock.acquire()
+                replicas = request["object"]["spec"].get("replicas", 0)
+                if app.structure.get(ptype, 0) != replicas:
+                    models.app.App.objects.filter(id=app.id).update(
+                        structure=Func(
+                            F("structure"),
+                            Value([ptype]),
+                            Value(replicas, JSONField()),
+                            function="jsonb_set",
+                        )
                     )
-                )
+            finally:
+                lock.release()
         return True
 
 

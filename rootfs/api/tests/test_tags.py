@@ -124,5 +124,3 @@ class TestTags(DryccTransactionTestCase):
         self.assertEqual(response.status_code, 405, response.data)
         response = self.client.patch(url)
         self.assertEqual(response.status_code, 405, response.data)
-        response = self.client.delete(url)
-        self.assertEqual(response.status_code, 405, response.data)

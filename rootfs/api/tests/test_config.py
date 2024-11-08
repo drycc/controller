@@ -4,7 +4,6 @@ Unit tests for the Drycc api app.
 
 Run the tests with "./manage.py test api"
 """
-import json
 from io import StringIO
 from django.contrib.auth import get_user_model
 from django.core.cache import cache
@@ -57,74 +56,187 @@ class ConfigTest(DryccTransactionTestCase):
         response = self.client.get(url)
         self.assertEqual(response.status_code, 200, response.data)
         self.assertIn('values', response.data)
-        self.assertEqual(response.data['values'], {})
+        self.assertEqual(response.data['values'], [])
         config1 = response.data
 
         # set an initial config value
-        body = {'values': json.dumps({'NEW_URL1': 'http://localhost:8080/'})}
+        value1 = {"name": "NEW_URL1", "value": "http://localhost:8080/", "group": "global"}
+        body = {'values': [value1]}
         response = self.client.post(url, body)
         self.assertEqual(response.status_code, 201, response.data)
         config2 = response.data
         self.assertNotEqual(config1['uuid'], config2['uuid'])
-        self.assertIn('NEW_URL1', response.data['values'])
+        self.assertEqual(body['values'], response.data['values'])
 
         # read the config
         response = self.client.get(url)
         self.assertEqual(response.status_code, 200, response.data)
         config3 = response.data
         self.assertEqual(config2, config3)
-        self.assertIn('NEW_URL1', response.data['values'])
+        self.assertEqual(body['values'], response.data['values'])
 
         # set an additional config value
-        body = {'values': json.dumps({'NEW_URL2': 'http://localhost:8080/'})}
+        value2 = {"name": "NEW_URL2", "value": "http://localhost:8080/", "group": "global"}
+        body = {'values': [value2]}
         response = self.client.post(url, body)
         self.assertEqual(response.status_code, 201, response.data)
         config3 = response.data
         self.assertNotEqual(config2['uuid'], config3['uuid'])
-        self.assertIn('NEW_URL1', response.data['values'])
-        self.assertIn('NEW_URL2', response.data['values'])
+        self.assertEqual([value1, value2], response.data['values'])
 
         # read the config again
         response = self.client.get(url)
         self.assertEqual(response.status_code, 200, response.data)
         config4 = response.data
         self.assertEqual(config3, config4)
-        self.assertIn('NEW_URL1', response.data['values'])
-        self.assertIn('NEW_URL2', response.data['values'])
+        self.assertEqual([value1, value2], response.data['values'])
 
         # unset a config value
-        body = {'values': json.dumps({'NEW_URL2': None})}
+        value2['value'] = None
+        body = {'values': [value2]}
         response = self.client.post(url, body)
         self.assertEqual(response.status_code, 201, response.data)
         config5 = response.data
         self.assertNotEqual(config4['uuid'], config5['uuid'])
-        self.assertNotIn('NEW_URL2', json.dumps(response.data['values']))
+        self.assertEqual([value1], response.data['values'])
 
         # unset all config values
-        body = {'values': json.dumps({'NEW_URL1': None})}
+        value1['value'] = None
+        body = {'values': [value1]}
         response = self.client.post(url, body)
         self.assertEqual(response.status_code, 201, response.data)
-        self.assertNotIn('NEW_URL1', json.dumps(response.data['values']))
+        self.assertEqual([], response.data['values'])
 
         # set a port and then unset it to make sure validation ignores the unset
-        body = {'values': json.dumps({'PORT': '5000'})}
+        value3 = {"name": "PORT", "value": "5000", "group": "global"}
+        body = {'values': [value3]}
         response = self.client.post(url, body)
         self.assertEqual(response.status_code, 201, response.data)
-        self.assertIn('PORT', response.data['values'])
+        self.assertEqual([value3], response.data['values'])
 
-        body = {'values': json.dumps({'PORT': None})}
+        value3['value'] = None
+        body = {'values': [value3]}
         response = self.client.post(url, body)
         self.assertEqual(response.status_code, 201, response.data)
-        self.assertNotIn('PORT', response.data['values'])
+        self.assertEqual([], response.data['values'])
 
-        # disallow put/patch/delete
+        # disallow put/patch
         response = self.client.put(url)
         self.assertEqual(response.status_code, 405, response.data)
         response = self.client.patch(url)
         self.assertEqual(response.status_code, 405, response.data)
-        response = self.client.delete(url)
-        self.assertEqual(response.status_code, 405, response.data)
         return config5
+
+    def test_registry_set(self, mock_requests):
+        app_id = self.create_app()
+        # set an initial config value
+        url = f"/v2/apps/{app_id}/config"
+        web_registry = {'web': {'username': 'admin', 'password': 'admin'}}
+        body = {'registry': web_registry}
+        response = self.client.post(url, body)
+        self.assertEqual(response.status_code, 201, response.data)
+
+        url = '/v2/apps/{}/config'.format(app_id)
+        response = self.client.get(url)
+        self.assertEqual(response.data['registry'], web_registry, response.data)
+
+        task_registry = {'task': {'username': 'admin', 'password': 'admin'}}
+        body = {'registry': task_registry}
+        response = self.client.post(url, body)
+        self.assertEqual(response.status_code, 201, response.data)
+
+        url = '/v2/apps/{}/config'.format(app_id)
+        response = self.client.get(url)
+        all_registry = {}
+        all_registry.update(web_registry)
+        all_registry.update(task_registry)
+        self.assertEqual(response.data['registry'], all_registry, response.data)
+
+        # delete task username
+        task_registry = {'task': {'username': None, 'password': 'admin'}}
+        body = {'registry': task_registry}
+        response = self.client.post(url, body)
+        self.assertEqual(response.status_code, 201, response.data)
+        url = '/v2/apps/{}/config'.format(app_id)
+        response = self.client.get(url)
+        all_registry = {}
+        all_registry.update(web_registry)
+        all_registry.update(task_registry)
+        del all_registry['task']['username']
+        self.assertEqual(response.data['registry'], all_registry, response.data)
+
+        # delete task registry
+        task_registry = {'task': None}
+        body = {'registry': task_registry}
+        response = self.client.post(url, body)
+        self.assertEqual(response.status_code, 201, response.data)
+        url = '/v2/apps/{}/config'.format(app_id)
+        response = self.client.get(url)
+        self.assertEqual(response.data['registry'], web_registry, response.data)
+
+    def test_values_refs(self, mock_requests):
+        app_id = self.create_app()
+        url = f"/v2/apps/{app_id}/config"
+        values = [{"name": "DEBUG", "value": "true", "group": "global"}]
+        body = {'values': values}
+        response = self.client.post(url, body)
+        self.assertEqual(response.status_code, 201, response.data)
+        uuid = response.data["uuid"]
+        config = Config.objects.get(uuid=uuid)
+        self.assertEqual(config.envs("web"), {'DEBUG': 'true'})
+        self.assertEqual(config.envs("task"), {'DEBUG': 'true'})
+
+        # add test error, changed nothing
+        values = [
+            {"name": "DEBUG", "value": "true", "group": "global"},
+        ]
+        body = {'values': values}
+        response = self.client.post(url, body)
+        self.assertEqual(response.status_code, 409, response.data)
+
+        # add values ok
+        values = [
+            {"name": "DEBUG", "value": "true", "group": "mytask1"},
+            {"name": "APP", "value": "task2", "group": "mytask2"},
+            {"name": "DEBUG", "value": "false", "group": "global"},
+        ]
+        body = {'values': values}
+        response = self.client.post(url, body)
+        self.assertEqual(response.status_code, 201, response.data)
+        uuid = response.data["uuid"]
+        config = Config.objects.get(uuid=uuid)
+        self.assertEqual(config.envs("web"), {'DEBUG': 'false'})
+        self.assertEqual(config.envs("task"), {'DEBUG': 'false'})
+
+        # add values_refs
+        body = {'values_refs': {"task": ["mytask1", "mytask2"]}}
+        response = self.client.post(url, body)
+        self.assertEqual(response.status_code, 201, response.data)
+        uuid = response.data["uuid"]
+        config = Config.objects.get(uuid=uuid)
+        self.assertEqual(config.envs("web"), {'DEBUG': 'false'})
+        self.assertEqual(config.envs("task"), {'DEBUG': 'true', 'APP': 'task2'})
+
+        # add new item for mytask
+        values = [
+            {"name": "VERSION", "value": "1.0.1", "group": "mytask1"},
+        ]
+        body = {'values': values}
+        response = self.client.post(url, body)
+        self.assertEqual(response.status_code, 201, response.data)
+        uuid = response.data["uuid"]
+        config = Config.objects.get(uuid=uuid)
+        self.assertEqual(config.envs("web"), {'DEBUG': 'false'})
+        self.assertEqual(
+            config.envs("task"), {'DEBUG': 'true', 'VERSION': '1.0.1', 'APP': 'task2'})
+
+        # remove tas values_refs
+        body = {'values_refs': {'task': ['mytask1']}}
+        response = self.client.delete(url, body)
+        self.assertEqual(response.status_code, 200, response.data)
+        url = '/v2/apps/{}/config'.format(app_id)
+        response = self.client.get(url)
+        self.assertEqual(response.data['values_refs'], {"task": ["mytask2"]}, response.data)
 
     def test_response_data(self, mock_requests):
         """Test that the serialized response contains only relevant data."""
@@ -133,17 +245,18 @@ class ConfigTest(DryccTransactionTestCase):
         url = f"/v2/apps/{app_id}/config"
 
         # set an initial config value
-        body = {'values': json.dumps({'PORT': '5000'})}
+        value1 = {"name": "PORT", "value": "5000", "group": "global"}
+        body = {'values': [value1]}
         response = self.client.post(url, body)
         for key in response.data:
             self.assertIn(key, ['uuid', 'owner', 'created', 'updated', 'app', 'values',
-                                'typed_values', 'limits', 'tags', 'registry', 'healthcheck',
+                                'values_refs', 'limits', 'tags', 'registry', 'healthcheck',
                                 'lifecycle_post_start', 'lifecycle_pre_stop',
                                 'termination_grace_period'])
         expected = {
             'owner': self.user.username,
             'app': app_id,
-            'values': {'PORT': '5000'},
+            'values': [value1],
             'limits': {
                 PTYPE_RUN: 'std1.large.c1m1',
                 PTYPE_WEB: 'std1.large.c1m1'
@@ -158,9 +271,9 @@ class ConfigTest(DryccTransactionTestCase):
         app_id = self.create_app()
 
         url = f"/v2/apps/{app_id}/config"
-
+        value1 = {"name": "PORT", "value": "5000", "group": "global"}
         body = {
-            'values': json.dumps({'PORT': 5000}),
+            'values': [value1],
             'limits': {
                 PTYPE_WEB: 'std1.large.c1m2',
             }
@@ -169,13 +282,13 @@ class ConfigTest(DryccTransactionTestCase):
         self.assertEqual(response.status_code, 201, response.data)
         for key in response.data:
             self.assertIn(key, ['uuid', 'owner', 'created', 'updated', 'app', 'values', 'limits',
-                                'typed_values', 'tags', 'registry', 'healthcheck',
+                                'values_refs', 'tags', 'registry', 'healthcheck',
                                 'lifecycle_post_start', 'lifecycle_pre_stop',
                                 'termination_grace_period'])
         expected = {
             'owner': self.user.username,
             'app': app_id,
-            'values': {'PORT': '5000'},
+            'values': [value1],
             'limits': {
                 PTYPE_RUN: 'std1.large.c1m1',
                 PTYPE_WEB: 'std1.large.c1m2'
@@ -201,17 +314,18 @@ class ConfigTest(DryccTransactionTestCase):
         url = f"/v2/apps/{app_id}/config"
 
         # set an initial config value
-        body = {'values': json.dumps({'PORT': '5000'})}
+        value1 = {"name": "PORT", "value": "5000", "group": "global"}
+        body = {'values': [value1]}
         response = self.client.post(url, body)
         self.assertEqual(response.status_code, 201, response.data)
-        self.assertIn('PORT', response.data['values'])
+        self.assertEqual([value1], response.data['values'])
 
         # reset same config value
-        body = {'values': json.dumps({'PORT': '5001'})}
+        value1['value'] = '5001'
+        body = {'values': [value1]}
         response = self.client.post(url, body)
         self.assertEqual(response.status_code, 201, response.data)
-        self.assertIn('PORT', response.data['values'])
-        self.assertEqual(response.data['values']['PORT'], '5001')
+        self.assertEqual([value1], response.data['values'])
 
     def test_config_set_unicode(self, mock_requests):
         """
@@ -221,23 +335,24 @@ class ConfigTest(DryccTransactionTestCase):
         url = f"/v2/apps/{app_id}/config"
 
         # set an initial config value
-        body = {'values': json.dumps({'POWERED_BY': 'Деис'})}
+        value1 = {"name": "POWERED_BY", "value": "Деис", "group": "global"}
+        body = {'values': [value1]}
         response = self.client.post(url, body)
         self.assertEqual(response.status_code, 201, response.data)
-        self.assertIn('POWERED_BY', response.data['values'])
+        self.assertEqual([value1], response.data['values'])
         # reset same config value
-        body = {'values': json.dumps({'POWERED_BY': 'Кроликов'})}
+        value1['value'] = 'Кроликов'
+        body = {'values': [value1]}
         response = self.client.post(url, body)
         self.assertEqual(response.status_code, 201, response.data)
-        self.assertIn('POWERED_BY', response.data['values'])
-        self.assertEqual(response.data['values']['POWERED_BY'], 'Кроликов')
+        self.assertEqual([value1], response.data['values'])
 
         # set an integer to test unicode regression
-        body = {'values': json.dumps({'INTEGER': 1})}
+        value2 = {"name": "INTEGER", "value": "1", "group": "global"}
+        body = {'values': [value2]}
         response = self.client.post(url, body)
         self.assertEqual(response.status_code, 201, response.data)
-        self.assertIn('INTEGER', response.data['values'])
-        self.assertEqual(response.data['values']['INTEGER'], '1')
+        self.assertEqual([value1, value2], response.data['values'])
 
     def test_config_str(self, mock_requests):
         """Test the text representation of a node."""
@@ -251,11 +366,14 @@ class ConfigTest(DryccTransactionTestCase):
         keys = ("FOO", "_foo", "f001", "FOO_BAR_BAZ_")
         app_id = self.create_app()
         url = f'/v2/apps/{app_id}/config'
+        values = []
         for k in keys:
-            body = {'values': json.dumps({k: "testvalue"})}
+            value1 = {"name": k, "value": "testvalue", "group": "global"}
+            values.append(value1)
+            body = {'values': [value1]}
             response = self.client.post(url, body)
             self.assertEqual(response.status_code, 201)
-            self.assertIn(k, response.data['values'])
+            self.assertEqual(values, response.data['values'])
 
     def test_config_deploy_failure(self, mock_requests):
         """
@@ -273,7 +391,8 @@ class ConfigTest(DryccTransactionTestCase):
         with mock.patch('api.models.app.App.deploy') as mock_deploy:
             mock_deploy.side_effect = Exception('Boom!')
             url = f'/v2/apps/{app_id}/config'
-            body = {'values': json.dumps({'test': "testvalue"})}
+            value1 = {"name": "test", "value": "testvalue", "group": "global"}
+            body = {'values': [value1]}
             response = self.client.post(url, body)
             self.assertEqual(response.status_code, 201)
             app = App.objects.get(id=app_id)
@@ -288,7 +407,8 @@ class ConfigTest(DryccTransactionTestCase):
         app_id = self.create_app()
         url = f'/v2/apps/{app_id}/config'
         for k in keys:
-            body = {'values': json.dumps({k: "testvalue"})}
+            value1 = {"name": k, "value": "testvalue", "group": "global"}
+            body = {'values': [value1]}
             response = self.client.post(url, body)
             self.assertEqual(response.status_code, 400)
 
@@ -298,13 +418,13 @@ class ConfigTest(DryccTransactionTestCase):
         Right now only PORT is checked
         """
         data = [
-            {'field': 'PORT', 'value': 'dog'},
-            {'field': 'PORT', 'value': 99999}
+            {"name": "PORT", "value": "dog", "group": "global"},
+            {"name": "PORT", "value": "99999", "group": "global"}
         ]
         app_id = self.create_app()
         url = f'/v2/apps/{app_id}/config'
         for row in data:
-            body = {'values': json.dumps({row['field']: row['value']})}
+            body = {'values': [row]}
             response = self.client.post(url, body)
             self.assertEqual(response.status_code, 400, response.data)
 
@@ -321,10 +441,11 @@ class ConfigTest(DryccTransactionTestCase):
 
         # set an initial config value
         self.client.credentials(HTTP_AUTHORIZATION='Token ' + self.token)
-        body = {'values': json.dumps({'PORT': '5000'})}
+        value1 = {"name": "PORT", "value": "5000", "group": "global"}
+        body = {'values': [value1]}
         response = self.client.post(url, body)
         self.assertEqual(response.status_code, 201, response.data)
-        self.assertIn('PORT', response.data['values'])
+        self.assertEqual([value1], response.data['values'])
         return response
 
     def test_config_owner_is_requesting_user(self, mock_requests):
@@ -348,7 +469,8 @@ class ConfigTest(DryccTransactionTestCase):
         unauthorized_token = self.get_or_create_token(unauthorized_user)
         self.client.credentials(HTTP_AUTHORIZATION='Token ' + unauthorized_token)
         url = '/v2/apps/{}/config'.format(app_id)
-        body = {'values': {'FOO': 'bar'}}
+        value1 = {"name": "FOO", "value": "bar", "group": "global"}
+        body = {'values': [value1]}
         response = self.client.post(url, body)
         self.assertEqual(response.status_code, 403)
 
@@ -371,17 +493,19 @@ class ConfigTest(DryccTransactionTestCase):
 
         # set an initial config value
         url = f"/v2/apps/{app_id}/config"
-        body = {'values': json.dumps({'NEW_URL1': 'http://localhost:8080/'})}
+        value1 = {"name": "NEW_URL1", "value": "http://localhost:8080/", "group": "global"}
+        body = {'values': [value1]}
         response = self.client.post(url, body)
         self.assertEqual(response.status_code, 201, response.data)
-        self.assertIn('NEW_URL1', response.data['values'])
+        self.assertEqual([value1], response.data['values'])
         success_config = app.release_set.latest().config
 
         # create a failed config to check that failed release is created
         with mock.patch('api.models.app.App.deploy') as mock_deploy:
             mock_deploy.side_effect = Exception('Boom!')
             url = f'/v2/apps/{app_id}/config'
-            body = {'values': json.dumps({'test': "testvalue"})}
+            value1 = {"name": "test", "value": "testvalue", "group": "global"}
+            body = {'values': [value1]}
             response = self.client.post(url, body)
             self.assertEqual(response.status_code, 201)
             self.assertEqual(app.release_set.latest().version, 4)
@@ -401,8 +525,9 @@ class ConfigTest(DryccTransactionTestCase):
     def test_unset_limits(self, mock_requests):
         app_id = self.create_app()
         url = f"/v2/apps/{app_id}/config"
+        value1 = {"name": "PORT", "value": "5000", "group": "global"}
         body = {
-            'values': json.dumps({'PORT': 5000}),
+            'values': [value1],
             'limits': {
                 "task": 'std1.large.c2m4',
                 PTYPE_RUN: 'std1.large.c2m4',
@@ -431,8 +556,9 @@ class ConfigTest(DryccTransactionTestCase):
     def test_unset_limits_error(self, mock_requests):
         app_id = self.create_app()
         url = f"/v2/apps/{app_id}/config"
+        value1 = {"name": "PORT", "value": "5000", "group": "global"}
         body = {
-            'values': json.dumps({'PORT': 5000}),
+            'values': [value1],
             'limits': {
                 "task": 'std1.large.c2m4',
                 PTYPE_RUN: 'std1.large.c2m4',
@@ -504,8 +630,9 @@ class ConfigTest(DryccTransactionTestCase):
         # create
         app_id = self.create_app()
         url = f"/v2/apps/{app_id}/config"
+        value1 = {"name": "PORT", "value": "5000", "group": "global"}
         body = {
-            'values': json.dumps({'PORT': 5000}),
+            'values': [value1],
             'limits': {
                   PTYPE_RUN: 'std1.large.c2m4',
                   PTYPE_WEB: 'std1.large.c2m4',
@@ -543,8 +670,9 @@ class ConfigTest(DryccTransactionTestCase):
         )
         # deploy
         release.deploy()
+        value1 = {"name": "PORT", "value": "5000", "group": "global"}
         body = {
-            'values': json.dumps({'PORT': 5000}),
+            'values': [value1],
             'limits': {
                   PTYPE_RUN: 'std1.large.c2m4',
                   PTYPE_WEB: 'std1.large.c2m4',
@@ -566,27 +694,21 @@ class ConfigTest(DryccTransactionTestCase):
         url = f"/v2/apps/{app_id}/config"
 
         # set an initial config value
-        body = {'typed_values': {'web': {'PORT': '5000'}}}
+        body = {'values': [{"name": "PORT", "value": "5000", "ptype": "web"}]}
         response = self.client.post(url, body)
         self.assertEqual(response.status_code, 201, response.data)
-        self.assertIn('PORT', response.data['typed_values']['web'])
+        self.assertIn({"name": "PORT", "value": "5000", "ptype": "web"}, response.data['values'])
 
         # reset same config value
-        body = {'typed_values': {'web': {'PORT': '5001'}}}
+        body = {'values': [{"name": "PORT", "value": "5001", "ptype": "web"}]}
         response = self.client.post(url, body)
         self.assertEqual(response.status_code, 201, response.data)
-        self.assertIn('PORT', response.data['typed_values']['web'])
-        self.assertEqual(response.data['typed_values']['web']['PORT'], '5001')
+        self.assertIn({"name": "PORT", "value": "5001", "ptype": "web"}, response.data['values'])
         # unset PORT
-        body = {'typed_values': {'web': {'PORT': None}}}
+        body = {'values': [{"name": "PORT", "value": None, "ptype": "web"}]}
         response = self.client.post(url, body)
         self.assertEqual(response.status_code, 201, response.data)
-        self.assertEqual(response.data['typed_values']['web'], {}, response.data)
-        # unset web
-        body = {'typed_values': {'web': None}}
-        response = self.client.post(url, body)
-        self.assertEqual(response.status_code, 201, response.data)
-        self.assertEqual(response.data['typed_values'], {}, response.data)
+        self.assertEqual(response.data['values'], [], response.data)
 
     def test_config_version(self, mock_requests):
         """
@@ -596,35 +718,173 @@ class ConfigTest(DryccTransactionTestCase):
         url = f"/v2/apps/{app_id}/config"
 
         # set an initial config value
-        body = {'values': {'PORT': '5000'}}
+        value1 = {"name": "PORT", "value": "5000", "group": "global"}
+        body = {'values': [value1]}
         response = self.client.post(url, body)
         self.assertEqual(response.status_code, 201, response.data)
-        self.assertIn('PORT', response.data['values'])
+        self.assertEqual([value1], response.data['values'])
         url = f"/v2/apps/{app_id}/config"
 
         # set config NAME
-        body = {'values': {'NAME': 'drycc'}}
+        value2 = {"name": "NAME", "value": "drycc", "group": "global"}
+        body = {'values': [value2]}
         response = self.client.post(url, body)
         self.assertEqual(response.status_code, 201, response.data)
-        self.assertIn('NAME', response.data['values'])
+        self.assertEqual([value1, value2], response.data['values'])
 
         # set config WEBSITE
-        body = {'values': {'WEBSITE': 'www.drycc.cc'}}
+        value3 = {"name": "WEBSITE", "value": "www.drycc.cc", "group": "global"}
+        body = {'values': [value3]}
         response = self.client.post(url, body)
         self.assertEqual(response.status_code, 201, response.data)
-        self.assertIn('WEBSITE', response.data['values'])
+        self.assertEqual([value1, value2, value3], response.data['values'])
 
         url = f"/v2/apps/{app_id}/config/?version=v2"
         response = self.client.get(url)
-        self.assertEqual(response.data['values'], {'PORT': '5000'}, response.data)
+        self.assertEqual(response.data['values'], [value1], response.data)
 
         url = f"/v2/apps/{app_id}/config/?version=v3"
         response = self.client.get(url)
         self.assertEqual(
-            response.data['values'], {'PORT': '5000', 'NAME': 'drycc'}, response.data)
+            response.data['values'], [value1, value2], response.data)
 
         url = f"/v2/apps/{app_id}/config/?version=v4"
         response = self.client.get(url)
         self.assertEqual(
             response.data['values'],
-            {'PORT': '5000', 'NAME': 'drycc', 'WEBSITE': 'www.drycc.cc'}, response.data)
+            [value1, value2, value3], response.data)
+
+    def test_diff_ptypes(self, mock_requests):
+        app_id = self.create_app()
+        value1 = {"name": "WEBSITE", "value": "www.drycc.cc", "group": "global"}
+        body = {'values': [value1]}
+        url = f"/v2/apps/{app_id}/config"
+        response = self.client.post(url, body)
+        self.assertEqual(response.status_code, 201, response.data)
+        uuid = response.data["uuid"]
+        config = Config.objects.get(uuid=uuid)
+        old_config = config.previous()
+        self.assertEqual(config.diff_ptypes(old_config, ["web", "task"]), {"web", "task"})
+
+        # add value
+        value1 = {"name": "DEBUG", "value": "true", "group": "mygroup"}
+        body = {'values': [value1]}
+        url = f"/v2/apps/{app_id}/config"
+        response = self.client.post(url, body)
+        self.assertEqual(response.status_code, 201, response.data)
+        uuid = response.data["uuid"]
+        config = Config.objects.get(uuid=uuid)
+        old_config = config.previous()
+        self.assertEqual(config.diff_ptypes(old_config, ["web", "task"]), set())
+
+        # add group ref
+        body = {'values_refs': {"task": ["mygroup"]}}
+        response = self.client.post(url, body)
+        self.assertEqual(response.status_code, 201, response.data)
+        uuid = response.data["uuid"]
+        config = Config.objects.get(uuid=uuid)
+        old_config = config.previous()
+        self.assertEqual(config.diff_ptypes(old_config, ["web", "task"]), {"task"})
+        # add new group
+        value1 = {"name": "DEBUG", "value": "true", "group": "mygroup1"}
+        body = {'values': [value1]}
+        url = f"/v2/apps/{app_id}/config"
+        response = self.client.post(url, body)
+        self.assertEqual(response.status_code, 201, response.data)
+
+        body = {'values_refs': {"task": ["mygroup1"]}}
+        response = self.client.post(url, body)
+        self.assertEqual(response.status_code, 201, response.data)
+        uuid = response.data["uuid"]
+        config = Config.objects.get(uuid=uuid)
+        old_config = config.previous()
+        self.assertEqual(config.diff_ptypes(old_config, ["web", "task"]), {"task"})
+        self.assertEqual(config.envs("task"), {'WEBSITE': 'www.drycc.cc', 'DEBUG': 'true'})
+
+    def test_config_from_dryccfile(self, mock_requests):
+        app_id = self.create_app()
+        app = App.objects.get(id=app_id)
+        build_body = {
+            'image': 'autotest/example',
+            'stack': 'heroku-18',
+            'sha': 'a'*40,
+            'dryccfile': {
+                "build": {
+                    "docker": {"web": "Dockerfile", "worker": "worker/Dockerfile"},
+                    "config": {"RAILS_ENV": "development", "FOO": "bar"}
+                },
+                'deploy': {
+                    'web': {
+                        'image': "127.0.0.1/cat/cat"
+                    }
+                }
+            },
+        }
+        with mock.patch('scheduler.resources.pod.Pod.watch') as mock_kube:
+            mock_kube.return_value = ['up', 'down']
+            url = f"/v2/apps/{app_id}/build"
+            response = self.client.post(url, build_body)
+            self.assertEqual(response.status_code, 201, response.data)
+        value1 = {"name": "WEBSITE", "value": "www.drycc.cc", "group": "global"}
+        body = {'values': [value1]}
+        url = f"/v2/apps/{app_id}/config"
+        response = self.client.post(url, body)
+        self.assertEqual(response.status_code, 201, response.data)
+        release = app.release_set.latest()
+        self.assertEqual(release.failed, False)
+        self.assertEqual(release.config.envs("web"), {"WEBSITE": "www.drycc.cc"})
+        # set env by dryccfile
+        build_body['dryccfile']['config'] = {
+            "mygroup1": [
+                {"name": "GROUP", "value": "g1"},
+                {"name": "DEBUG", "value": "tr"},
+            ],
+            "mygroup2": [
+                {"name": "TEST1", "value": "g1"},
+                {"name": "TEST2", "value": "tr"},
+            ],
+        }
+        build_body['dryccfile']['deploy']['web']['config'] = {
+            'env': [
+                {'name': "PENV1", 'value': 'web'},
+                {'name': "PENV2", 'value': 'web'},
+            ],
+            'ref': ['mygroup1', 'mygroup2']
+        }
+        with mock.patch('scheduler.resources.pod.Pod.watch') as mock_kube:
+            mock_kube.return_value = ['up', 'down']
+            url = f"/v2/apps/{app_id}/build"
+            response = self.client.post(url, build_body)
+            self.assertEqual(response.status_code, 201, response.data)
+
+        release = app.release_set.latest()
+        self.assertEqual(release.failed, False)
+        self.assertEqual(
+            release.config.envs("web"),
+            {
+                'GROUP': 'g1', 'DEBUG': 'tr', 'TEST1': 'g1', 'TEST2': 'tr', 'PENV1': 'web',
+                'PENV2': 'web'
+            }
+        )
+        build_body['dryccfile']['deploy']['web']['healthcheck'] = {
+            'livenessProbe': {
+                'httpGet': {
+                    'path': '/healthz',
+                    'port': 8080,
+                },
+                'initialDelaySeconds': 3,
+                'periodSeconds': 3,
+            }
+        }
+        with mock.patch('scheduler.resources.pod.Pod.watch') as mock_kube:
+            mock_kube.return_value = ['up', 'down']
+            url = f"/v2/apps/{app_id}/build"
+            response = self.client.post(url, build_body)
+            self.assertEqual(response.status_code, 201, response.data)
+
+        release = app.release_set.latest()
+        self.assertEqual(release.failed, False)
+        self.assertEqual(
+            release.config.healthcheck['web'],
+            build_body['dryccfile']['deploy']['web']['healthcheck'],
+        )

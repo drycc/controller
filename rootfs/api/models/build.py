@@ -1,9 +1,9 @@
 import logging
-from django.conf import settings
 from django.db import models
 from django.contrib.auth import get_user_model
-from api.exceptions import DryccException, Conflict
+from api.exceptions import DryccException
 from .base import UuidAuditedModel, PTYPE_WEB
+from .config import Config
 
 User = get_user_model()
 logger = logging.getLogger(__name__)
@@ -73,18 +73,18 @@ class Build(UuidAuditedModel):
 
     def create_release(self, user, *args, **kwargs):
         latest_release = self.app.release_set.filter(failed=False).latest()
-        latest_version = self.app.release_set.latest().version
         try:
             new_release = latest_release.new(
                 user,
                 build=self,
-                config=latest_release.config,
+                config=self._get_or_create_config(),
             )
             if self.app.appsettings_set.latest().autodeploy:
                 new_release.deploy(force_deploy=False)
             return new_release
         except Exception as e:
             # check if the exception is during create or publish
+            latest_version = self.app.release_set.latest().version
             if ('new_release' not in locals() and
                     self.app.release_set.latest().version == latest_version+1):
                 new_release = self.app.release_set.latest()
@@ -102,59 +102,35 @@ class Build(UuidAuditedModel):
                 self.delete()
             raise DryccException(str(e)) from e
 
-    def save(self, **kwargs):
-        previous_release = self.app.release_set.filter(failed=False).latest()
-
-        if (
-            settings.DRYCC_DEPLOY_REJECT_IF_PROCFILE_MISSING is True and
-            # previous release had a Procfile and the current one does not
-            (
-                previous_release.build is not None and
-                len(previous_release.ptypes) > 0 and
-                len(self.ptypes) == 0
-            )
-        ):
-            # Reject deployment
-            raise Conflict(
-                'Last deployment had process types but is missing in this deploy. '
-                'For a successful deployment provide process types.'
-            )
-
-        # See if processes are permitted to be removed
-        remove_procs = (
-            # If set to True then contents of Procfile does not affect the outcome
-            settings.DRYCC_DEPLOY_PROCFILE_MISSING_REMOVE is True or
-            # previous release had a Procfile and the current one does as well
-            (
-                previous_release.build is not None and
-                len(previous_release.ptypes) > 0 and
-                len(self.ptypes) > 0
-            )
-        )
-
-        # spin down any proc type removed between the last procfile and the newest one
-        if remove_procs and previous_release.build is not None and \
-                self.app.appsettings_set.latest().autodeploy:
-            removed = {}
-            for proc in previous_release.ptypes:
-                if proc not in self.ptypes and self.app.structure.get(proc, 0) > 0:
-                    # Scale proc type down to 0
-                    removed[proc] = 0
-
-            self.app.scale(self.owner, removed)
-
-        # make sure the latest build has procfile if the intent is to
-        # allow empty Procfile without removals
-        if (
-            settings.DRYCC_DEPLOY_PROCFILE_MISSING_REMOVE is False and
-            previous_release.build is not None and
-            len(previous_release.ptypes) > 0 and
-            len(self.ptypes) == 0
-        ):
-            self.procfile = previous_release.build.procfile
-            self.dryccfile = previous_release.build.dryccfile
-
-        return super(Build, self).save(**kwargs)
-
     def __str__(self):
         return "{0}-{1}".format(self.app.id, str(self.uuid)[:7])
+
+    def _get_or_create_config(self):
+        """
+        dryccfile to config
+        """
+        latest_release = self.app.release_set.filter(failed=False).latest()
+        config_values, config_values_ref, config_healthcheck = [], {}, {}
+        for group, values in self.dryccfile.get('config', {}).items():
+            for value in values:
+                value['group'] = group
+                config_values.append(value)
+        for ptype, values in self.dryccfile.get('deploy', {}).items():
+            for value in values.get('config', {}).get('env', []):
+                value['ptype'] = ptype
+                config_values.append(value)
+            for config_ref in values.get('config', {}).get('ref', []):
+                if ptype not in config_values_ref:
+                    config_values_ref[ptype] = [config_ref]
+                else:
+                    config_values_ref[ptype].append(config_ref)
+            if 'healthcheck' in values:
+                config_healthcheck[ptype] = values.get('healthcheck')
+        if not config_values:
+            return latest_release.config
+        config = Config(
+            owner=self.owner, app=self.app, values=config_values, values_refs=config_values_ref,
+            healthcheck=config_healthcheck,
+        )
+        config.save(ignore_update_fields=["values", "values_refs", "healthcheck"])
+        return config

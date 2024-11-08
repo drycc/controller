@@ -7,7 +7,6 @@ import json
 
 from django.contrib.auth import get_user_model
 from django.core.cache import cache
-from django.test.utils import override_settings
 from unittest import mock
 
 from api.models.build import Build
@@ -212,7 +211,6 @@ class BuildTest(DryccTransactionTestCase):
         response = self.client.post(url, body)
         self.assertEqual(response.status_code, 201, response.data)
 
-    @override_settings(DRYCC_DEPLOY_PROCFILE_MISSING_REMOVE=True)
     def test_build_forgotten_procfile(self, mock_requests):
         """
         Test that when a user first posts a build with a Procfile
@@ -271,7 +269,18 @@ class BuildTest(DryccTransactionTestCase):
         self.assertEqual(response.status_code, 200, response.data)
         self.assertEqual(response.json()['structure'], {'web': 1})
 
-    @override_settings(DRYCC_DEPLOY_PROCFILE_MISSING_REMOVE=False)
+        # do another deploy for this time forget Procfile
+        url = f"/v2/apps/{app_id}/build"
+        body = {'image': 'autotest/example:v3', 'stack': 'container'}
+        response = self.client.post(url, body)
+        self.assertEqual(response.status_code, 201, response.data)
+
+        # look at the app structure
+        url = f"/v2/apps/{app_id}"
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, 200, response.data)
+        self.assertEqual(response.json()['structure'], {'web': 1})
+
     def test_build_no_remove_process(self, mock_requests):
         """
         Specifically test PROCFILE_REMOVE_PROCS_ON_DEPLOY being turned off
@@ -280,6 +289,9 @@ class BuildTest(DryccTransactionTestCase):
         """
         # start with a new app
         app_id = self.create_app()
+        # Set routable to false
+        response = self.client.post(f'/v2/apps/{app_id}/settings', {'autodeploy': False})
+        self.assertEqual(response.status_code, 201, response.data)
 
         # post a new build with procfile
         url = f"/v2/apps/{app_id}/build"
@@ -289,15 +301,20 @@ class BuildTest(DryccTransactionTestCase):
             'stack': 'heroku-18',
             'procfile': {
                 'web': 'node server.js',
+                'task': 'node task.js',
                 'worker': 'node worker.js'
             }
         }
         response = self.client.post(url, body)
         self.assertEqual(response.status_code, 201, response.data)
 
+        # deploy
+        response = self.client.post(f"/v2/apps/{app_id}/releases/deploy/")
+        self.assertEqual(response.status_code, 204, response.data)
+
         # scale worker
         url = f"/v2/apps/{app_id}/ptypes/scale"
-        body = {'worker': 1}
+        body = {'worker': 1, 'task': 1}
         response = self.client.post(url, body)
         self.assertEqual(response.status_code, 204, response.data)
 
@@ -305,20 +322,48 @@ class BuildTest(DryccTransactionTestCase):
         url = f"/v2/apps/{app_id}/pods/"
         response = self.client.get(url)
         self.assertEqual(response.status_code, 200, response.data)
+        self.assertPodContains(response.data['results'], app_id, 'task', "v2", "up")
         self.assertPodContains(response.data['results'], app_id, 'worker', "v2", "up")
 
         # do another deploy for this time forget Procfile
         url = f"/v2/apps/{app_id}/build"
-        body = {'image': 'autotest/example', 'stack': 'container'}
+        body = {'image': 'autotest/example:v10', 'stack': 'container'}
         response = self.client.post(url, body)
         self.assertEqual(response.status_code, 201, response.data)
+
+        # deploy
+        response = self.client.post(f"/v2/apps/{app_id}/releases/deploy/")
+        self.assertEqual(response.status_code, 204, response.data)
 
         # verify web
         url = f"/v2/apps/{app_id}/pods/"
         response = self.client.get(url)
         self.assertEqual(response.status_code, 200, response.data)
-        self.assertEqual([item for item in response.data['results'] if item["type"] != "web"], [])
+        self.assertEqual(
+            set([item["type"] for item in response.data['results']]),
+            set(["web", "task", "worker"]),
+        )
         self.assertPodContains(response.data['results'], app_id, 'web', "v3", "up")
+
+        # look at the app structure
+        url = f"/v2/apps/{app_id}"
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, 200, response.data)
+        self.assertEqual(response.json()['structure'], {'web': 1, 'task': 1, 'worker': 1})
+
+        # clean worker
+        response = self.client.post('/v2/apps/{}/ptypes/clean'.format(app_id), {"ptypes": "task"})
+        self.assertEqual(response.status_code, 204, response.data)
+
+        # look at the app structure
+        url = f"/v2/apps/{app_id}"
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, 200, response.data)
+        self.assertEqual(response.json()['structure'], {'web': 1, 'worker': 1})
+
+        # clean all worker
+        response = self.client.post('/v2/apps/{}/ptypes/clean'.format(app_id))
+        self.assertEqual(response.status_code, 204, response.data)
 
         # look at the app structure
         url = f"/v2/apps/{app_id}"
@@ -326,52 +371,21 @@ class BuildTest(DryccTransactionTestCase):
         self.assertEqual(response.status_code, 200, response.data)
         self.assertEqual(response.json()['structure'], {'web': 1})
 
-    @override_settings(DRYCC_DEPLOY_REJECT_IF_PROCFILE_MISSING=True)
-    def test_build_forgotten_procfile_reject(self, mock_requests):
-        """
-        Test that when a user first posts a build with a Procfile
-        and then later without it that missing process are actually
-        scaled down
-        """
-        # start with a new app
-        app_id = self.create_app()
-
-        # post a new build with procfile
-        url = f"/v2/apps/{app_id}/build"
-        body = {
-            'image': 'autotest/example',
-            'stack': 'heroku-18',
-            'sha': 'a'*40,
-            'procfile': {
-                'web': 'node server.js',
-                'worker': 'node worker.js'
-            }
-        }
-        response = self.client.post(url, body)
-        self.assertEqual(response.status_code, 201, response.data)
-
-        # scale worker
-        url = f"/v2/apps/{app_id}/ptypes/scale"
-        body = {'worker': 1}
-        response = self.client.post(url, body)
-        self.assertEqual(response.status_code, 204, response.data)
-
-        # verify worker
-        url = f"/v2/apps/{app_id}/pods/"
-        response = self.client.get(url)
-        self.assertEqual(response.status_code, 200, response.data)
-        self.assertPodContains(response.data['results'], app_id, 'worker', "v2", "up")
-
         # do another deploy for this time forget Procfile
         url = f"/v2/apps/{app_id}/build"
-        body = {'image': 'autotest/example', 'stack': 'container'}
+        body = {'image': 'autotest/example:v11', 'stack': 'container'}
         response = self.client.post(url, body)
         self.assertEqual(response.status_code, 201, response.data)
-        # verify web
-        url = f"/v2/apps/{app_id}/pods/"
+
+        # deploy
+        response = self.client.post(f"/v2/apps/{app_id}/releases/deploy/")
+        self.assertEqual(response.status_code, 204, response.data)
+
+        # look at the app structure
+        url = f"/v2/apps/{app_id}"
         response = self.client.get(url)
         self.assertEqual(response.status_code, 200, response.data)
-        self.assertPodContains(response.data['results'], app_id, 'web', "v3", "up")
+        self.assertEqual(response.json()['structure'], {'web': 1})
 
     def test_build_str(self, mock_requests):
         """Test the text representation of a build."""
@@ -513,13 +527,13 @@ class BuildTest(DryccTransactionTestCase):
 
         # add the required PORT information
         url = f'/v2/apps/{app_id}/config'
-        body = {'values': json.dumps({'PORT': '80'})}
+        body = {'values': [{"name": "PORT", "group": "global", "value": "80"}]}
         response = self.client.post(url, body)
         self.assertEqual(response.status_code, 201, response.data)
 
         # set some registry information
         url = f'/v2/apps/{app_id}/config'
-        body = {'registry': json.dumps({'username': 'bob', 'password': 'zoomzoom'})}
+        body = {'registry': {'web': {'username': 'bob', 'password': 'zoomzoom'}}}
         response = self.client.post(url, body)
         self.assertEqual(response.status_code, 201, response.data)
 
@@ -535,9 +549,9 @@ class BuildTest(DryccTransactionTestCase):
 
         # set some registry information
         url = f'/v2/apps/{app_id}/config'
-        body = {'registry': json.dumps({'username': 'bob', 'password': 'zoomzoom'})}
+        body = {'registry': json.dumps({'web': {'username': 'bob', 'password': 'zoomzoom'}})}
         response = self.client.post(url, body)
-        self.assertEqual(response.status_code, 400, response.data)
+        self.assertEqual(response.status_code, 201, response.data)
 
     def test_release_create_failure(self, mock_requests):
         """
@@ -591,9 +605,8 @@ class BuildTest(DryccTransactionTestCase):
         # create a failed build to check that failed release is created
         with mock.patch('api.models.app.App.deploy') as mock_deploy:
             mock_deploy.side_effect = Exception('Boom!')
-
             url = f"/v2/apps/{app_id}/build"
-            body = {'image': 'autotest/example', 'stack': 'container'}
+            body = {'image': 'autotest/example:v100', 'stack': 'container'}
             response = self.client.post(url, body)
             self.assertEqual(response.status_code, 201, response.data)
             data = self.client.get(f"/v2/apps/{app_id}/releases/", body).json()
@@ -601,8 +614,7 @@ class BuildTest(DryccTransactionTestCase):
 
         # create a config to see that the new release is created with the last successful build
         url = f"/v2/apps/{app_id}/config"
-
-        body = {'values': json.dumps({'Test': 'test'})}
+        body = {'values': [{"name": "Test", "group": "global", "value": "test"}]}
         response = self.client.post(url, body)
         self.assertEqual(response.status_code, 201, response.data)
         self.assertEqual(app.release_set.latest().version, 4)
@@ -795,6 +807,7 @@ class BuildTest(DryccTransactionTestCase):
             }
             response = self.client.post(url, body)
             self.assertEqual(response.status_code, 201, response.data)
+
             body['dryccfile']['run'] = [
                 {
                     'command': ["bash", "-c"],

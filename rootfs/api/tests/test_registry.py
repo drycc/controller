@@ -38,19 +38,19 @@ class TestRegistry(DryccTransactionTestCase):
         self.assertEqual(response.data['registry'], {})
 
         # set some registry information without PORT
-        body = {'registry': json.dumps({'username': 'bob'})}
-        response = self.client.post(url, body)
-        self.assertEqual(response.status_code, 400, response.data)
-        registry1 = response.data
-
-        # set required PORT
-        body = {'values': json.dumps({'PORT': '80'})}
+        body = {'registry': {'web': {'username': 'bob'}}}
         response = self.client.post(url, body)
         self.assertEqual(response.status_code, 201, response.data)
         registry1 = response.data
 
-        # set some registry information
-        body = {'registry': json.dumps({'username': 'bob'})}
+        # set required PORT
+        body = {'values': [{"name": "PORT", "value": "80", "group": "global"}]}
+        response = self.client.post(url, body)
+        self.assertEqual(response.status_code, 201, response.data)
+        registry1 = response.data
+
+        # no change error
+        body = {'registry': {'web': {'username': 'bobb'}}}
         response = self.client.post(url, body)
         self.assertEqual(response.status_code, 201, response.data)
         registry1 = response.data
@@ -59,45 +59,45 @@ class TestRegistry(DryccTransactionTestCase):
         response = self.client.get(url)
         self.assertEqual(response.status_code, 200, response.data)
         self.assertIn('registry', response.data)
-        registry = response.data['registry']
+        registry = response.data['registry']['web']
         self.assertIn('username', registry)
-        self.assertEqual(registry['username'], 'bob')
+        self.assertEqual(registry['username'], 'bobb')
 
         # set an additional value
-        # set them upper case, internally it should translate to lower
-        body = {'registry': json.dumps({'PASSWORD': 's3cur3pw1'})}
+        body = {'registry': {'web': {'password': 's3cur3pw1'}}}
         response = self.client.post(url, body)
         self.assertEqual(response.status_code, 201, response.data)
         registry2 = response.data
         self.assertNotEqual(registry1['uuid'], registry2['uuid'])
-        registry = response.data['registry']
+        registry = response.data['registry']['web']
         self.assertIn('password', registry)
         self.assertEqual(registry['password'], 's3cur3pw1')
         self.assertIn('username', registry)
-        self.assertEqual(registry['username'], 'bob')
+        self.assertEqual(registry['username'], 'bobb')
 
         # read the registry information again
         response = self.client.get(url)
         self.assertEqual(response.status_code, 200, response.data)
         registry3 = response.data
         self.assertEqual(registry2, registry3)
-        registry = response.data['registry']
+        registry = response.data['registry']['web']
         self.assertIn('password', registry)
         self.assertEqual(registry['password'], 's3cur3pw1')
         self.assertIn('username', registry)
-        self.assertEqual(registry['username'], 'bob')
+        self.assertEqual(registry['username'], 'bobb')
 
         # unset a value
-        body = {'registry': json.dumps({'password': None})}
+        body = {'registry': {'web': {'password': None}}}
         response = self.client.post(url, body)
         self.assertEqual(response.status_code, 201, response.data)
         registry4 = response.data
         self.assertNotEqual(registry3['uuid'], registry4['uuid'])
         self.assertNotIn('password', json.dumps(response.data['registry']))
 
-        # bad registry key values
-        body = {'registry': json.dumps({'pa$$w0rd': 'woop'})}
+        # key error
+        body = {'registry': {'web': {'pa$$w0rd': 'woop'}}}
         response = self.client.post(url, body)
+        self.assertEqual(response.status_code, 400, response.data)
         response = self.client.post(url, body)
         self.assertEqual(response.status_code, 400, response.data)
 
@@ -105,8 +105,6 @@ class TestRegistry(DryccTransactionTestCase):
         response = self.client.put(url)
         self.assertEqual(response.status_code, 405, response.data)
         response = self.client.patch(url)
-        self.assertEqual(response.status_code, 405, response.data)
-        response = self.client.delete(url)
         self.assertEqual(response.status_code, 405, response.data)
 
     def test_registry_deploy(self, mock_requests):
@@ -118,20 +116,24 @@ class TestRegistry(DryccTransactionTestCase):
         # Set mandatory PORT
         response = self.client.post(
             f'/v2/apps/{app_id}/config',
-            {'values': json.dumps({'PORT': '4999'})}
+            {'values': [{"name": "PORT", "value": "4999", "group": "global"}]}
         )
 
         # Set registry information
-        body = {'registry': json.dumps({
-            'username': 'bob',
-            'password': 's3cur3pw1'
-        })}
+        body = {
+            'registry': {
+                'web': {
+                    'username': 'bob',
+                    'password': 's3cur3pw1'
+                }
+            }
+        }
         response = self.client.post(
             f'/v2/apps/{app_id}/config',
             body
         )
         self.assertEqual(response.status_code, 201, response.data)
-        self.assertIn('username', response.data['registry'])
-        self.assertIn('password', response.data['registry'])
-        self.assertEqual(response.data['registry']['username'], 'bob')
-        self.assertEqual(response.data['registry']['password'], 's3cur3pw1')
+        self.assertIn('username', response.data['registry']['web'])
+        self.assertIn('password', response.data['registry']['web'])
+        self.assertEqual(response.data['registry']['web']['username'], 'bob')
+        self.assertEqual(response.data['registry']['web']['password'], 's3cur3pw1')

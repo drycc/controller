@@ -45,10 +45,12 @@ class ReleaseTest(DryccTransactionTestCase):
         app_id = self.create_app()
         # check that updating config rolls a new release
         url = f'/v2/apps/{app_id}/config'
-        body = {'values': json.dumps({'NEW_URL1': 'http://localhost:8080/'})}
+        body = {
+            'values': [{"name": "NEW_URL1", "value": "http://localhost:8080/", "group": "global"}]
+        }
         response = self.client.post(url, body)
         self.assertEqual(response.status_code, 201, response.data)
-        self.assertIn('NEW_URL1', response.data['values'])
+        self.assertEqual(body['values'], response.data['values'])
         # check to see that an initial release was created
         url = f'/v2/apps/{app_id}/releases'
         response = self.client.get(url)
@@ -212,7 +214,9 @@ class ReleaseTest(DryccTransactionTestCase):
 
     def test_response_data(self, mock_requests):
         app_id = self.create_app()
-        body = {'values': json.dumps({'NEW_URL': 'http://localhost:8080/'})}
+        body = {
+            'values': [{"name": "NEW_URL", "value": "http://localhost:8080/", "group": "global"}]
+        }
         url = '/v2/apps/{}/config'.format(app_id)
         config_response = self.client.post(url, body)
         url = '/v2/apps/{}/releases/v2'.format(app_id)
@@ -286,7 +290,8 @@ class ReleaseTest(DryccTransactionTestCase):
         self.assertEqual(response.status_code, 201, response.data)
         # update config to roll another release
         url = f'/v2/apps/{app_id}/config'
-        body = {'values': json.dumps({'NEW_URL1': 'http://localhost:8080/'})}
+        values = [{"name": "NEW_URL1", "value": "http://localhost:8080/", "group": "global"}]
+        body = {'values': values}
         response = self.client.post(url, body)
         self.assertEqual(response.status_code, 201, response.data)
         # create another release with a different build
@@ -312,7 +317,7 @@ class ReleaseTest(DryccTransactionTestCase):
         self.assertEqual(release5.config.values, release3.config.values)
         # double-check to see that the current build and config is the same as v3
         self.assertEqual(release5.get_deploy_image(PTYPE_WEB), 'autotest/example')
-        self.assertEqual(release5.config.values, {'NEW_URL1': 'http://localhost:8080/'})
+        self.assertEqual(release5.config.values, values)
         # try to rollback to v1 and verify that the rollback failed
         # (v1 is an initial release with no build)
         url = f"/v2/apps/{app_id}/releases/rollback/"
@@ -327,7 +332,7 @@ class ReleaseTest(DryccTransactionTestCase):
         self.assertEqual(Release.objects.count(), 6)
         release6 = Release.objects.get(app=app, version=6)
         self.assertEqual(release6.get_deploy_image(PTYPE_WEB), 'autotest/example')
-        self.assertEqual(release6.config.values, {})
+        self.assertEqual(release6.config.values, [])
 
     def test_release_str(self, mock_requests):
         """Test the text representation of a release."""
@@ -345,7 +350,7 @@ class ReleaseTest(DryccTransactionTestCase):
         # add config, confirm that config objects are in the summary
         url = f'/v2/apps/{app.id}/config'
         body = {
-            'values': json.dumps({'FOO': 'bar'}),
+            'values': [{"name": "FOO", "value": "bar", "group": "global"}],
         }
         response = self.client.post(url, body)
         self.assertEqual(response.status_code, 201, response.data)
@@ -361,11 +366,13 @@ class ReleaseTest(DryccTransactionTestCase):
         app_id = self.create_app()
         # check that updating config rolls a new release
         url = f'/v2/apps/{app_id}/config'
-        body = {'values': json.dumps({'NEW_URL1': 'http://localhost:8080/'})}
+        body = {
+            'values': [{"name": "NEW_URL1", "value": "http://localhost:8080/", "group": "global"}]
+        }
         self.client.credentials(HTTP_AUTHORIZATION='Token ' + self.token)
         response = self.client.post(url, body)
         self.assertEqual(response.status_code, 201, response.data)
-        self.assertIn('NEW_URL1', response.data['values'])
+        self.assertEqual(body['values'], response.data['values'])
         # check to see that an initial release was created
         url = f'/v2/apps/{app_id}/releases'
         response = self.client.get(url)
@@ -389,7 +396,9 @@ class ReleaseTest(DryccTransactionTestCase):
 
         # update config to roll a new release
         url = f'/v2/apps/{app_id}/config'
-        body = {'values': json.dumps({'NEW_URL1': 'http://localhost:8080/'})}
+        body = {
+            'values': [{"name": "NEW_URL1", "value": "http://localhost:8080/", "group": "global"}]
+        }
         response = self.client.post(url, body)
         unauthorized_user = User.objects.get(username='autotest2')
         unauthorized_token = self.get_or_create_token(unauthorized_user)
@@ -415,7 +424,9 @@ class ReleaseTest(DryccTransactionTestCase):
 
         # update config to roll a new release
         url = '/v2/apps/{}/config'.format(app_id)
-        body = {'values': json.dumps({'NEW_URL1': 'http://localhost:8080/'})}
+        body = {
+            'values': [{"name": "NEW_URL1", "value": "http://localhost:8080/", "group": "global"}]
+        }
         response = self.client.post(url, body)
         self.assertEqual(response.status_code, 201, response.data)
 
@@ -431,7 +442,9 @@ class ReleaseTest(DryccTransactionTestCase):
 
         # update config to roll a new release
         url = '/v2/apps/{}/config'.format(app_id)
-        body = {'values': json.dumps({'NEW_URL2': 'http://localhost:8080/'})}
+        body = {
+            'values': [{"name": "NEW_URL2", "value": "http://localhost:8080/", "group": "global"}]
+        }
         response = self.client.post(url, body)
         self.assertEqual(response.status_code, 201, response.data)
 
@@ -488,14 +501,18 @@ class ReleaseTest(DryccTransactionTestCase):
 
         # check that updating config rolls a new release
         url = f'/v2/apps/{app_id}/config'
-        body = {'values': json.dumps({'NEW_URL1': 'http://localhost:8080/'})}
+        body = {
+            'values': [{"name": "NEW_URL1", "value": "http://localhost:8080/", "group": "global"}]
+        }
         response = self.client.post(url, body)
         self.assertEqual(response.status_code, 201, response.data)
-        self.assertIn('NEW_URL1', response.data['values'])
+        self.assertEqual(body['values'], response.data['values'])
 
         # trigger identical release
         url = f'/v2/apps/{app_id}/config'
-        body = {'values': json.dumps({'NEW_URL1': 'http://localhost:8080/'})}
+        body = {
+            'values': [{"name": "NEW_URL1", "value": "http://localhost:8080/", "group": "global"}]
+        }
         response = self.client.post(url, body)
         self.assertEqual(response.status_code, 409, response.data)
 
@@ -517,19 +534,26 @@ class ReleaseTest(DryccTransactionTestCase):
 
         # switch to a dockerfile app or else it'll automatically default to 5000
         url = f'/v2/apps/{app_id}/build'
-        body = {'image': 'autotest/example', 'stack': 'container'}
+        body = {
+            'image': 'autotest/example',
+            'stack': 'container',
+            'procfile': {
+                'web': 'node server.js',
+                'task': 'node worker.js'
+            },
+        }
         response = self.client.post(url, body)
         self.assertEqual(response.status_code, 201, response.data)
 
         url = f'/v2/apps/{app_id}/config'
-        body = {'values': json.dumps({'PORT': '8080'})}
+        body = {'values': [{"name": "PORT", "value": "8080", "group": "global"}]}
         response = self.client.post(url, body)
         self.assertEqual(response.status_code, 201, response.data)
         release = app.release_set.latest()
         self.assertEqual(release.get_port('web'), 8080)
 
         url = f'/v2/apps/{app_id}/config'
-        body = {'typed_values': json.dumps({"web": {'PORT': '9000'}})}
+        body = {'values': [{"name": "PORT", "value": "9000", "ptype": "web"}]}
         response = self.client.post(url, body)
         self.assertEqual(response.status_code, 201, response.data)
         release = app.release_set.latest()
@@ -538,13 +562,13 @@ class ReleaseTest(DryccTransactionTestCase):
         # not web procfile
         self.assertEqual(release.get_port('task'), 8080)
         url = f'/v2/apps/{app_id}/config'
-        body = {'values': json.dumps({'PORT': '9000'})}
+        body = {'values': [{"name": "PORT", "value": "9000", "group": "global"}]}
         response = self.client.post(url, body)
         self.assertEqual(response.status_code, 201, response.data)
         release = app.release_set.latest()
         self.assertEqual(release.get_port('task'), 9000)
-        # set typed_values port
-        body = {'typed_values': json.dumps({"task": {'PORT': '9001'}})}
+        # set task port
+        body = {'values': [{"name": "PORT", "value": "9001", "ptype": "task"}]}
         response = self.client.post(url, body)
         self.assertEqual(response.status_code, 201, response.data)
         release = app.release_set.latest()
@@ -650,7 +674,9 @@ class ReleaseTest(DryccTransactionTestCase):
         app_id = self.create_app()
 
         # set the required port for external registries
-        body = {'values': json.dumps({'PORT': '3000'})}
+        body = {
+            'values': [{"name": "PORT", "value": "3000", "group": "global"}]
+        }
         config_response = self.client.post('/v2/apps/{}/config'.format(app_id), body)
         self.assertEqual(config_response.status_code, 201, config_response.data)
 
@@ -664,7 +690,7 @@ class ReleaseTest(DryccTransactionTestCase):
         self.assertEqual(release.get_deploy_image(PTYPE_WEB), 'test/autotest/example')
 
         url = f'/v2/apps/{app_id}/config'
-        body = {'typed_values': json.dumps({"web": {'PORT': '9000'}})}
+        body = {'values': [{"name": "PORT", "value": "9000", "ptype": "web"}]}
         response = self.client.post(url, body)
         self.assertEqual(response.status_code, 201, response.data)
         release = app.release_set.latest()
@@ -727,3 +753,134 @@ class ReleaseTest(DryccTransactionTestCase):
         runners = release.get_runners(["web"])
         self.assertEqual(len(runners), 1)
         self.assertEqual(runners[0]["timeout"], 3600)
+
+    def test_release_diff_ptypes(self, mock_requests):
+        app_id = self.create_app()
+        app = App.objects.get(id=app_id)
+        url = f"/v2/apps/{app_id}/build"
+        run_image = "127.0.0.1:7070/myapp/run:git-123fsa1"
+        web_image = "127.0.0.1:7070/myapp/web:git-123fsa1"
+        worker_image = "127.0.0.1:7070/myapp/worker:git-123fsa1"
+        body = {
+            'image': 'autotest/example',
+            'stack': 'heroku-18',
+            'sha': 'a'*40,
+            'dryccfile': {
+                "build": {
+                    "docker": {"web": "Dockerfile", "worker": "worker/Dockerfile"},
+                    "config": {"RAILS_ENV": "development", "FOO": "bar"}
+                },
+                "run": [
+                    {
+                        "command": ["./deployment-tasks.sh"],
+                        "image": run_image,
+                    }
+                ],
+                "deploy": {
+                    "web": {
+                        "command": ["bash", "-c"],
+                        "args": ["bundle exec puma -C config/puma.rb"],
+                        "image": web_image
+                    },
+                    "worker": {
+                        "command": ["bash", "-c"],
+                        "args": ["python myworker.py"],
+                        "image": worker_image
+                    }
+                }
+            }
+        }
+        with mock.patch('scheduler.resources.pod.Pod.watch') as mock_kube:
+            mock_kube.return_value = ['up', 'down']
+            response = self.client.post(url, body)
+            self.assertEqual(response.status_code, 201, response.data)
+        release = app.release_set.latest()
+        self.assertEqual(release.failed, False)
+        ptypes = release.diff_ptypes(release.ptypes)
+        self.assertEqual(ptypes, ["web", "worker"])
+
+        body['dryccfile']['config'] = {
+            'g1': [
+                {
+                    'name': 'G1',
+                    'value': 'g1',
+                },
+            ]
+        }
+        with mock.patch('scheduler.resources.pod.Pod.watch') as mock_kube:
+            mock_kube.return_value = ['up', 'down']
+            response = self.client.post(url, body)
+            self.assertEqual(response.status_code, 201, response.data)
+        release = app.release_set.latest()
+        self.assertEqual(release.failed, False)
+        ptypes = release.diff_ptypes(release.ptypes)
+        self.assertEqual(ptypes, [])
+        # change worker env
+        body['dryccfile']['deploy']['worker']['config'] = {
+            'ref': ['g1']
+        }
+        body['dryccfile']['config'] = {
+            'g1': [
+                {
+                    'name': 'G1',
+                    'value': 'g1',
+                },
+            ]
+        }
+        with mock.patch('scheduler.resources.pod.Pod.watch') as mock_kube:
+            mock_kube.return_value = ['up', 'down']
+            response = self.client.post(url, body)
+            self.assertEqual(response.status_code, 201, response.data)
+        release = app.release_set.latest()
+        self.assertEqual(release.failed, False)
+        ptypes = release.diff_ptypes(release.ptypes)
+        self.assertEqual(ptypes, ["worker"])
+        # env cover, only change web
+        body['dryccfile']['config'] = {
+            'global': [
+                {
+                    'name': 'G1',
+                    'value': 'g1',
+                },
+            ]
+        }
+        with mock.patch('scheduler.resources.pod.Pod.watch') as mock_kube:
+            mock_kube.return_value = ['up', 'down']
+            response = self.client.post(url, body)
+            self.assertEqual(response.status_code, 201, response.data)
+        release = app.release_set.latest()
+        self.assertEqual(release.failed, False)
+        ptypes = release.diff_ptypes(release.ptypes)
+        self.assertEqual(ptypes, ["web"])
+        # add a global env
+        body['dryccfile']['config'] = {
+            'global': [
+                {
+                    'name': 'G2',
+                    'value': 'g2',
+                },
+            ]
+        }
+        with mock.patch('scheduler.resources.pod.Pod.watch') as mock_kube:
+            mock_kube.return_value = ['up', 'down']
+            response = self.client.post(url, body)
+            self.assertEqual(response.status_code, 201, response.data)
+        release = app.release_set.latest()
+        self.assertEqual(release.failed, False)
+        ptypes = release.diff_ptypes(release.ptypes)
+        self.assertEqual(set(ptypes), set(["web", "worker"]))
+
+        # change web env
+        body['dryccfile']['deploy']['web']['config'] = {
+            'env': [
+                {'name': 'ENV1', 'value': 'env1'}
+            ]
+        }
+        with mock.patch('scheduler.resources.pod.Pod.watch') as mock_kube:
+            mock_kube.return_value = ['up', 'down']
+            response = self.client.post(url, body)
+            self.assertEqual(response.status_code, 201, response.data)
+        release = app.release_set.latest()
+        self.assertEqual(release.failed, False)
+        ptypes = release.diff_ptypes(release.ptypes)
+        self.assertEqual(ptypes, ["web"])

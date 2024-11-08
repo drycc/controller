@@ -20,6 +20,7 @@ from api.exceptions import DryccException
 from api.models.base import PTYPE_MIN_LENGTH, PTYPE_MAX_LENGTH
 from scheduler.resources.pod import DEFAULT_CONTAINER_PORT
 from .schemas import rules
+from .schemas.config import SCHEMA as CONFIG_SCHEMA
 from .schemas.volumes import SCHEMA as VOLUMES_SCHEMA
 from .schemas.autoscale import SCHEMA as AUTOSCALE_SCHEMA
 from .schemas.healthcheck import SCHEMA as HEALTHCHECK_SCHEMA
@@ -259,7 +260,6 @@ class ConfigSerializer(serializers.ModelSerializer):
     app = serializers.SlugRelatedField(slug_field='id', queryset=models.app.App.objects.all())
     owner = serializers.ReadOnlyField(source='owner.username')
     values = JSONFieldSerializer(required=False, binary=True)
-    typed_values = JSONFieldSerializer(required=False, binary=True)
     limits = JSONFieldSerializer(required=False, binary=True)
     lifecycle_post_start = JSONFieldSerializer(required=False, binary=True)
     lifecycle_pre_stop = JSONFieldSerializer(required=False, binary=True)
@@ -276,28 +276,23 @@ class ConfigSerializer(serializers.ModelSerializer):
 
     @staticmethod
     def validate_values(data):
-        for key, value in data.items():
-            if not re.match(CONFIGKEY_MATCH, key):
+        validate_json(data, CONFIG_SCHEMA, serializers.ValidationError)
+        for item in data:
+            if (
+                not re.match(CONFIGKEY_MATCH, item['name']) or
+                (item.get('group') and not re.match(CONFIGKEY_MATCH, item['group']))
+            ):
                 raise serializers.ValidationError(CONFIGKEY_MISMATCH_MSG)
-            if value is None:  # use NoneType to unset an item
+            if item['value'] is None:  # use NoneType to unset an item
                 continue
             # Validate PORT
-            if key == 'PORT':
-                if not str(value).isnumeric():
+            if item['name'] == 'PORT':
+                if not str(item['value']).isnumeric():
                     raise serializers.ValidationError('PORT can only be a numeric value')
-                elif int(value) not in range(1, 65536):
+                elif int(item['value']) not in range(1, 65536):
                     # check if hte port is between 1 and 65535. One extra added for range()
                     # http://kubernetes.io/docs/api-reference/v1/definitions/#_v1_serviceport
                     raise serializers.ValidationError('PORT needs to be between 1 and 65535')
-        return data
-
-    @classmethod
-    def validate_typed_values(cls, data):
-        for ptype, values in data.items():
-            validate_ptype(ptype)
-            if values is None:  # use NoneType to unset an item
-                continue
-            cls.validate_values(values)
         return data
 
     @staticmethod
@@ -364,14 +359,27 @@ class ConfigSerializer(serializers.ModelSerializer):
         return data
 
     @staticmethod
+    def validate_values_refs(data):
+        for ptype, values in data.items():
+            validate_ptype(ptype)
+            for value in values:
+                if value is None:
+                    continue
+                if not re.match(CONFIGKEY_MATCH, value):
+                    raise serializers.ValidationError(CONFIGKEY_MISMATCH_MSG)
+        return data
+
+    @staticmethod
     def validate_registry(data):
-        for key, value in data.items():
-            if value is None:  # use NoneType to unset an item
+        for ptype, values in data.items():
+            validate_ptype(ptype)
+            if not values:
                 continue
-
-            if not re.match(CONFIGKEY_MATCH, key):
-                raise serializers.ValidationError(CONFIGKEY_MISMATCH_MSG)
-
+            for key, value in values.items():
+                if value is None:
+                    continue
+                if not re.match(CONFIGKEY_MATCH, key):
+                    raise serializers.ValidationError(CONFIGKEY_MISMATCH_MSG)
         return data
 
     @staticmethod

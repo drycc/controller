@@ -324,8 +324,12 @@ class AppTest(DryccTestCase):
         # pretend the owner and a collaborator added some config to the app to ensure
         # resources owned by the owner are transferred, but not resources owned by the
         # collaborator.
-        config1 = Config.objects.create(owner=owner, app=app, values={'FOO': 'bar'})
-        config2 = Config.objects.create(owner=collaborator, app=app, values={'CAR': 'star'})
+
+        config1 = Config.objects.create(
+            owner=owner, app=app, values=[{"name": "FOO", "value": "bar", "group": "global"}])
+        config2 = Config.objects.create(
+            owner=collaborator, app=app,
+            values=[{"name": "CAR", "value": "star", "group": "global"}])
 
         # Transfer App
         url = '/v2/apps/{}'.format(app.id)
@@ -630,11 +634,15 @@ class AppTest(DryccTestCase):
         Config.objects.create(
             owner=self.user,
             app=app,
-            values={
-                'DRYCC_DEPLOY_TIMEOUT': '60',
-                'DRYCC_DEPLOY_BATCHES': '3',
-                'KUBERNETES_POD_TERMINATION_GRACE_PERIOD_SECONDS': '60'
-            })
+            values=[
+                {"name": "DRYCC_DEPLOY_TIMEOUT", "value": "60", "group": "global"},
+                {"name": "DRYCC_DEPLOY_BATCHES", "value": "3", "group": "global"},
+                {
+                    "name": "KUBERNETES_POD_TERMINATION_GRACE_PERIOD_SECONDS",
+                    "value": "60", "group": "global"
+                },
+            ]
+        )
         s = app._gather_app_settings(app.release_set.latest(),
                                      app.appsettings_set.latest(),
                                      'web',
