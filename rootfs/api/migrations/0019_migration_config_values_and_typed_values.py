@@ -6,8 +6,8 @@ from api.models.config import Config
 
 def migration_values(apps, schema_editor):
     with connection.cursor() as cursor:
-        cursor.execute("SELECT uuid,values,typed_values FROM api_config")
-        for uuid, values, typed_values in cursor:
+        cursor.execute("SELECT uuid,values,typed_values,registry FROM api_config")
+        for uuid, values, typed_values, registry in cursor:
             new_values = []
             config = Config.objects.using('default').get(pk=uuid)
             for name, value in json.loads(values).items():
@@ -23,7 +23,12 @@ def migration_values(apps, schema_editor):
                         "ptype": ptype,
                         "value": value
                     })
+            new_registry, data = {}, json.loads(registry)
+            if data:
+                for ptype in config.app.structure.keys():
+                    new_registry[ptype] = data
             config.values = new_values
+            config.registry = new_registry
             config.save(ignore_update_fields=config.allof_fields)
 
 
