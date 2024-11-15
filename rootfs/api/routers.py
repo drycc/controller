@@ -32,4 +32,8 @@ class DefaultReplicaRouter(object):
         return True
 
     def allow_migrate(self, db, app_label, model_name=None, **hints):
+        if 'replica' in settings.DATABASES and 'model' in hints:
+            model = hints['model']
+            tracker_key = ".".join([model.__module__, model.__name__])
+            setattr(self._tracker, tracker_key, 'default')
         return True

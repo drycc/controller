@@ -9,7 +9,7 @@ def migration_values(apps, schema_editor):
         cursor.execute("SELECT uuid,values,typed_values,registry FROM api_config")
         for uuid, values, typed_values, registry in cursor:
             new_values = []
-            config = Config.objects.using('default').get(pk=uuid)
+            config = Config.objects.get(pk=uuid)
             for name, value in json.loads(values).items():
                 new_values.append({
                     "name": name,
