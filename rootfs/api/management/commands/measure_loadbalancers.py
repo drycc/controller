@@ -2,6 +2,7 @@ import uuid
 import time
 import logging
 import ipaddress
+from asgiref.sync import async_to_sync
 from django.utils import timezone
 from django.core.management.base import BaseCommand
 from django.conf import settings
@@ -24,9 +25,10 @@ class Command(BaseCommand):
         stop = timestamp - (timestamp % 3600)
         start = stop - 3600
         loadbalancers = []
-        for item in monitor.query_loadbalancer(app_map.keys(), start, stop):
-            ip = item["ip"]
-            namespace = item["namespace"]
+        for metric, (_, value) in async_to_sync(monitor.query_loadbalancer(
+                app_map.keys(), start, stop)):
+            ip = metric["ip"]
+            namespace = metric["namespace"]
             owner_id = app_map[namespace].owner_id
             loadbalancers.append({
                 "app_id":  str(app_map[namespace].uuid),
@@ -34,12 +36,12 @@ class Command(BaseCommand):
                 "name": self._get_measure_name(ip),
                 "type": "loadbalancer",
                 "unit": "number",
-                "usage": 1,
+                "usage": value,
                 "kwargs": {
                     "ip": ip,
-                    "node": item["node"],
-                    "service": item["service"],
-                    "instance": item["instance"],
+                    "node": metric["node"],
+                    "service": metric["service"],
+                    "instance": metric["instance"],
                 },
                 "timestamp": start
             })

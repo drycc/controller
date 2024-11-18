@@ -6,6 +6,7 @@ import uuid
 import logging
 import json
 import requests
+from asgiref.sync import async_to_sync
 from django.db.models import Q
 from django.core.cache import cache
 from django.http import Http404, HttpResponse
@@ -1185,34 +1186,13 @@ class MetricView(BaseDryccViewSet):
         self.check_object_permissions(self.request, app)
         return app
 
-    def _get_cpus(self, app_id, ptype, start, stop, every):
-        avg_list, max_list = [], []
-        for _, _, _, timestamp, max, avg in monitor.query_cpu_usage(
-                app_id, ptype, start, stop, every):
-            max_list.append((timestamp, max))
-            avg_list.append((timestamp, avg))
-        return {
-            "max": max_list,
-            "avg": avg_list,
-        }
-
-    def _get_memory(self, app_id, ptype, start, stop, every):
-        max_list, avg_list = [], []
-        for _, _, _, timestamp, max, avg in monitor.query_memory_usage(
-                app_id, ptype, start, stop, every):
-            max_list.append((timestamp, max))
-            avg_list.append((timestamp, avg))
-        return {
-            "max": max_list,
-            "avg": avg_list,
-        }
-
-    def _get_networks(self, app_id, ptype, start, stop, every):
-        networks = []
-        for _, _, timestamp, rx_bytes, tx_bytes in monitor.query_network_usage(
-                app_id, ptype, start, stop, every):
-            networks.append((timestamp, rx_bytes, tx_bytes))
-        return networks
+    def _get_usage(self, func):
+        def wrap(app_id, ptype, every, start, stop, step):
+            result = {}
+            for item in async_to_sync(func)(app_id, ptype, every, start, stop, step):
+                result[item['metric']['pod']] = item['values']
+            return result
+        return wrap
 
     @method_decorator(cache_page(settings.DRYCC_METRICS_EXPIRY))
     @method_decorator(vary_on_headers("Authorization"))
@@ -1221,19 +1201,22 @@ class MetricView(BaseDryccViewSet):
         data = serializers.MetricSerializer(data=self.request.query_params)
         if not data.is_valid():
             return Response(data.errors, status=status.HTTP_422_UNPROCESSABLE_ENTITY)
-        start, stop, every = data.validated_data['start'], data.validated_data[
-            'stop'], data.validated_data["every"]
+        every, start, stop, step = data.validated_data["every"], data.validated_data[
+            'start'], data.validated_data['stop'], data.validated_data['step']
+        params = {
+            "app_id": app_id, "ptype": kwargs['ptype'], "every": every,
+            "start": start, "stop": stop, "step": step,
+        }
         return Response({
             "id": app_id,
             "ptype": kwargs['ptype'],
-            "count": monitor.query_container_count(app_id, kwargs['ptype'], start, stop),
-            "status": {
-                "cpus": self._get_cpus(
-                    app_id, kwargs['ptype'], start, stop, every),
-                "memory": self._get_memory(
-                    app_id, kwargs['ptype'], start, stop, every),
-                "networks": self._get_networks(
-                    app_id, kwargs['ptype'], start, stop, every),
+            "usage": {
+                "cpus": self._get_usage(monitor.query_cpu_usage)(**params),
+                "memory": self._get_usage(monitor.query_memory_usage)(**params),
+                "networks": {
+                    "receive": self._get_usage(monitor.query_network_receive_usage)(**params),
+                    "transmit": self._get_usage(monitor.query_network_transmit_usage)(**params),
+                }
             }
         })
 

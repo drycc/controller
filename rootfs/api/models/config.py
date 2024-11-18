@@ -174,7 +174,7 @@ class Config(UuidAuditedModel):
                     else:  # force to string
                         new_item['value'] = str(new_item['value'])
                     break
-            if added:
+            if added and new_item['value'] is not None:
                 data.append(new_item)
         setattr(self, 'values', data)
 

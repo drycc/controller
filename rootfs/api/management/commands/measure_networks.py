@@ -1,6 +1,7 @@
 import uuid
 import time
 import logging
+from asgiref.sync import async_to_sync
 from django.utils import timezone
 from django.core.management.base import BaseCommand
 from django.conf import settings
@@ -18,21 +19,34 @@ class Command(BaseCommand):
         stop = timestamp - (timestamp % 3600)
         start = stop - 3600
         networks = []
-        for namespace, pod_name, rx_bytes, tx_bytes in monitor.query_network_flow(
-                app_map.keys(), start, stop):
-            owner_id = app_map[namespace].owner_id
-            base_measure = {
-                "app_id":  str(app_map[namespace].uuid),
-                "owner": owner_id,
+        for metric, (_, value) in async_to_sync(monitor.query_network_receive_flow(
+                app_map.keys(), start, stop)):
+            networks.append({
+                "app_id":  str(app_map[metric['namespace']].uuid),
+                "owner": app_map[metric['namespace']].owner_id,
                 "type": "network",
                 "unit": "bytes",
+                "name": "rx",
+                "usage": value,
                 "kwargs": {
-                    "pod": pod_name,
+                    "pod": metric['pod'],
                 },
                 "timestamp": start
-            }
-            networks.append(base_measure | {"name": "rx", "usage": rx_bytes})
-            networks.append(base_measure | {"name": "tx", "usage": tx_bytes})
+            })
+        for metric, (_, value) in async_to_sync(monitor.query_network_transmit_flow(
+                app_map.keys(), start, stop)):
+            networks.append({
+                "app_id":  str(app_map[metric['namespace']].uuid),
+                "owner": app_map[metric['namespace']].owner_id,
+                "type": "network",
+                "unit": "bytes",
+                "name": "tx",
+                "usage": value,
+                "kwargs": {
+                    "pod": metric['pod'],
+                },
+                "timestamp": start
+            })
         send_measurements.delay(networks)
 
     def handle(self, *args, **options):

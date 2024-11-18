@@ -90,26 +90,6 @@ env:
 - name: DRYCC_DATABASE_REPLICA_URL
   value: "postgres://$(DRYCC_PG_USER):$(DRYCC_PG_PASSWORD)@drycc-database-replica.{{.Release.Namespace}}.svc.{{.Values.global.clusterDomain}}:5432/controller"
 {{- end }}
-{{- if (.Values.databaseMonitorUrl) }}
-- name: DRYCC_DATABASE_MONITOR_URL
-  valueFrom:
-    secretKeyRef:
-      name: controller-creds
-      key: database-monitor-url
-{{- else if eq .Values.global.timeseriesLocation "on-cluster"  }}
-- name: DRYCC_TS_USER
-  valueFrom:
-    secretKeyRef:
-      name: timeseries-creds
-      key: user
-- name: DRYCC_TS_PASSWORD
-  valueFrom:
-    secretKeyRef:
-      name: timeseries-creds
-      key: password
-- name: DRYCC_DATABASE_MONITOR_URL
-  value: "postgres://$(DRYCC_TS_USER):$(DRYCC_TS_PASSWORD)@drycc-timeseries-replica.{{.Release.Namespace}}.svc.{{.Values.global.clusterDomain}}:5432/monitor"
-{{- end }}
 {{- if (.Values.workflowManagerUrl) }}
 - name: WORKFLOW_MANAGER_URL
   value: "{{ .Values.workflowManagerUrl }}"

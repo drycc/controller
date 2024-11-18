@@ -372,11 +372,6 @@ DRYCC_DATABASE_REPLICA_URL = os.environ.get('DRYCC_DATABASE_REPLICA_URL', None)
 if DRYCC_DATABASE_REPLICA_URL is not None:
     DATABASES["replica"] = dj_database_url.config(default=DRYCC_DATABASE_REPLICA_URL)
 
-# database monitor setting
-DRYCC_DATABASE_MONITOR_URL = os.environ.get('DRYCC_DATABASE_MONITOR_URL', None)
-if DRYCC_DATABASE_MONITOR_URL is not None:
-    DATABASES["monitor"] = dj_database_url.config(default=DRYCC_DATABASE_MONITOR_URL)
-
 # database routers
 DATABASE_ROUTERS = ['api.routers.DefaultReplicaRouter', ]
 
