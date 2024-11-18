@@ -699,6 +699,8 @@ class MetricSerializer(serializers.Serializer):
     stop = serializers.IntegerField(
         min_value=946656000, max_value=4102416000,
         required=False, default=lambda: int(time.time()))
+    step = serializers.IntegerField(
+        min_value=1, max_value=30, required=False, default=14)
     every = serializers.CharField(max_length=50, required=False, default='5m')
 
     def validate(self, attrs):

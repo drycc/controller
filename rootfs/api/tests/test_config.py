@@ -119,6 +119,19 @@ class ConfigTest(DryccTransactionTestCase):
         response = self.client.post(url, body)
         self.assertEqual(response.status_code, 201, response.data)
         self.assertEqual([], response.data['values'])
+        # repeat settings
+        value2['value'] = "VALUE2"
+        value3['value'] = None
+        body = {'values': [value2, value3]}
+        response = self.client.post(url, body)
+        self.assertEqual(response.status_code, 201, response.data)
+        self.assertEqual([value2], response.data['values'])
+        # set empty env
+        value1['value'] = ''
+        body = {'values': [value1]}
+        response = self.client.post(url, body)
+        self.assertEqual(response.status_code, 201, response.data)
+        self.assertEqual([value2, value1], response.data['values'])
 
         # disallow put/patch
         response = self.client.put(url)
