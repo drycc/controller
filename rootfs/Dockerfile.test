@@ -8,8 +8,7 @@ COPY dev_requirements.txt ${DRYCC_HOME_DIR}/dev_requirements.txt
 
 ENV PGDATA="/opt/drycc/postgresql/data" \
   PYTHON_VERSION="3.12" \
-  REDIS_VERSION="7.2.4" \
-  RABBITMQ_VERSION="3.12.13" \
+  VALKEY_VERSION="8.0.1" \
   POSTGRES_VERSION="15.5" \
   GOSU_VERSION="1.17"
 
@@ -18,8 +17,7 @@ RUN buildDeps='gcc rustc cargo  libffi-dev musl-dev openssl'; \
   && curl -SsL https://cli.codecov.io/latest/$([ $(dpkg --print-architecture) == "arm64" ] && echo linux-arm64 || echo linux)/codecov -o /usr/local/bin/codecov \
   && chmod +x /usr/local/bin/codecov \
   && install-stack python $PYTHON_VERSION \
-  && install-stack redis $REDIS_VERSION \
-  && install-stack rabbitmq $RABBITMQ_VERSION \
+  && install-stack valkey $VALKEY_VERSION \
   && install-stack postgresql $POSTGRES_VERSION \
   && install-stack gosu $GOSU_VERSION && . init-stack \
   && python3 -m venv ${DRYCC_HOME_DIR}/.venv \

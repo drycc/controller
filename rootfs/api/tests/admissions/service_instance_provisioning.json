@@ -25,7 +25,7 @@
 			"resource": "serviceinstances"
 		},
 		"requestSubResource": "status",
-		"name": "redis-t2",
+		"name": "valkey-t2",
 		"namespace": "myapp",
 		"operation": "UPDATE",
 		"userInfo": {
@@ -141,13 +141,13 @@
 						"time": "2024-03-25T01:42:31Z"
 					}
 				],
-				"name": "redis-t2",
+				"name": "valkey-t2",
 				"namespace": "myapp",
 				"resourceVersion": "74040375",
 				"uid": "0c9c3c73-d1b7-4183-9eb5-77ce93f8f8d8"
 			},
 			"spec": {
-				"clusterServiceClassExternalName": "redis",
+				"clusterServiceClassExternalName": "valkey",
 				"clusterServiceClassRef": {
 					"name": "e1fd0d37-9046-4152-a29b-d155c5657c8b"
 				},
@@ -215,7 +215,7 @@
 				"orphanMitigationInProgress": false,
 				"provisionStatus": "",
 				"reconciledGeneration": 0,
-				"userSpecifiedClassName": "ClusterServiceClass/redis",
+				"userSpecifiedClassName": "ClusterServiceClass/valkey",
 				"userSpecifiedPlanName": "standard-128"
 			}
 		},
@@ -315,13 +315,13 @@
 						"time": "2024-03-25T01:42:31Z"
 					}
 				],
-				"name": "redis-t2",
+				"name": "valkey-t2",
 				"namespace": "myapp",
 				"resourceVersion": "74040375",
 				"uid": "0c9c3c73-d1b7-4183-9eb5-77ce93f8f8d8"
 			},
 			"spec": {
-				"clusterServiceClassExternalName": "redis",
+				"clusterServiceClassExternalName": "valkey",
 				"clusterServiceClassRef": {
 					"name": "e1fd0d37-9046-4152-a29b-d155c5657c8b"
 				},
@@ -389,7 +389,7 @@
 				"orphanMitigationInProgress": false,
 				"provisionStatus": "",
 				"reconciledGeneration": 0,
-				"userSpecifiedClassName": "ClusterServiceClass/redis",
+				"userSpecifiedClassName": "ClusterServiceClass/valkey",
 				"userSpecifiedPlanName": "standard-128"
 			}
 		},

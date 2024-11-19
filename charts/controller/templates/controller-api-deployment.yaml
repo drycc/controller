@@ -34,9 +34,7 @@ spec:
         - netcat
         - -v
         - -u
-        - $(DRYCC_DATABASE_URL),$(DRYCC_DATABASE_REPLICA_URL),$(DRYCC_RABBITMQ_URL)
-        - -a
-        - $(DRYCC_REDIS_ADDRS)
+        - $(DRYCC_DATABASE_URL),$(DRYCC_VALKEY_URL),$(DRYCC_DATABASE_REPLICA_URL)
         {{- include "controller.envs" . | indent 8 }}
       containers:
       - name: drycc-controller

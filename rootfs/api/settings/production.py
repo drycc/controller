@@ -8,7 +8,6 @@ import os.path
 import tempfile
 import dj_database_url
 
-
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, os.path.join(BASE_DIR, 'apps_extra'))
 
@@ -438,20 +437,13 @@ SOCIAL_AUTH_PIPELINE = (
 AUTHENTICATION_BACKENDS = ("api.backend.DryccOIDC", ) + AUTHENTICATION_BACKENDS
 DRYCC_CACHE_USER_TIME = int(os.environ.get('DRYCC_CACHE_USER_TIME', 30 * 60))
 
-# Redis Configuration
-DRYCC_REDIS_ADDRS = os.environ.get('DRYCC_REDIS_ADDRS', '127.0.0.1:6379').split(",")
-DRYCC_REDIS_PASSWORD = os.environ.get('DRYCC_REDIS_PASSWORD', '')
-
-# Cache Configuration
+# Cache Valkey Configuration
 CACHES = {
     "default": {
         "BACKEND": "django_redis.cache.RedisCache",
-        "LOCATION": [
-            'redis://:{}@{}'.format(
-                DRYCC_REDIS_PASSWORD, DRYCC_REDIS_ADDR) for DRYCC_REDIS_ADDR in DRYCC_REDIS_ADDRS
-        ],
+        "LOCATION": os.environ.get('DRYCC_VALKEY_URL', 'redis://:@127.0.0.1:6379'),
         "OPTIONS": {
-            "CLIENT_CLASS": "django_redis.client.ShardClient",
+            "CLIENT_CLASS": "django_redis.client.DefaultClient",
         }
     }
 }

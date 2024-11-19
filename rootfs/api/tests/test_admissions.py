@@ -64,10 +64,10 @@ class AdmissionsTest(DryccTransactionTestCase):
 
     def test_admissions_service_catalog(self, requests_mock):
         app_id = self.create_app("myapp")
-        resource_name = 'redis-t2'
+        resource_name = 'valkey-t2'
         response = self.client.post(
             '/v2/apps/{}/resources'.format(app_id),
-            data={'name': resource_name, 'plan': 'redis:standard-128'}
+            data={'name': resource_name, 'plan': 'valkey:standard-128'}
         )
         self.assertEqual(response.status_code, 201, response.data)
 

@@ -6,20 +6,13 @@
 # fail hard and fast even on pipelines
 set -eou pipefail
 
-function start_redis() {
+function start_valkey() {
     cd /tmp
-    nohup redis-server > /var/log/redis.log 2>&1 &
-    cd -
-}
-
-function start_rabbitmq() {
-    cd /tmp
-    nohup rabbitmq-server > /var/log/rabbitmq.log 2>&1 &
+    nohup valkey-server > /var/log/valkey.log 2>&1 &
     cd -
 }
 
 gosu postgres pg_ctl -D "$PGDATA" start && ln -s /tmp/.s.PGSQL.5432 /var/run/postgresql/.s.PGSQL.5432
-start_redis
-start_rabbitmq
+start_valkey
 python3 manage.py check
 coverage run --source=api,scheduler manage.py test --settings=api.settings.testing --noinput api scheduler.tests --exclude-tag=auth

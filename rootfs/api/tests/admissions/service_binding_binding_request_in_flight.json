@@ -25,7 +25,7 @@
 			"resource": "servicebindings"
 		},
 		"requestSubResource": "status",
-		"name": "redis-t2",
+		"name": "valkey-t2",
 		"namespace": "myapp",
 		"operation": "UPDATE",
 		"userInfo": {
@@ -116,7 +116,7 @@
 						"time": "2024-03-25T01:48:21Z"
 					}
 				],
-				"name": "redis-t2",
+				"name": "valkey-t2",
 				"namespace": "myapp",
 				"resourceVersion": "74043277",
 				"uid": "292b0ef5-947f-42a8-adfb-909e99d26906"
@@ -124,9 +124,9 @@
 			"spec": {
 				"externalID": "57414c7d-0931-4310-8ed6-d8368ac0d3de",
 				"instanceRef": {
-					"name": "redis-t2"
+					"name": "valkey-t2"
 				},
-				"secretName": "redis-t2",
+				"secretName": "valkey-t2",
 				"userInfo": {
 					"extra": {
 						"authentication.kubernetes.io/pod-name": [
@@ -238,7 +238,7 @@
 						"time": "2024-03-25T01:48:21Z"
 					}
 				],
-				"name": "redis-t2",
+				"name": "valkey-t2",
 				"namespace": "myapp",
 				"resourceVersion": "74043277",
 				"uid": "292b0ef5-947f-42a8-adfb-909e99d26906"
@@ -246,9 +246,9 @@
 			"spec": {
 				"externalID": "57414c7d-0931-4310-8ed6-d8368ac0d3de",
 				"instanceRef": {
-					"name": "redis-t2"
+					"name": "valkey-t2"
 				},
-				"secretName": "redis-t2",
+				"secretName": "valkey-t2",
 				"userInfo": {
 					"extra": {
 						"authentication.kubernetes.io/pod-name": [

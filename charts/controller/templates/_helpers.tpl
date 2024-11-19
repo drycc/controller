@@ -61,6 +61,21 @@ env:
     secretKeyRef:
       name: builder-key-auth
       key: builder-key
+{{- if (.Values.valkeyUrl) }}
+- name: DRYCC_VALKEY_URL
+  valueFrom:
+    secretKeyRef:
+      name: controller-creds
+      key: valkey-url
+{{- else if eq .Values.global.valkeyLocation "on-cluster"  }}
+- name: VALKEY_PASSWORD
+  valueFrom:
+    secretKeyRef:
+      name: valkey-creds
+      key: password
+- name: DRYCC_VALKEY_URL
+  value: "redis://:$(VALKEY_PASSWORD)@drycc-valkey.{{.Release.Namespace}}.svc.{{.Values.global.clusterDomain}}:16379/0"
+{{- end }}
 {{- if (.Values.databaseReplicaUrl) }}
 - name: DRYCC_DATABASE_REPLICA_URL
   valueFrom:
@@ -102,23 +117,13 @@ env:
   valueFrom:
     fieldRef:
       fieldPath: metadata.namespace
-- name: DRYCC_REDIS_ADDRS
-  valueFrom:
-    secretKeyRef:
-      name: redis-creds
-      key: addrs
-- name: DRYCC_REDIS_PASSWORD
-  valueFrom:
-    secretKeyRef:
-      name: redis-creds
-      key: password
-{{- if eq .Values.global.rabbitmqLocation "off-cluster" }}
+{{- if (.Values.prometheusUrl) }}
 - name: "DRYCC_PROMETHEUS_URL"
   valueFrom:
     secretKeyRef:
-      name: prometheus-creds
-      key: url
-{{- else }}
+      name: controller-creds
+      key: prometheus-url
+{{- else if eq .Values.global.prometheusLocation "on-cluster" }}
 - name: "DRYCC_PROMETHEUS_USERNAME"
   valueFrom:
     secretKeyRef:
@@ -131,26 +136,6 @@ env:
       key: password
 - name: "DRYCC_PROMETHEUS_URL"
   value: "http://$(DRYCC_PROMETHEUS_USERNAME):$(DRYCC_PROMETHEUS_PASSWORD)@drycc-prometheus.{{$.Release.Namespace}}.svc.{{$.Values.global.clusterDomain}}:9090"
-{{- end }}
-{{- if (.Values.rabbitmqUrl) }}
-- name: DRYCC_RABBITMQ_URL
-  valueFrom:
-    secretKeyRef:
-      name: controller-creds
-      key: rabbitmq-url
-{{- else if eq .Values.global.rabbitmqLocation "on-cluster" }}
-- name: "DRYCC_RABBITMQ_USERNAME"
-  valueFrom:
-    secretKeyRef:
-      name: rabbitmq-creds
-      key: username
-- name: "DRYCC_RABBITMQ_PASSWORD"
-  valueFrom:
-    secretKeyRef:
-      name: rabbitmq-creds
-      key: password
-- name: "DRYCC_RABBITMQ_URL"
-  value: "amqp://$(DRYCC_RABBITMQ_USERNAME):$(DRYCC_RABBITMQ_PASSWORD)@drycc-rabbitmq.{{$.Release.Namespace}}.svc.{{$.Values.global.clusterDomain}}:5672/controller"
 {{- end }}
 {{- if eq .Values.global.passportLocation "on-cluster"}}
 - name: "DRYCC_PASSPORT_URL"

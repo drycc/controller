@@ -54,6 +54,8 @@ mutateReplicas: 1
 # Forbid: The cron job does not allow concurrent runs; if it is time for a new job run and the previous job run hasn't finished yet, the cron job skips the new job run
 # Replace: If it is time for a new job run and the previous job run hasn't finished yet, the cron job replaces the currently running job run with a new job run
 concurrencyPolicy: "Replace"
+## valkeyUrl is will no longer use the built-in valkey component
+valkeyUrl: ""
 # databaseUrl and databaseReplicaUrl are will no longer use the built-in database component
 databaseUrl: ""
 databaseReplicaUrl: ""
@@ -65,9 +67,6 @@ passportSecret: ""
 workflowManagerUrl: ""
 workflowManagerAccessKey: ""
 workflowManagerSecretKey: ""
-
-# Configuring this will no longer use the built-in rabbitmq component
-rabbitmqUrl: ""
 
 # limit specs, plans config
 config:
@@ -131,9 +130,6 @@ mutate:
     extraMatchLabels:
       component: "drycc-controller-mutate"
 
-redis:
-  replicas: 1
-
 storage:
   csi:
     storageClassName: drycc-storage
@@ -157,7 +153,6 @@ global:
   #   configured above)
   # - off-cluster: Run PostgreSQL outside the Kubernetes cluster (configure in database section)
   databaseLocation: "on-cluster"
-
   # Set the location of Workflow's Registry
   #
   # Valid values are:
@@ -186,3 +181,9 @@ global:
   # Whether cert_manager is enabled to automatically generate controller certificates
   certManagerEnabled: true
   passportLocation: "on-cluster"
+  # Set the location of Workflow's prometheus cluster
+  #
+  # Valid values are:
+  # - on-cluster: Run prometheus within the Kubernetes cluster
+  # - off-cluster: prometheus is running outside of the cluster and credentials and connection information will be provided.
+  prometheusLocation: "on-cluster"
