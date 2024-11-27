@@ -1,10 +1,13 @@
 import uuid
+import logging
 import requests
 from django.conf import settings
 from django.core.cache import cache
 from requests.auth import HTTPBasicAuth
 
 from .utils import random_string, get_session, CacheLock
+
+logger = logging.getLogger(__name__)
 
 
 class FilerClient(object):
@@ -15,6 +18,9 @@ class FilerClient(object):
         self.app_id = app_id
         self.volume = volume
         self.scheduler = scheduler
+
+    def log(self, message, level=logging.INFO):
+        logger.log(level, "[{}]: {}".format(self.app_id, message))
 
     @property
     def server(self):
@@ -35,6 +41,7 @@ class FilerClient(object):
         return f"filer:{self.app_id}:{self.volume.name}"
 
     def get_server(self):
+        self.clean()  # clean old filer
         pod_name = f"drycc-filer-{uuid.uuid4().hex}"
         k8s_volume = {"name": self.volume.name}
         if self.volume.type == "csi":
@@ -58,6 +65,19 @@ class FilerClient(object):
         })
         address = self.scheduler.pod.get(self.app_id, pod_name).json()["status"]["podIP"]
         return {"address": address, "username": username, "password": password}
+
+    def clean(self):
+        response = self.scheduler.pod.get(
+            self.app_id, labels={"app": self.app_id, "type": "filer"})
+        if response.status_code != 200:
+            self.log("clean up old filter errors")
+            return False
+        for item in response.json()["items"]:
+            if item['status']['phase'] in ('Succeeded', 'Failed'):
+                pod_name = item['metadata']['name']
+                self.scheduler.pod.delete(self.app_id, pod_name)
+        self.log("clean up old filter completed")
+        return True
 
     def health(self, server):
         try:
