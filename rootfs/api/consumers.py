@@ -143,10 +143,12 @@ class AppPodLogsConsumer(BaseK8sConsumer):
         args = (self.pod_id, self.id)
         lines = data.get("lines", 300)
         follow = data.get("follow", False)
+        previous = data.get("previous", False)
         kwargs = {
             "follow": follow,
             "container": data.get("container", ""),
             "_preload_content": not follow,
+            "previous": previous
         }
         if lines > 0:
             kwargs["tail_lines"] = lines
