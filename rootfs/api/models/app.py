@@ -269,7 +269,7 @@ class App(UuidAuditedModel):
 
     def scale(self, user, structure):
         err_msg = None
-        release = self.release_set.filter(failed=False).latest()
+        release = Release.latest(self)
         if (PTYPE_RUN in structure or release.build is None):
             if PTYPE_RUN in structure:
                 err_msg = 'Cannot set scale for reserved types, procfile type is: run'
@@ -348,9 +348,9 @@ class App(UuidAuditedModel):
         release.clean(ptypes)
 
     def mount(self, user, volume, structure=None):
-        if self.release_set.filter(failed=False).latest().build is None:
+        release = Release.latest(self)
+        if release is None or release.build is None:
             raise DryccException('No build associated with this release')
-        release = self.release_set.filter(failed=False).latest()
         app_settings = self.appsettings_set.latest()
         self._mount(user, volume, release, app_settings, structure=structure)
 
@@ -387,8 +387,8 @@ class App(UuidAuditedModel):
             return ''.join(random.choice(chars) for _ in range(size))
 
         """Run a one-off command in an ephemeral app container."""
-        release = self.release_set.filter(failed=False).latest()
-        if release.build is None:
+        release = Release.latest(self)
+        if release is None or release.build is None:
             raise DryccException('No build associated with this release to run this command')
 
         app_settings = self.appsettings_set.latest()
@@ -656,8 +656,8 @@ class App(UuidAuditedModel):
         return name
 
     def state_to_k8s(self):
-        release = self.release_set.filter(failed=False).latest()
-        if release.build is None:
+        release = Release.latest(self)
+        if release is None or release.build is None:
             self.log('the last release does not have a build, skipping deployment...')
             return
         ptypes = set()

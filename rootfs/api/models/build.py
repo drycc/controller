@@ -4,6 +4,7 @@ from django.contrib.auth import get_user_model
 from api.exceptions import DryccException
 from .base import UuidAuditedModel, PTYPE_WEB
 from .config import Config
+from .release import Release
 
 User = get_user_model()
 logger = logging.getLogger(__name__)
@@ -72,7 +73,7 @@ class Build(UuidAuditedModel):
         return default_image if default_image else self.image
 
     def create_release(self, user, *args, **kwargs):
-        latest_release = self.app.release_set.filter(failed=False).latest()
+        latest_release = Release.latest(self.app)
         try:
             new_release = latest_release.new(
                 user,
@@ -109,7 +110,7 @@ class Build(UuidAuditedModel):
         """
         dryccfile to config
         """
-        latest_release = self.app.release_set.filter(failed=False).latest()
+        latest_release = Release.latest(self.app)
         config_values, config_values_ref, config_healthcheck = [], {}, {}
         for group, values in self.dryccfile.get('config', {}).items():
             for value in values:

@@ -279,7 +279,7 @@ class ReleasableViewSet(AppResourceViewSet):
             release = get_object_or_404(
                 models.release.Release, app=self.get_app(), version=int(version))
         else:
-            release = self.get_app().release_set.filter(failed=False).latest()
+            release = models.release.Release.latest(self.get_app())
         return getattr(release, self.model.__name__.lower())
 
 
@@ -321,7 +321,7 @@ class AppViewSet(BaseDryccViewSet):
             expires = settings.KUBERNETES_JOB_MAX_TTL_SECONDS_AFTER_FINISHED
         if not command:
             raise DryccException('command is a required field, or it can be defined in Procfile')
-        release = app.release_set.filter(failed=False).latest()
+        release = models.release.Release.latest(app)
         if release.build is None:
             raise DryccException('no build available, please deploy a release')
         volumes = request.data.get('volumes', None)
@@ -417,7 +417,7 @@ class ConfigViewSet(ReleasableViewSet):
         return Response(status=status.HTTP_200_OK)
 
     def post_save(self, config):
-        latest_release = config.app.release_set.filter(failed=False).latest()
+        latest_release = models.release.Release.latest(self.get_app())
         try:
             release = latest_release.new(
                 self.request.user, config=config, build=latest_release.build)
@@ -673,7 +673,7 @@ class ReleaseViewSet(AppResourceViewSet):
         Create a new release as a copy of the state of the compiled slug and config vars of a
         previous release.
         """
-        latest_release = self.get_app().release_set.filter(failed=False).latest()
+        latest_release = models.release.Release.latest(self.get_app())
         ptypes = set(
             [ptype for ptype in request.data.get("ptypes", "").split(",") if ptype])
         ptypes = latest_release.app.check_ptypes(ptypes)
@@ -786,7 +786,7 @@ class BuildHookViewSet(BaseHookViewSet):
         # return the application databag
         response = {
             'release': {
-                'version': app.release_set.filter(failed=False).latest().version
+                'version': models.release.Release.latest(app).version
             }
         }
         return Response(response, status=status.HTTP_200_OK)
@@ -807,7 +807,7 @@ class ConfigHookViewSet(BaseHookViewSet):
         has_permission, message = permissions.has_app_permission(request.user, app, request.method)
         if not has_permission:
             return Response(message, status=status.HTTP_403_FORBIDDEN)
-        config = app.release_set.filter(failed=False).latest().config
+        config = models.release.Release.latest(app).config
         serializer = self.get_serializer(config)
         return Response(serializer.data, status=status.HTTP_200_OK)
 
