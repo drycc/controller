@@ -703,3 +703,83 @@ class RouteTest(BaseGatewayTest):
         }]
         self.assertEqual(len(response.data["results"]), 1, response.data)
         self.assertEqual(response.data["results"][0]["parent_refs"], expect, response.data)
+
+    def test_route_parent_refs(self):
+        app_id = self.create_app_with_domain_and_deploy()
+        response = self.client.get('/v2/apps/{}/routes/'.format(app_id))
+        self.assertEqual(len(response.data["results"]), 1, response.data)
+        expect = [{
+            'name': f'{app_id}',
+            'port': 80
+        }]
+        # enable tls
+        self.change_certs_auto(app_id, True)
+        self.assertEqual(response.data["results"][0]["parent_refs"], expect, response.data)
+        response = self.client.get('/v2/apps/{}/routes/'.format(app_id))
+        self.assertEqual(len(response.data["results"]), 1, response.data)
+        expect = [{
+            'name': f'{app_id}',
+            'port': 80
+        }, {
+            'name': f'{app_id}',
+            'port': 443
+        }]
+        self.assertEqual(len(response.data["results"]), 1, response.data)
+        self.assertEqual(response.data["results"][0]["parent_refs"], expect, response.data)
+        # add new domain
+        ptype, kind, route_name, domain = (
+            'gateway', "HTTPRoute", "myroute-1", 'test-domain-gateway.example.com')
+        response = self.client.post(
+            '/v2/apps/{}/domains'.format(app_id),
+            {'domain': domain, 'ptype': ptype}
+        )
+        self.assertEqual(response.status_code, 201, response.data)
+        # add new services
+        response = self.client.post(
+            '/v2/apps/{}/services'.format(app_id),
+            {
+                'port': 9999,
+                'protocol': 'TCP',
+                'target_port': 9999,
+                'ptype': 'gateway'
+            }
+        )
+        self.assertEqual(response.status_code, 201, response.data)
+        # add new router
+        response = self.client.post(
+            '/v2/apps/{}/routes/'.format(app_id),
+            {
+                "kind": kind,
+                "name": route_name,
+                "rules": [{
+                    "backendRefs": [{
+                        "kind": "Service",
+                        "name": f"{app_id}-{ptype}",
+                        "port": 9999,
+                        "weight": 100,
+                    }],
+                }],
+            }
+        )
+        self.assertEqual(response.status_code, 201, response.data)
+        self.client.patch(
+            '/v2/apps/{}/routes/{}/attach/'.format(app_id, route_name),
+            {
+                "gateway": app_id,
+                "port": 443
+            }
+        )
+        self.assertEqual(response.status_code, 201, response.data)
+        route = Route.objects.get(name=route_name)
+        response = route.scheduler().httproutes.get(app_id, route_name)
+        self.assertEqual(response.status_code, 200, response.json())
+        self.assertEqual(len(response.json()['spec']['parentRefs']), 1)
+        # get gateway
+        response = route.scheduler().gateways.get(app_id, app_id)
+        listeners = [
+            listener for listener in response.json()['spec']['listeners']
+            if listener['port'] == 443
+        ]
+        self.assertEqual(len(listeners) > 1,  True)
+        hostnames = [listener['hostname'] for listener in listeners]
+        self.assertEqual(domain in hostnames,  True)

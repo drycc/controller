@@ -404,14 +404,16 @@ class Route(AuditedModel):
         for gateway in self.app.gateway_set.filter(
                 name__in=[item["name"] for item in self.parent_refs]):
             gateways[gateway.name] = gateway
-        parent_refs, http_parent_refs = [], []
+        hostnames, parent_refs, http_parent_refs = self.hostnames, [], []
         for item in self.parent_refs:
             gateway_name, port = item["name"], item["port"]
             if gateway_name not in gateways:
                 continue
             gateway = gateways[gateway_name]
             for listener in gateway.listeners:
-                if listener["port"] == port and listener["protocol"] in self.protocols:
+                hostname = listener.get('hostname', None)
+                if listener["port"] == port and listener["protocol"] in self.protocols and (
+                        hostname is None or hostname in hostnames):
                     parent_ref = {
                         "group": "gateway.networking.k8s.io",
                         "kind": "Gateway",
