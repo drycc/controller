@@ -64,7 +64,7 @@ class Gateway(AuditedModel):
     def listeners(self):
         auto_tls = self.app.tls_set.latest().certs_auto_enabled
         listeners = []
-        domains = list(self._get_tls_domain(auto_tls))
+        domains = list(self.app.domain_set.all())
         for item in self.ports:
             port, protocol = item["port"], item["protocol"]
             if item["protocol"] in HOSTNAME_PROTOCOLS:
@@ -145,12 +145,6 @@ class Gateway(AuditedModel):
                         item["protocol"] != "UDP" and protocol != "UDP"):
                     return False
         return True
-
-    def _get_tls_domain(self, auto_tls):
-        domains = self.app.domain_set.all()
-        if not auto_tls:
-            domains = domains.exclude(certificate=None)
-        return domains
 
     def _get_listener_name(self, port, protocol, index):
         if protocol in ("TCP", "TLS", "HTTP"):
