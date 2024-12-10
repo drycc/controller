@@ -322,7 +322,7 @@ class AppViewSet(BaseDryccViewSet):
         if not command:
             raise DryccException('command is a required field, or it can be defined in Procfile')
         release = models.release.Release.latest(app)
-        if release.build is None:
+        if release is None or release.build is None:
             raise DryccException('no build available, please deploy a release')
         volumes = request.data.get('volumes', None)
         if volumes:

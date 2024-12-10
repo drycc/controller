@@ -270,7 +270,7 @@ class App(UuidAuditedModel):
     def scale(self, user, structure):
         err_msg = None
         release = Release.latest(self)
-        if (PTYPE_RUN in structure or release.build is None):
+        if (PTYPE_RUN in structure or release is None or release.build is None):
             if PTYPE_RUN in structure:
                 err_msg = 'Cannot set scale for reserved types, procfile type is: run'
             else:
@@ -283,7 +283,7 @@ class App(UuidAuditedModel):
     def pipeline(self, release, ptypes, force_deploy=False):
         prefix = f"[pipeline] release {release.version_name}"
         try:
-            if release.build is not None:
+            if release is not None and release.build is not None:
                 if release.build.dryccfile:
                     for run in release.get_runners(ptypes):
                         self.log(f"{prefix} starts running pipeline.run {run['image']}")
@@ -323,7 +323,7 @@ class App(UuidAuditedModel):
 
         force_deploy can be used when a deployment is broken, such as for Rollback
         """
-        if release.build is None:
+        if release is None or release.build is None:
             raise DryccException('No build associated with this release')
         # use create to make sure minimum resources are created
         self.create()
@@ -352,7 +352,7 @@ class App(UuidAuditedModel):
         if release is None or release.build is None:
             raise DryccException('No build associated with this release')
         app_settings = self.appsettings_set.latest()
-        self._mount(user, volume, release, app_settings, structure=structure)
+        self._mount(user, volume, app_settings, structure=structure)
 
     def clean(self, release=None, ptypes=None):
         release = release if release else self.release_set.latest()
@@ -741,11 +741,14 @@ class App(UuidAuditedModel):
             err = 'Error deleting existing application logs: {}'.format(e)
             self.log(err, logging.WARNING)
 
-    def _mount(self, user, volume, release, app_settings, structure=None):
+    def _mount(self, user, volume, app_settings, structure=None):
         volumes = Volume.objects.filter(app=self)
         tasks = []
         for scale_type, replicas in structure.items() if structure else self.structure.items():
             if scale_type != PTYPE_RUN:
+                release = self.release_set.filter(
+                    deployed_ptypes__contains=scale_type,
+                    failed=False).latest()
                 replicas = self.structure.get(scale_type, 0)
                 scale_type_volumes = [
                     volume for volume in volumes if scale_type in volume.path.keys()]
@@ -810,7 +813,7 @@ class App(UuidAuditedModel):
             except KubeException as e:
                 # Don't rollback if the previous release doesn't have a build which means
                 # this is the first build and all the previous releases are just config changes.
-                if (rollback_on_failure and prev_release.build is not None):
+                if rollback_on_failure and prev_release is not None and prev_release.build is not None:  # noqa
                     err = 'There was a problem deploying {}. Rolling back to release {}.'.format(
                         release.version_name, prev_release.version_name)
                     # This goes in the log before the rollback starts
@@ -1098,7 +1101,7 @@ class App(UuidAuditedModel):
         Build a dict of env vars, setting default vars based on app type
         and then combining with the user set ones
         """
-        if release.build is None:
+        if release is None or release.build is None:
             raise DryccException('No build associated with this release to run this command')
 
         # mix in default environment information drycc may require
