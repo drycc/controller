@@ -328,14 +328,24 @@ class GatewayTest(BaseGatewayTest):
         app_id = self.create_app_with_domain_and_deploy()
         response = self.client.get('/v2/apps/{}/gateways/'.format(app_id))
         expect = [{
-            'allowedRoutes': {
-                'namespaces': {
-                    'from': 'All'
+            "allowedRoutes": {
+                "namespaces": {
+                    "from": "All"
                 }
             },
-            'name': 'tcp-80-0',
-            'port': 80,
-            'protocol': 'HTTP'
+            "name": "tcp-80-1",
+            "port": 80,
+            "hostname": "test-domain.example.com",
+            "protocol": "HTTP"
+        }, {
+            "allowedRoutes": {
+                "namespaces": {
+                    "from": "All"
+                }
+            },
+            "name": "tcp-80-0",
+            "port": 80,
+            "protocol": "HTTP"
         }]
         self.assertEqual(response.data["count"], 1, response.data)
         self.assertEqual(response.data["results"][0]["listeners"], expect, response.data)
@@ -377,14 +387,24 @@ class GatewayTest(BaseGatewayTest):
         self.change_certs_auto(app_id, False)
         response = self.client.get('/v2/apps/{}/gateways/'.format(app_id))
         expect = [{
-            'allowedRoutes': {
-                'namespaces': {
-                    'from': 'All'
+            "allowedRoutes": {
+                "namespaces": {
+                    "from": "All"
                 }
             },
-            'name': 'tcp-80-0',
-            'port': 80,
-            'protocol': 'HTTP'
+            "name": "tcp-80-1",
+            "port": 80,
+            "hostname": "test-domain.example.com",
+            "protocol": "HTTP"
+        }, {
+            "allowedRoutes": {
+                "namespaces": {
+                    "from": "All"
+                }
+            },
+            "name": "tcp-80-0",
+            "port": 80,
+            "protocol": "HTTP"
         }]
         self.assertEqual(response.data["count"], 1, response.data)
         self.assertEqual(response.json()["results"][0]["listeners"], expect, response.data)

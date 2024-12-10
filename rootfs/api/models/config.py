@@ -125,9 +125,10 @@ class Config(UuidAuditedModel):
         """merge the old config with the new"""
         try:
             # Get config from the latest available release
-            try:
-                previous_config = self.app.release_set.filter(failed=False).latest().config
-            except Release.DoesNotExist:
+            latest_releases = Release.latest(self.app)
+            if latest_releases:
+                previous_config = latest_releases.config
+            else:
                 # If that doesn't exist then fallback on app config
                 # usually means a totally new app
                 previous_config = self.app.config_set.latest()
@@ -174,7 +175,7 @@ class Config(UuidAuditedModel):
                     else:  # force to string
                         new_item['value'] = str(new_item['value'])
                     break
-            if added and new_item['value'] is not None:
+            if added and new_item['value'] is not None and new_item['value'] != "":
                 data.append(new_item)
         setattr(self, 'values', data)
 

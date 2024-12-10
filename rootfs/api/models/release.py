@@ -211,28 +211,31 @@ class Release(UuidAuditedModel):
             raise DryccException(f"{msg}: {lock.locked(ptypes)}")
         run_pipeline.delay(self, ptypes, force_deploy)
 
-    def previous(self, state="succeed"):
-        """
-        Return the previous Release to this one.
-
-        :return: the previous :class:`Release`, or None
-        """
-        releases = self.app.release_set
-        if self.pk:
-            releases = releases.exclude(pk=self.pk)
+    @classmethod
+    def latest(cls, app, state=None, exclude_pk=None):
+        releases = app.release_set
+        if exclude_pk:
+            releases = releases.exclude(pk=exclude_pk)
         q = Q(failed=False, state="succeed") if state else Q(failed=False)
         try:
-            app_settings = self.app.appsettings_set.latest()
+            app_settings = app.appsettings_set.latest()
             if app_settings.autorollback is False:
-                q = Q(state__in=["crashed", "succeed"])
+                q = Q()
         except AppSettings.DoesNotExist:
             pass
         try:
             # Get the Release previous to this one
-            prev_release = releases.filter(q).latest()
+            release = releases.filter(q).latest()
         except Release.DoesNotExist:
-            prev_release = None
-        return prev_release
+            release = None
+        return release
+
+    def previous(self, state="succeed"):
+        """
+        Return the previous Release to this one.
+        :return: the previous :class:`Release`, or None
+        """
+        return self.latest(self.app, state, self.pk)
 
     def rollback(self, user, ptypes=None, version=None):
         try:
