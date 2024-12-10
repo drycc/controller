@@ -110,28 +110,32 @@ class Build(UuidAuditedModel):
         """
         dryccfile to config
         """
-        latest_release = Release.latest(self.app)
-        config_values, config_values_ref, config_healthcheck = [], {}, {}
-        for group, values in self.dryccfile.get('config', {}).items():
-            for value in values:
-                value['group'] = group
-                config_values.append(value)
+        config_values, config_values_ref, config_healthcheck, changed_fields = [], {}, {}, set()
+        if 'config' in self.dryccfile:
+            for group, values in self.dryccfile.get('config', {}).items():
+                for value in values:
+                    value['group'] = group
+                    config_values.append(value)
+            changed_fields.update(["values", "values_refs"])
         for ptype, values in self.dryccfile.get('deploy', {}).items():
-            for value in values.get('config', {}).get('env', []):
-                value['ptype'] = ptype
-                config_values.append(value)
-            for config_ref in values.get('config', {}).get('ref', []):
-                if ptype not in config_values_ref:
-                    config_values_ref[ptype] = [config_ref]
-                else:
-                    config_values_ref[ptype].append(config_ref)
+            if 'config' in values:
+                for value in values.get('config', {}).get('env', []):
+                    value['ptype'] = ptype
+                    config_values.append(value)
+                for config_ref in values.get('config', {}).get('ref', []):
+                    if ptype not in config_values_ref:
+                        config_values_ref[ptype] = [config_ref]
+                    else:
+                        config_values_ref[ptype].append(config_ref)
+                changed_fields.update(["values", "values_refs"])
             if 'healthcheck' in values:
                 config_healthcheck[ptype] = values.get('healthcheck')
-        if not config_values:
-            return latest_release.config
+                changed_fields.add("healthcheck")
+        if not changed_fields:
+            return self.app.release_set.filter(failed=False).latest().config
         config = Config(
             owner=self.owner, app=self.app, values=config_values, values_refs=config_values_ref,
             healthcheck=config_healthcheck,
         )
-        config.save(ignore_update_fields=["values", "values_refs", "healthcheck"])
+        config.save(ignore_update_fields=changed_fields)
         return config
