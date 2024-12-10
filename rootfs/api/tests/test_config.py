@@ -4,6 +4,7 @@ Unit tests for the Drycc api app.
 
 Run the tests with "./manage.py test api"
 """
+import copy
 from io import StringIO
 from django.contrib.auth import get_user_model
 from django.core.cache import cache
@@ -829,7 +830,7 @@ class ConfigTest(DryccTransactionTestCase):
                 'deploy': {
                     'web': {
                         'image': "127.0.0.1/cat/cat"
-                    }
+                    },
                 }
             },
         }
@@ -876,7 +877,7 @@ class ConfigTest(DryccTransactionTestCase):
             release.config.envs("web"),
             {
                 'GROUP': 'g1', 'DEBUG': 'tr', 'TEST1': 'g1', 'TEST2': 'tr', 'PENV1': 'web',
-                'PENV2': 'web'
+                'PENV2': 'web', "WEBSITE": "www.drycc.cc",
             }
         )
         build_body['dryccfile']['deploy']['web']['healthcheck'] = {
@@ -901,3 +902,33 @@ class ConfigTest(DryccTransactionTestCase):
             release.config.healthcheck['web'],
             build_body['dryccfile']['deploy']['web']['healthcheck'],
         )
+        # test use old config and healthcheck
+        new_build_body = copy.deepcopy(build_body)
+        del new_build_body['dryccfile']['config']
+        del new_build_body['dryccfile']['deploy']['web']['config']
+        del new_build_body['dryccfile']['deploy']['web']['healthcheck']
+        with mock.patch('scheduler.resources.pod.Pod.watch') as mock_kube:
+            mock_kube.return_value = ['up', 'down']
+            url = f"/v2/apps/{app_id}/build"
+            response = self.client.post(url, new_build_body)
+            self.assertEqual(response.status_code, 201, response.data)
+        release = app.release_set.latest()
+        self.assertEqual(release.failed, False)
+        self.assertEqual(release.config.healthcheck, release.previous().config.healthcheck)
+        self.assertEqual(release.config.values, release.previous().config.values)
+        self.assertEqual(release.config.values_refs, release.previous().config.values_refs)
+        # set empty
+        new_build_body = copy.deepcopy(build_body)
+        new_build_body['dryccfile']['config'] = {}
+        new_build_body['dryccfile']['deploy']['web']['config'] = {}
+        new_build_body['dryccfile']['deploy']['web']['healthcheck'] = {}
+        with mock.patch('scheduler.resources.pod.Pod.watch') as mock_kube:
+            mock_kube.return_value = ['up', 'down']
+            url = f"/v2/apps/{app_id}/build"
+            response = self.client.post(url, new_build_body)
+            self.assertEqual(response.status_code, 201, response.data)
+        release = app.release_set.latest()
+        self.assertEqual(release.failed, False)
+        self.assertEqual(release.config.healthcheck, {'web': {}})
+        self.assertEqual(release.config.envs("web"), {"WEBSITE": "www.drycc.cc"})
+        self.assertEqual(release.config.values_refs, {})

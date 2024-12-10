@@ -134,17 +134,23 @@ class Config(UuidAuditedModel):
                 previous_config = self.app.config_set.latest()
             for field in self.allof_fields:
                 if ignore_update_fields is None or field not in ignore_update_fields:
-                    getattr(
-                        self,
-                        "_update_%s" % field,
-                        partial(self._update_field, field)
-                    )(previous_config)
+                    self.merge_field(field, previous_config)
         except Config.DoesNotExist:
             self._update_tags(previous_config={'tags': {}})
         return super(Config, self).save(*args, **kwargs)
 
-    def _update_field(self, field, previous_config):
-        data = getattr(previous_config, field, {}).copy()
+    def merge_field(self, field, old_config, replace_ptypes=[]):
+        getattr(
+            self,
+            "_update_%s" % field,
+            partial(self._update_field, field)
+        )(old_config, replace_ptypes)
+
+    def _update_field(self, field, previous_config, replace_ptypes=[]):
+        data = {
+            k: v for k, v in getattr(previous_config, field, {}).copy().items()
+            if k not in replace_ptypes
+        }
         new_data = getattr(self, field, {}).copy()
         # remove config keys if a null value is provided
         for key, value in new_data.items():
@@ -158,8 +164,11 @@ class Config(UuidAuditedModel):
                 data[key] = self._merge_data(field, data.get(key, {}), value)
         setattr(self, field, data)
 
-    def _update_values(self, previous_config):
-        data = getattr(previous_config, 'values', []).copy()
+    def _update_values(self, previous_config, replace_ptypes=[]):
+        data = [
+            item for item in getattr(previous_config, 'values', []).copy()
+            if item.get('ptype') not in replace_ptypes
+        ]
         new_data = getattr(self, 'values', []).copy()
         for new_item in new_data:
             added = True
@@ -175,12 +184,15 @@ class Config(UuidAuditedModel):
                     else:  # force to string
                         new_item['value'] = str(new_item['value'])
                     break
-            if added and new_item['value'] is not None and new_item['value'] != "":
+            if added and new_item['value'] is not None:
                 data.append(new_item)
         setattr(self, 'values', data)
 
-    def _update_values_refs(self, previous_config):
-        data = getattr(previous_config, 'values_refs', {}).copy()
+    def _update_values_refs(self, previous_config, replace_ptypes=[]):
+        data = {
+            k: v for k, v in getattr(previous_config, 'values_refs', {}).copy().items()
+            if k not in replace_ptypes
+        }
         new_data = getattr(self, 'values_refs', {}).copy()
         # remove config keys if a null value is provided
         for ptype, values in new_data.items():
@@ -192,7 +204,7 @@ class Config(UuidAuditedModel):
                 data.pop(ptype)
             else:
                 values_refs = data.get(ptype, [])
-                values_refs.extend(new_data.get(ptype, []))
+                values_refs.extend(values)
                 data[ptype] = list(set(values_refs))
         setattr(self, 'values_refs', data)
 
@@ -208,9 +220,12 @@ class Config(UuidAuditedModel):
                 data[key] = value
         return data
 
-    def _update_tags(self, previous_config):
+    def _update_tags(self, previous_config, replace_ptypes=[]):
         """verify the tags exist on any nodes as labels"""
-        data = getattr(previous_config, 'tags', {}).copy()
+        data = {
+            k: v for k, v in getattr(previous_config, 'tags', {}).copy().items()
+            if k not in replace_ptypes
+        }
         new_data = getattr(self, 'tags', {}).copy()
         # remove config keys if a null value is provided
         for ptype, values in new_data.items():
@@ -236,14 +251,17 @@ class Config(UuidAuditedModel):
                     'tags', data.get(ptype, {}), values)
         setattr(self, 'tags', data)
 
-    def _update_limits(self, previous_config):
-        data = getattr(previous_config, 'limits', {}).copy()
+    def _update_limits(self, previous_config, replace_ptypes=[]):
+        data = {
+            k: v for k, v in getattr(previous_config, 'limits', {}).copy().items()
+            if k not in replace_ptypes
+        }
         new_data = getattr(self, 'limits', {}).copy()
         # check procfile
-        for key, value in new_data.items():
+        for ptype, value in new_data.items():
             if value is None:
-                if key in self.app.ptypes:
+                if ptype in self.app.ptypes:
                     raise UnprocessableEntity(
-                        "the %s has already been used and cannot be deleted" % key)
+                        "the %s has already been used and cannot be deleted" % ptype)
         self._merge_data('limits', data, new_data)
         setattr(self, 'limits', data)
