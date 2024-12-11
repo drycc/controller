@@ -626,12 +626,12 @@ class App(UuidAuditedModel):
                 # let the user know about any other errors
                 raise ServiceUnavailable(str(e)) from e
 
-    def image_pull_secret(self, namespace, registry, image):
+    def image_pull_secret(self, namespace, ptype, registry, image):
         """
         Take registry information and set as an imagePullSecret for an RC / Deployment
         http://kubernetes.io/docs/user-guide/images/#specifying-imagepullsecrets-on-a-pod
         """
-        docker_config, name, create = self._get_private_registry_config(image, registry)
+        docker_config, name, create = self._get_private_registry_config(ptype, image, registry)
         if create is None:
             return
         elif create:
@@ -1122,8 +1122,8 @@ class App(UuidAuditedModel):
             default_env['PORT'] = port
         return default_env
 
-    def _get_private_registry_config(self, image, registry=None):
-        name = settings.REGISTRY_SECRET_PREFIX
+    def _get_private_registry_config(self, ptype, image, registry=None):
+        name = settings.REGISTRY_SECRET_PREFIX + '-' + ptype
         if registry:
             # try to get the hostname information
             hostname = registry.get('hostname', None)
@@ -1209,7 +1209,7 @@ class App(UuidAuditedModel):
         registry = config.registry.get(ptype, {})
         # create image pull secret if needed
         image_pull_secret_name = self.image_pull_secret(
-            self.id, registry, release.get_deploy_image(ptype))
+            self.id, ptype, registry, release.get_deploy_image(ptype))
 
         # only web is routable
         # https://www.drycc.cc/applications/managing-app-processes/#default-process-types
