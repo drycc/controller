@@ -431,17 +431,21 @@ class App(UuidAuditedModel):
         result = []
         try:
             pod = self.scheduler().pod.get(self.id, pod_name).json()
-            for status in pod["status"]["containerStatuses"]:
+            if pod["status"]['phase'] == 'Pending':
+                statuses = pod["spec"]["containers"]
+            else:
+                statuses = pod["status"]["containerStatuses"]
+            for status in statuses:
                 command, args = get_command_and_args(pod, status["name"])
                 result.append({
                     "container": status["name"],
                     "image": status["image"],
                     "command": command,
                     "args": args,
-                    "state": status["state"],
-                    "lastState": status["lastState"],
-                    "ready": status["ready"],
-                    "restartCount": status["restartCount"],
+                    "state": status.get("state", {}),
+                    "lastState": status.get("lastState", {}),
+                    "ready": status.get("ready", False),
+                    "restartCount": status.get("restartCount", 0),
                     "status": pod["status"].get("phase", ""),
                     "reason": pod["status"].get("reason", ""),
                     "message": pod["status"].get("message", "")
@@ -470,15 +474,22 @@ class App(UuidAuditedModel):
                 else:
                     started = str(
                         datetime.now(timezone.utc).strftime(settings.DRYCC_DATETIME_FORMAT))
+                state = str(self.scheduler().pod.state(p))
+                if p['status']['phase'] != 'Pending':
+                    ready = len([1 for s in p["status"]["containerStatuses"] if s['ready']])
+                    restarts = sum([s['restartCount'] for s in p["status"]["containerStatuses"]])
+                else:
+                    restarts = 0
+                    ready = 0
                 item = {
-                    'name': p['metadata']['name'], 'state': str(self.scheduler().pod.state(p)),
+                    'name': p['metadata']['name'],
+                    'state': state,
                     'release': labels['version'], 'type': labels['type'], 'started': started,
                     'ready': "%s/%s" % (
-                        len([1 for s in p["status"]["containerStatuses"] if s['ready']]),
-                        len(p["status"]["containerStatuses"]),
+                        ready,
+                        len(p["spec"]["containers"]),
                     ),
-                    'restarts': sum(
-                        [s['restartCount'] for s in p["status"]["containerStatuses"]]),
+                    'restarts': restarts
                 }
                 data.append(item)
             # sorting so latest start date is first
