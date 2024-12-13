@@ -7,7 +7,6 @@ from django.db.models import Q
 from django.http import Http404
 
 from api.exceptions import ServiceUnavailable
-from api.models.service import Service
 from scheduler import KubeException
 
 from .base import AuditedModel, DEFAULT_HTTP_PORT, DEFAULT_HTTPS_PORT
@@ -190,9 +189,8 @@ class Route(AuditedModel):
             for rule in self.rules:
                 for backend in rule['backendRefs']:
                     service_names.add(backend['name'])
-            services = list(Service.objects.using("default").filter(app=self.app))
             setattr(self.CACHE, key,
-                    [s for s in services if s.name in service_names])
+                    [s for s in self.app.service_set.all() if s.name in service_names])
         return getattr(self.CACHE, key)
 
     @property
