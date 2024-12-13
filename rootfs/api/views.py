@@ -491,7 +491,12 @@ class PtypeViewSet(AppResourceViewSet):
         app = self.get_app()
         ptypes = set(
             [ptype for ptype in request.data.get("ptypes", "").split(",") if ptype])
-        ptypes = app.check_ptypes(ptypes)
+        if not ptypes:
+            raise DryccException("ptypes is a required field")
+        latest_ptypes = [k for k, v in app.structure.items() if v != 0]
+        not_allow = [ptype for ptype in ptypes if ptype in latest_ptypes]
+        if not_allow:
+            raise DryccException(f'ptype {",".join(not_allow)} should not garbage.')
         app.clean(ptypes=ptypes)
         return Response(status=status.HTTP_204_NO_CONTENT)
 
