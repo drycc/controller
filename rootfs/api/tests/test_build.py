@@ -351,7 +351,17 @@ class BuildTest(DryccTransactionTestCase):
         self.assertEqual(response.status_code, 200, response.data)
         self.assertEqual(response.json()['structure'], {'web': 1, 'task': 1, 'worker': 1})
 
-        # clean worker
+        # clean worker, repicas 1 not allow
+        response = self.client.post('/v2/apps/{}/ptypes/clean'.format(app_id), {"ptypes": "task"})
+        self.assertEqual(response.status_code, 400, response.data)
+
+        # scale task
+        url = f"/v2/apps/{app_id}/ptypes/scale"
+        body = {'task': 0}
+        response = self.client.post(url, body)
+        self.assertEqual(response.status_code, 204, response.data)
+
+        # clean worker, repicas 0 allow
         response = self.client.post('/v2/apps/{}/ptypes/clean'.format(app_id), {"ptypes": "task"})
         self.assertEqual(response.status_code, 204, response.data)
 
@@ -361,8 +371,19 @@ class BuildTest(DryccTransactionTestCase):
         self.assertEqual(response.status_code, 200, response.data)
         self.assertEqual(response.json()['structure'], {'web': 1, 'worker': 1})
 
-        # clean all worker
+        # ptypes is a required field
         response = self.client.post('/v2/apps/{}/ptypes/clean'.format(app_id))
+        self.assertEqual(response.status_code, 400, response.data)
+
+        url = f"/v2/apps/{app_id}/ptypes/scale"
+        body = {'worker': 0}
+        response = self.client.post(url, body)
+        self.assertEqual(response.status_code, 204, response.data)
+
+        # clean worker
+        response = self.client.post(
+            '/v2/apps/{}/ptypes/clean'.format(app_id),
+            {"ptypes": "worker"})
         self.assertEqual(response.status_code, 204, response.data)
 
         # look at the app structure

@@ -51,6 +51,38 @@ class VolumeTest(DryccTransactionTestCase):
         )
         self.assertEqual(response.status_code, 400, response.data)
 
+        # name regex error
+        name1 = 'myvolume_'
+        response = self.client.post(
+            '/v2/apps/{}/volumes'.format(app_id),
+            data={
+                'name': name1,
+                'type': 'nfs',
+                'parameters': {'nfs': {'path': '/'}}
+            }
+        )
+        self.assertEqual(response.status_code, 400, response.data)
+        name2 = '-myvolume'
+        response = self.client.post(
+            '/v2/apps/{}/volumes'.format(app_id),
+            data={
+                'name': name2,
+                'type': 'nfs',
+                'parameters': {'nfs': {'path': '/'}}
+            }
+        )
+        self.assertEqual(response.status_code, 400, response.data)
+        name3 = 'my.volume'
+        response = self.client.post(
+            '/v2/apps/{}/volumes'.format(app_id),
+            data={
+                'name': name3,
+                'type': 'nfs',
+                'parameters': {'nfs': {'path': '/'}}
+            }
+        )
+        self.assertEqual(response.status_code, 400, response.data)
+
         response = self.client.post(
             '/v2/apps/{}/volumes'.format(app_id),
             data={

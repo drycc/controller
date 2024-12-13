@@ -136,8 +136,12 @@ class TestAppSettings(DryccTransactionTestCase):
         # check that config fails if trying to unset non-existing proc type
         response = self.client.post(
             f'/v2/apps/{app_id}/settings',
-            {'autoscale': {'invalid_proctype': None}})
+            {'autoscale': {'invalid-proctype': None}})
         self.assertEqual(response.status_code, 422, response.data)
+        response = self.client.post(
+            f'/v2/apps/{app_id}/settings',
+            {'autoscale': {'invalid_proctype': None}})
+        self.assertEqual(response.status_code, 400, response.data)
 
         # remove a proc type
         response = self.client.post(

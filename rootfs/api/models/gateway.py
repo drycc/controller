@@ -11,6 +11,7 @@ from scheduler import KubeException
 
 from .base import AuditedModel, DEFAULT_HTTP_PORT, DEFAULT_HTTPS_PORT
 
+
 User = get_user_model()
 logger = logging.getLogger(__name__)
 

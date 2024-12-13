@@ -33,6 +33,7 @@ spec:
               - -a
               - $(DRYCC_CONTROLLER_API_SERVICE_HOST):$(DRYCC_CONTROLLER_API_SERVICE_PORT)
             {{- include "controller.envs" . | indent 12 }}
+            {{- include "controller-job.envs" . | indent 12 }}
           containers:
           - image: {{.Values.imageRegistry}}/{{.Values.imageOrg}}/controller:{{.Values.imageTag}}
             imagePullPolicy: {{.Values.pull_policy}}
@@ -47,6 +48,7 @@ spec:
             - python -u /workspace/manage.py clearsocial
             {{- end }}
             {{- include "controller.envs" . | indent 12 }}
+            {{- include "controller-job.envs" . | indent 12 }}
           - image: {{.Values.imageRegistry}}/{{.Values.imageOrg}}/controller:{{.Values.imageTag}}
             imagePullPolicy: {{.Values.imagePullPolicy}}
             name: drycc-controller-load-db-state-to-k8s
@@ -60,6 +62,7 @@ spec:
               - python /workspace/manage.py load_db_state_to_k8s
             {{- end }}
             {{- include "controller.envs" . | indent 12 }}
+            {{- include "controller-job.envs" . | indent 12 }}
           - image: {{.Values.imageRegistry}}/{{.Values.imageOrg}}/controller:{{.Values.imageTag}}
             imagePullPolicy: {{.Values.pull_policy}}
             name: drycc-controller-measure-apps
@@ -73,6 +76,7 @@ spec:
               - python -u /workspace/manage.py measure_apps
             {{- end }}
             {{- include "controller.envs" . | indent 12 }}
+            {{- include "controller-job.envs" . | indent 12 }}
           - image: {{.Values.imageRegistry}}/{{.Values.imageOrg}}/controller:{{.Values.imageTag}}
             imagePullPolicy: {{.Values.pull_policy}}
             name: drycc-controller-measure-resources
@@ -86,6 +90,7 @@ spec:
             - python -u /workspace/manage.py measure_resources
             {{- end }}
             {{- include "controller.envs" . | indent 12 }}
+            {{- include "controller-job.envs" . | indent 12 }}
           - image: {{.Values.imageRegistry}}/{{.Values.imageOrg}}/controller:{{.Values.imageTag}}
             imagePullPolicy: {{.Values.pull_policy}}
             name: drycc-controller-measure-volumes
@@ -99,3 +104,4 @@ spec:
             - python -u /workspace/manage.py measure_volumes
             {{- end }}
             {{- include "controller.envs" . | indent 12 }}
+            {{- include "controller-job.envs" . | indent 12 }}

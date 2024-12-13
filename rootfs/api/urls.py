@@ -51,7 +51,8 @@ app_urlpatterns = [
         views.PodViewSet.as_view({'get': 'list', 'delete': 'delete'})),
     # describe pod
     re_path(
-        r"^apps/(?P<id>{})/pods/(?P<name>[-_\w]+)/describe/?$".format(settings.APP_URL_REGEX),
+        r"^apps/(?P<id>{})/pods/(?P<name>{})/describe/?$".format(
+            settings.APP_URL_REGEX, settings.NAME_REGEX),
         views.PodViewSet.as_view({'get': 'describe'})),
     # restart deployment/ptype's pods
     re_path(
@@ -71,7 +72,8 @@ app_urlpatterns = [
         views.PtypeViewSet.as_view({'get': 'list'})),
     # describe ptypes
     re_path(
-        r"^apps/(?P<id>{})/ptypes/(?P<name>[-_\w]+)/describe/?$".format(settings.APP_URL_REGEX),
+        r"^apps/(?P<id>{})/ptypes/(?P<name>{})/describe/?$".format(
+            settings.APP_URL_REGEX, settings.NAME_REGEX),
         views.PtypeViewSet.as_view({'get': 'describe'})),
     # list events
     re_path(
@@ -107,20 +109,22 @@ app_urlpatterns = [
         r"^apps/(?P<id>{})/volumes/?$".format(settings.APP_URL_REGEX),
         views.AppVolumesViewSet.as_view({'get': 'list', 'post': 'create'})),
     re_path(
-        r"^apps/(?P<id>{})/volumes/(?P<name>[-_\w]+)/?$".format(settings.APP_URL_REGEX),
+        r"^apps/(?P<id>{})/volumes/(?P<name>{})/?$".format(
+            settings.APP_URL_REGEX, settings.NAME_REGEX),
         views.AppVolumesViewSet.as_view(
             {'get': 'retrieve', 'patch': 'expand', 'delete': 'destroy'})),
     re_path(
-        r"^apps/(?P<id>{})/volumes/(?P<name>[-_\w]+)/path/?$".format(settings.APP_URL_REGEX),
+        r"^apps/(?P<id>{})/volumes/(?P<name>{})/path/?$".format(
+            settings.APP_URL_REGEX, settings.NAME_REGEX),
         views.AppVolumesViewSet.as_view({'patch': 'path'})),
     # application filer
     re_path(
-        r"^apps/(?P<id>{})/volumes/(?P<name>[-_\w]+)/client/?$".format(
-            settings.APP_URL_REGEX),
+        r"^apps/(?P<id>{})/volumes/(?P<name>{})/client/?$".format(
+            settings.APP_URL_REGEX, settings.NAME_REGEX),
         views.AppFilerClientViewSet.as_view({'get': 'list', 'post': 'create'})),
     re_path(
-        r"^apps/(?P<id>{})/volumes/(?P<name>[-_\w]+)/client/(?P<path>[\S]+)$".format(
-            settings.APP_URL_REGEX),
+        r"^apps/(?P<id>{})/volumes/(?P<name>{})/client/(?P<path>[\S]+)$".format(
+            settings.APP_URL_REGEX, settings.NAME_REGEX),
         views.AppFilerClientViewSet.as_view({'get': 'retrieve', 'delete': 'destroy'})),
     # application resources
     re_path(r"^resources/services/?$", views.AppResourcesViewSet.as_view({'get': 'services'})),
@@ -131,19 +135,22 @@ app_urlpatterns = [
         r"^apps/(?P<id>{})/resources/?$".format(settings.APP_URL_REGEX),
         views.AppResourcesViewSet.as_view({'get': 'list', 'post': 'create'})),
     re_path(
-        r"^apps/(?P<id>{})/resources/(?P<name>[-_\w]+)/?$".format(settings.APP_URL_REGEX),
+        r"^apps/(?P<id>{})/resources/(?P<name>{})/?$".format(
+            settings.APP_URL_REGEX, settings.NAME_REGEX),
         views.AppSingleResourceViewSet.as_view(
             {'get': 'retrieve', 'delete': 'destroy', 'put': 'update'})),
     re_path(
-        r"^apps/(?P<id>{})/resources/(?P<name>[-_\w]+)/binding/?$".format(settings.APP_URL_REGEX),
+        r"^apps/(?P<id>{})/resources/(?P<name>{})/binding/?$".format(
+            settings.APP_URL_REGEX, settings.NAME_REGEX),
         views.AppResourceBindingViewSet.as_view({'patch': 'binding'})),
     # certificates
     re_path(
-        r'^apps/(?P<id>{})/certs/(?P<name>[-_*.\w]+)/domain/(?P<domain>{})?/?$'.format(
-            settings.APP_URL_REGEX, settings.DOMAIN_URL_REGEX),
+        r'^apps/(?P<id>{})/certs/(?P<name>{})/domain/(?P<domain>{})?/?$'.format(
+            settings.APP_URL_REGEX, settings.NAME_REGEX, settings.DOMAIN_URL_REGEX),
         views.CertificateViewSet.as_view({'delete': 'detach', 'post': 'attach'})),
     re_path(
-        r'^apps/(?P<id>{})/certs/(?P<name>[-_*.\w]+)/?$'.format(settings.APP_URL_REGEX),
+        r'^apps/(?P<id>{})/certs/(?P<name>{})/?$'.format(
+            settings.APP_URL_REGEX, settings.NAME_REGEX),
         views.CertificateViewSet.as_view({
             'get': 'retrieve',
             'delete': 'destroy'
@@ -192,17 +199,21 @@ app_urlpatterns = [
             {'post': 'create_or_update', 'get': 'list', 'delete': 'delete'})),
     # routes
     re_path(
-        r"^apps/(?P<id>{})/routes/(?P<name>[-_\w]+)?/?$".format(settings.APP_URL_REGEX),
+        r"^apps/(?P<id>{})/routes/(?P<name>{})?/?$".format(
+            settings.APP_URL_REGEX, settings.NAME_REGEX),
         views.RouteViewSet.as_view(
             {'post': 'create', 'get': 'list', 'delete': 'delete'})),
     re_path(
-        r"^apps/(?P<id>{})/routes/(?P<name>[-_\w]+)/attach/?$".format(settings.APP_URL_REGEX),
+        r"^apps/(?P<id>{})/routes/(?P<name>{})/attach/?$".format(
+            settings.APP_URL_REGEX, settings.NAME_REGEX),
         views.RouteViewSet.as_view({'patch': 'attach'})),
     re_path(
-        r"^apps/(?P<id>{})/routes/(?P<name>[-_\w]+)/detach/?$".format(settings.APP_URL_REGEX),
+        r"^apps/(?P<id>{})/routes/(?P<name>{})/detach/?$".format(
+            settings.APP_URL_REGEX, settings.NAME_REGEX),
         views.RouteViewSet.as_view({'patch': 'detach'})),
     re_path(
-        r"^apps/(?P<id>{})/routes/(?P<name>[-_\w]+)/rules/?$".format(settings.APP_URL_REGEX),
+        r"^apps/(?P<id>{})/routes/(?P<name>{})/rules/?$".format(
+            settings.APP_URL_REGEX, settings.NAME_REGEX),
         views.RouteViewSet.as_view({'get': 'get', 'put': 'set'})),
     # users
     re_path(r'^users/?$', views.UserView.as_view({'get': 'list'})),

@@ -33,6 +33,7 @@ spec:
               - -a
               - $(DRYCC_CONTROLLER_API_SERVICE_HOST):$(DRYCC_CONTROLLER_API_SERVICE_PORT)
             {{- include "controller.envs" . | indent 12 }}
+            {{- include "controller-job.envs" . | indent 12 }}
           containers:
           - image: {{.Values.imageRegistry}}/{{.Values.imageOrg}}/controller:{{.Values.imageTag}}
             imagePullPolicy: {{.Values.pull_policy}}
@@ -47,6 +48,7 @@ spec:
             - python -u /workspace/manage.py measure_networks
             {{- end }}
             {{- include "controller.envs" . | indent 12 }}
+            {{- include "controller-job.envs" . | indent 12 }}
           - image: {{.Values.imageRegistry}}/{{.Values.imageOrg}}/controller:{{.Values.imageTag}}
             imagePullPolicy: {{.Values.pull_policy}}
             name: drycc-controller-measure-loadbalancer
@@ -60,3 +62,4 @@ spec:
             - python -u /workspace/manage.py measure_loadbalancers
             {{- end }}
             {{- include "controller.envs" . | indent 12 }}
+            {{- include "controller-job.envs" . | indent 12 }}

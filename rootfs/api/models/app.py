@@ -270,7 +270,7 @@ class App(UuidAuditedModel):
     def scale(self, user, structure):
         err_msg = None
         release = Release.latest(self)
-        if (PTYPE_RUN in structure or release.build is None):
+        if (PTYPE_RUN in structure or release is None or release.build is None):
             if PTYPE_RUN in structure:
                 err_msg = 'Cannot set scale for reserved types, procfile type is: run'
             else:
@@ -283,7 +283,7 @@ class App(UuidAuditedModel):
     def pipeline(self, release, ptypes, force_deploy=False):
         prefix = f"[pipeline] release {release.version_name}"
         try:
-            if release.build is not None:
+            if release is not None and release.build is not None:
                 if release.build.dryccfile:
                     for run in release.get_runners(ptypes):
                         self.log(f"{prefix} starts running pipeline.run {run['image']}")
@@ -323,7 +323,7 @@ class App(UuidAuditedModel):
 
         force_deploy can be used when a deployment is broken, such as for Rollback
         """
-        if release.build is None:
+        if release is None or release.build is None:
             raise DryccException('No build associated with this release')
         # use create to make sure minimum resources are created
         self.create()
@@ -352,7 +352,7 @@ class App(UuidAuditedModel):
         if release is None or release.build is None:
             raise DryccException('No build associated with this release')
         app_settings = self.appsettings_set.latest()
-        self._mount(user, volume, release, app_settings, structure=structure)
+        self._mount(user, volume, app_settings, structure=structure)
 
     def clean(self, release=None, ptypes=None):
         release = release if release else self.release_set.latest()
@@ -431,17 +431,21 @@ class App(UuidAuditedModel):
         result = []
         try:
             pod = self.scheduler().pod.get(self.id, pod_name).json()
-            for status in pod["status"]["containerStatuses"]:
+            if pod["status"]['phase'] == 'Pending':
+                statuses = pod["spec"]["containers"]
+            else:
+                statuses = pod["status"]["containerStatuses"]
+            for status in statuses:
                 command, args = get_command_and_args(pod, status["name"])
                 result.append({
                     "container": status["name"],
                     "image": status["image"],
                     "command": command,
                     "args": args,
-                    "state": status["state"],
-                    "lastState": status["lastState"],
-                    "ready": status["ready"],
-                    "restartCount": status["restartCount"],
+                    "state": status.get("state", {}),
+                    "lastState": status.get("lastState", {}),
+                    "ready": status.get("ready", False),
+                    "restartCount": status.get("restartCount", 0),
                     "status": pod["status"].get("phase", ""),
                     "reason": pod["status"].get("reason", ""),
                     "message": pod["status"].get("message", "")
@@ -470,15 +474,22 @@ class App(UuidAuditedModel):
                 else:
                     started = str(
                         datetime.now(timezone.utc).strftime(settings.DRYCC_DATETIME_FORMAT))
+                state = str(self.scheduler().pod.state(p))
+                if p['status']['phase'] != 'Pending':
+                    ready = len([1 for s in p["status"]["containerStatuses"] if s['ready']])
+                    restarts = sum([s['restartCount'] for s in p["status"]["containerStatuses"]])
+                else:
+                    restarts = 0
+                    ready = 0
                 item = {
-                    'name': p['metadata']['name'], 'state': str(self.scheduler().pod.state(p)),
+                    'name': p['metadata']['name'],
+                    'state': state,
                     'release': labels['version'], 'type': labels['type'], 'started': started,
                     'ready': "%s/%s" % (
-                        len([1 for s in p["status"]["containerStatuses"] if s['ready']]),
-                        len(p["status"]["containerStatuses"]),
+                        ready,
+                        len(p["spec"]["containers"]),
                     ),
-                    'restarts': sum(
-                        [s['restartCount'] for s in p["status"]["containerStatuses"]]),
+                    'restarts': restarts
                 }
                 data.append(item)
             # sorting so latest start date is first
@@ -626,12 +637,12 @@ class App(UuidAuditedModel):
                 # let the user know about any other errors
                 raise ServiceUnavailable(str(e)) from e
 
-    def image_pull_secret(self, namespace, registry, image):
+    def image_pull_secret(self, namespace, ptype, registry, image):
         """
         Take registry information and set as an imagePullSecret for an RC / Deployment
         http://kubernetes.io/docs/user-guide/images/#specifying-imagepullsecrets-on-a-pod
         """
-        docker_config, name, create = self._get_private_registry_config(image, registry)
+        docker_config, name, create = self._get_private_registry_config(ptype, image, registry)
         if create is None:
             return
         elif create:
@@ -741,11 +752,14 @@ class App(UuidAuditedModel):
             err = 'Error deleting existing application logs: {}'.format(e)
             self.log(err, logging.WARNING)
 
-    def _mount(self, user, volume, release, app_settings, structure=None):
+    def _mount(self, user, volume, app_settings, structure=None):
         volumes = Volume.objects.filter(app=self)
         tasks = []
         for scale_type, replicas in structure.items() if structure else self.structure.items():
             if scale_type != PTYPE_RUN:
+                release = self.release_set.filter(
+                    deployed_ptypes__contains=scale_type,
+                    failed=False).latest()
                 replicas = self.structure.get(scale_type, 0)
                 scale_type_volumes = [
                     volume for volume in volumes if scale_type in volume.path.keys()]
@@ -810,7 +824,7 @@ class App(UuidAuditedModel):
             except KubeException as e:
                 # Don't rollback if the previous release doesn't have a build which means
                 # this is the first build and all the previous releases are just config changes.
-                if (rollback_on_failure and prev_release.build is not None):
+                if rollback_on_failure and prev_release is not None and prev_release.build is not None:  # noqa
                     err = 'There was a problem deploying {}. Rolling back to release {}.'.format(
                         release.version_name, prev_release.version_name)
                     # This goes in the log before the rollback starts
@@ -1098,7 +1112,7 @@ class App(UuidAuditedModel):
         Build a dict of env vars, setting default vars based on app type
         and then combining with the user set ones
         """
-        if release.build is None:
+        if release is None or release.build is None:
             raise DryccException('No build associated with this release to run this command')
 
         # mix in default environment information drycc may require
@@ -1119,8 +1133,8 @@ class App(UuidAuditedModel):
             default_env['PORT'] = port
         return default_env
 
-    def _get_private_registry_config(self, image, registry=None):
-        name = settings.REGISTRY_SECRET_PREFIX
+    def _get_private_registry_config(self, ptype, image, registry=None):
+        name = settings.REGISTRY_SECRET_PREFIX + '-' + ptype
         if registry:
             # try to get the hostname information
             hostname = registry.get('hostname', None)
@@ -1206,7 +1220,7 @@ class App(UuidAuditedModel):
         registry = config.registry.get(ptype, {})
         # create image pull secret if needed
         image_pull_secret_name = self.image_pull_secret(
-            self.id, registry, release.get_deploy_image(ptype))
+            self.id, ptype, registry, release.get_deploy_image(ptype))
 
         # only web is routable
         # https://www.drycc.cc/applications/managing-app-processes/#default-process-types

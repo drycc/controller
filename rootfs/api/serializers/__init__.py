@@ -80,6 +80,19 @@ def validate_ptype(value):
     return value
 
 
+def validate_name(value):
+    NAME_REGEX = r'^(?P<name>{})$'.format(settings.NAME_REGEX)
+    NAME_MATCH = re.compile(NAME_REGEX)
+    NAME_MISMATCH_MSG = "name can only supports: %s" % NAME_MATCH.pattern
+    if not re.match(NAME_REGEX, value):
+        raise serializers.ValidationError(NAME_MISMATCH_MSG)
+    if len(value) < PTYPE_MIN_LENGTH or len(value) > PTYPE_MAX_LENGTH:
+        raise serializers.ValidationError(
+            "The length of name must be between {} and {}".format(
+                PTYPE_MIN_LENGTH, PTYPE_MAX_LENGTH))
+    return value
+
+
 class JSONFieldSerializer(serializers.JSONField):
     def __init__(self, *args, **kwargs):
         self.convert_to_str = kwargs.pop('convert_to_str', True)
@@ -585,7 +598,8 @@ class AppSettingsSerializer(serializers.ModelSerializer):
 
     @staticmethod
     def validate_autoscale(data):
-        for _, autoscale in data.items():
+        for ptype, autoscale in data.items():
+            validate_ptype(ptype)
             if autoscale is None:
                 continue
             validate_json(autoscale, AUTOSCALE_SCHEMA, serializers.ValidationError)
@@ -633,6 +647,8 @@ class VolumeSerializer(serializers.ModelSerializer):
         if volume_size < min_volume or volume_size > max_volume:
             raise serializers.ValidationError(VOLUME_SIZE_MISMATCH_MSG)
         return data.upper()
+
+    validate_name = staticmethod(validate_name)
 
     @staticmethod
     def validate_path(data):
@@ -691,6 +707,8 @@ class ResourceSerializer(serializers.ModelSerializer):
         instance.save()
         return instance
 
+    validate_name = staticmethod(validate_name)
+
 
 class MetricSerializer(serializers.Serializer):
     start = serializers.IntegerField(
@@ -733,6 +751,8 @@ class GatewaySerializer(serializers.Serializer):
         representation['addresses'] = instance.addresses
         return representation
 
+    validate_name = staticmethod(validate_name)
+
     @staticmethod
     def validate_protocol(value):
         if not re.match(GATEWAY_PROTOCOL_MATCH, value):
@@ -755,6 +775,8 @@ class RouteSerializer(serializers.ModelSerializer):
         """Metadata options for a :class:`RouteSerializer`."""
         model = models.gateway.Route
         fields = '__all__'
+
+    validate_name = staticmethod(validate_name)
 
     @staticmethod
     def validate_kind(value):

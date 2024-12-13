@@ -71,6 +71,27 @@ class BaseGatewayTest(DryccTransactionTestCase):
         )
         self.assertEqual(response.status_code, 201)
 
+    def create_gateway_name(self):
+        app_id = self.create_app()
+        name1 = 'gatway_'
+        response = self.client.post(
+            f'/v2/apps/{app_id}/gateways/',
+            {'name': name1, 'port': 80, 'protocol': 'HTTP'}
+        )
+        self.assertEqual(response.status_code, 400)
+        name2 = '-gatway'
+        response = self.client.post(
+            f'/v2/apps/{app_id}/gateways/',
+            {'name': name2, 'port': 80, 'protocol': 'HTTP'}
+        )
+        self.assertEqual(response.status_code, 400)
+        name3 = 'test.gatway'
+        response = self.client.post(
+            f'/v2/apps/{app_id}/gateways/',
+            {'name': name3, 'port': 80, 'protocol': 'HTTP'}
+        )
+        self.assertEqual(response.status_code, 400)
+
     def create_tls_domain(self, app_id):
         cert_url = f'/v2/apps/{app_id}/certs'
         secret_name = ''.join(random.choice(string.ascii_lowercase) for _ in range(23))
@@ -462,6 +483,42 @@ class RouteTest(BaseGatewayTest):
         response = self.client.get('/v2/apps/{}/routes/'.format(app_id))
         self.assertEqual(response.data["count"], 1)
         self.assertEqual(len(response.data["results"][0]["rules"]), 1)
+
+        # name regex format
+        name1 = "test-route_"
+        response = self.client.post(
+            '/v2/apps/{}/routes/'.format(app_id),
+            {
+                "port": 5000,
+                "ptype": "no-exists",
+                "kind": "HTTPRoute",
+                "name": name1,
+            }
+        )
+        self.assertEqual(response.status_code, 400)
+        # name regex format
+        name2 = "-test-route"
+        response = self.client.post(
+            '/v2/apps/{}/routes/'.format(app_id),
+            {
+                "port": 5000,
+                "ptype": "no-exists",
+                "kind": "HTTPRoute",
+                "name": name2,
+            }
+        )
+        self.assertEqual(response.status_code, 400)
+        name3 = "test.route"
+        response = self.client.post(
+            '/v2/apps/{}/routes/'.format(app_id),
+            {
+                "port": 5000,
+                "ptype": "no-exists",
+                "kind": "HTTPRoute",
+                "name": name3,
+            }
+        )
+        self.assertEqual(response.status_code, 400)
 
     def test_hostnames(self):
         app_id = self.create_app()

@@ -33,6 +33,26 @@ class ResourceTest(DryccTransactionTestCase):
         """Test that the serialized response contains only relevant data."""
         app_id = self.create_app()
 
+        # name regex error
+        name1 = 'mysql_'
+        response = self.client.post(
+            '/v2/apps/{}/resources'.format(app_id),
+            data={'name': name1, 'plan': 'mysql:5.6'}
+        )
+        self.assertEqual(response.status_code, 400, response.data)
+        name2 = '-mysql'
+        response = self.client.post(
+            '/v2/apps/{}/resources'.format(app_id),
+            data={'name': name2, 'plan': 'mysql:5.6'}
+        )
+        self.assertEqual(response.status_code, 400, response.data)
+        name3 = 'mysql.8'
+        response = self.client.post(
+            '/v2/apps/{}/resources'.format(app_id),
+            data={'name': name3, 'plan': 'mysql:5.6'}
+        )
+        self.assertEqual(response.status_code, 400, response.data)
+
         response = self.client.post(
             '/v2/apps/{}/resources'.format(app_id),
             data={'name': 'mysql', 'plan': 'mysql:5.6'}

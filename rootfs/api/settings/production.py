@@ -189,7 +189,7 @@ LOGGING = {
             'format': '%(levelname)s %(asctime)s %(module)s %(process)d %(thread)d %(message)s'
         },
         'simple': {
-            'format': '%(levelname)s %(message)s'
+            'format': '%(levelname)s %(asctime)s %(message)s'
         },
     },
     'filters': {
@@ -372,11 +372,15 @@ if DRYCC_DATABASE_REPLICA_URL is not None:
     DATABASES["replica"] = dj_database_url.config(default=DRYCC_DATABASE_REPLICA_URL)
 
 # database routers
-DATABASE_ROUTERS = ['api.routers.DefaultReplicaRouter', ]
+# Implements: 'api.routers.DefaultReplicaRouter'
+DATABASE_ROUTERS = [r for r in os.environ.get('DRYCC_DATABASE_ROUTERS', '').split(',') if r]
+
 
 APP_URL_REGEX = '[a-z0-9-]+'
 
 DOMAIN_URL_REGEX = r'\**\.?[-\._\w]+'
+
+NAME_REGEX = r'[a-z0-9]+(\-[a-z0-9]+)*'
 
 # Oauth settings
 

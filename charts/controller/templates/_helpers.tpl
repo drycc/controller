@@ -177,6 +177,13 @@ env:
 {{- end }}
 {{- end }}
 
+
+{{- define "controller-job.envs" }}
+env:
+- name: DRYCC_DATABASE_ROUTERS
+  value: api.routers.DefaultReplicaRouter
+{{- end }}
+
 {{/* Generate controller deployment limits */}}
 {{- define "controller.limits" -}}
 {{- if or (.Values.limitsCpu) (.Values.limitsMemory) }}
