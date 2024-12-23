@@ -14,12 +14,17 @@ steps:
   - export VERSION=$([ -z $CI_COMMIT_TAG ] && echo latest || echo $CI_COMMIT_TAG)-$(sed 's#/#-#g' <<< $CI_SYSTEM_PLATFORM)
   - echo $CONTAINER_PASSWORD | podman login $DRYCC_REGISTRY --username $CONTAINER_USERNAME --password-stdin > /dev/null 2>&1
   - make podman-build podman-immutable-push
-  secrets:
-  - codename
-  - dev_registry
-  - drycc_registry
-  - container_username
-  - container_password
+  environment:
+    CODENAME:
+      from_secret: codename
+    DEV_REGISTRY:
+      from_secret: dev_registry
+    DRYCC_REGISTRY:
+      from_secret: drycc_registry
+    CONTAINER_USERNAME:
+      from_secret: container_username
+    CONTAINER_PASSWORD:
+      from_secret: container_password
   when:
     event:
     - push

@@ -12,10 +12,13 @@ steps:
   image: bash
   commands:
   - make test podman-build-test upload-coverage
-  secrets:
-  - codename
-  - dev_registry
-  - codecov_token
+  environment:
+    CODENAME:
+      from_secret: codename
+    DEV_REGISTRY:
+      from_secret: dev_registry
+    CODECOV_TOKEN:
+      from_secret: codecov_token
   when:
     event:
     - push
