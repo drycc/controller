@@ -20,7 +20,6 @@ spec:
         - -u
         - $(DRYCC_DATABASE_URL),$(DRYCC_VALKEY_URL),$(DRYCC_DATABASE_REPLICA_URL)
         {{- include "controller.envs" . | indent 8 }}
-        {{- include "controller-job.envs" . | indent 12 }}
       containers:
       - name: drycc-controller-job-upgrade
         image: {{.Values.imageRegistry}}/{{.Values.imageOrg}}/controller:{{.Values.imageTag}}
@@ -39,7 +38,6 @@ spec:
           python -u /workspace/manage.py loaddata /etc/controller/limit-plans.json
         {{- end }}
         {{- include "controller.envs" . | indent 8 }}
-        {{- include "controller-job.envs" . | indent 12 }}
         volumeMounts:
         - name: controller-config
           readOnly: false

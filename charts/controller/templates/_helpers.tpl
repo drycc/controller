@@ -179,7 +179,7 @@ env:
 
 
 {{- define "controller-job.envs" }}
-env:
+{{- include "controller.envs" . }}
 - name: DRYCC_DATABASE_ROUTERS
   value: api.routers.DefaultReplicaRouter
 {{- end }}
