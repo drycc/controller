@@ -67,18 +67,16 @@ class Release(UuidAuditedModel):
     def get_runners(self, ptypes):
         results = []
         ptypes = self.ptypes if not ptypes else ptypes
-        for run in self.build.dryccfile.get('run', []):
-            for ptype in ptypes:
-                when_ptypes = run.get('when', {}).get('ptypes', [])
-                if not when_ptypes or ptype in when_ptypes:
-                    image = run.get('image', self.build.get_image(ptype))
-                    results.append({
-                        'image': self.build.get_image(image, default_image=image),
-                        'args': run.get('args', []),
-                        'command': run.get('command', []),
-                        'timeout': run.get('timeout', settings.DRYCC_PILELINE_RUN_TIMEOUT),
-                    })
-                    break
+        for ptype, run in self.build.dryccfile.get('run', {}).items():
+            if ptype in ptypes:
+                image = run.get('image', self.build.get_image(ptype))
+                results.append({
+                    'ptype': ptype,
+                    'image': self.build.get_image(image, default_image=image),
+                    'args': run.get('args', []),
+                    'command': run.get('command', []),
+                    'timeout': run.get('timeout', settings.DRYCC_PILELINE_RUN_TIMEOUT),
+                })
         return results
 
     def add_condition(self, **kwargs):

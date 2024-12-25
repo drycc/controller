@@ -144,14 +144,19 @@ class ReleaseTest(DryccTransactionTestCase):
             'dryccfile': {
                 "build": {
                     "docker": {"web": "Dockerfile", "worker": "worker/Dockerfile"},
-                    "config": {"RAILS_ENV": "development", "FOO": "bar"}
+                    "config": [
+                        {"name": "FOO", "value": "bar"},
+                        {"name": "RAILS_ENV", "value": "development"},
+                    ],
                 },
-                "run": [
-                    {
-                        "command": ["./deployment-tasks.sh"],
-                        "image": "worker",
-                    }
-                ],
+                "run": {
+                    "web": {"command": ["./deployment-tasks.sh"], "image": "worker"},
+                    "worker": {"command": ["./deployment-tasks.sh"], "image": "worker"},
+                    "worker-1": {"command": ["./deployment-tasks.sh"], "image": "worker"},
+                    "worker-2": {"command": ["./deployment-tasks.sh"], "image": "worker"},
+                    "worker-3": {"command": ["./deployment-tasks.sh"], "image": "worker"},
+                    "worker-4": {"command": ["./deployment-tasks.sh"], "image": "worker"},
+                },
                 "deploy": {
                     "web": {
                         "command": ["bash", "-c"],
@@ -702,19 +707,17 @@ class ReleaseTest(DryccTransactionTestCase):
         app = App.objects.get(id=app_id)
         user = User.objects.get(username='autotest')
         dryccfile = {
-            "run": [
-                {
+            "run": {
+                "web": {
                     "args": ["sleep", "60s"],
                     "image": "registry.drycc.cc/drycc/base:bookworm-web",
-                    "when": {"ptypes": ["web"]}
                 },
-                {
+                "task": {
                     "args": ["sleep", "60s"],
                     "image": "registry.drycc.cc/drycc/base:bookworm-task",
-                    "when": {"ptypes": ["task"]},
                     "timeout": 3000
                 }
-            ],
+            },
             "deploy": {
                 "web": {
                     "image": "registry.drycc.cc/drycc/python-dev",
@@ -742,7 +745,7 @@ class ReleaseTest(DryccTransactionTestCase):
         self.assertEqual(runners[0]["timeout"], 3000)
 
         # change timeout
-        dryccfile['run'][0]['timeout'] = 3600
+        dryccfile['run']['web']['timeout'] = 3600
         dryccfile['deploy']['web']['image'] = 'registry.drycc.cc/drycc/python-dev:latest'
         build = Build.objects.create(
             owner=user, app=app, image="qwerty", procfile={},
@@ -768,14 +771,15 @@ class ReleaseTest(DryccTransactionTestCase):
             'dryccfile': {
                 "build": {
                     "docker": {"web": "Dockerfile", "worker": "worker/Dockerfile"},
-                    "config": {"RAILS_ENV": "development", "FOO": "bar"}
+                     "config": [
+                        {"name": "FOO", "value": "bar"},
+                        {"name": "RAILS_ENV", "value": "development"},
+                    ],
                 },
-                "run": [
-                    {
-                        "command": ["./deployment-tasks.sh"],
-                        "image": run_image,
-                    }
-                ],
+                "run": {
+                    "web": {"command": ["./deployment-tasks.sh"], "image": run_image},
+                    "worker": {"command": ["./deployment-tasks.sh"], "image": run_image},
+                },
                 "deploy": {
                     "web": {
                         "command": ["bash", "-c"],
@@ -799,14 +803,13 @@ class ReleaseTest(DryccTransactionTestCase):
         ptypes = release.diff_ptypes(release.ptypes)
         self.assertEqual(ptypes, ["web", "worker"])
 
-        body['dryccfile']['config'] = {
-            'g1': [
-                {
-                    'name': 'G1',
-                    'value': 'g1',
-                },
-            ]
-        }
+        body['dryccfile']['config'] = [
+            {
+                'name': 'G1',
+                'group': 'g1',
+                'value': 'g1',
+            },
+        ]
         with mock.patch('scheduler.resources.pod.Pod.watch') as mock_kube:
             mock_kube.return_value = ['up', 'down']
             response = self.client.post(url, body)
@@ -819,14 +822,13 @@ class ReleaseTest(DryccTransactionTestCase):
         body['dryccfile']['deploy']['worker']['config'] = {
             'ref': ['g1']
         }
-        body['dryccfile']['config'] = {
-            'g1': [
-                {
-                    'name': 'G1',
-                    'value': 'g1',
-                },
-            ]
-        }
+        body['dryccfile']['config'] = [
+            {
+                'name': 'G1',
+                'group': 'g1',
+                'value': 'g1',
+            },
+        ]
         with mock.patch('scheduler.resources.pod.Pod.watch') as mock_kube:
             mock_kube.return_value = ['up', 'down']
             response = self.client.post(url, body)
@@ -836,14 +838,13 @@ class ReleaseTest(DryccTransactionTestCase):
         ptypes = release.diff_ptypes(release.ptypes)
         self.assertEqual(ptypes, ["worker"])
         # env cover, only change web
-        body['dryccfile']['config'] = {
-            'global': [
-                {
-                    'name': 'G1',
-                    'value': 'g1',
-                },
-            ]
-        }
+        body['dryccfile']['config'] = [
+            {
+                'name': 'G1',
+                'group': 'global',
+                'value': 'g1',
+            },
+        ]
         with mock.patch('scheduler.resources.pod.Pod.watch') as mock_kube:
             mock_kube.return_value = ['up', 'down']
             response = self.client.post(url, body)
@@ -853,14 +854,13 @@ class ReleaseTest(DryccTransactionTestCase):
         ptypes = release.diff_ptypes(release.ptypes)
         self.assertEqual(ptypes, ["web"])
         # add a global env
-        body['dryccfile']['config'] = {
-            'global': [
-                {
-                    'name': 'G2',
-                    'value': 'g2',
-                },
-            ]
-        }
+        body['dryccfile']['config'] = [
+            {
+                'name': 'G2',
+                'group': 'global',
+                'value': 'g2',
+            },
+        ]
         with mock.patch('scheduler.resources.pod.Pod.watch') as mock_kube:
             mock_kube.return_value = ['up', 'down']
             response = self.client.post(url, body)

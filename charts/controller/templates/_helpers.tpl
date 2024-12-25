@@ -26,10 +26,6 @@ env:
 - name: "DRYCC_APP_STORAGE_CLASS"
   value: "{{ (tpl .Values.appStorageClass .) }}"
 {{- end }}
-{{- if (.Values.appRuntimeClass) }}
-- name: "DRYCC_APP_RUNTIME_CLASS"
-  value: "{{ .Values.appRuntimeClass }}"
-{{- end }}
 {{- if (.Values.appDNSPolicy) }}
 - name: "DRYCC_APP_DNS_POLICY"
   value: "{{ .Values.appDNSPolicy }}"
@@ -260,6 +256,7 @@ resources:
       kubernetes.io/egress-bandwidth: 100M
       kubernetes.io/ingress-bandwidth: 100M
     node_selector: {}
+    runtime_class_name: ""
     pod_security_context: {}
     container_security_context: {}
     created: {{ now | date "2006-01-02T15:04:05.000Z" }}

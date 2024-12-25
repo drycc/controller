@@ -289,7 +289,8 @@ class App(UuidAuditedModel):
                         self.log(f"{prefix} starts running pipeline.run {run['image']}")
                         job_name = self.run(
                             self.owner, run['image'], command=run['command'],
-                            args=run['args'], timeout=run['timeout'], expires=run['timeout']
+                            args=run['args'], timeout=run['timeout'], expires=run['timeout'],
+                            envs=self._build_env_vars(release, run['ptype']),
                         )
                         state, labels = 'initializing', {'job-name': job_name}
                         for count, state in enumerate(self.scheduler().pod.watch(
@@ -1240,7 +1241,7 @@ class App(UuidAuditedModel):
             'build_type': release.build.type,
             'annotations': limit_plan.annotations,
             'healthcheck': healthcheck,
-            'runtime_class_name': settings.DRYCC_APP_RUNTIME_CLASS,
+            'runtime_class_name': limit_plan.runtime_class_name,
             'dns_policy': settings.DRYCC_APP_DNS_POLICY,
             'lifecycle_post_start': config.lifecycle_post_start,
             'lifecycle_pre_stop': config.lifecycle_pre_stop,

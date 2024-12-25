@@ -1,5 +1,4 @@
 PROCTYPE_REGEX = r'^(?P<type>[a-z0-9]+(\-[a-z0-9]+)*)$'
-
 SCHEMA = {
     "$schema": "http://json-schema.org/schema#",
     "type": "object",
@@ -14,25 +13,71 @@ SCHEMA = {
                     },
                     "additionalProperties": False,
                 },
-                "config": {"type": "object"}
+                "config": {
+                    "oneOf": [
+                        {
+                            "type": "object",
+                            "patternProperties": {
+                                PROCTYPE_REGEX: {
+                                    "type": "array",
+                                    "items": {
+                                        "type": "object",
+                                        "properties": {
+                                            "name": {"type": "string"},
+                                            "value": {"type": "string"},
+                                        },
+                                        "additionalProperties": False,
+                                    },
+                                },
+                            },
+                            "minProperties": 1,
+                            "additionalProperties": False,
+                        },
+                        {
+                            "type": "array",
+                            "items": {
+                                "type": "object",
+                                "properties": {
+                                    "name": {"type": "string"},
+                                    "value": {"type": "string"},
+                                },
+                                "additionalProperties": False,
+                            },
+                        },
+                    ]
+                }
             },
         },
-        "run": {
+        "config": {
             "type": "array",
             "items": {
                 "type": "object",
                 "properties": {
-                    "image": {"type": "string"},
-                    "command": {
-                        "type": "array",
-                        "items": {"type": "string"},
-                    },
-                    "args": {
-                        "type": "array",
-                        "items": {"type": "string"},
+                    "name": {"type": "string"},
+                    "group": {"type": "string"},
+                    "value": {"type": "string"},
+                },
+                "additionalProperties": False,
+            },
+        },
+        "run": {
+            "type": "object",
+            "patternProperties": {
+                PROCTYPE_REGEX: {
+                    "properties": {
+                        "image": {"type": "string"},
+                        "command": {
+                            "type": "array",
+                            "items": {"type": "string"},
+                        },
+                        "args": {
+                            "type": "array",
+                            "items": {"type": "string"},
+                        }
                     }
                 },
             },
+            "additionalProperties": False,
         },
         "deploy": {
             "type": "object",
@@ -47,6 +92,23 @@ SCHEMA = {
                         "args": {
                             "type": "array",
                             "items": {"type": "string"},
+                        },
+                        "config": {
+                            "env": {
+                                "type": "array",
+                                "items": {
+                                    "type": "object",
+                                    "properties": {
+                                        "name": {"type": "string"},
+                                        "value": {"type": "string"},
+                                    },
+                                    "additionalProperties": False,
+                                },
+                            },
+                            "ref": {
+                                "type": "array",
+                                "items": {"type": "string"},
+                            }
                         },
                     }
                 },

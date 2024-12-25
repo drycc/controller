@@ -115,6 +115,7 @@ class LimitPlan(AuditedModel):
     requests = models.JSONField(default=dict)
     annotations = models.JSONField(default=dict)
     node_selector = models.JSONField(default=dict)
+    runtime_class_name = models.CharField(max_length=63, default="")
     pod_security_context = models.JSONField(default=dict)
     container_security_context = models.JSONField(default=dict)
 

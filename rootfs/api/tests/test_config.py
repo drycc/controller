@@ -825,7 +825,10 @@ class ConfigTest(DryccTransactionTestCase):
             'dryccfile': {
                 "build": {
                     "docker": {"web": "Dockerfile", "worker": "worker/Dockerfile"},
-                    "config": {"RAILS_ENV": "development", "FOO": "bar"}
+                    "config": [
+                        {"name": "FOO", "value": "bar"},
+                        {"name": "RAILS_ENV", "value": "development"},
+                    ],
                 },
                 'deploy': {
                     'web': {
@@ -848,16 +851,12 @@ class ConfigTest(DryccTransactionTestCase):
         self.assertEqual(release.failed, False)
         self.assertEqual(release.config.envs("web"), {"WEBSITE": "www.drycc.cc"})
         # set env by dryccfile
-        build_body['dryccfile']['config'] = {
-            "mygroup1": [
-                {"name": "GROUP", "value": "g1"},
-                {"name": "DEBUG", "value": "tr"},
-            ],
-            "mygroup2": [
-                {"name": "TEST1", "value": "g1"},
-                {"name": "TEST2", "value": "tr"},
-            ],
-        }
+        build_body['dryccfile']['config'] = [
+            {"name": "GROUP", "group": "mygroup1", "value": "g1"},
+            {"name": "DEBUG", "group": "mygroup1", "value": "tr"},
+            {"name": "TEST1", "group": "mygroup2", "value": "g1"},
+            {"name": "TEST2", "group": "mygroup2", "value": "tr"},
+        ]
         build_body['dryccfile']['deploy']['web']['config'] = {
             'env': [
                 {'name': "PENV1", 'value': 'web'},
@@ -919,7 +918,7 @@ class ConfigTest(DryccTransactionTestCase):
         self.assertEqual(release.config.values_refs, release.previous().config.values_refs)
         # set empty
         new_build_body = copy.deepcopy(build_body)
-        new_build_body['dryccfile']['config'] = {}
+        new_build_body['dryccfile']['config'] = []
         new_build_body['dryccfile']['deploy']['web']['config'] = {}
         new_build_body['dryccfile']['deploy']['web']['healthcheck'] = {}
         with mock.patch('scheduler.resources.pod.Pod.watch') as mock_kube:

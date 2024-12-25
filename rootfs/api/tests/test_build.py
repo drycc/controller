@@ -750,14 +750,15 @@ class BuildTest(DryccTransactionTestCase):
             'dryccfile': {
                 "build": {
                     "docker": {"web": "Dockerfile", "worker": "worker/Dockerfile"},
-                    "config": {"RAILS_ENV": "development", "FOO": "bar"}
+                    "config": [
+                        {"name": "FOO", "value": "bar"},
+                        {"name": "RAILS_ENV", "value": "development"},
+                    ],
                 },
-                "run": [
-                    {
-                        "command": ["./deployment-tasks.sh"],
-                        "image": run_image,
-                    }
-                ],
+                "run": {
+                    "web": {"command": ["./deployment-tasks.sh"], "image": run_image},
+                    "worker": {"command": ["./deployment-tasks.sh"], "image": run_image},
+                },
                 "deploy": {
                     "web": {
                         "command": ["bash", "-c"],
@@ -803,7 +804,10 @@ class BuildTest(DryccTransactionTestCase):
             'dryccfile': {
                 "build": {
                     "docker": {"web": "Dockerfile", "worker": "worker/Dockerfile"},
-                    "config": {"RAILS_ENV": "development", "FOO": "bar"}
+                    "config": [
+                        {"name": "FOO", "value": "bar"},
+                        {"name": "RAILS_ENV", "value": "development"},
+                    ],
                 },
             }
         }
@@ -829,12 +833,10 @@ class BuildTest(DryccTransactionTestCase):
             response = self.client.post(url, body)
             self.assertEqual(response.status_code, 201, response.data)
 
-            body['dryccfile']['run'] = [
-                {
-                    'command': ["bash", "-c"],
-                    'args': ["ls /"]
-                }
-            ]
+            body['dryccfile']['run'] = {
+                "web": {'command': ["bash", "-c"], 'args': ["ls /"]},
+                "web-new": {'command': ["bash", "-c"], 'args': ["ls /"]},
+            }
             response = self.client.post(url, body)
             self.assertEqual(response.status_code, 201, response.data)
             body['dryccfile']['deploy'] = {}

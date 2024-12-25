@@ -110,14 +110,10 @@ class Build(UuidAuditedModel):
         """
         dryccfile to config
         """
-        config_values, config_values_ref, config_healthcheck, changed_fields = [], {}, {}, set()
+        config_values, config_values_ref, config_healthcheck, changed_fields = (
+            self.dryccfile.get('config', []), {}, {}, set())
         if 'config' in self.dryccfile:
-            for group, values in self.dryccfile.get('config', {}).items():
-                for value in values:
-                    value['group'] = group
-                    config_values.append(value)
             changed_fields.update(["values", "values_refs"])
-
         replace_values_ptypes, replace_healthcheck_ptypes = set(), set()
         for ptype, values in self.dryccfile.get('deploy', {}).items():
             if 'config' in values:
@@ -132,7 +128,6 @@ class Build(UuidAuditedModel):
                         config_values_ref[ptype].append(config_ref)
                 replace_values_ptypes.add(ptype)
                 changed_fields.update(["values", "values_refs"])
-
             if 'healthcheck' in values:
                 config_healthcheck[ptype] = values.get('healthcheck')
                 changed_fields.add("healthcheck")
