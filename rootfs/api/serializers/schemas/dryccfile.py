@@ -1,121 +1,85 @@
+
+FILENAME_REGEX = r'^(?P<name>[a-z0-9]+(\.[a-z0-9]+)*)$'
 PROCTYPE_REGEX = r'^(?P<type>[a-z0-9]+(\-[a-z0-9]+)*)$'
+CONFIGKEY_REGEX = r'^[A-z0-9_\-\.]+$'
+CONFIGENV_SCHEMA = {
+    "type": "object",
+    "patternProperties": {
+        CONFIGKEY_REGEX: {"type": "string"},
+    },
+}
 SCHEMA = {
     "$schema": "http://json-schema.org/schema#",
     "type": "object",
     "properties": {
-        "build": {
+        "config": {
             "type": "object",
-            "properties": {
-                "docker": {
+            "patternProperties": {
+                FILENAME_REGEX: CONFIGENV_SCHEMA,
+            },
+        },
+        "pipeline": {
+            "type": "object",
+            "patternProperties": {
+                FILENAME_REGEX: {
                     "type": "object",
-                    "patternProperties": {
-                        PROCTYPE_REGEX: {"type": "string"},
-                    },
-                    "additionalProperties": False,
-                },
-                "config": {
-                    "oneOf": [
-                        {
+                    "properties": {
+                        "kind": {"type": "string", "pattern": "^pipeline$"},
+                        "ptype": {"type": "string", "pattern": PROCTYPE_REGEX},
+                        "build": {
                             "type": "object",
-                            "patternProperties": {
-                                PROCTYPE_REGEX: {
-                                    "type": "array",
-                                    "items": {
-                                        "type": "object",
-                                        "properties": {
-                                            "name": {"type": "string"},
-                                            "value": {"type": "string"},
-                                        },
-                                        "additionalProperties": False,
-                                    },
-                                },
+                            "properties": {
+                                "docker": {"type": "string"},
+                                "arg": CONFIGENV_SCHEMA,
                             },
-                            "minProperties": 1,
                             "additionalProperties": False,
                         },
-                        {
-                            "type": "array",
-                            "items": {
-                                "type": "object",
-                                "properties": {
-                                    "name": {"type": "string"},
-                                    "value": {"type": "string"},
+                        "env": CONFIGENV_SCHEMA,
+                        "run": {
+                            "type": "object",
+                            "properties": {
+                                "command": {
+                                    "type": "array",
+                                    "items": {"type": "string"},
                                 },
-                                "additionalProperties": False,
+                                "args": {
+                                    "type": "array",
+                                    "items": {"type": "string"},
+                                },
+                                "image": {"type": "string"},
+                                "timeout": {"type": "integer"},
                             },
-                        },
-                    ]
-                }
-            },
-        },
-        "config": {
-            "type": "array",
-            "items": {
-                "type": "object",
-                "properties": {
-                    "name": {"type": "string"},
-                    "group": {"type": "string"},
-                    "value": {"type": "string"},
-                },
-                "additionalProperties": False,
-            },
-        },
-        "run": {
-            "type": "object",
-            "patternProperties": {
-                PROCTYPE_REGEX: {
-                    "properties": {
-                        "image": {"type": "string"},
-                        "command": {
-                            "type": "array",
-                            "items": {"type": "string"},
-                        },
-                        "args": {
-                            "type": "array",
-                            "items": {"type": "string"},
-                        }
-                    }
-                },
-            },
-            "additionalProperties": False,
-        },
-        "deploy": {
-            "type": "object",
-            "patternProperties": {
-                PROCTYPE_REGEX: {
-                    "properties": {
-                        "image": {"type": "string"},
-                        "command": {
-                            "type": "array",
-                            "items": {"type": "string"},
-                        },
-                        "args": {
-                            "type": "array",
-                            "items": {"type": "string"},
+                            "additionalProperties": False,
                         },
                         "config": {
-                            "env": {
-                                "type": "array",
-                                "items": {
-                                    "type": "object",
-                                    "properties": {
-                                        "name": {"type": "string"},
-                                        "value": {"type": "string"},
-                                    },
-                                    "additionalProperties": False,
-                                },
+                            "type": "array",
+                            "items": {
+                                "type": "string",
+                                "pattern": FILENAME_REGEX,
                             },
-                            "ref": {
-                                "type": "array",
-                                "items": {"type": "string"},
-                            }
                         },
-                    }
+                        "deploy": {
+                            "type": "object",
+                            "properties": {
+                                "command": {
+                                    "type": "array",
+                                    "items": {"type": "string"},
+                                },
+                                "args": {
+                                    "type": "array",
+                                    "items": {"type": "string"},
+                                },
+                                "image": {"type": "string"},
+                            },
+                            "additionalProperties": False,
+                        }
+                    },
+                    "additionalProperties": False,
+                    "required": ["kind", "ptype", "deploy"],
                 },
             },
-            "minProperties": 1,
-            "additionalProperties": False,
         },
     },
-    "required": ["deploy"],
+    "required": ["pipeline"],
+    "additionalProperties": False,
 }

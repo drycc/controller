@@ -67,15 +67,15 @@ class Release(UuidAuditedModel):
     def get_runners(self, ptypes):
         results = []
         ptypes = self.ptypes if not ptypes else ptypes
-        for ptype, run in self.build.dryccfile.get('run', {}).items():
-            if ptype in ptypes:
-                image = run.get('image', self.build.get_image(ptype))
+        for pipeline in self.build.get_pipelines(ptypes):
+            if 'run' in pipeline:
+                image = pipeline['run'].get('image', self.build.get_image(pipeline['ptype']))
                 results.append({
-                    'ptype': ptype,
+                    'ptype': pipeline['ptype'],
                     'image': self.build.get_image(image, default_image=image),
-                    'args': run.get('args', []),
-                    'command': run.get('command', []),
-                    'timeout': run.get('timeout', settings.DRYCC_PILELINE_RUN_TIMEOUT),
+                    'args': pipeline['run'].get('args', []),
+                    'command': pipeline['run'].get('command', []),
+                    'timeout': pipeline['run'].get('timeout', settings.DRYCC_PILELINE_RUN_TIMEOUT),
                 })
         return results
 
@@ -93,21 +93,19 @@ class Release(UuidAuditedModel):
 
     def get_deploy_image(self, ptype):
         """
-        In the deploy phase of dryccfile
         Return the kubernetes "container image" to be sent off to the scheduler.
         """
-        image = self.build.dryccfile.get('deploy', {}).get(ptype, {}).get(
+        image = self.build.get_pipeline(ptype).get('deploy', {}).get(
             'image', self.build.get_image(ptype))
         return self.build.get_image(image, default_image=image)
 
     def get_deploy_args(self, ptype):
         """
-        In the deploy phase of dryccfile
         Return the kubernetes "container arguments" to be sent off to the scheduler.
         """
         if self.build is not None:
             if self.build.dryccfile:
-                return self.build.dryccfile['deploy'].get(ptype, {}).get('args', [])
+                return self.build.get_pipeline(ptype).get('deploy', {}).get('args', [])
             else:
                 # dockerfile or container image
                 if self.build.dockerfile or not self.build.sha:
@@ -119,11 +117,9 @@ class Release(UuidAuditedModel):
 
     def get_deploy_command(self, ptype):
         """
-        In the deploy phase of dryccfile
         Return the kubernetes "container command" to be sent off to the scheduler.
         """
-        return self.build.dryccfile.get(
-            'deploy', {}).get(ptype, {}).get('command', [])
+        return self.build.get_pipeline(ptype).get('deploy', {}).get('command', [])
 
     def log(self, message, level=logging.INFO):
         """Logs a message in the context of this application.

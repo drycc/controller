@@ -30,33 +30,57 @@ class ProcfileTypeTest(APITestCase):
 
     def test_dryccfile_ptype(self):
         dryccfile_1 = {
-            "build": {
-                "docker": {
-                    "web": "Dockerfile",
-                    "task": "Dockerfile.task"
+            "pipeline": {
+                "web.yaml": {
+                    "kind": "pipeline",
+                    "ptype": "web",
+                    "build": {
+                        "docker": "Dockerfile",
+                    },
+                    "deploy": {
+                        "args": ["python", "-m", "http.server", "5000"],
+                    },
                 },
-            },
-            "deploy": {
-                "web": {
-                    "args": ["python", "-m", "http.server", "5000"]
-                },
-                "task": {
-                    "command": ["sleep"],
-                    "args": ["infinity"]
-                },
+                "worker.yaml": {
+                    "kind": "pipeline",
+                    "ptype": "worker",
+                    "build": {
+                        "docker": "Dockerfile.task",
+                    },
+                    "deploy": {
+                        "command": ["sleep"],
+                        "args": ["infinity"]
+                    },
+                }
             }
         }
         validate_dryccfile = BuildSerializer().validate_dryccfile
         self.assertEqual(validate_dryccfile(dryccfile_1), dryccfile_1)
-        dryccfile_1["build"]["docker"]["w"] = "Dockerfile.w"
+        dryccfile_1["pipeline"]["w.yaml"] = {
+            "kind": "pipeline",
+            "ptype": "w",
+            "build": {"docker": "Dockerfile.task"},
+        }
         self.assertException(
                 validate_dryccfile, serializers.ValidationError, dryccfile_1)
-        del dryccfile_1["build"]["docker"]["w"]
-        dryccfile_1["deploy"]["w"] = {"args": ["python", "-m", "http.server", "5000"]}
+        del dryccfile_1["pipeline"]["w.yaml"]
+
+        dryccfile_1["pipeline"]["w.yaml"] = {
+            "kind": "pipeline",
+            "ptype": "w",
+            "build": {"docker": "Dockerfile.task"},
+            "deploy": {"args": ["python", "-m", "http.server", "5000"]},
+        }
         self.assertException(
                 validate_dryccfile, serializers.ValidationError, dryccfile_1)
-        del dryccfile_1["deploy"]["w"]
-        dryccfile_1["deploy"]["w-new-"] = {"args": ["python", "-m", "http.server", "5000"]}
+        dryccfile_1["pipeline"]["w.yaml"]
+
+        dryccfile_1["pipeline"]["wnew.yaml"] = {
+            "kind": "pipeline",
+            "ptype": "w-new-",
+            "build": {"docker": "Dockerfile.task"},
+            "deploy": {"args": ["python", "-m", "http.server", "5000"]},
+        }
         self.assertException(
                 validate_dryccfile, serializers.ValidationError, dryccfile_1)
 

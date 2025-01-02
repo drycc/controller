@@ -24,7 +24,7 @@ from .schemas.config import SCHEMA as CONFIG_SCHEMA
 from .schemas.volumes import SCHEMA as VOLUMES_SCHEMA
 from .schemas.autoscale import SCHEMA as AUTOSCALE_SCHEMA
 from .schemas.healthcheck import SCHEMA as HEALTHCHECK_SCHEMA
-from .schemas.dryccfile import (SCHEMA as DRYCCFILE_SCHEMA, PROCTYPE_REGEX)
+from .schemas.dryccfile import (SCHEMA as DRYCCFILE_SCHEMA, PROCTYPE_REGEX, CONFIGKEY_REGEX)
 
 
 User = get_user_model()
@@ -42,7 +42,7 @@ PROCTYPE_MATCH = re.compile(PROCTYPE_REGEX)
 PROCTYPE_MISMATCH_MSG = "Process types can only supports: %s" % PROCTYPE_MATCH.pattern
 
 TAGVAL_MATCH = re.compile(r'^(?:[a-zA-Z\d][-\.\w]{0,61})?[a-zA-Z\d]$')
-CONFIGKEY_MATCH = re.compile(r'^[A-z0-9_\-\.]+$', re.IGNORECASE)
+CONFIGKEY_MATCH = re.compile(CONFIGKEY_REGEX, re.IGNORECASE)
 CONFIGKEY_MISMATCH_MSG = ("Config key can only supports: %s" % CONFIGKEY_MATCH.pattern)
 CONFIG_LIMITS_MISMATCH_MSG = "The limit plan {} does not exist"
 
@@ -231,12 +231,15 @@ class BuildSerializer(serializers.ModelSerializer):
 
     @staticmethod
     def validate_dryccfile(data):
+        ptypes = set()
         if data:
             validate_json(data, DRYCCFILE_SCHEMA, serializers.ValidationError)
-            ptypes = set().union(data.get("deploy", {}).keys())
-            ptypes = ptypes.union(data.get("build", {}).get("docker", {}).keys())
-            for ptype in ptypes:
-                validate_ptype(ptype)
+            for pipeline in data['pipeline'].values():
+                if pipeline['ptype'] in ptypes:
+                    raise serializers.ValidationError("Pipeline's ptype must be unique")
+                else:
+                    validate_ptype(pipeline['ptype'])
+                    ptypes.add(pipeline['ptype'])
         return data
 
 

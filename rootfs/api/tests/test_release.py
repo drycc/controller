@@ -142,46 +142,75 @@ class ReleaseTest(DryccTransactionTestCase):
             'stack': 'heroku-18',
             'sha': 'a'*40,
             'dryccfile': {
-                "build": {
-                    "docker": {"web": "Dockerfile", "worker": "worker/Dockerfile"},
-                    "config": [
-                        {"name": "FOO", "value": "bar"},
-                        {"name": "RAILS_ENV", "value": "development"},
-                    ],
+                "pipeline": {
+                    "web.yaml": {
+                        "kind": "pipeline",
+                        "ptype": "web",
+                        "build": {
+                            "docker": "Dockerfile",
+                            "arg": {
+                                "FOO": "bar",
+                                "RAILS_ENV": "development",
+                            },
+                        },
+                        "run": {"command": ["./deployment-tasks.sh"], "image": "worker"},
+                        "deploy": {
+                            "command": ["bash", "-c"],
+                            "args": ["bundle exec puma -C config/puma.rb"],
+                        },
+                    },
+                    "worker.yaml": {
+                        "kind": "pipeline",
+                        "ptype": "worker",
+                        "build": {
+                            "docker": "worker/Dockerfile",
+                            "arg": {
+                                "FOO": "bar",
+                                "RAILS_ENV": "development",
+                            },
+                        },
+                        "run": {"command": ["./deployment-tasks.sh"], "image": "worker"},
+                        "deploy": {
+                            "command": ["bash", "-c"],
+                            "args": ["python myworker.py"],
+                        },
+                    },
+                    "worker-1.yaml": {
+                        "kind": "pipeline",
+                        "ptype": "worker-1",
+                        "run": {"command": ["./deployment-tasks.sh"], "image": "worker"},
+                        "deploy": {
+                            "image": "worker",
+                        },
+                    },
+                    "worker-2.yaml": {
+                        "kind": "pipeline",
+                        "ptype": "worker-2",
+                        "run": {"command": ["./deployment-tasks.sh"], "image": "worker"},
+                        "deploy": {},
+                    },
+                    "worker-3.yaml": {
+                        "kind": "pipeline",
+                        "ptype": "worker-3",
+                        "run": {"command": ["./deployment-tasks.sh"], "image": "worker"},
+                        "deploy": {
+                            "command": ["bash", "-c"],
+                            "args": ["bundle exec puma -C config/puma.rb"],
+                            "image": "web"
+                        },
+                    },
+                    "worker-4.yaml": {
+                        "kind": "pipeline",
+                        "ptype": "worker-4",
+                        "run": {"command": ["./deployment-tasks.sh"], "image": "worker"},
+                        "deploy": {
+                            "command": ["bash", "-c"],
+                            "args": ["bundle exec puma -C config/puma.rb"],
+                            "image": "127.0.0.1:7070/myapp/web:git-123fsa1",
+                        },
+                    },
                 },
-                "run": {
-                    "web": {"command": ["./deployment-tasks.sh"], "image": "worker"},
-                    "worker": {"command": ["./deployment-tasks.sh"], "image": "worker"},
-                    "worker-1": {"command": ["./deployment-tasks.sh"], "image": "worker"},
-                    "worker-2": {"command": ["./deployment-tasks.sh"], "image": "worker"},
-                    "worker-3": {"command": ["./deployment-tasks.sh"], "image": "worker"},
-                    "worker-4": {"command": ["./deployment-tasks.sh"], "image": "worker"},
-                },
-                "deploy": {
-                    "web": {
-                        "command": ["bash", "-c"],
-                        "args": ["bundle exec puma -C config/puma.rb"],
-                    },
-                    "worker": {
-                        "command": ["bash", "-c"],
-                        "args": ["python myworker.py"],
-                    },
-                    "worker-1": {
-                        "image": "worker"
-                    },
-                    "worker-2": {},
-                    "worker-3": {
-                        "command": ["bash", "-c"],
-                        "args": ["bundle exec puma -C config/puma.rb"],
-                        "image": "web"
-                    },
-                    "worker-4": {
-                        "command": ["bash", "-c"],
-                        "args": ["bundle exec puma -C config/puma.rb"],
-                        "image": "127.0.0.1:7070/myapp/web:git-123fsa1"
-                    }
-                }
-            }
+            },
         }
         default_image = '127.0.0.1:5555/autotest/example:git-fadf1231'
         worker_image = "127.0.0.1:5555/autotest/example:git-fadf1231-worker"
@@ -707,28 +736,34 @@ class ReleaseTest(DryccTransactionTestCase):
         app = App.objects.get(id=app_id)
         user = User.objects.get(username='autotest')
         dryccfile = {
-            "run": {
-                "web": {
-                    "args": ["sleep", "60s"],
-                    "image": "registry.drycc.cc/drycc/base:bookworm-web",
+            "pipeline": {
+                "web.yaml": {
+                    "kind": "pipeline",
+                    "ptype": "web",
+                    "run": {
+                        "args": ["sleep", "60s"],
+                        "image": "registry.drycc.cc/drycc/base:bookworm-web",
+                    },
+                    "deploy": {
+                        "image": "registry.drycc.cc/drycc/python-dev",
+                        "args": ["python", "-m", "http.server", "5000"]
+                    },
                 },
-                "task": {
-                    "args": ["sleep", "60s"],
-                    "image": "registry.drycc.cc/drycc/base:bookworm-task",
-                    "timeout": 3000
-                }
+                "task.yaml": {
+                    "kind": "pipeline",
+                    "ptype": "task",
+                    "run": {
+                        "args": ["sleep", "60s"],
+                        "image": "registry.drycc.cc/drycc/base:bookworm-task",
+                        "timeout": 3000
+                    },
+                    "deploy": {
+                        "image": "docker.io/library/nginx:mainline-bookworm-perl",
+                        "command": ["sleep"],
+                        "args": ["infinity"]
+                    },
+                },
             },
-            "deploy": {
-                "web": {
-                    "image": "registry.drycc.cc/drycc/python-dev",
-                    "args": ["python", "-m", "http.server", "5000"]
-                },
-                "task": {
-                    "image": "docker.io/library/nginx:mainline-bookworm-perl",
-                    "command": ["sleep"],
-                    "args": ["infinity"]
-                }
-            }
         }
         build = Build.objects.create(
             owner=user, app=app, image="qwerty", procfile={},
@@ -745,8 +780,10 @@ class ReleaseTest(DryccTransactionTestCase):
         self.assertEqual(runners[0]["timeout"], 3000)
 
         # change timeout
-        dryccfile['run']['web']['timeout'] = 3600
-        dryccfile['deploy']['web']['image'] = 'registry.drycc.cc/drycc/python-dev:latest'
+        dryccfile['pipeline']['web.yaml']['run']['timeout'] = 3600
+        dryccfile['pipeline']['web.yaml']['deploy'] = {
+            'image': 'registry.drycc.cc/drycc/python-dev:latest',
+        }
         build = Build.objects.create(
             owner=user, app=app, image="qwerty", procfile={},
             sha='african-swallow', dockerfile={}, dryccfile=dryccfile)
@@ -769,30 +806,43 @@ class ReleaseTest(DryccTransactionTestCase):
             'stack': 'heroku-18',
             'sha': 'a'*40,
             'dryccfile': {
-                "build": {
-                    "docker": {"web": "Dockerfile", "worker": "worker/Dockerfile"},
-                     "config": [
-                        {"name": "FOO", "value": "bar"},
-                        {"name": "RAILS_ENV", "value": "development"},
-                    ],
-                },
-                "run": {
-                    "web": {"command": ["./deployment-tasks.sh"], "image": run_image},
-                    "worker": {"command": ["./deployment-tasks.sh"], "image": run_image},
-                },
-                "deploy": {
-                    "web": {
-                        "command": ["bash", "-c"],
-                        "args": ["bundle exec puma -C config/puma.rb"],
-                        "image": web_image
+                "pipeline": {
+                    "web.yaml": {
+                        "kind": "pipeline",
+                        "ptype": "web",
+                        "build": {
+                            "docker": "Dockerfile",
+                            "arg": {
+                                "FOO": "bar",
+                                "RAILS_ENV": "development",
+                            },
+                        },
+                        "run": {"command": ["./deployment-tasks.sh"], "image": run_image},
+                        "deploy": {
+                            "command": ["bash", "-c"],
+                            "args": ["bundle exec puma -C config/puma.rb"],
+                            "image": web_image
+                        },
                     },
-                    "worker": {
-                        "command": ["bash", "-c"],
-                        "args": ["python myworker.py"],
-                        "image": worker_image
-                    }
-                }
-            }
+                    "worker.yaml": {
+                        "kind": "pipeline",
+                        "ptype": "worker",
+                        "build": {
+                            "docker": "worker/Dockerfile",
+                            "arg": {
+                                "FOO": "bar",
+                                "RAILS_ENV": "development",
+                            },
+                        },
+                        "run": {"command": ["./deployment-tasks.sh"], "image": run_image},
+                        "deploy": {
+                            "command": ["bash", "-c"],
+                            "args": ["python myworker.py"],
+                            "image": worker_image
+                        },
+                    },
+                },
+            },
         }
         with mock.patch('scheduler.resources.pod.Pod.watch') as mock_kube:
             mock_kube.return_value = ['up', 'down']
@@ -803,13 +853,7 @@ class ReleaseTest(DryccTransactionTestCase):
         ptypes = release.diff_ptypes(release.ptypes)
         self.assertEqual(ptypes, ["web", "worker"])
 
-        body['dryccfile']['config'] = [
-            {
-                'name': 'G1',
-                'group': 'g1',
-                'value': 'g1',
-            },
-        ]
+        body['dryccfile']['config'] = {"g1": {"G1": "g1"}}
         with mock.patch('scheduler.resources.pod.Pod.watch') as mock_kube:
             mock_kube.return_value = ['up', 'down']
             response = self.client.post(url, body)
@@ -819,16 +863,9 @@ class ReleaseTest(DryccTransactionTestCase):
         ptypes = release.diff_ptypes(release.ptypes)
         self.assertEqual(ptypes, [])
         # change worker env
-        body['dryccfile']['deploy']['worker']['config'] = {
-            'ref': ['g1']
-        }
-        body['dryccfile']['config'] = [
-            {
-                'name': 'G1',
-                'group': 'g1',
-                'value': 'g1',
-            },
-        ]
+        body['dryccfile']['pipeline']['worker.yaml']['config'] = ["g1"]
+        body['dryccfile']['config'] = {"g1": {"G1": "g1"}}
+
         with mock.patch('scheduler.resources.pod.Pod.watch') as mock_kube:
             mock_kube.return_value = ['up', 'down']
             response = self.client.post(url, body)
@@ -838,13 +875,7 @@ class ReleaseTest(DryccTransactionTestCase):
         ptypes = release.diff_ptypes(release.ptypes)
         self.assertEqual(ptypes, ["worker"])
         # env cover, only change web
-        body['dryccfile']['config'] = [
-            {
-                'name': 'G1',
-                'group': 'global',
-                'value': 'g1',
-            },
-        ]
+        body['dryccfile']['config'] = {"global": {"G1": "g1"}}
         with mock.patch('scheduler.resources.pod.Pod.watch') as mock_kube:
             mock_kube.return_value = ['up', 'down']
             response = self.client.post(url, body)
@@ -854,13 +885,7 @@ class ReleaseTest(DryccTransactionTestCase):
         ptypes = release.diff_ptypes(release.ptypes)
         self.assertEqual(ptypes, ["web"])
         # add a global env
-        body['dryccfile']['config'] = [
-            {
-                'name': 'G2',
-                'group': 'global',
-                'value': 'g2',
-            },
-        ]
+        body['dryccfile']['config'] = {"global": {"G2": "g2"}}
         with mock.patch('scheduler.resources.pod.Pod.watch') as mock_kube:
             mock_kube.return_value = ['up', 'down']
             response = self.client.post(url, body)
@@ -871,11 +896,7 @@ class ReleaseTest(DryccTransactionTestCase):
         self.assertEqual(set(ptypes), set(["web", "worker"]))
 
         # change web env
-        body['dryccfile']['deploy']['web']['config'] = {
-            'env': [
-                {'name': 'ENV1', 'value': 'env1'}
-            ]
-        }
+        body['dryccfile']['pipeline']['web.yaml']['env'] = {"ENV1": "env1"}
         with mock.patch('scheduler.resources.pod.Pod.watch') as mock_kube:
             mock_kube.return_value = ['up', 'down']
             response = self.client.post(url, body)

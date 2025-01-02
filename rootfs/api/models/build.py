@@ -45,7 +45,7 @@ class Build(UuidAuditedModel):
     @property
     def ptypes(self):
         if self.dryccfile:
-            return list(self.dryccfile['deploy'].keys())
+            return list([pipeline['ptype'] for pipeline in self.dryccfile['pipeline'].values()])
         if self.procfile:
             return list(self.procfile.keys())
         return [PTYPE_WEB]
@@ -64,13 +64,23 @@ class Build(UuidAuditedModel):
         return 'git-{}'.format(self.sha) if self.source_based else 'latest'
 
     def get_image(self, ptype, default_image=None):
-        docker = self.dryccfile.get('build', {}).get('docker', {})
-        if ptype in docker:
-            if ptype == 'web':
-                return self.image
-            else:
-                return f'{self.image}-{ptype}'
+        pipeline = self.get_pipeline(ptype)
+        if pipeline and 'build' in pipeline:
+            return self.image if ptype == 'web' else f'{self.image}-{ptype}'
         return default_image if default_image else self.image
+
+    def get_pipeline(self, ptype):
+        pipelines = self.get_pipelines([ptype])
+        if len(pipelines) > 0:
+            return pipelines[0]
+        return {}
+
+    def get_pipelines(self, ptypes):
+        results = []
+        for pipeline in self.dryccfile.get('pipeline', {}).values():
+            if pipeline['ptype'] in ptypes:
+                results.append(pipeline)
+        return results
 
     def create_release(self, user, *args, **kwargs):
         latest_release = Release.latest(self.app)
@@ -110,38 +120,31 @@ class Build(UuidAuditedModel):
         """
         dryccfile to config
         """
-        config_values, config_values_ref, config_healthcheck, changed_fields = (
-            self.dryccfile.get('config', []), {}, {}, set())
-        if 'config' in self.dryccfile:
+        config_values, config_values_ref, changed_fields = [], {}, set()
+        for group, envs in self.dryccfile.get('config', {}).items():
+            for key, value in envs.items():
+                config_values.append({"name": key, "group": group, "value": value})
             changed_fields.update(["values", "values_refs"])
-        replace_values_ptypes, replace_healthcheck_ptypes = set(), set()
-        for ptype, values in self.dryccfile.get('deploy', {}).items():
-            if 'config' in values:
-                for value in values.get('config', {}).get('env', []):
-                    value['ptype'] = ptype
-                    config_values.append(value)
-                    replace_values_ptypes.add(ptype)
-                for config_ref in values.get('config', {}).get('ref', []):
-                    if ptype not in config_values_ref:
-                        config_values_ref[ptype] = [config_ref]
+
+        replace_values_ptypes = set()
+        for pipeline in self.dryccfile.get('pipeline', {}).values():
+            if 'env' in pipeline or 'config' in pipeline:
+                for key, value in pipeline.get('env', {}).items():
+                    config_values.append({"name": key, "ptype": pipeline['ptype'], "value": value})
+                for config_ref in pipeline.get('config', []):
+                    if pipeline['ptype'] not in config_values_ref:
+                        config_values_ref[pipeline['ptype']] = [config_ref]
                     else:
-                        config_values_ref[ptype].append(config_ref)
-                replace_values_ptypes.add(ptype)
+                        config_values_ref[pipeline['ptype']].append(config_ref)
+                replace_values_ptypes.add(pipeline['ptype'])
                 changed_fields.update(["values", "values_refs"])
-            if 'healthcheck' in values:
-                config_healthcheck[ptype] = values.get('healthcheck')
-                changed_fields.add("healthcheck")
-                replace_healthcheck_ptypes.add(ptype)
 
         old_config = self.app.release_set.filter(failed=False).latest().config
         if not changed_fields:
             return old_config
         config = Config(
-            owner=self.owner, app=self.app, values=config_values, values_refs=config_values_ref,
-            healthcheck=config_healthcheck,
-        )
+            owner=self.owner, app=self.app, values=config_values, values_refs=config_values_ref)
         config.merge_field("values", old_config, replace_values_ptypes)
         config.merge_field("values_refs", old_config, replace_values_ptypes)
-        config.merge_field("healthcheck", old_config, replace_healthcheck_ptypes)
         config.save(ignore_update_fields=changed_fields)
         return config

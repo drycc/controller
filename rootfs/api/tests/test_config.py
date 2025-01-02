@@ -823,18 +823,36 @@ class ConfigTest(DryccTransactionTestCase):
             'stack': 'heroku-18',
             'sha': 'a'*40,
             'dryccfile': {
-                "build": {
-                    "docker": {"web": "Dockerfile", "worker": "worker/Dockerfile"},
-                    "config": [
-                        {"name": "FOO", "value": "bar"},
-                        {"name": "RAILS_ENV", "value": "development"},
-                    ],
-                },
-                'deploy': {
-                    'web': {
-                        'image': "127.0.0.1/cat/cat"
+                "pipeline": {
+                    "web.yaml": {
+                        "kind": "pipeline",
+                        "ptype": "web",
+                        "build": {
+                            "docker": "Dockerfile",
+                            "arg": {
+                                "FOO": "bar",
+                                "RAILS_ENV": "development",
+                            },
+                        },
+                        "deploy": {
+                            'image': "127.0.0.1/cat/cat"
+                        },
                     },
-                }
+                    "worker.yaml": {
+                        "kind": "pipeline",
+                        "ptype": "worker",
+                        "build": {
+                            "docker": "worker/Dockerfile",
+                            "arg": {
+                                "FOO": "bar",
+                                "RAILS_ENV": "development",
+                            },
+                        },
+                        "deploy": {
+                            'image': "127.0.0.1/cat/cat"
+                        },
+                    },
+                },
             },
         }
         with mock.patch('scheduler.resources.pod.Pod.watch') as mock_kube:
@@ -851,19 +869,23 @@ class ConfigTest(DryccTransactionTestCase):
         self.assertEqual(release.failed, False)
         self.assertEqual(release.config.envs("web"), {"WEBSITE": "www.drycc.cc"})
         # set env by dryccfile
-        build_body['dryccfile']['config'] = [
-            {"name": "GROUP", "group": "mygroup1", "value": "g1"},
-            {"name": "DEBUG", "group": "mygroup1", "value": "tr"},
-            {"name": "TEST1", "group": "mygroup2", "value": "g1"},
-            {"name": "TEST2", "group": "mygroup2", "value": "tr"},
-        ]
-        build_body['dryccfile']['deploy']['web']['config'] = {
-            'env': [
-                {'name': "PENV1", 'value': 'web'},
-                {'name': "PENV2", 'value': 'web'},
-            ],
-            'ref': ['mygroup1', 'mygroup2']
+        build_body['dryccfile']['config'] = {
+            "mygroup1": {
+                "GROUP": "g1",
+                "DEBUG": "tr",
+            },
+            "mygroup2": {
+                "TEST1": "g1",
+                "TEST2": "tr",
+            },
         }
+        build_body['dryccfile']['pipeline']['web.yaml']['env'] = {
+            "PENV1": "web",
+            "PENV2": "web",
+        }
+        build_body['dryccfile']['pipeline']['web.yaml']['config'] = [
+            "mygroup1", "mygroup2"
+        ]
         with mock.patch('scheduler.resources.pod.Pod.watch') as mock_kube:
             mock_kube.return_value = ['up', 'down']
             url = f"/v2/apps/{app_id}/build"
@@ -879,33 +901,12 @@ class ConfigTest(DryccTransactionTestCase):
                 'PENV2': 'web', "WEBSITE": "www.drycc.cc",
             }
         )
-        build_body['dryccfile']['deploy']['web']['healthcheck'] = {
-            'livenessProbe': {
-                'httpGet': {
-                    'path': '/healthz',
-                    'port': 8080,
-                },
-                'initialDelaySeconds': 3,
-                'periodSeconds': 3,
-            }
-        }
-        with mock.patch('scheduler.resources.pod.Pod.watch') as mock_kube:
-            mock_kube.return_value = ['up', 'down']
-            url = f"/v2/apps/{app_id}/build"
-            response = self.client.post(url, build_body)
-            self.assertEqual(response.status_code, 201, response.data)
 
-        release = app.release_set.latest()
-        self.assertEqual(release.failed, False)
-        self.assertEqual(
-            release.config.healthcheck['web'],
-            build_body['dryccfile']['deploy']['web']['healthcheck'],
-        )
         # test use old config and healthcheck
         new_build_body = copy.deepcopy(build_body)
         del new_build_body['dryccfile']['config']
-        del new_build_body['dryccfile']['deploy']['web']['config']
-        del new_build_body['dryccfile']['deploy']['web']['healthcheck']
+        del new_build_body['dryccfile']['pipeline']['web.yaml']['env']
+        del new_build_body['dryccfile']['pipeline']['web.yaml']['config']
         with mock.patch('scheduler.resources.pod.Pod.watch') as mock_kube:
             mock_kube.return_value = ['up', 'down']
             url = f"/v2/apps/{app_id}/build"
@@ -913,14 +914,13 @@ class ConfigTest(DryccTransactionTestCase):
             self.assertEqual(response.status_code, 201, response.data)
         release = app.release_set.latest()
         self.assertEqual(release.failed, False)
-        self.assertEqual(release.config.healthcheck, release.previous().config.healthcheck)
         self.assertEqual(release.config.values, release.previous().config.values)
         self.assertEqual(release.config.values_refs, release.previous().config.values_refs)
         # set empty
         new_build_body = copy.deepcopy(build_body)
-        new_build_body['dryccfile']['config'] = []
-        new_build_body['dryccfile']['deploy']['web']['config'] = {}
-        new_build_body['dryccfile']['deploy']['web']['healthcheck'] = {}
+        new_build_body['dryccfile']['config'] = {}
+        new_build_body['dryccfile']['pipeline']['web.yaml']['env'] = {}
+        new_build_body['dryccfile']['pipeline']['web.yaml']['config'] = []
         with mock.patch('scheduler.resources.pod.Pod.watch') as mock_kube:
             mock_kube.return_value = ['up', 'down']
             url = f"/v2/apps/{app_id}/build"
@@ -928,6 +928,5 @@ class ConfigTest(DryccTransactionTestCase):
             self.assertEqual(response.status_code, 201, response.data)
         release = app.release_set.latest()
         self.assertEqual(release.failed, False)
-        self.assertEqual(release.config.healthcheck, {'web': {}})
         self.assertEqual(release.config.envs("web"), {"WEBSITE": "www.drycc.cc"})
         self.assertEqual(release.config.values_refs, {})

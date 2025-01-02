@@ -747,31 +747,44 @@ class BuildTest(DryccTransactionTestCase):
             'image': 'autotest/example',
             'stack': 'heroku-18',
             'sha': 'a'*40,
-            'dryccfile': {
-                "build": {
-                    "docker": {"web": "Dockerfile", "worker": "worker/Dockerfile"},
-                    "config": [
-                        {"name": "FOO", "value": "bar"},
-                        {"name": "RAILS_ENV", "value": "development"},
-                    ],
-                },
-                "run": {
-                    "web": {"command": ["./deployment-tasks.sh"], "image": run_image},
-                    "worker": {"command": ["./deployment-tasks.sh"], "image": run_image},
-                },
-                "deploy": {
-                    "web": {
-                        "command": ["bash", "-c"],
-                        "args": ["bundle exec puma -C config/puma.rb"],
-                        "image": "127.0.0.1:7070/myapp/web:git-123fsa1"
+            "dryccfile": {
+                "pipeline": {
+                    "web.yaml": {
+                        "kind": "pipeline",
+                        "ptype": "web",
+                        "build": {
+                            "docker": "Dockerfile",
+                            "arg": {
+                                "FOO": "bar",
+                                "RAILS_ENV": "development",
+                            },
+                        },
+                        "run": {"command": ["./deployment-tasks.sh"], "image": run_image},
+                        "deploy": {
+                            "command": ["bash", "-c"],
+                            "args": ["bundle exec puma -C config/puma.rb"],
+                            "image": "127.0.0.1:7070/myapp/web:git-123fsa1",
+                        },
                     },
-                    "worker": {
-                        "command": ["bash", "-c"],
-                        "args": ["python myworker.py"],
-                        "image": "127.0.0.1:7070/myapp/worker:git-123fsa1"
-                    }
-                }
-            }
+                    "worker.yaml": {
+                        "kind": "pipeline",
+                        "ptype": "worker",
+                        "build": {
+                            "docker": "worker/Dockerfile",
+                            "arg": {
+                                "FOO": "bar",
+                                "RAILS_ENV": "development",
+                            },
+                        },
+                        "run": {"command": ["./deployment-tasks.sh"], "image": run_image},
+                        "deploy": {
+                            "command": ["bash", "-c"],
+                            "args": ["python myworker.py"],
+                            "image": "127.0.0.1:7070/myapp/worker:git-123fsa1"
+                        },
+                    },
+                },
+            },
         }
         with mock.patch('scheduler.resources.pod.Pod.watch') as mock_kube:
             mock_kube.return_value = ['up', 'down']
@@ -802,14 +815,31 @@ class BuildTest(DryccTransactionTestCase):
             'stack': 'heroku-18',
             'sha': 'a'*40,
             'dryccfile': {
-                "build": {
-                    "docker": {"web": "Dockerfile", "worker": "worker/Dockerfile"},
-                    "config": [
-                        {"name": "FOO", "value": "bar"},
-                        {"name": "RAILS_ENV", "value": "development"},
-                    ],
+                "pipeline": {
+                    "web.yaml": {
+                        "kind": "pipeline",
+                        "ptype": "web",
+                        "build": {
+                            "docker": "Dockerfile",
+                            "arg": {
+                                "FOO": "bar",
+                                "RAILS_ENV": "development",
+                            },
+                        },
+                    },
+                    "worker.yaml": {
+                        "kind": "pipeline",
+                        "ptype": "worker",
+                        "build": {
+                            "docker": "worker/Dockerfile",
+                            "arg": {
+                                "FOO": "bar",
+                                "RAILS_ENV": "development",
+                            },
+                        },
+                    },
                 },
-            }
+            },
         }
         with mock.patch('scheduler.resources.pod.Pod.watch') as mock_kube:
             mock_kube.return_value = ['up', 'down']
@@ -817,29 +847,19 @@ class BuildTest(DryccTransactionTestCase):
             url = f"/v2/apps/{app_id}/build"
             response = self.client.post(url, body)
             self.assertEqual(response.status_code, 400, response.data)
-            body['dryccfile']['deploy'] = {
-                "web-new": {
-                    'image': "127.0.0.1/cat/cat"
-                }
-            }
+            body['dryccfile']['pipeline']["web.yaml"]['deploy'] = {'image': "127.0.0.1/cat/cat"}
+            response = self.client.post(url, body)
+            self.assertEqual(response.status_code, 400, response.data)
+            body['dryccfile']['pipeline']["worker.yaml"]['deploy'] = {'image': "127.0.0.1/cat/cat"}
             response = self.client.post(url, body)
             self.assertEqual(response.status_code, 201, response.data)
-            del body['dryccfile']['deploy']['web-new']
-            body['dryccfile']['deploy'] = {
-                "web": {
-                    'image': "127.0.0.1/cat/cat"
-                }
-            }
+            body['dryccfile']['pipeline']["web.yaml"]['run'] = {
+                'command': ["bash", "-c"], 'args': ["ls /"]}
+            body['dryccfile']['pipeline']["worker.yaml"]['run'] = {
+                'command': ["bash", "-c"], 'args': ["ls /"]}
             response = self.client.post(url, body)
             self.assertEqual(response.status_code, 201, response.data)
-
-            body['dryccfile']['run'] = {
-                "web": {'command': ["bash", "-c"], 'args': ["ls /"]},
-                "web-new": {'command': ["bash", "-c"], 'args': ["ls /"]},
-            }
-            response = self.client.post(url, body)
-            self.assertEqual(response.status_code, 201, response.data)
-            body['dryccfile']['deploy'] = {}
+            body['dryccfile']['pipeline']["web.yaml"] = {}
             response = self.client.post(url, body)
             self.assertEqual(response.status_code, 400, response.data)
             body['dryccfile'] = {}
