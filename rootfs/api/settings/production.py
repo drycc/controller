@@ -300,6 +300,9 @@ GATEWAY_CLASS = os.environ.get('DRYCC_GATEWAY_CLASS', '')
 
 IMAGE_PULL_POLICY = os.environ.get('IMAGE_PULL_POLICY', "IfNotPresent")
 
+# apply task size
+DRYCC_APPLY_TASKS = int(os.environ.get('DRYCC_APPLY_TASKS', '20'))
+
 # Drycc filer image
 # Provide get and put operations for `drycc volumes:client`
 DRYCC_FILER_IMAGE = os.environ.get('DRYCC_FILER_IMAGE', 'registry.drycc.cc/drycc/filer:canary')
