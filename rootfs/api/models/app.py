@@ -563,7 +563,7 @@ class App(UuidAuditedModel):
                     'release': labels['version'],
                     'ready': "%s/%s" % (
                         p["status"].get("readyReplicas", 0),
-                        p["status"].get("replicas", 0),
+                        p['spec'].get("replicas", 0),
                     ),
                     'garbage': False if labels['type'] in ptypes else True,
                     'up_to_date': p["status"].get("updatedReplicas", 0),
