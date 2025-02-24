@@ -524,14 +524,14 @@ class Pod(Resource):
             'RegistryUnavailable',
             'ErrImageInspect',
             "CreateContainerError",
+            "CrashLoopBackOff",
         ]
         # Image event reason mapping
         event_errors = {
             "Failed": "FailedToPullImage",
             "InspectFailed": "FailedToInspectImage",
             "ErrImageNeverPull": "ErrImageNeverPullPolicy",
-            # Not including this one for now as the message is not useful
-            # "BackOff": "BackOffPullImage",
+            "BackOff": "CrashLoopBackOff",
             # FailedScheduling relates limits
             "FailedScheduling": "FailedScheduling",
         }
@@ -593,7 +593,13 @@ class Pod(Resource):
             pods = []
         for pod in pods:
             # only care about pods that are not starting or in the starting phases
-            if pod['status']['phase'] not in ['Pending', 'ContainerCreating']:
+            phase = pod['status']['phase']
+            name = '{}-{}'.format(pod['metadata']['labels']['app'],
+                                  pod['metadata']['labels']['type'])
+            container = self.find_container(name, pod['status']['containerStatuses'])
+            # phase is Running, but state is waiting in CrashLoopBackOff
+            if phase not in ['Pending', 'ContainerCreating'] and \
+                    (phase == 'Running' and 'waiting' not in container['state'].keys()):
                 continue
 
             # Get more information on why a pod is pending
