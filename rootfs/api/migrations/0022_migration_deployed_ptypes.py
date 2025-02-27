@@ -20,7 +20,7 @@ def migration_deployed_ptypes(apps, schema_editor):
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('api', '0016_remove_route_port_remove_route_ptype_and_more'),
+        ('api', '0021_migration_dryccfile'),
     ]
 
     operations = [

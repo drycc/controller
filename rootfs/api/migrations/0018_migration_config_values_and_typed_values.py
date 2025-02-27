@@ -35,7 +35,7 @@ def migration_values(apps, schema_editor):
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('api', '0018_config_values_refs'),
+        ('api', '0017_config_values_refs'),
     ]
 
     operations = [

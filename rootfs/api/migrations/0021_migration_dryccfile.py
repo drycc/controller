@@ -37,7 +37,7 @@ def migration_dryccfile(apps, schema_editor):
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('api', '0021_limitplan_runtime_class_name'),
+        ('api', '0020_limitplan_runtime_class_name'),
     ]
 
     operations = [

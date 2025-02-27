@@ -6,7 +6,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('api', '0020_remove_config_typed_values_alter_config_values'),
+        ('api', '0019_remove_config_typed_values_alter_config_values'),
     ]
 
     operations = [
