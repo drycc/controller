@@ -293,8 +293,9 @@ class Release(UuidAuditedModel):
             replica_sets = []
         for replica_set in replica_sets:
             current_version_name = replica_set['metadata']['labels']['version']
-            # skip the latest release
-            if current_version_name == self.version_name:
+            # skip the later release
+            current_version = int(current_version_name[1:])
+            if current_version >= self.version:
                 continue
 
             # aggregate versions together to removal all at once
@@ -313,9 +314,9 @@ class Release(UuidAuditedModel):
         # handle Deployments specific cleanups
         self._cleanup_deployment_secrets_and_configs(self.app.id, ptypes)
         # Remove stray pods
-        self._cleanup_stray_pods(self.app.id, ptypes, self.version_name)
+        self._cleanup_stray_pods(self.app.id, ptypes, self.version)
 
-    def _cleanup_stray_pods(self, namespace, ptypes, latest_version_name):
+    def _cleanup_stray_pods(self, namespace, ptypes, latest_version):
         labels = {'heritage': 'drycc'}
         if ptypes is not None:
             labels['type__in'] = ptypes
@@ -326,9 +327,9 @@ class Release(UuidAuditedModel):
             if self.scheduler().pod.deleted(pod):
                 continue
 
-            current_version_name = pod['metadata']['labels']['version']
-            # skip the latest release
-            if current_version_name == latest_version_name:
+            current_version = int(pod['metadata']['labels']['version'][1:])
+            # skip the later release
+            if current_version >= latest_version:
                 continue
 
             try:
@@ -355,8 +356,11 @@ class Release(UuidAuditedModel):
         if not replicasets:
             replicasets = []
         for replicaset in replicasets:
+            replica_version = int(replicaset['metadata']['labels']['version'][1:])
+            # only remove the older releases secret
             if (
                 'version' not in replicaset['metadata']['labels'] or
+                replica_version < self.version or
                 replicaset['metadata']['labels']['version'] in version_names
             ):
                 continue
