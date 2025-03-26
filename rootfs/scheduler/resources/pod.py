@@ -413,7 +413,7 @@ class Pod(Resource):
         """Check if the pod container have passed the readiness probes"""
         name = '{}-{}'.format(pod['metadata']['labels']['app'], pod['metadata']['labels']['type'])
         # find the right container in case there are many on the pod
-        container = self.find_container(name, pod['status']['containerStatuses'])
+        container = self.find_container(name, pod['status'].get('containerStatuses', []))
         if container is None:
             # Seems like the most sensible default
             return 'Unknown'
@@ -466,7 +466,7 @@ class Pod(Resource):
 
         name = '{}-{}'.format(pod['metadata']['labels']['app'], pod['metadata']['labels']['type'])
         # find the right container in case there are many on the pod
-        container = self.pod.find_container(name, pod['status']['containerStatuses'])
+        container = self.find_container(name, pod['status'].get('containerStatuses', []))
         if container is None:
             # Return Pending if nothing else can be found
             return 'Pending', ''
@@ -596,7 +596,7 @@ class Pod(Resource):
             phase = pod['status']['phase']
             name = '{}-{}'.format(pod['metadata']['labels']['app'],
                                   pod['metadata']['labels']['type'])
-            container = self.find_container(name, pod['status']['containerStatuses'])
+            container = self.find_container(name, pod['status'].get('containerStatuses', []))
             # phase is Running, but state is waiting in CrashLoopBackOff
             if phase not in ['Pending', 'ContainerCreating'] and \
                     (phase == 'Running' and 'waiting' not in container['state'].keys()):
@@ -748,7 +748,7 @@ class Pod(Resource):
 
             name = '{}-{}'.format(pod['metadata']['labels']['app'], pod['metadata']['labels']['type'])  # noqa
             # find the right container in case there are many on the pod
-            container = self.find_container(name, pod['status']['containerStatuses'])
+            container = self.find_container(name, pod['status'].get('containerStatuses', []))
             if container is None or container['ready'] == 'true':
                 continue
 

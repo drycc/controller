@@ -13,7 +13,7 @@ from django.core.exceptions import SuspiciousOperation
 from django.contrib.auth import get_user_model
 from rest_framework.exceptions import ValidationError
 from api.utils import validate_label
-from api.exceptions import AlreadyExists, ServiceUnavailable
+from api.exceptions import ServiceUnavailable
 from scheduler import KubeException
 from .base import AuditedModel
 from .domain import Domain
@@ -192,7 +192,7 @@ class Certificate(AuditedModel):
     def attach(self, *args, **kwargs):
         # add the certificate to the domain
         domain = get_object_or_404(Domain, domain=kwargs['domain'])
-        ## create in kubernetes
+        # create in kubernetes
         self.attach_in_kubernetes(domain)
         domain.certificate = self
         domain.save()

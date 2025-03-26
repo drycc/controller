@@ -268,7 +268,7 @@ class Config(UuidAuditedModel):
 
     def _update_termination_grace_period(self, previous_config, replace_ptypes=[]):
         data = {
-            k: v for k, v in getattr(previous_config, 'termination_grace_period', {}).copy().items()
+            k: v for k, v in getattr(previous_config, 'termination_grace_period', {}).copy().items()  # noqa
             if k not in replace_ptypes
         }
         new_data = getattr(self, 'termination_grace_period', {}).copy()
