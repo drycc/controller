@@ -265,3 +265,18 @@ class Config(UuidAuditedModel):
                         "the %s has already been used and cannot be deleted" % ptype)
         self._merge_data('limits', data, new_data)
         setattr(self, 'limits', data)
+
+    def _update_termination_grace_period(self, previous_config, replace_ptypes=[]):
+        data = {
+            k: v for k, v in getattr(previous_config, 'termination_grace_period', {}).copy().items()
+            if k not in replace_ptypes
+        }
+        new_data = getattr(self, 'termination_grace_period', {}).copy()
+        # check procfile
+        for ptype, value in new_data.items():
+            if value is None:
+                if ptype in self.app.ptypes:
+                    raise UnprocessableEntity(
+                        "the %s has already been used and cannot be deleted" % ptype)
+        self._merge_data('termination_grace_period', data, new_data)
+        setattr(self, 'termination_grace_period', data)
