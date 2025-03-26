@@ -192,9 +192,7 @@ class Certificate(AuditedModel):
     def attach(self, *args, **kwargs):
         # add the certificate to the domain
         domain = get_object_or_404(Domain, domain=kwargs['domain'])
-        if domain.certificate is not None:
-            raise AlreadyExists("Domain already has a certificate attached to it")
-        # create in kubernetes
+        ## create in kubernetes
         self.attach_in_kubernetes(domain)
         domain.certificate = self
         domain.save()
