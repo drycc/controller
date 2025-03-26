@@ -222,7 +222,7 @@ class Route(AuditedModel):
     @property
     def tls_force_hostnames(self):
         tls = self.app.tls_set.latest()
-        q = Q(ptype__int=[s.ptype for s in self.services])
+        q = Q(ptype__in=[s.ptype for s in self.services])
         if not tls.certs_auto_enabled:
             q &= Q(certificate__isnull=False)
         domains = self.app.domain_set.filter(q)
