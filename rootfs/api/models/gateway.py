@@ -222,7 +222,7 @@ class Route(AuditedModel):
     @property
     def tls_force_hostnames(self):
         tls = self.app.tls_set.latest()
-        q = Q(ptype__int=[s.ptype for s in self.services])
+        q = Q(ptype__in=[s.ptype for s in self.services])
         if not tls.certs_auto_enabled:
             q &= Q(certificate__isnull=False)
         domains = self.app.domain_set.filter(q)
@@ -260,7 +260,8 @@ class Route(AuditedModel):
         if self.routable:
             parent_refs, http_parent_refs = self._get_all_parent_refs()
             tls = self.app.tls_set.latest()
-            if tls.https_enforced and self.kind == "HTTPRoute":
+            # requestRedirect only when has tls or certs
+            if tls.https_enforced and self.kind == "HTTPRoute" and self.tls_force_hostnames:
                 self._https_enforced_to_k8s(http_parent_refs)
             elif self.kind == "HTTPRoute":
                 parent_refs.extend(http_parent_refs)

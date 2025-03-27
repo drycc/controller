@@ -168,8 +168,8 @@ class CertificateUseCase4Test(DryccTestCase):
             '{}/{}/domain/'.format(self.url, 'bar-com'),
             {'domain': 'foo.com'}
         )
-        # Should be a 409 Conflict since it already existed
-        self.assertEqual(response.status_code, 409)
+        # allow re attach to update
+        self.assertEqual(response.status_code, 201)
 
         # Assert that domain and cert are still the original
         response = self.client.get(
@@ -180,7 +180,7 @@ class CertificateUseCase4Test(DryccTestCase):
         expected = {
             'name': 'foo-com',
             'common_name': 'foo.com',
-            'domains': ['foo.com']
+            'domains': []
         }
         for key, value in list(expected.items()):
             self.assertEqual(
@@ -197,7 +197,7 @@ class CertificateUseCase4Test(DryccTestCase):
         expected = {
             'name': 'bar-com',
             'common_name': 'bar.com',
-            'domains': []
+            'domains': ['foo.com']
         }
         for key, value in list(expected.items()):
             self.assertEqual(
