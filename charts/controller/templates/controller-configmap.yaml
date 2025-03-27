@@ -23,3 +23,21 @@ data:
     {{- else}}
     {{- include "controller.config.defaultLimitPlans" . | fromYamlArray | toPrettyJson | nindent 4 }}
     {{- end }}
+  secret-template.json: |
+    {{- if .Values.config.secretTemplate }}
+    {{- (tpl .Values.config.secretTemplate $)  | nindent 4 }}
+    {{- else}}
+    {{- include "controller.config.defaultSecretTemplate" . | fromYaml | toPrettyJson | nindent 4 }}
+    {{- end }}
+  volume-template.json: |
+    {{- if .Values.config.volumeTemplate }}
+    {{- (tpl .Values.config.volumeTemplate $)  | nindent 4 }}
+    {{- else}}
+    {{- include "controller.config.defaultVolumeTemplate" . | fromYaml | toPrettyJson | nindent 4 }}
+    {{- end }}
+  volume-claim-template.json: |
+    {{- if .Values.config.volumeClaimTemplate }}
+    {{- (tpl .Values.config.volumeClaimTemplate $)  | nindent 4 }}
+    {{- else}}
+    {{- include "controller.config.defaultVolumeClaimTemplate" . | fromYaml | toPrettyJson | nindent 4 }}
+    {{- end }}

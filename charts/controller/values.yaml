@@ -73,6 +73,9 @@ config:
   metrics: ""
   limitSpecs: ""
   limitPlans: ""
+  secretTemplate: ""
+  volumeTemplate: ""
+  volumeClaimTemplate: ""
 
 # Service
 service:

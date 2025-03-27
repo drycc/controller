@@ -282,6 +282,30 @@ if os.path.exists(DRYCC_METRICS_CONFIG_PATH):
 DRYCC_METRICS_EXPIRY = int(os.environ.get('DRYCC_METRICS_EXPIRY', '20'))
 DRYCC_METRICS_INTERVAL = os.environ.get('DRYCC_METRICS_INTERVAL', '5m')
 
+# drycc secret template
+DRYCC_SECRET_TEMPLATE = {}
+DRYCC_SECRET_TEMPLATE_PATH = os.environ.get(
+    'DRYCC_SECRET_TEMPLATE_PATH', '/etc/controller/secret-template.json')
+if os.path.exists(DRYCC_SECRET_TEMPLATE_PATH):
+    with open(DRYCC_SECRET_TEMPLATE_PATH) as fd:
+        DRYCC_SECRET_TEMPLATE = json.load(fd)
+
+# drycc volume template
+DRYCC_VOLUME_TEMPLATE = {}
+DRYCC_VOLUME_TEMPLATE_PATH = os.environ.get(
+    'DRYCC_VOLUME_TEMPLATE_PATH', '/etc/controller/volume-template.json')
+if os.path.exists(DRYCC_VOLUME_TEMPLATE_PATH):
+    with open(DRYCC_VOLUME_TEMPLATE_PATH) as fd:
+        DRYCC_VOLUME_TEMPLATE = json.load(fd)
+
+# drycc volume claim template
+DRYCC_VOLUME_CLAIM_TEMPLATE = {}
+DRYCC_VOLUME_CLAIM_TEMPLATE_PATH = os.environ.get(
+    'DRYCC_VOLUME_CLAIM_TEMPLATE_PATH', '/etc/controller/volume-claim-template.json')
+if os.path.exists(DRYCC_VOLUME_CLAIM_TEMPLATE_PATH):
+    with open(DRYCC_VOLUME_CLAIM_TEMPLATE_PATH) as fd:
+        DRYCC_VOLUME_CLAIM_TEMPLATE = json.load(fd)
+
 # security keys and auth tokens
 random_secret = 'CHANGEME_sapm$s%upvsw5l_zuy_&29rkywd^78ff(qi*#@&*^'
 SECRET_KEY = os.environ.get('DRYCC_SECRET_KEY', random_secret)

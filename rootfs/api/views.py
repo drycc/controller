@@ -904,10 +904,15 @@ class AppVolumesViewSet(AppResourceViewSet):
                                  name=self.kwargs['name'])
 
     def expand(self, request, **kwargs):
-        volume = self.get_object()
-        volume.expand(request.data['size'])
-        serializer = self.get_serializer(volume, many=False)
-        return Response(serializer.data)
+        size, volume = request.data['size'], self.get_object()
+        if volume.type == "csi":
+            if utils.unit_to_bytes(request.data['size']) < utils.unit_to_bytes(volume.size):
+                raise DryccException('Shrink volume is not supported.')
+            volume.size = size
+            volume.save()
+            serializer = self.get_serializer(volume, many=False)
+            return Response(serializer.data)
+        raise DryccException(f'{volume.type} volume is not support expand.')
 
     def destroy(self, request, **kwargs):
         volume = self.get_object()

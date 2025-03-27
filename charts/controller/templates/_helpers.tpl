@@ -343,3 +343,84 @@ kubelet_volume_stats_inodes: [namespace, persistentvolumeclaim, job]
 kubelet_volume_stats_inodes_free: [namespace, persistentvolumeclaim, job]
 kubelet_volume_stats_inodes_used: [namespace, persistentvolumeclaim, job]
 {{- end }}
+
+
+{{/* Generate controller config default secrets template */}}
+{{ define "controller.config.defaultSecretTemplate" }}
+oss:
+  data:
+    key_id: $access_key
+    access_key: $secret_key
+{{- end }}
+
+{{/* Generate controller config default volume template */}}
+{{ define "controller.config.defaultVolumeTemplate" }}
+nfs:
+  spec:
+    capacity:
+      storage: 65535Gi
+    accessModes:
+    - ReadWriteMany
+    claimRef:
+      namespace: $namespace
+      name: $volume_claim_name
+    nfs:
+      server: $server
+      path: $path
+    mountOptions:
+    - nfsvers=4.2
+oss:
+  spec:
+    capacity:
+      storage: 65535Gi
+    accessModes:
+    - ReadWriteMany
+    storageClassName: ''
+    claimRef:
+      namespace: $namespace
+      name: $volume_claim_name
+    mountOptions:
+    - allow-delete
+    - force-path-style
+    - endpoint-url $server
+    csi:
+      driver: s3.csi.aws.com
+      volumeHandle: $volume_handle
+      volumeAttributes:
+        bucketName: $bucket
+        authenticationSource: secrets
+      nodePublishSecretRef:
+        name: $secret_name
+        namespace: $namespace
+{{- end }}
+
+{{/* Generate controller config default volume claim template */}}
+{{ define "controller.config.defaultVolumeClaimTemplate" }}
+csi:
+  spec:
+    accessModes:
+    - ReadWriteMany
+    storageClassName: $storage_class
+    resources:
+      requests:
+        storage: $size
+    volumeMode: Filesystem
+nfs:
+  spec:
+    accessModes:
+    - ReadWriteMany
+    storageClassName: ''
+    resources:
+      requests:
+        storage: $size
+    volumeName: $volume_name
+oss:
+  spec:
+    accessModes:
+    - ReadWriteMany
+    storageClassName: ''
+    resources:
+      requests:
+        storage: $size
+    volumeName: $volume_name
+{{- end }}

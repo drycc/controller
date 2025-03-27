@@ -161,7 +161,6 @@ class VolumeTest(DryccTransactionTestCase):
                     'nfs': {
                         'server': 'test.drycc.cc',
                         'path': '/',
-                        'readOnly': False,
                     }
                 }
             }

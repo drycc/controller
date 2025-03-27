@@ -7,9 +7,18 @@ SCHEMA = {
             "properties": {
                 "server": {"type": "string"},
                 "path": {"type": "string"},
-                "readOnly": {"type": "boolean"},
             },
-            "required": ["server", "path", "readOnly"],
+            "required": ["server", "path"],
+        },
+        "oss": {
+            "type": "object",
+            "properties": {
+                "bucket": {"type": "string"},
+                "server": {"type": "string"},
+                "access_key": {"type": "string"},
+                "secret_key": {"type": "string"},
+            },
+            "required": ["bucket", "server", "access_key", "secret_key"],
         },
     },
 }
