@@ -1175,12 +1175,8 @@ class App(UuidAuditedModel):
         k8s_volumes, k8s_volume_mounts = [], []
         if volumes:
             for volume in volumes:
-                k8s_volume = {"name": volume.name}
-                if volume.type == "csi":
-                    k8s_volume.update({"persistentVolumeClaim": {"claimName": volume.name}})
-                else:
-                    k8s_volume.update(volume.parameters)
-                k8s_volumes.append(k8s_volume)
+                k8s_volumes.append(
+                    {"name": volume.name, "persistentVolumeClaim": {"claimName": volume.name}})
                 k8s_volume_mounts.append(
                     {"name": volume.name, "mountPath": volume.path.get(ptype)})
         return k8s_volumes, k8s_volume_mounts

@@ -17,6 +17,7 @@ from rest_framework import serializers
 from api import models
 from api.utils import validate_json
 from api.exceptions import DryccException
+from api.models.volume import Volume
 from api.models.base import PTYPE_MIN_LENGTH, PTYPE_MAX_LENGTH
 from scheduler.resources.pod import DEFAULT_CONTAINER_PORT
 from .schemas import rules
@@ -49,7 +50,7 @@ CONFIG_LIMITS_MISMATCH_MSG = "The limit plan {} does not exist"
 TERMINATION_GRACE_PERIOD_MATCH = re.compile(r'^[0-9]*$')
 TERMINATION_GRACE_PERIOD_MISMATCH_MSG = (
     "Termination Grace Period format: %s" % TERMINATION_GRACE_PERIOD_MATCH.pattern)
-VOLUME_TYPE_MATCH = re.compile(r'^(csi|nfs)$')
+VOLUME_TYPE_MATCH = re.compile(r'^(%s)$' % "|".join([v[0] for v in Volume.TYPE_CHOICES]))
 VOLUME_TYPE_MISMATCH_MSG = "Volume type pattern: %s" % VOLUME_TYPE_MATCH.pattern
 VOLUME_SIZE_MATCH = re.compile(r'^(?P<volume>([1-9][0-9]*[gG]))$', re.IGNORECASE)
 VOLUME_SIZE_MISMATCH_MSG = (
@@ -627,10 +628,7 @@ class VolumeSerializer(serializers.ModelSerializer):
 
     app = serializers.SlugRelatedField(slug_field='id', queryset=models.app.App.objects.all())
     owner = serializers.ReadOnlyField(source='owner.username')
-    name = serializers.CharField()
-    size = serializers.CharField(required=False)
     path = JSONFieldSerializer(required=False, binary=True)
-    type = serializers.CharField(required=False)
     parameters = serializers.JSONField(required=False)
 
     class Meta:

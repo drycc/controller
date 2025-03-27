@@ -60,3 +60,34 @@ MIGRATION_MODULES = DisableMigrations()
 # WORKFLOW_MANAGER_URL = "http://127.0.0.1:8000"
 WORKFLOW_MANAGER_ACCESS_KEY = "1234567890"
 WORKFLOW_MANAGER_SECRET_KEY = "1234567890"
+
+DRYCC_VOLUME_CLAIM_TEMPLATE = {
+    "csi": {
+        "spec": {
+            "accessModes": [
+                "ReadWriteMany"
+            ],
+            "resources": {
+                "requests": {
+                    "storage": "$size"
+                }
+            },
+            "storageClassName": "$storage_class",
+            "volumeMode": "Filesystem"
+        }
+    },
+    "nfs": {
+        "spec": {
+            "accessModes": [
+                "ReadWriteMany"
+            ],
+            "resources": {
+                "requests": {
+                    "storage": "$size"
+                }
+            },
+            "storageClassName": "",
+            "volumeName": "$volume_name"
+        }
+    }
+}

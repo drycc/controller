@@ -17,20 +17,9 @@ class PersistentVolumeClaim(Resource):
                 "name": name,
                 "namespace": namespace,
                 'labels': labels
-            },
-            "spec": {
-                "accessModes": [
-                    "ReadWriteMany"
-                ],
-                "resources": {
-                    "requests": {
-                        "storage": kwargs.get('size')
-                    },
-                },
-                "storageClassName": kwargs.get("storage_class"),
-                "volumeMode": "Filesystem",
             }
         }
+        data.update(kwargs)
         if version:
             data["metadata"]["resourceVersion"] = version
         return data
