@@ -14,7 +14,6 @@ from scheduler.exceptions import KubeException, KubeHTTPException
 
 logger = logging.getLogger(__name__)
 session = None
-resource_mapping = OrderedDict()
 
 
 def get_k8s_session(k8s_api_verify_tls):
@@ -40,9 +39,9 @@ class KubeHTTPClient(object):
     api_prefix = 'api'
     # ISO-8601 which is used by kubernetes
     DATETIME_FORMAT = '%Y-%m-%dT%H:%M:%SZ'
+    resource_mapping = OrderedDict()
 
     def __init__(self, url, k8s_api_verify_tls=True):
-        global resource_mapping
         self.url = url
         self.k8s_api_verify_tls = k8s_api_verify_tls
         self.session = get_k8s_session(self.k8s_api_verify_tls)
@@ -53,33 +52,32 @@ class KubeHTTPClient(object):
             name = str(res.__name__).lower()  # singular
             component = name + 's'  # make plural
             # check if component has already been processed
-            if component in resource_mapping:
+            if component in self.resource_mapping:
                 continue
 
             # get past recursion problems in case of self reference
-            resource_mapping[component] = ''
-            resource_mapping[component] = res(self.url, self.k8s_api_verify_tls)
+            self.resource_mapping[component] = ''
+            self.resource_mapping[component] = res(self.url, self.k8s_api_verify_tls)
             # map singular Resource name to the plural one
-            resource_mapping[name] = component
+            self.resource_mapping[name] = component
             if res.short_name is not None:
                 # map short name to long name so a resource can be named rs
                 # but have the main object live at replicasets
-                resource_mapping[str(res.short_name).lower()] = component
+                self.resource_mapping[str(res.short_name).lower()] = component
 
     def api(self, tmpl, *args):
         """Return a fully-qualified Kubernetes API URL from a string template with args."""
         return "/{}/{}".format(self.api_prefix, self.api_version) + tmpl.format(*args)
 
     def __getattr__(self, name):
-        global resource_mapping
-        if name in resource_mapping:
+        if name in self.resource_mapping:
             # resolve to final name if needed
-            component = resource_mapping[name]
+            component = self.resource_mapping[name]
             if type(component) is not str:
                 # already a component object
                 return component
 
-            return resource_mapping[component]
+            return self.resource_mapping[component]
 
         return object.__getattribute__(self, name)
 

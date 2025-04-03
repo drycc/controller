@@ -15,6 +15,7 @@ steps:
     event:
     - tag
     - push
+    - cron
 
 - name: publish-manifest
   image: bash
@@ -36,6 +37,7 @@ steps:
     event:
     - tag
     - push
+    - cron
 
 depends_on:
 - build-linux
