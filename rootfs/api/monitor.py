@@ -28,7 +28,7 @@ by (pod)
 
 
 query_memory_usage_promql_tpl = """
-sum (rate (container_memory_working_set_bytes{pod=~"^%s-.*$",namespace="%s"}[%s]))
+sum (avg_over_time (container_memory_working_set_bytes{pod=~"^%s-.*$",namespace="%s"}[%s]))
 by (pod)
 """
 
