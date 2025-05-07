@@ -1149,12 +1149,12 @@ class App(UuidAuditedModel):
             password = registry.get('password')
         elif settings.REGISTRY_LOCATION == 'off-cluster':
             secret = self.scheduler().secret.get(
-                settings.WORKFLOW_NAMESPACE, 'registry-secret').json()
-            username = secret['data']['username']
-            password = secret['data']['password']
-            hostname = secret['data']['hostname']
+                settings.WORKFLOW_NAMESPACE, 'controller-creds').json()
+            hostname = secret['data']['registry-host']
             if hostname == '':
                 hostname = docker_auth.INDEX_URL
+            username = secret['data']['registry-username']
+            password = secret['data']['registry-password']
             name = name + '-' + settings.REGISTRY_LOCATION
         else:
             return None, None, None

@@ -11,9 +11,9 @@ env:
 - name: "K8S_API_VERIFY_TLS"
   value: "{{ .Values.k8sApiVerifyTls }}"
 - name: "DRYCC_REGISTRY_LOCATION"
-  value: "{{ .Values.global.registryLocation }}"
+  value: {{ ternary "on-cluster" "off-cluster" .Values.registry.enabled }}
 - name: "DRYCC_REGISTRY_SECRET_PREFIX"
-  value: "{{ .Values.global.registrySecretPrefix }}"
+  value: "{{ .Values.registrySecretPrefix }}"
 - name: "IMAGE_PULL_POLICY"
   value: "{{ .Values.appImagePullPolicy }}"
 - name: "DRYCC_FILER_IMAGE"
@@ -63,7 +63,7 @@ env:
     secretKeyRef:
       name: controller-creds
       key: valkey-url
-{{- else if eq .Values.global.valkeyLocation "on-cluster"  }}
+{{- else if .Values.valkey.enabled }}
 - name: VALKEY_PASSWORD
   valueFrom:
     secretKeyRef:
@@ -85,7 +85,7 @@ env:
     secretKeyRef:
       name: controller-creds
       key: database-url
-{{- else if eq .Values.global.databaseLocation "on-cluster"  }}
+{{- else if .Values.database.enabled }}
 - name: DRYCC_PG_USER
   valueFrom:
     secretKeyRef:
@@ -119,7 +119,7 @@ env:
     secretKeyRef:
       name: controller-creds
       key: prometheus-url
-{{- else if eq .Values.global.prometheusLocation "on-cluster" }}
+{{- else if .Values.prometheus.enabled }}
 - name: "DRYCC_PROMETHEUS_USERNAME"
   valueFrom:
     secretKeyRef:
@@ -133,7 +133,7 @@ env:
 - name: "DRYCC_PROMETHEUS_URL"
   value: "http://$(DRYCC_PROMETHEUS_USERNAME):$(DRYCC_PROMETHEUS_PASSWORD)@drycc-prometheus.{{$.Release.Namespace}}.svc.{{$.Values.global.clusterDomain}}:9090"
 {{- end }}
-{{- if eq .Values.global.passportLocation "on-cluster"}}
+{{- if .Values.passport.enabled }}
 - name: "DRYCC_PASSPORT_URL"
 {{- if .Values.global.certManagerEnabled }}
   value: https://drycc-passport.{{ .Values.global.platformDomain }}

@@ -510,13 +510,13 @@ class BuildTest(DryccTransactionTestCase):
         self.assertEqual(response.status_code, 200, response.data)
         self.assertEqual(len(response.data['results']), 0)
 
-    def test_build_image_in_registry(self, mock_requests):
+    def test_build_image_in_registry_ok(self, mock_requests):
         """When the image is already in the drycc registry no pull/tag/push happens"""
         app_id = self.create_app()
 
         # post an image as a build using registry hostname
         url = f"/v2/apps/{app_id}/build"
-        image = '127.0.0.1:5000/autotest/example'
+        image = 'registry.drycc.cc:5000/autotest/example'
         body = {'image': image, 'stack': 'container'}
         response = self.client.post(url, body)
         self.assertEqual(response.status_code, 201, response.data)
@@ -527,7 +527,7 @@ class BuildTest(DryccTransactionTestCase):
 
         # post an image as a build using registry hostname + port
         url = f"/v2/apps/{app_id}/build"
-        image = '127.0.0.1:5000/autotest/example'
+        image = 'registry.drycc.cc:5000/autotest/example'
         body = {'image': image, 'stack': 'container'}
         response = self.client.post(url, body)
         self.assertEqual(response.status_code, 201, response.data)
@@ -535,6 +535,18 @@ class BuildTest(DryccTransactionTestCase):
         build = Build.objects.get(uuid=response.data['uuid'])
         release = build.app.release_set.latest()
         self.assertEqual(release.get_deploy_image(PTYPE_WEB), image)
+
+    def test_build_image_in_registry_err(self, mock_requests):
+        """When the image is already in the drycc registry no pull/tag/push happens"""
+        app_id = self.create_app()
+
+        # post an image as a build using registry hostname
+        url = f"/v2/apps/{app_id}/build"
+        for host in ['127.0.0.1', 'localhost', 'localhost:5000', '127.0.0.1:5000']:
+            image = f'{host}/autotest/example'
+            body = {'image': image, 'stack': 'container'}
+            response = self.client.post(url, body)
+            self.assertEqual(response.status_code, 400, response.data)
 
     def test_build_image_in_registry_with_auth(self, mock_requests):
         """add authentication to the build"""

@@ -44,6 +44,7 @@ from api.files.parsers import FilerUploadParser
 
 User = get_user_model()
 logger = logging.getLogger(__name__)
+is_loopback = re.compile(r'^(localhost|127\.0\.0\.1)(:\d+)?/').match
 oauth_cache_manager = OauthCacheManager()
 NAMESPACE = getattr(settings, setting_name('URL_NAMESPACE'), None) or 'social'
 
@@ -352,6 +353,10 @@ class BuildViewSet(ReleasableViewSet):
     serializer_class = serializers.BuildSerializer
 
     def post_save(self, build):
+        for ptype in build.ptypes:
+            image = build.get_image(ptype)
+            if is_loopback(image):
+                raise DryccException("image must not use the loopback address")
         build.create_release(self.request.user)
         super(BuildViewSet, self).post_save(build)
 

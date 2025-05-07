@@ -1093,14 +1093,14 @@ class MockSchedulerClient(KubeHTTPClient):
             self.secret.create('drycc', 'objectstorage-keyfile', secrets)
 
         try:
-            self.secret.get('drycc', 'registry-secret')
+            self.secret.get('drycc', 'controller-creds')
         except KubeHTTPException:
             secrets = {
-                'username': 'test',
-                'password': 'test',
-                'hostname': ''
+                'registry-host': '',
+                'registry-username': 'test',
+                'registry-password': 'test',
             }
-            self.secret.create('drycc', 'registry-secret', secrets)
+            self.secret.create('drycc', 'controller-creds', secrets)
 
         try:
             self.ns.get('duplicate')

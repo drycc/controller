@@ -138,7 +138,7 @@ class ReleaseTest(DryccTransactionTestCase):
         app_id = self.create_app()
         url = f"/v2/apps/{app_id}/build"
         body = {
-            'image': '127.0.0.1:5555/autotest/example:git-fadf1231',
+            'image': 'registry.drycc.cc:5555/autotest/example:git-fadf1231',
             'stack': 'heroku-18',
             'sha': 'a'*40,
             'dryccfile': {
@@ -206,15 +206,15 @@ class ReleaseTest(DryccTransactionTestCase):
                         "deploy": {
                             "command": ["bash", "-c"],
                             "args": ["bundle exec puma -C config/puma.rb"],
-                            "image": "127.0.0.1:7070/myapp/web:git-123fsa1",
+                            "image": "registry.drycc.cc:7070/myapp/web:git-123fsa1",
                         },
                     },
                 },
             },
         }
-        default_image = '127.0.0.1:5555/autotest/example:git-fadf1231'
-        worker_image = "127.0.0.1:5555/autotest/example:git-fadf1231-worker"
-        worker_4_image = "127.0.0.1:7070/myapp/web:git-123fsa1"
+        default_image = 'registry.drycc.cc:5555/autotest/example:git-fadf1231'
+        worker_image = "registry.drycc.cc:5555/autotest/example:git-fadf1231-worker"
+        worker_4_image = "registry.drycc.cc:7070/myapp/web:git-123fsa1"
 
         with mock.patch('scheduler.resources.pod.Pod.watch') as mock_kube:
             mock_kube.return_value = ['up', 'down']

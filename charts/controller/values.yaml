@@ -35,7 +35,7 @@ appImagePullPolicy: "Always"
 filerImage: "registry.drycc.cc/drycc/filer:canary"
 filerImagePullPolicy: "Always"
 # Set storageClassName. It is used for application.
-appStorageClass: "{{ .Values.storage.csi.storageClassName }}"
+appStorageClass: "longhorn"
 # Set runtimeClassName. It is used for application.
 appRuntimeClass: ""
 # Set appDNSPolicy. It is used for application.
@@ -63,10 +63,14 @@ databaseReplicaUrl: ""
 passportUrl: ""
 passportKey: ""
 passportSecret: ""
+# prometheusUrl is will no longer use the built-in prometheus component
+prometheusUrl: ""
 # Workflow-manager Configuration Options
 workflowManagerUrl: ""
 workflowManagerAccessKey: ""
 workflowManagerSecretKey: ""
+# Prefix for the imagepull secret created when using private registry
+registrySecretPrefix: "private-registry"
 
 # limit specs, plans config
 config:
@@ -133,41 +137,26 @@ mutate:
     extraMatchLabels:
       component: "drycc-controller-mutate"
 
-storage:
-  csi:
-    storageClassName: drycc-storage
+valkey:
+  enabled: true
+
+database:
+  enabled: true
+
+registry:
+  enabled: true
+
+passport:
+  enabled: true
+
+prometheus:
+  enabled: true
 
 global:
   # Admin email, used for each component to send email to administrator
   email: "drycc@drycc.cc"
-  # Set the storage backend
-  #
-  # Valid values are:
-  # - s3: Store persistent data in AWS S3 (configure in S3 section)
-  # - azure: Store persistent data in Azure's object storage
-  # - gcs: Store persistent data in Google Cloud Storage
-  # - minio: Store persistent data on in-cluster Minio server
-  storage: minio
-  # Set the location of Workflow's PostgreSQL database
-  #
-  # Valid values are:
-  # - on-cluster: Run PostgreSQL within the Kubernetes cluster (credentials are generated
-  #   automatically; backups are sent to object storage
-  #   configured above)
-  # - off-cluster: Run PostgreSQL outside the Kubernetes cluster (configure in database section)
-  databaseLocation: "on-cluster"
-  # Set the location of Workflow's Registry
-  #
-  # Valid values are:
-  # - on-cluster: Run registry within the Kubernetes cluster
-  # - off-cluster: Use registry outside the Kubernetes cluster (example: drycc registry,self-hosted)
-  registryLocation: "on-cluster"
-  # Prefix for the imagepull secret created when using private registry
-  registrySecretPrefix: "private-registry"
   # GatewayClass is cluster-scoped resource defined by the infrastructure provider.
   gatewayClass: ""
-  # Please check `kubernetes.io/ingress.class`
-  ingressClass: ""
   # A domain name consists of one or more parts.
   # Periods (.) are used to separate these parts.
   # Each part must be 1 to 63 characters in length and can contain lowercase letters, digits, and hyphens (-).
@@ -179,10 +168,3 @@ global:
   platformDomain: ""
   # Whether cert_manager is enabled to automatically generate controller certificates
   certManagerEnabled: true
-  passportLocation: "on-cluster"
-  # Set the location of Workflow's prometheus cluster
-  #
-  # Valid values are:
-  # - on-cluster: Run prometheus within the Kubernetes cluster
-  # - off-cluster: prometheus is running outside of the cluster and credentials and connection information will be provided.
-  prometheusLocation: "on-cluster"
