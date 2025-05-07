@@ -1,4 +1,3 @@
-{{- if (.Values.global.rbac) -}}
 kind: ClusterRoleBinding
 apiVersion: rbac.authorization.k8s.io/v1
 metadata:
@@ -14,4 +13,3 @@ subjects:
 - kind: ServiceAccount
   name: drycc-controller
   namespace: {{ .Release.Namespace }}
-{{- end -}}
