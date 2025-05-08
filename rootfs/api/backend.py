@@ -33,14 +33,12 @@ class DryccOIDC(OpenIdConnectAuth):
     ]
 
     def __init__(self, *args, **kwargs):
-        self.timeout = 3  # request timeout
         super().__init__(*args, **kwargs)
 
     @social_cache(ttl=86400)
     def oidc_config(self):
         return self.get_json(
-            self.OIDC_ENDPOINT + '/.well-known/openid-configuration/',
-            timeout=self.timeout
+            self.OIDC_ENDPOINT + '/.well-known/openid-configuration/'
         )
 
     def get_user_data(self, access_token):
@@ -51,7 +49,6 @@ class DryccOIDC(OpenIdConnectAuth):
             headers={
                 'authorization': 'Bearer ' + access_token
             },
-            timeout=self.timeout,
         )
         return {
             'id': response.get('id'),
@@ -73,7 +70,6 @@ class DryccOIDC(OpenIdConnectAuth):
                 'client_id': settings.SOCIAL_AUTH_DRYCC_KEY,
                 'refresh_token': refresh_token,
             },
-            timeout=self.timeout,
         )
 
 
