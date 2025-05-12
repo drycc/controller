@@ -51,7 +51,10 @@ spec:
           - -c
           - celery --app api worker --queues controller.low,controller.middle,controller.high --autoscale=32,1 --loglevel=WARNING
         {{- end }}
-        {{- include "controller.limits" $ | indent 8 }}
+        {{- with index .Values "celery" "resources" }}
+        resources:
+          {{- toYaml . | nindent 10 }}
+        {{- end }}
         {{- include "controller.envs" $ | indent 8 }}
         volumeMounts:
         - name: controller-config

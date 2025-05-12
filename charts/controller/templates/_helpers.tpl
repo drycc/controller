@@ -180,20 +180,6 @@ env:
   value: api.routers.DefaultReplicaRouter
 {{- end }}
 
-{{/* Generate controller deployment limits */}}
-{{- define "controller.limits" -}}
-{{- if or (.Values.limitsCpu) (.Values.limitsMemory) }}
-resources:
-  limits:
-{{- if (.Values.limitsCpu) }}
-    cpu: {{.Values.limitsCpu}}
-{{- end }}
-{{- if (.Values.limitsMemory) }}
-    memory: {{.Values.limitsMemory}}
-{{- end }}
-{{- end }}
-{{- end }}
-
 {{/* Generate controller config default limit specs */}}
 {{ define "controller.config.defaultLimitSpecs" }}
 - model: api.limitspec

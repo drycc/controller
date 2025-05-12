@@ -70,7 +70,10 @@ spec:
         ports:
           - containerPort: 8000
             name: http
-        {{- include "controller.limits" . | indent 8 }}
+        {{- with index .Values "api" "resources" }}
+        resources:
+          {{- toYaml . | nindent 10 }}
+        {{- end }}
         {{- include "controller.envs" . | indent 8 }}
         volumeMounts:
         - name: controller-config
