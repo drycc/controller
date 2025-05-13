@@ -120,18 +120,8 @@ env:
       name: controller-creds
       key: prometheus-url
 {{- else if .Values.prometheus.enabled }}
-- name: "DRYCC_PROMETHEUS_USERNAME"
-  valueFrom:
-    secretKeyRef:
-      name: prometheus-creds
-      key: username
-- name: "DRYCC_PROMETHEUS_PASSWORD"
-  valueFrom:
-    secretKeyRef:
-      name: prometheus-creds
-      key: password
 - name: "DRYCC_PROMETHEUS_URL"
-  value: "http://$(DRYCC_PROMETHEUS_USERNAME):$(DRYCC_PROMETHEUS_PASSWORD)@drycc-prometheus.{{$.Release.Namespace}}.svc.{{$.Values.global.clusterDomain}}:9090"
+  value: "http://drycc-victoriametrics-vmselect.{{$.Release.Namespace}}.svc.{{$.Values.global.clusterDomain}}:8481/select/0/prometheus"
 {{- end }}
 {{- if .Values.passport.enabled }}
 - name: "DRYCC_PASSPORT_URL"
