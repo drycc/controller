@@ -93,7 +93,7 @@ class Gateway(AuditedModel):
         return listeners
 
     def refresh_to_k8s(self):
-        kwargs = {"listeners": self.listeners, "gateway_class": settings.GATEWAY_CLASS}
+        kwargs = {"listeners": self.listeners, "gateway_class": settings.DRYCC_APP_GATEWAY_CLASS}
         if self.app.tls_set.latest().certs_auto_enabled:
             kwargs["annotations"] = {"cert-manager.io/issuer": self.app.id}
         try:

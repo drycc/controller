@@ -5,9 +5,6 @@ env:
   value: {{ .Chart.AppVersion }}
 - name: REGISTRATION_MODE
   value: {{ .Values.registrationMode }}
-# Environmental variable value for $GATEWAY_CLASS
-- name: "DRYCC_GATEWAY_CLASS"
-  value: "{{ .Values.global.gatewayClass }}"
 - name: "K8S_API_VERIFY_TLS"
   value: "{{ .Values.k8sApiVerifyTls }}"
 - name: "DRYCC_REGISTRY_LOCATION"
@@ -22,6 +19,8 @@ env:
   value: "{{ (tpl .Values.filerImagePullPolicy .) }}"
 - name: "KUBERNETES_CLUSTER_DOMAIN"
   value: "{{ .Values.global.clusterDomain }}"
+- name: "DRYCC_APP_GATEWAY_CLASS"
+  value: "{{ .Values.appGatewayClass }}"
 {{- if (.Values.appStorageClass) }}
 - name: "DRYCC_APP_STORAGE_CLASS"
   value: "{{ (tpl .Values.appStorageClass .) }}"

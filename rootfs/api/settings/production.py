@@ -319,9 +319,6 @@ if os.path.exists(MUTATE_KEY_PATH):
 else:
     MUTATE_KEY = None
 
-# gateway class name
-GATEWAY_CLASS = os.environ.get('DRYCC_GATEWAY_CLASS', '')
-
 IMAGE_PULL_POLICY = os.environ.get('IMAGE_PULL_POLICY', "IfNotPresent")
 
 # apply task size
@@ -356,6 +353,8 @@ except KeyError:
     DRYCC_DEPLOY_HOOK_URLS = []
 
 DRYCC_DEPLOY_HOOK_SECRET_KEY = os.environ.get('DRYCC_DEPLOY_HOOK_SECRET_KEY', None)
+
+DRYCC_APP_GATEWAY_CLASS = os.environ.get('DRYCC_APP_GATEWAY_CLASS', "")
 
 DRYCC_APP_STORAGE_CLASS = os.environ.get('DRYCC_APP_STORAGE_CLASS', "")
 
