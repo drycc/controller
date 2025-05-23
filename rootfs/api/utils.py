@@ -15,6 +15,7 @@ import math
 import pkgutil
 import inspect
 import requests
+import importlib
 import jsonschema
 from copy import deepcopy
 from django.db import models
@@ -45,6 +46,13 @@ def get_session():
         session.mount('http://', requests.adapters.HTTPAdapter(max_retries=10))
         session.mount('https://', requests.adapters.HTTPAdapter(max_retries=10))
     return session
+
+
+def get_scheduler(metadata=None):
+    mod = importlib.import_module(settings.SCHEDULER_MODULE)
+    metadata = metadata if metadata is not None else {}
+    metadata = dict_merge(metadata, {"annotations": {"app.kubernetes.io/managed-by": "drycc"}})
+    return mod.SchedulerClient(settings.SCHEDULER_URL, settings.K8S_API_VERIFY_TLS, metadata)
 
 
 def import_all_models():

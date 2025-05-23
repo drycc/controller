@@ -8,7 +8,7 @@ from requests_toolbelt import user_agent
 import re
 from urllib.parse import urljoin
 
-from api import __version__ as drycc_version
+from api import utils, __version__ as drycc_version
 from scheduler.exceptions import KubeException, KubeHTTPException
 
 
@@ -41,10 +41,11 @@ class KubeHTTPClient(object):
     DATETIME_FORMAT = '%Y-%m-%dT%H:%M:%SZ'
     resource_mapping = OrderedDict()
 
-    def __init__(self, url, k8s_api_verify_tls=True):
+    def __init__(self, url, k8s_api_verify_tls=True, metadata=None):
         self.url = url
         self.k8s_api_verify_tls = k8s_api_verify_tls
         self.session = get_k8s_session(self.k8s_api_verify_tls)
+        self.metadata = metadata
 
         # map the various k8s Resources to an internal property
         from scheduler.resources import Resource  # lazy load
@@ -190,6 +191,8 @@ class KubeHTTPClient(object):
         """
         try:
             url = urljoin(self.url, path)
+            if self.metadata is not None and "metadata" in data:
+                data["metadata"] = utils.dict_merge(data["metadata"], self.metadata)
             response = self.session.post(url, data=data, json=json, **kwargs)
         except requests.exceptions.ConnectionError as err:
             # reraise as KubeException, but log stacktrace.
@@ -207,6 +210,8 @@ class KubeHTTPClient(object):
         """
         try:
             url = urljoin(self.url, path)
+            if self.metadata is not None and "metadata" in data:
+                data["metadata"] = utils.dict_merge(data["metadata"], self.metadata)
             response = self.session.put(url, data=data, **kwargs)
         except requests.exceptions.ConnectionError as err:
             # reraise as KubeException, but log stacktrace.
@@ -229,6 +234,8 @@ class KubeHTTPClient(object):
             # application/merge-patch+json,
             # application/apply-patch+yaml
             # self.session.headers["Content-Type"] = "application/json-patch+json"
+            if self.metadata is not None and "metadata" in data:
+                data["metadata"] = utils.dict_merge(data["metadata"], self.metadata)
             response = self.session.patch(url, data=data, **kwargs)
         except requests.exceptions.ConnectionError as err:
             # reraise as KubeException, but log stacktrace.

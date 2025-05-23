@@ -133,7 +133,7 @@ class App(UuidAuditedModel):
             self.release_set.latest()
         except Release.DoesNotExist:
             try:
-                if self.scheduler().ns.get(self.id).status_code == 200:
+                if self.scheduler.ns.get(self.id).status_code == 200:
                     # Namespace already exists
                     err = "{} already exists as a namespace in this kuberenetes setup".format(self.id)  # noqa
                     self.log(err, logging.INFO)
@@ -154,6 +154,17 @@ class App(UuidAuditedModel):
     @property
     def ptypes(self):
         return list(self.structure.keys())
+
+    @property
+    def scheduler(self):
+        """
+        Override @Base.AuditedModel.scheduler;
+        since the app itself doesn't have an app object context,
+        directly reference using ID instead.
+        """
+        scheduler = super(App, self).scheduler
+        scheduler.metadata["annotations"]["drycc.cc/project_id"] = str(self.id)
+        return scheduler
 
     def check_ptypes(self, ptypes: set):
         """
@@ -199,10 +210,10 @@ class App(UuidAuditedModel):
         self.log('creating Namespace {} and services'.format(namespace), level=logging.DEBUG)
         # Create essential resources
         try:
-            self.scheduler().ns.get(namespace)
+            self.scheduler.ns.get(namespace)
         except KubeException:
             try:
-                self.scheduler().ns.create(namespace)
+                self.scheduler.ns.create(namespace)
             except KubeException as e:
                 raise ServiceUnavailable('Could not create the Namespace in Kubernetes') from e
         try:
@@ -220,15 +231,15 @@ class App(UuidAuditedModel):
         self.log("deleting environment")
         try:
             # check if namespace exists
-            self.scheduler().ns.get(self.id)
+            self.scheduler.ns.get(self.id)
 
             try:
-                self.scheduler().ns.delete(self.id)
+                self.scheduler.ns.delete(self.id)
 
                 # wait 30 seconds for termination
                 for _ in range(30):
                     try:
-                        self.scheduler().ns.get(self.id)
+                        self.scheduler.ns.get(self.id)
                     except KubeHTTPException as e:
                         # only break out on a 404
                         if e.response.status_code == 404:
@@ -254,7 +265,7 @@ class App(UuidAuditedModel):
             tasks = [
                 (
                     functools.partial(
-                        self.scheduler().deployment.restart,
+                        self.scheduler.deployment.restart,
                         self.id,
                         deployment
                     ),
@@ -293,7 +304,7 @@ class App(UuidAuditedModel):
                             envs=self._build_env_vars(release, run['ptype']),
                         )
                         state, labels = 'initializing', {'job-name': job_name}
-                        for count, state in enumerate(self.scheduler().pod.watch(
+                        for count, state in enumerate(self.scheduler.pod.watch(
                                 self.id, labels, settings.DRYCC_PILELINE_RUN_TIMEOUT)):
                             self.log(f"{prefix} waiting for pipeline.run: {state} * {count}")
                         if state != 'down':
@@ -371,7 +382,7 @@ class App(UuidAuditedModel):
         labels = {'heritage': 'drycc'}
         if ptypes:
             labels["type__in"] = ptypes
-        resource_apis = [self.scheduler().deployments, self.scheduler().secret]
+        resource_apis = [self.scheduler.deployments, self.scheduler.secret]
         for api in resource_apis:
             resources = api.get(self.id, labels=labels).json()["items"]
             if resources is not None:
@@ -414,7 +425,7 @@ class App(UuidAuditedModel):
         try:
             # create application config and build the pod manifest
             self.set_application_config(release, PTYPE_RUN)
-            self.scheduler().job.create(self.id, name, image, command, args, **kwargs)
+            self.scheduler.job.create(self.id, name, image, command, args, **kwargs)
         except Exception as e:
             err = '{} ({}): {}'.format(name, PTYPE_RUN, e)
             raise ServiceUnavailable(err) from e
@@ -431,7 +442,7 @@ class App(UuidAuditedModel):
             return command, args
         result = []
         try:
-            pod = self.scheduler().pod.get(self.id, pod_name).json()
+            pod = self.scheduler.pod.get(self.id, pod_name).json()
             if pod["status"]['phase'] == 'Pending':
                 statuses = pod["spec"]["containers"]
             else:
@@ -462,9 +473,9 @@ class App(UuidAuditedModel):
             labels = self._scheduler_filter(**kwargs)
             # in case a singular pod is requested
             if 'name' in kwargs:
-                pods = [self.scheduler().pod.get(self.id, kwargs['name']).json()]
+                pods = [self.scheduler.pod.get(self.id, kwargs['name']).json()]
             else:
-                pods = self.scheduler().pod.get(self.id, labels=labels).json()['items']
+                pods = self.scheduler.pod.get(self.id, labels=labels).json()['items']
                 if not pods:
                     pods = []
             data = []
@@ -475,7 +486,7 @@ class App(UuidAuditedModel):
                 else:
                     started = str(
                         datetime.now(timezone.utc).strftime(settings.DRYCC_DATETIME_FORMAT))
-                state = str(self.scheduler().pod.state(p))
+                state = str(self.scheduler.pod.state(p))
                 if p['status']['phase'] != 'Pending':
                     ready = len([1 for s in p["status"]["containerStatuses"] if s['ready']])
                     restarts = sum([s['restartCount'] for s in p["status"]["containerStatuses"]])
@@ -508,9 +519,9 @@ class App(UuidAuditedModel):
         pod_name = kwargs.get('pod_name')
         try:
             # make sure the pod is manageed by drycc
-            pod = self.scheduler().pod.get(self.id, pod_name).json()
+            pod = self.scheduler.pod.get(self.id, pod_name).json()
             if pod['metadata']['labels'].get("heritage") == "drycc":
-                self.scheduler().pod.delete(self.id, pod_name)
+                self.scheduler.pod.delete(self.id, pod_name)
         except KubeHTTPException as e:
             # Sometimes k8s will manage to remove the pod from under us
             if e.response.status_code != 404:
@@ -519,7 +530,7 @@ class App(UuidAuditedModel):
     def describe_deployment(self, deployment_name):
         result = []
         try:
-            deployment = self.scheduler().deployment.get(self.id, deployment_name).json()
+            deployment = self.scheduler.deployment.get(self.id, deployment_name).json()
             for container in deployment["spec"]["template"]['spec']["containers"]:
                 limits = container.get("resources", {}).get("limits", {})
                 result.append({
@@ -545,9 +556,9 @@ class App(UuidAuditedModel):
             labels = self._scheduler_filter(**kwargs)
             # in case a singular deployment is requested
             if 'name' in kwargs:
-                deployments = [self.scheduler().deployment.get(self.id, kwargs['name']).json()]
+                deployments = [self.scheduler.deployment.get(self.id, kwargs['name']).json()]
             else:
-                deployments = self.scheduler().deployment.get(self.id, labels=labels).json()['items']  # noqa
+                deployments = self.scheduler.deployment.get(self.id, labels=labels).json()['items']  # noqa
                 if not deployments:
                     deployments = []
             data = []
@@ -588,7 +599,7 @@ class App(UuidAuditedModel):
                 "regarding.name": ref_name
             }
             kwargs["fields"] = fields
-            events = self.scheduler().events.get(self.id, **kwargs).json()['items']  # noqa
+            events = self.scheduler.events.get(self.id, **kwargs).json()['items']  # noqa
             data = []
             for e in events:
                 item = {
@@ -622,16 +633,16 @@ class App(UuidAuditedModel):
 
         try:
             # get the target for autoscaler, in this case Deployment
-            self.scheduler().hpa.get(self.id, name)
+            self.scheduler.hpa.get(self.id, name)
             if autoscale is None:
-                self.scheduler().hpa.delete(self.id, name)
+                self.scheduler.hpa.delete(self.id, name)
             else:
-                self.scheduler().hpa.update(
+                self.scheduler.hpa.update(
                     self.id, name, proc_type, target, **autoscale
                 )
         except KubeHTTPException as e:
             if e.response.status_code == 404:
-                self.scheduler().hpa.create(
+                self.scheduler.hpa.create(
                     self.id, name, proc_type, target, **autoscale
                 )
             else:
@@ -649,16 +660,16 @@ class App(UuidAuditedModel):
         elif create:
             data = {'.dockerconfigjson': docker_config}
             try:
-                self.scheduler().secret.get(namespace, name)
+                self.scheduler.secret.get(namespace, name)
             except KubeHTTPException:
-                self.scheduler().secret.create(
+                self.scheduler.secret.create(
                     namespace,
                     name,
                     data,
                     secret_type='kubernetes.io/dockerconfigjson'
                 )
             else:
-                self.scheduler().secret.update(
+                self.scheduler.secret.update(
                     namespace,
                     name,
                     data,
@@ -674,7 +685,7 @@ class App(UuidAuditedModel):
             return
         ptypes = set()
         for ptype, scale in self.structure.items():
-            response = self.scheduler().deployment.get(
+            response = self.scheduler.deployment.get(
                 self.id, self._get_deployment_name(ptype),
                 ignore_exception=True)
             if response.status_code == 404 and scale > 0:
@@ -710,11 +721,11 @@ class App(UuidAuditedModel):
 
         secret_name = "{}-{}-{}-env".format(self.id, ptype, release.version_name)
         try:
-            self.scheduler().secret.get(self.id, secret_name)
+            self.scheduler.secret.get(self.id, secret_name)
         except KubeHTTPException:
-            self.scheduler().secret.create(self.id, secret_name, secrets_env, labels=labels)
+            self.scheduler.secret.create(self.id, secret_name, secrets_env, labels=labels)
         else:
-            self.scheduler().secret.update(self.id, secret_name, secrets_env, labels=labels)
+            self.scheduler.secret.update(self.id, secret_name, secrets_env, labels=labels)
 
     def to_measurements(self, timestamp: float):
         measurements = []
@@ -766,7 +777,7 @@ class App(UuidAuditedModel):
                     volume for volume in volumes if scale_type in volume.path.keys()]
                 data = self._gather_app_settings(
                     release, app_settings, scale_type, replicas, volumes=scale_type_volumes)
-                deployment = self.scheduler().deployment.get(
+                deployment = self.scheduler.deployment.get(
                     self.id, self._get_deployment_name(scale_type)).json()
                 spec_annotations = deployment['spec']['template']['metadata'].get(
                     'annotations', {})
@@ -774,7 +785,7 @@ class App(UuidAuditedModel):
                 # gather volume proc types to be deployed
                 tasks.append((
                     functools.partial(
-                        self.scheduler().deployment.patch,
+                        self.scheduler.deployment.patch,
                         namespace=self.id,
                         name=self._get_deployment_name(scale_type),
                         image=release.get_deploy_image(scale_type),
@@ -808,7 +819,7 @@ class App(UuidAuditedModel):
                 self.set_application_config(release, scale_type)
                 tasks.append((
                     functools.partial(
-                        self.scheduler().deploy,
+                        self.scheduler.deploy,
                         namespace=self.id,
                         name=self._get_deployment_name(scale_type),
                         image=release.get_deploy_image(scale_type),
@@ -906,7 +917,7 @@ class App(UuidAuditedModel):
             # gather all proc types to be deployed
             tasks.append((
                 functools.partial(
-                    self.scheduler().scale,
+                    self.scheduler.scale,
                     namespace=self.id,
                     name=self._get_deployment_name(scale_type),
                     image=release.get_deploy_image(scale_type),
@@ -1064,7 +1075,7 @@ class App(UuidAuditedModel):
         for scale_type, kwargs in deploys.items():
             name = self._get_deployment_name(scale_type)
             # Is there an existing deployment in progress?
-            in_progress, deploy_okay = self.scheduler().deployment.in_progress(
+            in_progress, deploy_okay = self.scheduler.deployment.in_progress(
                 self.id, name, kwargs.get("deploy_timeout"), kwargs.get("deploy_batches"),
                 kwargs.get("replicas"), kwargs.get("tags")
             )
@@ -1148,7 +1159,7 @@ class App(UuidAuditedModel):
             username = registry.get('username')
             password = registry.get('password')
         elif settings.REGISTRY_LOCATION == 'off-cluster':
-            secret = self.scheduler().secret.get(
+            secret = self.scheduler.secret.get(
                 settings.WORKFLOW_NAMESPACE, 'controller-creds').json()
             hostname = secret['data']['registry-host']
             if hostname == '':

@@ -666,14 +666,14 @@ class RouteTest(BaseGatewayTest):
         )
         self.assertEqual(response.status_code, 201, response.data)
         app = App.objects.get(id=app_id)
-        response = app.scheduler().httproute.get(app_id, route_name, ignore_exception=True)
+        response = app.scheduler.httproute.get(app_id, route_name, ignore_exception=True)
         self.assertEqual(response.status_code, 404)
         # Set routable to false
         response = self.client.post(
             f'/v2/apps/{app_id}/settings',
             {'routable': True}
         )
-        response = app.scheduler().httproute.get(app_id, route_name, ignore_exception=True)
+        response = app.scheduler.httproute.get(app_id, route_name, ignore_exception=True)
         self.assertEqual(response.status_code, 200)
 
     def test_route_delete(self):
@@ -848,11 +848,11 @@ class RouteTest(BaseGatewayTest):
         )
         self.assertEqual(response.status_code, 201, response.data)
         route = Route.objects.get(name=route_name)
-        response = route.scheduler().httproutes.get(app_id, route_name)
+        response = route.scheduler.httproutes.get(app_id, route_name)
         self.assertEqual(response.status_code, 200, response.json())
         self.assertEqual(len(response.json()['spec']['parentRefs']), 1)
         # get gateway
-        response = route.scheduler().gateways.get(app_id, app_id)
+        response = route.scheduler.gateways.get(app_id, app_id)
         listeners = [
             listener for listener in response.json()['spec']['listeners']
             if listener['port'] == 443

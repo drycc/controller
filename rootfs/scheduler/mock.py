@@ -1071,8 +1071,8 @@ def session():
 
 
 class MockSchedulerClient(KubeHTTPClient):
-    def __init__(self, url, k8s_api_verify_tls=True):
-        super().__init__(url)
+    def __init__(self, url, k8s_api_verify_tls=True, metadata=None):
+        super().__init__(url, k8s_api_verify_tls, metadata)
 
         # set version data
         cache.set('version', {'major': '1', 'minor': '3'}, None)

@@ -55,7 +55,7 @@ class Gateway(AuditedModel):
 
     @property
     def addresses(self):
-        data = self.scheduler().gateways.get(self.app.id, self.name, ignore_exception=True)
+        data = self.scheduler.gateways.get(self.app.id, self.name, ignore_exception=True)
         if data.status_code != 200:
             return []
         addresses = data.json()["status"].get("addresses", [])
@@ -98,17 +98,17 @@ class Gateway(AuditedModel):
             kwargs["annotations"] = {"cert-manager.io/issuer": self.app.id}
         try:
             try:
-                data = self.scheduler().gateways.get(self.app.id, self.name).json()
+                data = self.scheduler.gateways.get(self.app.id, self.name).json()
                 if len(kwargs["listeners"]) > 0:
                     kwargs["version"] = data["metadata"]["resourceVersion"]
-                    self.scheduler().gateways.patch(self.app.id, self.name, **kwargs)
+                    self.scheduler.gateways.patch(self.app.id, self.name, **kwargs)
                 else:
                     logger.debug("delete k8s resource when listeners are empty")
-                    self.scheduler().gateways.delete(
+                    self.scheduler.gateways.delete(
                         self.app.id, self.name, ignore_exception=True)
             except KubeException:
                 if len(kwargs["listeners"]) > 0:
-                    self.scheduler().gateways.create(self.app.id, self.name, **kwargs)
+                    self.scheduler.gateways.create(self.app.id, self.name, **kwargs)
                 else:
                     logger.debug("skip creating k8s resource when listeners are empty")
         except KubeException as e:
@@ -131,7 +131,7 @@ class Gateway(AuditedModel):
 
     def delete(self, *args, **kwargs):
         try:
-            self.scheduler().gateways.delete(self.app.id, self.name, ignore_exception=False)
+            self.scheduler.gateways.delete(self.app.id, self.name, ignore_exception=False)
         except KubeException:
             self.log(
                 'Kubernetes gateway cannot be deleted: {}'.format(self.name),
@@ -265,13 +265,13 @@ class Route(AuditedModel):
                 self._https_enforced_to_k8s(http_parent_refs)
             elif self.kind == "HTTPRoute":
                 parent_refs.extend(http_parent_refs)
-                self.scheduler().httproute.delete(self.app.id, self._https_redirect_name)
+                self.scheduler.httproute.delete(self.app.id, self._https_redirect_name)
             else:
                 parent_refs.extend(http_parent_refs)
             self._refresh_to_k8s(self.rules, parent_refs)
         else:
-            self.scheduler().httproute.delete(self.app.id, self.name)
-            self.scheduler().httproute.delete(self.app.id, self._https_redirect_name)
+            self.scheduler.httproute.delete(self.app.id, self.name)
+            self.scheduler.httproute.delete(self.app.id, self._https_redirect_name)
 
     def change_default_tls(self):
         if self.app.id != self.name:
@@ -316,7 +316,7 @@ class Route(AuditedModel):
 
     def delete(self, *args, **kwargs):
         try:
-            k8s_route = getattr(self.scheduler(), self.kind.lower())
+            k8s_route = getattr(self.scheduler, self.kind.lower())
             k8s_route.delete(self.app.id, self.name, ignore_exception=False)
         except KubeException:
             self.log(
@@ -357,7 +357,7 @@ class Route(AuditedModel):
             "parent_refs": parent_refs,
         }
         try:
-            k8s_route = getattr(self.scheduler(), self.kind.lower())
+            k8s_route = getattr(self.scheduler, self.kind.lower())
             try:
                 data = k8s_route.get(self.app.id, self.name).json()
                 manifest.update({"version": data["metadata"]["resourceVersion"]})
@@ -383,13 +383,13 @@ class Route(AuditedModel):
         }
         try:
             try:
-                data = self.scheduler().httproute.get(
+                data = self.scheduler.httproute.get(
                     self.app.id, self._https_redirect_name).json()
                 manifest.update({"version": data["metadata"]["resourceVersion"]})
-                self.scheduler().httproute.patch(
+                self.scheduler.httproute.patch(
                     self.app.id, self._https_redirect_name, **manifest)
             except KubeException:
-                self.scheduler().httproute.create(
+                self.scheduler.httproute.create(
                     self.app.id, self._https_redirect_name, **manifest)
         except KubeException as e:
             raise ServiceUnavailable(

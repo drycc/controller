@@ -288,7 +288,7 @@ class Release(UuidAuditedModel):
             labels['type__in'] = ptypes
         # Cleanup controllers
         replica_sets_removal = []
-        replica_sets = self.scheduler().rs.get(self.app.id, labels=labels).json()['items']
+        replica_sets = self.scheduler.rs.get(self.app.id, labels=labels).json()['items']
         if not replica_sets:
             replica_sets = []
         for replica_set in replica_sets:
@@ -320,11 +320,11 @@ class Release(UuidAuditedModel):
         labels = {'heritage': 'drycc'}
         if ptypes is not None:
             labels['type__in'] = ptypes
-        pods = self.scheduler().pod.get(namespace, labels=labels).json()['items']
+        pods = self.scheduler.pod.get(namespace, labels=labels).json()['items']
         if not pods:
             pods = []
         for pod in pods:
-            if self.scheduler().pod.deleted(pod):
+            if self.scheduler.pod.deleted(pod):
                 continue
 
             current_version = int(pod['metadata']['labels']['version'][1:])
@@ -333,7 +333,7 @@ class Release(UuidAuditedModel):
                 continue
 
             try:
-                self.scheduler().pod.delete(namespace, pod['metadata']['name'])
+                self.scheduler.pod.delete(namespace, pod['metadata']['name'])
             except KubeHTTPException as e:
                 # Sometimes k8s will manage to remove the pod from under us
                 if e.response.status_code == 404:
@@ -352,7 +352,7 @@ class Release(UuidAuditedModel):
         # Find all ReplicaSets
         version_names = [self.version_name, ]
         labels = {'heritage': 'drycc', 'app': namespace}
-        replicasets = self.scheduler().rs.get(namespace, labels=labels).json()['items']
+        replicasets = self.scheduler.rs.get(namespace, labels=labels).json()['items']
         if not replicasets:
             replicasets = []
         for replicaset in replicasets:
@@ -378,11 +378,11 @@ class Release(UuidAuditedModel):
         if ptypes is not None:
             labels['type__in'] = ptypes
         self.log('Cleaning up orphaned env var secrets for application {}'.format(namespace), level=logging.DEBUG)  # noqa
-        secrets = self.scheduler().secret.get(namespace, labels=labels).json()['items']
+        secrets = self.scheduler.secret.get(namespace, labels=labels).json()['items']
         if not secrets:
             secrets = []
         for secret in secrets:
-            self.scheduler().secret.delete(namespace, secret['metadata']['name'])
+            self.scheduler.secret.delete(namespace, secret['metadata']['name'])
 
     def _delete_release_in_scheduler(self, namespace, ptypes, version_name):
         """
@@ -398,7 +398,7 @@ class Release(UuidAuditedModel):
         }
         if ptypes is not None:
             labels['type__in'] = ptypes
-        replica_sets = self.scheduler().rs.get(namespace, labels=labels).json()['items']
+        replica_sets = self.scheduler.rs.get(namespace, labels=labels).json()['items']
         if not replica_sets:
             replica_sets = []
         for replica_set in replica_sets:
@@ -409,8 +409,8 @@ class Release(UuidAuditedModel):
             # Deployment takes care of this in the API, RS does not
             # Have the RS scale down pods and delete itself
             try:
-                self.scheduler().rs.scale(namespace, replica_set['metadata']['name'], 0, timeout)
-                self.scheduler().rs.delete(namespace, replica_set['metadata']['name'])
+                self.scheduler.rs.scale(namespace, replica_set['metadata']['name'], 0, timeout)
+                self.scheduler.rs.delete(namespace, replica_set['metadata']['name'])
             except KubeHTTPException as e:
                 if e.response.status_code != 404:
                     raise

@@ -957,7 +957,7 @@ class AppFilerClientViewSet(AppResourceViewSet):
     def get_client(self):
         volume = get_object_or_404(
             models.volume.Volume, app=self.get_app(), name=self.kwargs['name'])
-        return filer.FilerClient(volume.app.id, volume, volume.app.scheduler())
+        return filer.FilerClient(volume.app.id, volume, volume.app.scheduler)
 
     def list(self, request, **kwargs):
         path = request.query_params.get('path', '')

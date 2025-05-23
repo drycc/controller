@@ -236,7 +236,7 @@ class Config(UuidAuditedModel):
                         '{} does not exist under {}'.format(ptype, 'tags'))
                 data.pop(ptype)
             else:
-                if not self.scheduler().node.get(labels=values).json()['items']:
+                if not self.scheduler.node.get(labels=values).json()['items']:
                     labels = ['{}={}'.format(key, value) for key, value in values.items()]
                     message = 'No nodes matched the provided labels: {}'.format(', '.join(labels))
                     # Find out if there are any other tags around

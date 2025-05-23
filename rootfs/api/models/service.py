@@ -140,14 +140,14 @@ class Service(AuditedModel):
         self.log('creating service: {}'.format(self.name), level=logging.DEBUG)
         try:
             try:
-                data = self.scheduler().svc.get(self.namespace, self.name).json()
-                self.scheduler().svc.patch(self.namespace, self.name, **{
+                data = self.scheduler.svc.get(self.namespace, self.name).json()
+                self.scheduler.svc.patch(self.namespace, self.name, **{
                     "ports": self.ports,
                     "version": data["metadata"]["resourceVersion"],
                     "ptype": self.ptype,
                 })
             except KubeException:
-                self.scheduler().svc.create(self.namespace, self.name, **{
+                self.scheduler.svc.create(self.namespace, self.name, **{
                     "ports": self.ports,
                     "ptype": self.ptype,
                 })
@@ -156,4 +156,4 @@ class Service(AuditedModel):
 
     def _delete_k8s_svc(self, svc_name):
         self.log('deleting Service: {}'.format(svc_name), level=logging.DEBUG)
-        self.scheduler().svc.delete(self.namespace, svc_name, ignore_exception=True)
+        self.scheduler.svc.delete(self.namespace, svc_name, ignore_exception=True)

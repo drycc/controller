@@ -144,16 +144,16 @@ class Volume(UuidAuditedModel):
         t = string.Template(json.dumps(settings.DRYCC_VOLUME_TEMPLATE.get(self.type)))
         kwargs = json.loads(t.safe_substitute(**kwds))
         try:
-            self.scheduler().pv.get(self.pv_name)
+            self.scheduler.pv.get(self.pv_name)
             msg = "Volume {} already exists".format(self.pv_name)
             self.log(msg, logging.INFO)
             if "csi" in kwargs["spec"]:
                 del kwargs["spec"]["csi"]  # Fix: 422 unprocessable Entity
-            self.scheduler().pv.patch(self.pv_name, **kwargs)
+            self.scheduler.pv.patch(self.pv_name, **kwargs)
         except KubeException as e:
             logger.info(e)
             try:
-                self.scheduler().pv.create(self.pv_name, **kwargs)
+                self.scheduler.pv.create(self.pv_name, **kwargs)
             except KubeException as e:
                 msg = 'There was a problem creating the volume ' \
                       '{} for {}'.format(self.pv_name, self.app_id)
@@ -162,8 +162,8 @@ class Volume(UuidAuditedModel):
     def _delete_pv(self):
         try:
             # We raise an exception when a volume doesn't exist
-            self.scheduler().pv.get(self.pv_name)
-            self.scheduler().pv.delete(self.pv_name)
+            self.scheduler.pv.get(self.pv_name)
+            self.scheduler.pv.delete(self.pv_name)
         except KubeException as e:
             logger.exception(e)
 
@@ -177,14 +177,14 @@ class Volume(UuidAuditedModel):
         t = string.Template(json.dumps(settings.DRYCC_VOLUME_CLAIM_TEMPLATE.get(self.type)))
         kwargs = json.loads(t.safe_substitute(**kwds))
         try:
-            self.scheduler().pvc.get(self.app.id, self.name)
+            self.scheduler.pvc.get(self.app.id, self.name)
             msg = "Volume claim {} already exists in this namespace".format(self.name)
             self.log(msg, logging.INFO)
-            self.scheduler().pvc.patch(self.app.id, self.name, **kwargs)
+            self.scheduler.pvc.patch(self.app.id, self.name, **kwargs)
         except KubeException as e:
             logger.info(e)
             try:
-                self.scheduler().pvc.create(self.app.id, self.name, **kwargs)
+                self.scheduler.pvc.create(self.app.id, self.name, **kwargs)
             except KubeException as e:
                 msg = 'There was a problem creating the volume claim ' \
                       '{} for {}'.format(self.name, self.app_id)
@@ -193,8 +193,8 @@ class Volume(UuidAuditedModel):
     def _delete_pvc(self):
         try:
             # We raise an exception when a volume doesn't exist
-            self.scheduler().pvc.get(self.app.id, self.name)
-            self.scheduler().pvc.delete(self.app.id, self.name)
+            self.scheduler.pvc.get(self.app.id, self.name)
+            self.scheduler.pvc.delete(self.app.id, self.name)
         except KubeException as e:
             logger.exception(e)
 
@@ -203,14 +203,14 @@ class Volume(UuidAuditedModel):
         t = string.Template(json.dumps(settings.DRYCC_SECRET_TEMPLATE.get(self.type)))
         kwargs = json.loads(t.safe_substitute(**kwds))
         try:
-            self.scheduler().secret.get(self.app.id, self.secret_name)
+            self.scheduler.secret.get(self.app.id, self.secret_name)
             msg = "Secret {} already exists".format(self.secret_name)
             self.log(msg, logging.INFO)
-            self.scheduler().secret.patch(self.app.id, self.secret_name, **kwargs)
+            self.scheduler.secret.patch(self.app.id, self.secret_name, **kwargs)
         except KubeException as e:
             logger.info(e)
             try:
-                self.scheduler().secret.create(self.app.id, self.secret_name, **kwargs)
+                self.scheduler.secret.create(self.app.id, self.secret_name, **kwargs)
             except KubeException as e:
                 msg = 'There was a problem creating the volume ' \
                       '{} for {}'.format(self.secret_name, self.app_id)
@@ -219,8 +219,8 @@ class Volume(UuidAuditedModel):
     def _delete_secret(self):
         try:
             # We raise an exception when a volume doesn't exist
-            self.scheduler().secret.get(self.app.id, self.secret_name)
-            self.scheduler().secret.delete(self.app.id, self.secret_name)
+            self.scheduler.secret.get(self.app.id, self.secret_name)
+            self.scheduler.secret.delete(self.app.id, self.secret_name)
         except KubeException as e:
             logger.exception(e)
 

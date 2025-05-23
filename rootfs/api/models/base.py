@@ -1,7 +1,6 @@
 import uuid
 import string
 import random
-import importlib
 from datetime import timedelta
 from functools import partial
 from django.db import models
@@ -11,7 +10,7 @@ from django.contrib.auth.models import AbstractUser
 from django.utils.translation import gettext_lazy as _
 
 
-from api.utils import validate_json
+from api.utils import validate_json, get_scheduler
 
 token_manager_oauth_schema = {
     "$schema": "http://json-schema.org/schema#",
@@ -48,10 +47,14 @@ class AuditedModel(models.Model):
         """Mark :class:`AuditedModel` as abstract."""
         abstract = True
 
-    @classmethod
-    def scheduler(cls):
-        mod = importlib.import_module(settings.SCHEDULER_MODULE)
-        return mod.SchedulerClient(settings.SCHEDULER_URL, settings.K8S_API_VERIFY_TLS)
+    @property
+    def scheduler(self):
+        annotations = {}
+        if hasattr(self, 'app'):
+            annotations["drycc.cc/project_id"] = str(self.app.id)
+        if hasattr(self, 'owner'):
+            annotations["drycc.cc/account_id"] = str(self.owner.id)
+        return get_scheduler(metadata={"annotations": annotations})
 
 
 class UuidAuditedModel(AuditedModel):
