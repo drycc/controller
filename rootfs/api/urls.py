@@ -243,6 +243,10 @@ app_urlpatterns = [
     re_path(
         r"^apps/(?P<id>{})/perms/(?P<username>[\w.@+-]+)/?$".format(settings.APP_URL_REGEX),
         views.AppPermViewSet.as_view({'put': 'update', 'delete': 'destroy'})),
+    # nodes
+    re_path(
+        r'^nodes/(?P<node>[a-zA-Z0-9-]+)/proxy/metrics(?:/(?P<metrics>[^/]+))?/?$',
+        views.ProxyMetricsView.as_view()),
     # tokens
     re_path(r'^tokens/?$', views.TokenViewSet.as_view({'get': 'list'})),
     re_path(r"^tokens/(?P<pk>[-_\w]+)/?$", views.TokenViewSet.as_view({'delete': 'destroy'})),

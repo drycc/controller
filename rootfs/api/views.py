@@ -5,7 +5,12 @@ import re
 import uuid
 import logging
 import json
+import ssl
+import time
+import random
+import aiohttp
 import requests
+
 from asgiref.sync import async_to_sync
 from django.db.models import Q
 from django.core.cache import cache
@@ -25,7 +30,7 @@ from rest_framework.response import Response
 from rest_framework.viewsets import GenericViewSet
 from rest_framework.exceptions import PermissionDenied
 
-from api import monitor, models, permissions, serializers, viewsets, authentication
+from api import monitor, models, permissions, serializers, viewsets, authentication, __version__
 from api.tasks import scale_app, restart_app, mount_app, downstream_model_owner, \
     delete_pod
 from api.exceptions import AlreadyExists, ServiceUnavailable, DryccException
@@ -1242,3 +1247,72 @@ class MetricView(BaseDryccViewSet):
         return StreamingHttpResponse(
             streaming_content=monitor.last_metrics(app_id)
         )
+
+
+class ProxyMetricsView(View):
+    cache = {}
+    match_meta = staticmethod(
+        re.compile(r'^(?:# (?:HELP|TYPE) )([a-zA-Z_][a-zA-Z0-9_:.-]*)').match)
+    match_data = staticmethod(
+        re.compile(r'^([a-zA-Z_][a-zA-Z0-9_:]*)(?:\{([^}]*)\})?\s+(\S+)').match)
+    default_cache_value = (-1, -1)
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        if settings.K8S_API_VERIFY_TLS:
+            ssl_context = ssl.create_default_context(
+                cafile='/var/run/secrets/kubernetes.io/serviceaccount/ca.crt')
+        else:
+            ssl_context = ssl.create_default_context()
+        self.connector = aiohttp.TCPConnector(ssl_context=ssl_context)
+
+    async def sample(self, name, labels_str, value):
+        if not labels_str or name not in settings.DRYCC_METRICS_CONFIG:
+            return None
+        fields = set(settings.DRYCC_METRICS_CONFIG[name])
+        labels = {}
+        for pair in labels_str.strip(" {}").split(','):
+            k, v = pair.split('=', 1)
+            if k in fields:
+                labels[k] = v.strip(' "')
+        app_id = labels.get("namespace", None)
+        if not app_id:
+            return None
+        owner_id, timeout = self.cache.get(app_id, self.default_cache_value)
+        if (owner_id < 0 and timeout < 0) or time.time() > timeout:
+            if app := await models.app.App.objects.filter(id=app_id).afirst():
+                owner_id = app.owner_id
+            else:
+                owner_id = -1
+            self.cache[app_id] = (owner_id, time.time() + random.randint(600, 1200))
+        if owner_id < 0:
+            return None
+        labels.update({'vm_project_id': app_id, 'vm_account_id': owner_id})
+        return "%s{%s} %s\n" % (name, ",".join([f'{k}="{v}"' for k, v in labels.items()]), value)
+
+    async def get(self, request, node, metrics=None):
+        if not metrics:
+            url = f"{settings.SCHEDULER_URL}/api/v1/nodes/{node}/proxy/metrics"
+        else:
+            url = f"{settings.SCHEDULER_URL}/api/v1/nodes/{node}/proxy/metrics/{metrics}"
+        headers = {"Authorization": request.META.get("HTTP_AUTHORIZATION", "")}
+
+        async def stream_response():
+            async with aiohttp.ClientSession(connector=self.connector) as session:
+                async with session.get(url, headers=headers) as resp:
+                    async for line_bytes in resp.content:
+                        line = line_bytes.decode('utf-8', errors='ignore').strip(' \n')
+                        if line.startswith('#') and (match := self.match_meta(line)):
+                            if match.group(1) in settings.DRYCC_METRICS_CONFIG:
+                                yield f"{line}\n"
+                            continue
+                        match = self.match_data(line)
+                        if not match:
+                            continue
+                        name, labels_str, value = match.groups()
+                        sample = await self.sample(name, labels_str, value)
+                        if not sample:
+                            continue
+                        yield sample
+        content_type = f"text/plain; version={__version__}"
+        return StreamingHttpResponse(stream_response(), content_type=content_type)
