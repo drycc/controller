@@ -10,7 +10,9 @@ import time
 import random
 import aiohttp
 import requests
+import warnings
 
+from urllib.parse import urljoin
 from asgiref.sync import async_to_sync
 from django.db.models import Q
 from django.core.cache import cache
@@ -38,7 +40,8 @@ from api.exceptions import AlreadyExists, ServiceUnavailable, DryccException
 from django.views.decorators.cache import never_cache
 from django.contrib.auth import REDIRECT_FIELD_NAME
 from django.views.decorators.csrf import csrf_exempt
-from django.http.response import FileResponse, StreamingHttpResponse
+from django.http.response import FileResponse, JsonResponse, StreamingHttpResponse
+from channels.db import database_sync_to_async
 from social_django.utils import psa
 from social_django.views import _do_login
 from social_core.utils import setting_name
@@ -1217,6 +1220,8 @@ class MetricView(BaseDryccViewSet):
     @method_decorator(cache_page(settings.DRYCC_METRICS_EXPIRY))
     @method_decorator(vary_on_headers("Authorization"))
     def status(self, request, **kwargs):
+        warnings.warn(
+            'this interface will be removed in the next version.', PendingDeprecationWarning)
         app_id = self._get_app().id
         data = serializers.MetricSerializer(data=self.request.query_params)
         if not data.is_valid():
@@ -1243,6 +1248,8 @@ class MetricView(BaseDryccViewSet):
     @method_decorator(cache_page(settings.DRYCC_METRICS_EXPIRY))
     @method_decorator(vary_on_headers("Authorization"))
     def metric(self, request, **kwargs):
+        warnings.warn(
+            'this interface will be removed in the next version.', PendingDeprecationWarning)
         app_id = self._get_app().id
         return StreamingHttpResponse(
             streaming_content=monitor.last_metrics(app_id)
@@ -1316,3 +1323,29 @@ class ProxyMetricsView(View):
                         yield sample
         content_type = f"text/plain; version={__version__}"
         return StreamingHttpResponse(stream_response(), content_type=content_type)
+
+
+@method_decorator(csrf_exempt, name='dispatch')
+class PrometheusProxy(View):
+    timeout = aiohttp.ClientTimeout(total=30, connect=10, sock_read=15)
+    authentication = authentication.DryccAuthentication()
+
+    async def proxy(self, request, path):
+        auth = await database_sync_to_async(self.authentication.authenticate)(request)
+        if not auth or len(auth) != 2 or not isinstance(auth[0], User):
+            return JsonResponse({'error': 'access denied'}, status=403)
+        if auth[0].is_superuser or auth[0].is_staff:
+            path = f"/select/0/prometheus/{path}"
+        else:
+            path = f"/select/{auth[0].id}/prometheus/{path}"
+        url = urljoin(settings.DRYCC_VICTORIAMETRICS_URL, path)
+        params = dict(request.GET) if request.method == "GET" else dict(request.POST)
+        try:
+            async with aiohttp.ClientSession() as session:
+                async with session.get(url, params=params, timeout=self.timeout) as response:
+                    data, status = await response.json(), response.status
+        except aiohttp.ClientError as e:
+            data, status = {'error': f'victoriametrics connection failed: {str(e)}'}, 502
+        return JsonResponse(data, status=status)
+
+    get = post = proxy

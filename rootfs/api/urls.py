@@ -247,13 +247,11 @@ app_urlpatterns = [
     re_path(
         r'^nodes/(?P<node>[a-zA-Z0-9-]+)/proxy/metrics(?:/(?P<metrics>[^/]+))?/?$',
         views.ProxyMetricsView.as_view()),
+    # prometheus
+    re_path(r'^prometheus/(?P<path>.+)/?$', views.PrometheusProxy.as_view()),
     # tokens
     re_path(r'^tokens/?$', views.TokenViewSet.as_view({'get': 'list'})),
     re_path(r"^tokens/(?P<pk>[-_\w]+)/?$", views.TokenViewSet.as_view({'delete': 'destroy'})),
-    # social login is placed at the end of the URL match
-    re_path(r'^login/(?P<backend>[^/]+){0}$'.format(extra), views.auth, name='begin'),
-    re_path(r'^complete/(?P<backend>[^/]+){0}$'.format(extra), views.complete, name='complete'),
-    re_path('', include('social_django.urls', namespace='social')),
 ]
 
 mutate_urlpatterns = [
@@ -263,8 +261,15 @@ mutate_urlpatterns = [
     ),
 ]
 
+# social login is placed at the end of the URL match
+social_urlpatterns = [
+    re_path(r'^login/(?P<backend>[^/]+){0}$'.format(extra), views.auth, name='begin'),
+    re_path(r'^complete/(?P<backend>[^/]+){0}$'.format(extra), views.complete, name='complete'),
+    re_path('', include('social_django.urls', namespace='social')),
+]
+
 # If there is a mutating admission mutate configuration, use mutate url
 if settings.MUTATE_KEY:
     urlpatterns = mutate_urlpatterns
 else:
-    urlpatterns = app_urlpatterns
+    urlpatterns = app_urlpatterns + social_urlpatterns

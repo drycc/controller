@@ -63,8 +63,8 @@ databaseReplicaUrl: ""
 passportUrl: ""
 passportKey: ""
 passportSecret: ""
-# prometheusUrl is will no longer use the built-in prometheus component
-prometheusUrl: ""
+# victoriametricsUrl is will no longer use the built-in victoriametrics component
+victoriametricsUrl: ""
 # Workflow-manager Configuration Options
 workflowManagerUrl: ""
 workflowManagerAccessKey: ""
@@ -169,7 +169,7 @@ registry:
 passport:
   enabled: true
 
-prometheus:
+victoriametrics:
   enabled: true
 
 global:

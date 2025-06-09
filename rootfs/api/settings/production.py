@@ -269,8 +269,8 @@ SCHEDULER_URL = "https://{}:{}".format(
 
 K8S_API_VERIFY_TLS = os.environ.get('K8S_API_VERIFY_TLS', 'true').lower() == "true"
 
-# drycc prometheus url
-DRYCC_PROMETHEUS_URL = os.environ.get('DRYCC_PROMETHEUS_URL', '')
+# drycc victoriametrics url
+DRYCC_VICTORIAMETRICS_URL = os.environ.get('DRYCC_VICTORIAMETRICS_URL', '')
 
 # drycc metrics config file
 DRYCC_METRICS_CONFIG = {}

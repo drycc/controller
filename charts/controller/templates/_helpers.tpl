@@ -112,15 +112,15 @@ env:
   valueFrom:
     fieldRef:
       fieldPath: metadata.namespace
-{{- if (.Values.prometheusUrl) }}
-- name: "DRYCC_PROMETHEUS_URL"
+{{- if (.Values.victoriametricsUrl) }}
+- name: "DRYCC_VICTORIAMETRICS_URL"
   valueFrom:
     secretKeyRef:
       name: controller-creds
-      key: prometheus-url
-{{- else if .Values.prometheus.enabled }}
-- name: "DRYCC_PROMETHEUS_URL"
-  value: "http://drycc-victoriametrics-vmselect.{{$.Release.Namespace}}.svc.{{$.Values.global.clusterDomain}}:8481/select/0/prometheus"
+      key: victoriametrics-url
+{{- else if .Values.victoriametrics.enabled }}
+- name: "DRYCC_VICTORIAMETRICS_URL"
+  value: "http://drycc-victoriametrics-vmselect.{{$.Release.Namespace}}.svc.{{$.Values.global.clusterDomain}}:8481"
 {{- end }}
 {{- if .Values.passport.enabled }}
 - name: "DRYCC_PASSPORT_URL"

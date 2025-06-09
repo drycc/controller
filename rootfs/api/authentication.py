@@ -45,8 +45,11 @@ class DryccAuthentication(authentication.BaseAuthentication):
         if token_type is None or token is None:
             return None
         if token_type == 'bearer':  # drycc oauth access token
-            from api.backend import OauthCacheManager
-            return OauthCacheManager().get_user(token), token
+            try:
+                from api.backend import OauthCacheManager
+                return OauthCacheManager().get_user(token), token
+            except exceptions.AuthenticationFailed:
+                return None, None
         # drycc token
         user = cache.get(token, None)
         if not user:
@@ -62,11 +65,14 @@ class DryccAuthentication(authentication.BaseAuthentication):
         if not token.owner.is_active:
             raise exceptions.AuthenticationFailed(gettext_lazy('User inactive or deleted.'))
         if token.expires():
-            from api.backend import OauthCacheManager
-            token.refresh_token()
-            user = OauthCacheManager().get_user(token.oauth['access_token'])
-            cache.set(key, user, timeout=token.oauth['expires_in'])
-            return user, token.key
+            try:
+                from api.backend import OauthCacheManager
+                user = OauthCacheManager().get_user(token.oauth['access_token'])
+                cache.set(key, user, timeout=token.oauth['expires_in'])
+                token.refresh_token()
+                return user, token.key
+            except exceptions.AuthenticationFailed:
+                return None, None
         return (token.owner, token.key)
 
     def authenticate_header(self, request):

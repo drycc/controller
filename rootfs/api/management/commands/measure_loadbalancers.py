@@ -48,7 +48,7 @@ class Command(BaseCommand):
         send_measurements.delay(loadbalancers)
 
     def handle(self, *args, **options):
-        if settings.WORKFLOW_MANAGER_URL and settings.DRYCC_PROMETHEUS_URL:
+        if settings.WORKFLOW_MANAGER_URL and settings.DRYCC_VICTORIAMETRICS_URL:
             timestamp = int(time.time())
             task_id = uuid.uuid4().hex
             logger.info(f"pushing {task_id} limits to workflow_manager when {timezone.now()}")
