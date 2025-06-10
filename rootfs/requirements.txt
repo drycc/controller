@@ -20,7 +20,7 @@ psycopg[binary]==3.2.6
 pyOpenSSL==25.0.0
 ndg-httpsclient==0.5.1
 pytz==2025.2
-requests==2.32.3
+requests==2.32.4
 requests-toolbelt==1.0.0
 celery[redis]==5.5.0
 hiredis==3.2.1
