@@ -144,8 +144,14 @@ class AuthTokenView(GenericViewSet):
     permission_classes = (AllowAny, )
 
     def token(self, request, *args, **kwargs):
-        oauth = oauth_cache_manager.get_token(self.kwargs['key'])
-        if oauth:
+        if 'key' in self.kwargs:
+            oauth = oauth_cache_manager.get_token(self.kwargs['key'])
+        else:
+            try:
+                oauth = json.loads(request.body.decode("utf8"))
+            except json.decoder.JSONDecodeError:
+                return HttpResponse(status=400)
+        if oauth and 'access_token' in oauth:
             user = oauth_cache_manager.get_user(oauth['access_token'])
             alias = request.query_params.get('alias', '')
             token = models.base.Token(owner=user, alias=alias, oauth=oauth)

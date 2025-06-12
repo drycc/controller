@@ -15,6 +15,7 @@ extra = getattr(settings, setting_name('TRAILING_SLASH'), True) and '/' or ''
 app_urlpatterns = [
     re_path(r'^', include(router.urls)),
     re_path(r'auth/login/?$', views.AuthLoginView.as_view({"post": "login"})),
+    re_path(r'auth/token/?$', views.AuthTokenView.as_view({"post": "token"})),
     re_path(r'auth/token/(?P<key>[-_\w]+)/?$', views.AuthTokenView.as_view({"get": "token"})),
     # limits
     re_path(
