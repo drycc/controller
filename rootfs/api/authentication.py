@@ -49,7 +49,7 @@ class DryccAuthentication(authentication.BaseAuthentication):
                 from api.backend import OauthCacheManager
                 return OauthCacheManager().get_user(token), token
             except exceptions.AuthenticationFailed:
-                return None, None
+                return None
         # drycc token
         user = cache.get(token, None)
         if not user:
