@@ -156,7 +156,8 @@ class AuthTokenView(GenericViewSet):
             alias = request.query_params.get('alias', '')
             token = models.base.Token(owner=user, alias=alias, oauth=oauth)
             token.save()
-            return HttpResponse(json.dumps({"token": token.key, "username": user.username}))
+            return HttpResponse(json.dumps(
+                {"uuid": str(token.uuid), "token": token.key, "username": user.username}))
         return HttpResponse(status=404)
 
 
@@ -1338,7 +1339,7 @@ class PrometheusProxy(View):
 
     async def proxy(self, request, username, path):
         auth = await database_sync_to_async(self.authentication.authenticate)(request)
-        if not auth or len(auth) != 2 or not auth[0].username != username:
+        if not auth or len(auth) != 2 or auth[0].username != username:
             return JsonResponse({'error': 'access denied'}, status=403)
         if auth[0].is_superuser or auth[0].is_staff:
             path = f"/select/0/prometheus/{path}"
