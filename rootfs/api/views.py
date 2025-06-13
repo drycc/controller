@@ -1336,9 +1336,9 @@ class PrometheusProxy(View):
     timeout = aiohttp.ClientTimeout(total=30, connect=10, sock_read=15)
     authentication = authentication.DryccAuthentication()
 
-    async def proxy(self, request, path):
+    async def proxy(self, request, username, path):
         auth = await database_sync_to_async(self.authentication.authenticate)(request)
-        if not auth or len(auth) != 2 or not isinstance(auth[0], User):
+        if not auth or len(auth) != 2 or not auth[0].username != username:
             return JsonResponse({'error': 'access denied'}, status=403)
         if auth[0].is_superuser or auth[0].is_staff:
             path = f"/select/0/prometheus/{path}"

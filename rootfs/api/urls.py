@@ -249,7 +249,8 @@ app_urlpatterns = [
         r'^nodes/(?P<node>[a-zA-Z0-9-]+)/proxy/metrics(?:/(?P<metrics>[^/]+))?/?$',
         views.ProxyMetricsView.as_view()),
     # prometheus
-    re_path(r'^prometheus/(?P<path>.+)/?$', views.PrometheusProxy.as_view()),
+    re_path(
+        r'^prometheus/(?P<username>[\w.@+-]+)/(?P<path>.+)/?$', views.PrometheusProxy.as_view()),
     # tokens
     re_path(r'^tokens/?$', views.TokenViewSet.as_view({'get': 'list'})),
     re_path(r"^tokens/(?P<pk>[-_\w]+)/?$", views.TokenViewSet.as_view({'delete': 'destroy'})),
