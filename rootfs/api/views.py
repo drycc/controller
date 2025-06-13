@@ -156,7 +156,8 @@ class AuthTokenView(GenericViewSet):
             alias = request.query_params.get('alias', '')
             token = models.base.Token(owner=user, alias=alias, oauth=oauth)
             token.save()
-            return HttpResponse(json.dumps({"token": token.key, "username": user.username}))
+            return HttpResponse(json.dumps(
+                {"uuid": str(token.uuid), "token": token.key, "username": user.username}))
         return HttpResponse(status=404)
 
 
@@ -1338,10 +1339,10 @@ class PrometheusProxy(View):
 
     async def proxy(self, request, username, path):
         auth = await database_sync_to_async(self.authentication.authenticate)(request)
-        if not auth or len(auth) != 2 or not auth[0].username != username:
-            return JsonResponse({'error': 'access denied'}, status=403)
-        if auth[0].is_superuser or auth[0].is_staff:
-            path = f"/select/0/prometheus/{path}"
+        if not auth or len(auth) != 2:
+            return JsonResponse({'error': 'Unauthorized'}, status=401)
+        if auth[0].username != username:
+            return JsonResponse({'error': 'Access denied'}, status=403)
         else:
             path = f"/select/{auth[0].id}/prometheus/{path}"
         url = urljoin(settings.DRYCC_VICTORIAMETRICS_URL, path)

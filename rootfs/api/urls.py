@@ -253,7 +253,9 @@ app_urlpatterns = [
         r'^prometheus/(?P<username>[\w.@+-]+)/(?P<path>.+)/?$', views.PrometheusProxy.as_view()),
     # tokens
     re_path(r'^tokens/?$', views.TokenViewSet.as_view({'get': 'list'})),
-    re_path(r"^tokens/(?P<pk>[-_\w]+)/?$", views.TokenViewSet.as_view({'delete': 'destroy'})),
+    re_path(
+        r"^tokens/(?P<pk>[-_\w]+)/?$",
+        views.TokenViewSet.as_view({'get': 'retrieve', 'delete': 'destroy'})),
 ]
 
 mutate_urlpatterns = [

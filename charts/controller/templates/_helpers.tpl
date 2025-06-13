@@ -119,8 +119,18 @@ env:
       name: controller-creds
       key: victoriametrics-url
 {{- else if .Values.victoriametrics.enabled }}
+- name: "DRYCC_VICTORIAMETRICS_USERNAME"
+  valueFrom:
+    secretKeyRef:
+      name: victoriametrics-vmauth-creds
+      key: username
+- name: "DRYCC_VICTORIAMETRICS_PASSWORD"
+  valueFrom:
+    secretKeyRef:
+      name: victoriametrics-vmauth-creds
+      key: password
 - name: "DRYCC_VICTORIAMETRICS_URL"
-  value: "http://drycc-victoriametrics-vmselect.{{$.Release.Namespace}}.svc.{{$.Values.global.clusterDomain}}:8481"
+  value: "http://$(DRYCC_VICTORIAMETRICS_USERNAME):$(DRYCC_VICTORIAMETRICS_PASSWORD)@drycc-victoriametrics-vmauth.{{$.Release.Namespace}}.svc.{{$.Values.global.clusterDomain}}:8481"
 {{- end }}
 {{- if .Values.passport.enabled }}
 - name: "DRYCC_PASSPORT_URL"
