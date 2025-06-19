@@ -84,7 +84,7 @@ def validate_app_id(value):
     """
     Check that the value follows the kubernetes name constraints
     """
-    match = re.match(r'[a-z]([a-z0-9-]*[a-z0-9])?$', value)
+    match = re.match(r'^[a-z]([a-z0-9-]{3,}[a-z0-9])$', value)
     if not match:
         raise ValidationError("App name must start with an alphabetic character, cannot end with a"
                               + " hyphen and can only contain a-z (lowercase), 0-9 and hyphens.")
@@ -101,7 +101,7 @@ def validate_app_structure(value):
 
 def validate_reserved_names(value):
     """A value cannot use some reserved names."""
-    if value in settings.DRYCC_RESERVED_NAMES:
+    if value in settings.RESERVED_NAMES:
         raise ValidationError('{} is a reserved name.'.format(value))
 
 

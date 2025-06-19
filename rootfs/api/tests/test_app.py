@@ -159,7 +159,7 @@ class AppTest(DryccTestCase):
     def test_app_reserved_names(self, mock_requests):
         """Nobody should be able to create applications with names which are reserved."""
         reserved_names = ['foo', 'bar']
-        with self.settings(DRYCC_RESERVED_NAMES=reserved_names):
+        with self.settings(RESERVED_NAMES=reserved_names):
             for name in reserved_names:
                 response = self.client.post('/v2/apps', {'id': name})
                 self.assertContains(
@@ -531,7 +531,7 @@ class AppTest(DryccTestCase):
         """
         Test that a list of apps is sorted by name
         """
-        for name in ['zulu', 'tango', 'alpha', 'foxtrot']:
+        for name in ['zulua', 'tango', 'alpha', 'foxtrot']:
             response = self.client.post('/v2/apps', {'id': name})
             self.assertEqual(response.status_code, 201, response.data)
 
@@ -540,7 +540,7 @@ class AppTest(DryccTestCase):
         self.assertEqual(apps[0]['id'], 'alpha')
         self.assertEqual(apps[1]['id'], 'foxtrot')
         self.assertEqual(apps[2]['id'], 'tango')
-        self.assertEqual(apps[3]['id'], 'zulu')
+        self.assertEqual(apps[3]['id'], 'zulua')
 
     def test_get_private_registry_config(self, mock_requests):
         registry = {"web": {'username': 'test', 'password': 'test'}}

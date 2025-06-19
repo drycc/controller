@@ -23,6 +23,12 @@ data:
     {{- else}}
     {{- include "controller.config.defaultLimitPlans" . | fromYamlArray | toPrettyJson | nindent 4 }}
     {{- end }}
+  reserved-names.txt: |-
+    {{- if .Values.config.reservedNames }}
+    {{- (tpl .Values.config.reservedNames $)  | nindent 4 }}
+    {{- else}}
+    {{- include "controller.config.defaultReservedNames" . | nindent 4 }}
+    {{- end }}
   secret-template.json: |
     {{- if .Values.config.secretTemplate }}
     {{- (tpl .Values.config.secretTemplate $)  | nindent 4 }}

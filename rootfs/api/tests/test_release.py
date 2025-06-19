@@ -614,7 +614,7 @@ class ReleaseTest(DryccTransactionTestCase):
         """
         Verifies that a configured deploy hook is dumped into the logs when a release is created.
         """
-        app_id = 'foo'
+        app_id = 'foooo'
         body = {'sha': '123456', 'image': 'autotest/example', 'stack': 'heroku-18'}
 
         mr_rocks = mock_requests.post(f'http://drycc.rocks?app={app_id}&user={self.user.username}&sha=&release=v1&release_summary={self.user.username}+created+initial+release')  # noqa

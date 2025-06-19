@@ -76,6 +76,7 @@ config:
   metrics: ""
   limitSpecs: ""
   limitPlans: ""
+  reservedNames: ""
   secretTemplate: ""
   volumeTemplate: ""
   volumeClaimTemplate: ""
@@ -88,8 +89,7 @@ service:
 # Any custom controller environment variables
 # can be specified as key-value pairs under environment
 # this is usually a non required setting.
-environment:
-  RESERVED_NAMES: "drycc, drycc-builder, drycc-grafana, drycc-passport, drycc-helmbroker, drycc-manager"
+environment: {}
 
 api:
   resources: {}

@@ -130,7 +130,7 @@ env:
       name: victoriametrics-vmauth-creds
       key: password
 - name: "DRYCC_VICTORIAMETRICS_URL"
-  value: "http://$(DRYCC_VICTORIAMETRICS_USERNAME):$(DRYCC_VICTORIAMETRICS_PASSWORD)@drycc-victoriametrics-vmauth.{{$.Release.Namespace}}.svc.{{$.Values.global.clusterDomain}}:8481"
+  value: "http://$(DRYCC_VICTORIAMETRICS_USERNAME):$(DRYCC_VICTORIAMETRICS_PASSWORD)@drycc-victoriametrics-vmauth.{{$.Release.Namespace}}.svc.{{$.Values.global.clusterDomain}}:8427"
 {{- end }}
 {{- if .Values.passport.enabled }}
 - name: "DRYCC_PASSPORT_URL"
@@ -171,7 +171,6 @@ env:
   value: {{ $value | quote }}
 {{- end }}
 {{- end }}
-
 
 {{- define "controller-job.envs" }}
 {{- include "controller.envs" . }}
@@ -329,6 +328,29 @@ kubelet_volume_stats_inodes_free: [namespace, persistentvolumeclaim, job]
 kubelet_volume_stats_inodes_used: [namespace, persistentvolumeclaim, job]
 {{- end }}
 
+{{/* Generate controller config default reserved names */}}
+{{ define "controller.config.defaultReservedNames" }}
+backup
+catalog
+cert-manager
+default
+drycc
+drycc-manager
+drycc-helmbroker
+drycc-builder
+drycc-grafana
+drycc-passport
+istio-gateway
+istio-system
+kube-node-lease
+kube-public
+kube-system
+longhorn-system
+metallb
+mount-s3
+topolvm
+rook-ceph
+{{- end }}
 
 {{/* Generate controller config default secrets template */}}
 {{ define "controller.config.defaultSecretTemplate" }}
