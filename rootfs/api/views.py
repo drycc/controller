@@ -1263,7 +1263,7 @@ class MetricView(BaseDryccViewSet):
         )
 
 
-class ProxyMetricsView(View):
+class MetricsProxyView(View):
     cache = {}
     match_meta = staticmethod(
         re.compile(r'^(?:# (?:HELP|TYPE) )([a-zA-Z_][a-zA-Z0-9_:.-]*)').match)
@@ -1333,7 +1333,7 @@ class ProxyMetricsView(View):
 
 
 @method_decorator(csrf_exempt, name='dispatch')
-class PrometheusProxy(View):
+class PrometheusProxyView(View):
     timeout = aiohttp.ClientTimeout(total=30, connect=10, sock_read=15)
     authentication = authentication.DryccAuthentication()
 
@@ -1356,3 +1356,4 @@ class PrometheusProxy(View):
         return JsonResponse(data, status=status)
 
     get = post = proxy
+ 
