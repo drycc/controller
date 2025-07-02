@@ -1356,4 +1356,3 @@ class PrometheusProxyView(View):
         return JsonResponse(data, status=status)
 
     get = post = proxy
- 
