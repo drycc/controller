@@ -25,8 +25,9 @@ class Command(BaseCommand):
         stop = timestamp - (timestamp % 3600)
         start = stop - 3600
         loadbalancers = []
-        for metric, (_, value) in async_to_sync(monitor.query_loadbalancer(
-                app_map.keys(), start, stop)):
+        for item in async_to_sync(monitor.query_loadbalancer)(app_map.keys(), start, stop):  # noqa
+            metric = item["metric"]
+            _, value = item["value"]
             ip = metric["ip"]
             namespace = metric["namespace"]
             owner_id = app_map[namespace].owner_id
