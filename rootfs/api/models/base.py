@@ -1,4 +1,5 @@
 import uuid
+import time
 import string
 import random
 from datetime import timedelta
@@ -10,7 +11,7 @@ from django.contrib.auth.models import AbstractUser
 from django.utils.translation import gettext_lazy as _
 
 
-from api.utils import validate_json, get_scheduler
+from api.utils import get_session, validate_json, get_scheduler
 
 token_manager_oauth_schema = {
     "$schema": "http://json-schema.org/schema#",
@@ -46,6 +47,20 @@ class AuditedModel(models.Model):
     class Meta:
         """Mark :class:`AuditedModel` as abstract."""
         abstract = True
+
+    def app_log(self, app_id, msg):
+        session = get_session()
+        session.post(
+            "",
+            json={
+                "timestamp": int(time.time()),
+                "log": msg,
+                "kubernetes": {
+                    "namespace": app_id,
+                    "container_name": "drycc-controller",
+                }
+            }
+        )
 
     @property
     def scheduler(self):

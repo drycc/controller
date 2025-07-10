@@ -110,12 +110,12 @@ class HookTest(DryccTransactionTestCase):
 
         # Make sure 404 is returned for a random app
         url = '/v2/hooks/keys/doesnotexist'
-        response = self.client.get(url, HTTP_X_DRYCC_BUILDER_AUTH=settings.BUILDER_KEY)
+        response = self.client.get(url, HTTP_X_DRYCC_SERVICE_KEY=settings.SERVICE_KEY)
         self.assertEqual(response.status_code, 404)
 
         # Test app that exists
         url = '/v2/hooks/keys/{}'.format(app_id)
-        response = self.client.get(url, HTTP_X_DRYCC_BUILDER_AUTH=settings.BUILDER_KEY)
+        response = self.client.get(url, HTTP_X_DRYCC_SERVICE_KEY=settings.SERVICE_KEY)
         self.assertEqual(response.status_code, 200, response.data)
         self.assertEqual(response.data, {"autotest": [
             {'key': rsa_pub, 'fingerprint': '54:6d:da:1f:91:b5:2b:6f:a2:83:90:c4:f9:73:76:f5'},
@@ -126,12 +126,12 @@ class HookTest(DryccTransactionTestCase):
 
         # Test against an app that exist but user does not
         url = '/v2/hooks/keys/{}/foooooo'.format(app_id)
-        response = self.client.get(url, HTTP_X_DRYCC_BUILDER_AUTH=settings.BUILDER_KEY)
+        response = self.client.get(url, HTTP_X_DRYCC_SERVICE_KEY=settings.SERVICE_KEY)
         self.assertEqual(response.status_code, 404)
 
         # Test against an app that exists and user that does
         url = '/v2/hooks/keys/{}/{}'.format(app_id, str(self.user))
-        response = self.client.get(url, HTTP_X_DRYCC_BUILDER_AUTH=settings.BUILDER_KEY)
+        response = self.client.get(url, HTTP_X_DRYCC_SERVICE_KEY=settings.SERVICE_KEY)
         self.assertEqual(response.status_code, 200, response.data)
         self.assertEqual(response.data, {"autotest": [
             {'key': rsa_pub, 'fingerprint': '54:6d:da:1f:91:b5:2b:6f:a2:83:90:c4:f9:73:76:f5'},
@@ -143,7 +143,7 @@ class HookTest(DryccTransactionTestCase):
 
         # Fetch a valid ssh key
         url = '/v2/hooks/key/54:6d:da:1f:91:b5:2b:6f:a2:83:90:c4:f9:73:76:f5'
-        response = self.client.get(url, HTTP_X_DRYCC_BUILDER_AUTH=settings.BUILDER_KEY)
+        response = self.client.get(url, HTTP_X_DRYCC_SERVICE_KEY=settings.SERVICE_KEY)
         self.assertEqual(response.status_code, 200, response.data)
         self.assertEqual(response.data, {
             "username": str(self.user),
@@ -154,12 +154,12 @@ class HookTest(DryccTransactionTestCase):
 
         # Fetch an non-existent base64 encoded ssh key
         url = '/v2/hooks/key/54:6d:da:1f:91:b5:2b:6f:a2:83:90:c4:f9:73:76:wooooo'
-        response = self.client.get(url, HTTP_X_DRYCC_BUILDER_AUTH=settings.BUILDER_KEY)
+        response = self.client.get(url, HTTP_X_DRYCC_SERVICE_KEY=settings.SERVICE_KEY)
         self.assertEqual(response.status_code, 404)
 
         # Fetch an invalid (not encoded) ssh key
         url = '/v2/hooks/key/nope'
-        response = self.client.get(url, HTTP_X_DRYCC_BUILDER_AUTH=settings.BUILDER_KEY)
+        response = self.client.get(url, HTTP_X_DRYCC_SERVICE_KEY=settings.SERVICE_KEY)
         self.assertEqual(response.status_code, 404)
 
     def test_build_hook(self, mock_requests):
@@ -174,9 +174,9 @@ class HookTest(DryccTransactionTestCase):
         self.client.credentials()
         response = self.client.post(url, body)
         self.assertEqual(response.status_code, 401, response.data)
-        # post the build with the builder auth key
+        # post the build with the service key
         response = self.client.post(url, body,
-                                    HTTP_X_DRYCC_BUILDER_AUTH=settings.BUILDER_KEY)
+                                    HTTP_X_DRYCC_SERVICE_KEY=settings.SERVICE_KEY)
         self.assertEqual(response.status_code, 200, response.data)
         self.assertIn('release', response.data)
         self.assertIn('version', response.data['release'])
@@ -195,9 +195,9 @@ class HookTest(DryccTransactionTestCase):
         response = self.client.post(url, body)
         self.assertEqual(response.status_code, 401, response.data)
 
-        # post the build with the builder auth key
+        # post the build with the service key
         response = self.client.post(url, body,
-                                    HTTP_X_DRYCC_BUILDER_AUTH=settings.BUILDER_KEY)
+                                    HTTP_X_DRYCC_SERVICE_KEY=settings.SERVICE_KEY)
         self.assertEqual(response.status_code, 200, response.data)
         self.assertIn('release', response.data)
         self.assertIn('version', response.data['release'])
@@ -217,9 +217,9 @@ class HookTest(DryccTransactionTestCase):
                 'sha': SHA,
                 'procfile': PROCFILE}
 
-        # post the build with the builder auth key
+        # post the build with the service key
         response = self.client.post(url, body,
-                                    HTTP_X_DRYCC_BUILDER_AUTH=settings.BUILDER_KEY)
+                                    HTTP_X_DRYCC_SERVICE_KEY=settings.SERVICE_KEY)
         self.assertEqual(response.status_code, 200, response.data)
         self.assertIn('release', response.data)
         self.assertIn('version', response.data['release'])
@@ -258,9 +258,9 @@ class HookTest(DryccTransactionTestCase):
                 'stack': 'container',
                 'sha': SHA,
                 'dockerfile': DOCKERFILE}
-        # post the build with the builder auth key
+        # post the build with the service key
         response = self.client.post(url, body,
-                                    HTTP_X_DRYCC_BUILDER_AUTH=settings.BUILDER_KEY)
+                                    HTTP_X_DRYCC_SERVICE_KEY=settings.SERVICE_KEY)
         self.assertEqual(response.status_code, 200, response.data)
         self.assertIn('release', response.data)
         self.assertIn('version', response.data['release'])
@@ -298,9 +298,9 @@ class HookTest(DryccTransactionTestCase):
         self.client.credentials()
         response = self.client.post(url, body)
         self.assertEqual(response.status_code, 401, response.data)
-        # post with the builder auth key
+        # post with the service key
         response = self.client.post(url, body,
-                                    HTTP_X_DRYCC_BUILDER_AUTH=settings.BUILDER_KEY)
+                                    HTTP_X_DRYCC_SERVICE_KEY=settings.SERVICE_KEY)
         self.assertEqual(response.status_code, 200, response.data)
         self.assertIn('values', response.data)
         self.assertEqual(values, response.data['values'])
@@ -327,6 +327,6 @@ class HookTest(DryccTransactionTestCase):
                 'dockerfile': DOCKERFILE}
         url = '/v2/hooks/build'
         response = self.client.post(url, body,
-                                    HTTP_X_DRYCC_BUILDER_AUTH=settings.BUILDER_KEY)
+                                    HTTP_X_DRYCC_SERVICE_KEY=settings.SERVICE_KEY)
         self.assertEqual(response.status_code, 200, response.data)
         self.assertEqual(response.data['release']['version'], 2)

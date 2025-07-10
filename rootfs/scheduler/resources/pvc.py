@@ -1,4 +1,5 @@
 import json
+import logging
 from scheduler.resources import Resource
 from scheduler.exceptions import KubeHTTPException
 
@@ -59,7 +60,7 @@ class PersistentVolumeClaim(Resource):
         data = self.manifest(namespace, name, **kwargs)
         response = self.http_patch(url, json=data, headers={"Content-Type": "application/merge-patch+json"})  # noqa
         if self.unhealthy(response.status_code):
-            self.log(namespace, 'template used: {}'.format(json.dumps(data, indent=4)), 'DEBUG')  # noqa
+            self.log(namespace, 'template used: {}'.format(json.dumps(data, indent=4)), logging.DEBUG)  # noqa
             raise KubeHTTPException(response, 'update persistentvolumeclaims "{}"', name)
         return response
 

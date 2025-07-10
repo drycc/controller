@@ -21,6 +21,7 @@ class AnonymousAuthentication(authentication.BaseAuthentication):
 class DryccAuthentication(authentication.BaseAuthentication):
 
     keywords = ('token', 'bearer')
+    ignore_authentication_failed = False
 
     def parse_header(self, request):
         try:
@@ -44,17 +45,19 @@ class DryccAuthentication(authentication.BaseAuthentication):
         token_type, token = self.parse_header(request)
         if token_type is None or token is None:
             return None
-        if token_type == 'bearer':  # drycc oauth access token
-            try:
+        try:
+            if token_type == 'bearer':  # drycc oauth access token
                 from api.backend import OauthCacheManager
                 return OauthCacheManager().get_user(token), token
-            except exceptions.AuthenticationFailed:
-                return None
-        # drycc token
-        user = cache.get(token, None)
-        if not user:
-            return self.authenticate_credentials(token)
-        return user, token
+            # drycc token
+            user = cache.get(token, None)
+            if not user:
+                return self.authenticate_credentials(token)
+            return user, token
+        except exceptions.AuthenticationFailed as e:
+            if not self.ignore_authentication_failed:
+                raise e
+        return None
 
     def authenticate_credentials(self, key):
         from api.models.base import Token

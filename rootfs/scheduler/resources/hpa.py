@@ -1,4 +1,5 @@
 import json
+import logging
 from packaging.version import parse
 
 from scheduler.resources import Resource
@@ -93,7 +94,7 @@ class HorizontalPodAutoscaler(Resource):
         url = self.api("/namespaces/{}/horizontalpodautoscalers", namespace)
         response = self.http_post(url, json=manifest)
         if self.unhealthy(response.status_code):
-            self.log(namespace, 'template used: {}'.format(json.dumps(manifest, indent=4)), 'DEBUG')  # noqa
+            self.log(namespace, 'template used: {}'.format(json.dumps(manifest, indent=4)), logging.DEBUG)  # noqa
             raise KubeHTTPException(
                 response,
                 'create HorizontalPodAutoscaler "{}" in Namespace "{}"', name, namespace
@@ -111,7 +112,7 @@ class HorizontalPodAutoscaler(Resource):
         url = self.api("/namespaces/{}/horizontalpodautoscalers/{}", namespace, name)
         response = self.http_put(url, json=manifest)
         if self.unhealthy(response.status_code):
-            self.log(namespace, 'template used: {}'.format(json.dumps(manifest, indent=4)), 'DEBUG')  # noqa
+            self.log(namespace, 'template used: {}'.format(json.dumps(manifest, indent=4)), logging.DEBUG)  # noqa
             raise KubeHTTPException(response, 'update HorizontalPodAutoscaler "{}"', name)
 
         # optionally wait for HPA if requested

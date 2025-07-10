@@ -111,20 +111,20 @@ class IsAdminOrSafeMethod(permissions.BasePermission):
         return request.method in permissions.SAFE_METHODS or request.user.is_superuser
 
 
-class HasBuilderAuth(permissions.BasePermission):
+class IsServiceToken(permissions.BasePermission):
     """
-    View permission to allow builder to perform actions
-    with a special HTTP header
+    The service token is used for internal communication between Drycc components,
+    such as the builder and Quickwit.
     """
 
     def has_permission(self, request, view):
         """
         Return `True` if permission is granted, `False` otherwise.
         """
-        auth_header = request.META.get('HTTP_X_DRYCC_BUILDER_AUTH')
+        auth_header = request.META.get('HTTP_X_DRYCC_SERVICE_KEY')
         if not auth_header:
             return False
-        return auth_header == settings.BUILDER_KEY
+        return auth_header == settings.SERVICE_KEY
 
 
 class IsWorkflowManager(permissions.BasePermission):

@@ -248,6 +248,10 @@ app_urlpatterns = [
     re_path(
         r'^nodes/(?P<node>[a-zA-Z0-9-]+)/proxy/metrics(?:/(?P<metrics>[^/]+))?/?$',
         views.MetricsProxyView.as_view()),
+    # quickwit
+    re_path(
+        r'^quickwit/(?P<username>[\w.@+-]+)/(?P<path>.+)/?$',
+        views.QuickwitProxyView.as_view()),
     # prometheus
     re_path(
         r'^prometheus/(?P<username>[\w.@+-]+)/(?P<path>.+)/?$',

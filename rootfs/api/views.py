@@ -718,7 +718,7 @@ class TLSViewSet(AppResourceViewSet):
 
 
 class BaseHookViewSet(BaseDryccViewSet):
-    permission_classes = [permissions.HasBuilderAuth]
+    permission_classes = [permissions.IsServiceToken]
 
 
 class KeyHookViewSet(BaseHookViewSet):
@@ -1333,18 +1333,90 @@ class MetricsProxyView(View):
 
 
 @method_decorator(csrf_exempt, name='dispatch')
+class QuickwitProxyView(View):
+    timeout = aiohttp.ClientTimeout(total=30, connect=10, sock_read=15)
+    permission = permissions.IsServiceToken()
+    authentication = authentication.DryccAuthentication()
+    authentication.ignore_authentication_failed = True
+    index_url_match = re.compile("^indexes/?$").match
+    search_url_match = re.compile("^(?P<index>[a-zA-Z*][\w.*-，]{0,})/search/?$").match
+
+    async def get(self, request, username, path):
+        if match := self.search_url_match(path):
+            func, index = self.query, match.group("index")
+        elif self.index_url_match(path):
+            func, index = self.index, request.GET.get("index_id_patterns", "*")
+        else:
+            raise JsonResponse({'error': 'Not Found'}, status=404)
+        if self.permission.has_permission(request, None):
+            if username != "drycc":
+                return JsonResponse({'error': 'Access denied'}, status=403)
+        else:
+            auth = await database_sync_to_async(self.authentication.authenticate)(request)
+            if not auth or len(auth) != 2:
+                return JsonResponse({'error': 'Unauthorized'}, status=401)
+            if auth[0].username != username:
+                return JsonResponse({'error': 'Access denied'}, status=403)
+            else:
+                index = await self.get_app_indexes(username, index)
+        return await func(request, index)
+
+    async def index(self, request, index):
+        base_url = settings.QUICKWIT_SEARCHER_URL
+        url, params = urljoin(base_url, f"/api/v1/indexes"), dict(request.GET)
+        params["index_id_patterns"] = index
+        try:
+            async with aiohttp.ClientSession() as session:
+                async with session.get(url, params=params, timeout=self.timeout) as response:
+                    data, status = await response.json(), response.status
+        except aiohttp.ClientError as e:
+            data, status = {'error': f'quickwit connection failed: {str(e)}'}, 502
+        return JsonResponse(data, status=status, safe=False)
+
+    async def query(self, request, index):
+        base_url = settings.QUICKWIT_SEARCHER_URL
+        url, params = urljoin(base_url, f"/api/v1/{index}/search"), dict(request.GET)
+        try:
+            async with aiohttp.ClientSession() as session:
+                async with session.get(url, params=params, timeout=self.timeout) as response:
+                    data, status = await response.json(), response.status
+        except aiohttp.ClientError as e:
+            data, status = {'error': f'quickwit connection failed: {str(e)}'}, 502
+        return JsonResponse(data, status=status)
+
+    async def get_app_indexes(self, username, index):
+        if "," in index:
+            match = re.compile("|".join([f"^{i}$" for i in index.split(",")])).match
+        else:
+            match = re.compile(index).match
+        app_indexes, log_index_prefix = [], settings.QUICKWIT_LOG_INDEX_PREFIX
+        async for app in models.app.App.objects.filter(owner__username=username):
+            app_index = f"{log_index_prefix}{app.id}"
+            if match(app_index):
+                app_indexes.append(app_index)
+        return ",".join(app_indexes)
+
+
+@method_decorator(csrf_exempt, name='dispatch')
 class PrometheusProxyView(View):
     timeout = aiohttp.ClientTimeout(total=30, connect=10, sock_read=15)
+    permission = permissions.IsServiceToken()
     authentication = authentication.DryccAuthentication()
+    authentication.ignore_authentication_failed = True
 
     async def proxy(self, request, username, path):
-        auth = await database_sync_to_async(self.authentication.authenticate)(request)
-        if not auth or len(auth) != 2:
-            return JsonResponse({'error': 'Unauthorized'}, status=401)
-        if auth[0].username != username:
-            return JsonResponse({'error': 'Access denied'}, status=403)
+        if self.permission.has_permission(request, None):
+            if username != "drycc":
+                return JsonResponse({'error': 'Access denied'}, status=403)
+            path = f"/select/0/prometheus/{path}"
         else:
-            path = f"/select/{auth[0].id}/prometheus/{path}"
+            auth = await database_sync_to_async(self.authentication.authenticate)(request)
+            if not auth or len(auth) != 2:
+                return JsonResponse({'error': 'Unauthorized'}, status=401)
+            if auth[0].username != username:
+                return JsonResponse({'error': 'Access denied'}, status=403)
+            else:
+                path = f"/select/{auth[0].id}/prometheus/{path}"
         url = urljoin(settings.DRYCC_VICTORIAMETRICS_URL, path)
         params = dict(request.GET) if request.method == "GET" else dict(request.POST)
         try:

@@ -1,6 +1,7 @@
-from datetime import datetime, timedelta, timezone
 import json
 import time
+import logging
+from datetime import datetime, timedelta, timezone
 from scheduler.resources import Resource
 from scheduler.exceptions import KubeException, KubeHTTPException
 
@@ -121,7 +122,8 @@ class Deployment(Resource):
         url = self.api("/namespaces/{}/deployments", namespace)
         response = self.http_post(url, json=manifest)
         if self.unhealthy(response.status_code):
-            self.log(namespace, 'template: {}'.format(json.dumps(manifest, indent=4)), 'DEBUG')
+            self.log(
+                namespace, 'template: {}'.format(json.dumps(manifest, indent=4)), logging.DEBUG)
             if not ignore_exception:
                 raise KubeHTTPException(
                     response,
@@ -140,7 +142,8 @@ class Deployment(Resource):
         url = self.api("/namespaces/{}/deployments/{}", namespace, name)
         response = self.http_put(url, json=manifest)
         if self.unhealthy(response.status_code):
-            self.log(namespace, 'template: {}'.format(json.dumps(manifest, indent=4)), 'DEBUG')
+            self.log(
+                namespace, 'template: {}'.format(json.dumps(manifest, indent=4)), logging.DEBUG)
             if not ignore_exception:
                 raise KubeHTTPException(response, 'update Deployment "{}"', name)
         else:
@@ -161,7 +164,8 @@ class Deployment(Resource):
         )
 
         if self.unhealthy(response.status_code):
-            self.log(namespace, 'template: {}'.format(json.dumps(manifest, indent=4)), 'DEBUG')
+            self.log(
+                namespace, 'template: {}'.format(json.dumps(manifest, indent=4)), logging.DEBUG)
             if not ignore_exception:
                 raise KubeHTTPException(response, 'patch Deployment "{}"', name)
         else:
@@ -245,17 +249,17 @@ class Deployment(Resource):
         Returns 2 booleans, first one is for if the Deployment is in progress or not, second
         one is or if a rollback action is advised while leaving the rollback up to the caller
         """
-        self.log(namespace, 'Checking if Deployment {} is in progress'.format(name), level='DEBUG')  # noqa
+        self.log(namespace, 'Checking if Deployment {} is in progress'.format(name), level=logging.DEBUG)  # noqa
         try:
             ready, _ = self.are_replicas_ready(namespace, name)
             if ready:
                 # nothing more to do - False since it is not in progress
-                self.log(namespace, 'All replicas for Deployment {} are ready'.format(name), level='DEBUG')  # noqa
+                self.log(namespace, 'All replicas for Deployment {} are ready'.format(name), level=logging.DEBUG)  # noqa
                 return False, False
         except KubeHTTPException as e:
             # Deployment doesn't exist
             if e.response.status_code == 404:
-                self.log(namespace, 'Deployment {} does not exist yet'.format(name), level='DEBUG')  # noqa
+                self.log(namespace, 'Deployment {} does not exist yet'.format(name), level=logging.DEBUG)  # noqa
                 return False, False
 
         # get deployment information
@@ -348,7 +352,7 @@ class Deployment(Resource):
         More information is also available at:
         https://github.com/kubernetes/kubernetes/blob/master/docs/devel/api-conventions.md#metadata
         """
-        self.log(namespace, "waiting for Deployment {} to get a newer generation (30s timeout)".format(name), 'DEBUG')  # noqa
+        self.log(namespace, "waiting for Deployment {} to get a newer generation (30s timeout)".format(name), logging.DEBUG)  # noqa
         for _ in range(30):
             try:
                 deploy = self.deployment.get(namespace, name).json()
@@ -356,7 +360,7 @@ class Deployment(Resource):
                     'observedGeneration' in deploy['status'] and
                     deploy['status']['observedGeneration'] >= deploy['metadata']['generation']
                 ):
-                    self.log(namespace, "A newer generation was found for Deployment {}".format(name), 'DEBUG')  # noqa
+                    self.log(namespace, "A newer generation was found for Deployment {}".format(name), logging.DEBUG)  # noqa
                     break
 
                 time.sleep(1)

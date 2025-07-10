@@ -1,4 +1,5 @@
 import time
+import logging
 from scheduler.exceptions import KubeHTTPException
 from scheduler.resources import Resource
 
@@ -69,7 +70,7 @@ class ReplicaSet(Resource):
         More information is also available at:
         https://github.com/kubernetes/kubernetes/blob/master/docs/devel/api-conventions.md#metadata
         """
-        self.log(namespace, "waiting for ReplicationController {} to get a newer generation (30s timeout)".format(name), 'DEBUG')  # noqa
+        self.log(namespace, "waiting for ReplicationController {} to get a newer generation (30s timeout)".format(name), logging.DEBUG)  # noqa
         for _ in range(30):
             try:
                 rs = self.get(namespace, name).json()
@@ -77,7 +78,7 @@ class ReplicaSet(Resource):
                     "observedGeneration" in rs["status"] and
                     rs["status"]["observedGeneration"] >= rs["metadata"]["generation"]
                 ):
-                    self.log(namespace, "ReplicationController {} got a newer generation (30s timeout)".format(name), 'DEBUG')  # noqa
+                    self.log(namespace, "ReplicationController {} got a newer generation (30s timeout)".format(name), logging.DEBUG)  # noqa
                     break
 
                 time.sleep(1)

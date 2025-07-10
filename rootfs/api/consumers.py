@@ -2,7 +2,6 @@ import json
 import time
 import six
 import ssl
-import aiohttp
 import asyncio
 from django.conf import settings
 from django.core.cache import cache
@@ -64,47 +63,6 @@ class BaseK8sConsumer(BaseAppConsumer):
             config.ssl_ca_cert = "/var/run/secrets/kubernetes.io/serviceaccount/ca.crt"
         Configuration.set_default(config)
         return core_v1_api.CoreV1Api()
-
-
-class AppLogsConsumer(BaseAppConsumer):
-
-    async def connect(self):
-        await super().connect()
-        self.session = None
-        self.running = False
-        self.conneted = True
-
-    async def task(self, **kwargs):
-        lines = kwargs.get("lines", 100)
-        follow = kwargs.get("follow", False)
-        timeout = kwargs.get("timeout", 300)
-        url = "http://{}:{}/logs/{}?log_lines={}&follow={}&timeout={}".format(
-            settings.LOGGER_HOST, settings.LOGGER_PORT, self.id, lines, follow, timeout,
-        )
-        try:
-            async with aiohttp.ClientSession() as session:
-                self.session = session
-                async with session.get(url) as response:
-                    async for data in response.content.iter_any():
-                        if not self.conneted:
-                            break
-                        await self.send(text_data=data)
-        except asyncio.TimeoutError:
-            pass
-        finally:
-            await self.close(code=1000)
-
-    async def receive(self, text_data=None, bytes_data=None):
-        if self.running:
-            return
-        self.running = True
-        kwargs = json.loads(text_data)
-        asyncio.create_task(self.task(**kwargs))
-
-    async def disconnect(self, close_code):
-        if self.session:
-            await self.session.close()
-        self.conneted = False
 
 
 class AppPodLogsConsumer(BaseK8sConsumer):

@@ -4,9 +4,16 @@ Django settings for the Drycc project.
 import sys
 import uuid
 import json
+import random
+import string
 import os.path
 import tempfile
 import dj_database_url
+
+
+def randstr(k):
+    return ''.join(random.choices(string.ascii_lowercase + string.digits, k=k))
+
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, os.path.join(BASE_DIR, 'apps_extra'))
@@ -312,10 +319,11 @@ if os.path.exists(DRYCC_VOLUME_CLAIM_TEMPLATE_PATH):
     with open(DRYCC_VOLUME_CLAIM_TEMPLATE_PATH) as fd:
         DRYCC_VOLUME_CLAIM_TEMPLATE = json.load(fd)
 
-# security keys and auth tokens
-random_secret = 'CHANGEME_sapm$s%upvsw5l_zuy_&29rkywd^78ff(qi*#@&*^'
-SECRET_KEY = os.environ.get('DRYCC_SECRET_KEY', random_secret)
-BUILDER_KEY = os.environ.get('DRYCC_BUILDER_KEY', random_secret)
+# Django secret key
+SECRET_KEY = os.environ.get('DRYCC_SECRET_KEY', randstr(64))
+
+# Drycc service key
+SERVICE_KEY = os.environ.get('DRYCC_SERVICE_KEY', randstr(64))
 
 # Drycc admission mutate key
 MUTATE_KEY_PATH = os.environ.get('DRYCC_MUTATE_KEY_PATH', '/etc/controller/mutate/cert/key')
@@ -386,10 +394,6 @@ KUBERNETES_JOB_MAX_TTL_SECONDS_AFTER_FINISHED = int(os.environ.get(
 # registry settings
 REGISTRY_LOCATION = os.environ.get('DRYCC_REGISTRY_LOCATION', 'on-cluster')
 REGISTRY_SECRET_PREFIX = os.environ.get('DRYCC_REGISTRY_SECRET_PREFIX', 'private-registry')
-
-# logger settings
-LOGGER_HOST = os.environ.get('DRYCC_LOGGER_SERVICE_HOST', '127.0.0.1')
-LOGGER_PORT = os.environ.get('DRYCC_LOGGER_SERVICE_PORT_HTTP', 80)
 
 DRYCC_DATABASE_URL = os.environ.get('DRYCC_DATABASE_URL', 'postgres://postgres:@:5432/drycc')
 DATABASES = {
@@ -478,6 +482,10 @@ CACHES = {
         "LOCATION": os.environ.get('DRYCC_VALKEY_URL', 'redis://:@127.0.0.1:6379'),
     }
 }
+
+# Quickwit Configuration
+QUICKWIT_SEARCHER_URL = os.environ.get('QUICKWIT_SEARCHER_URL', None)
+QUICKWIT_LOG_INDEX_PREFIX = os.environ.get('QUICKWIT_LOG_INDEX_PREFIX', None)
 
 # Workflow-manager Configuration Options
 WORKFLOW_MANAGER_URL = os.environ.get('WORKFLOW_MANAGER_URL', None)

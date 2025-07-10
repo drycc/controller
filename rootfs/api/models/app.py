@@ -250,8 +250,6 @@ class App(UuidAuditedModel):
         except KubeHTTPException:
             # it's fine if the namespace does not exist - delete app from the DB
             pass
-
-        self._clean_app_logs()
         return super(App, self).delete(*args, **kwargs)
 
     def restart(self, **kwargs):  # noqa
@@ -751,18 +749,6 @@ class App(UuidAuditedModel):
 
     def _get_deployment_name(self, ptype):
         return f"{self.id}-{ptype}"
-
-    def _clean_app_logs(self):
-        """Delete application logs stored by the logger component"""
-        try:
-            url = 'http://{}:{}/logs/{}'.format(settings.LOGGER_HOST,
-                                                settings.LOGGER_PORT, self.id)
-            requests.delete(url)
-        except Exception as e:
-            # Ignore errors deleting application logs.  An error here should not interfere with
-            # the overall success of deleting an application, but we should log it.
-            err = 'Error deleting existing application logs: {}'.format(e)
-            self.log(err, logging.WARNING)
 
     def _mount(self, user, volume, app_settings, structure=None):
         volumes = Volume.objects.filter(app=self)

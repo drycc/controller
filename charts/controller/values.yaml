@@ -163,6 +163,9 @@ valkey:
 database:
   enabled: true
 
+quickwit:
+  logIndexPrefix: logs-
+
 registry:
   enabled: true
 

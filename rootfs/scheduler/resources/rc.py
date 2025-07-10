@@ -1,5 +1,6 @@
 import json
 import time
+import logging
 from scheduler.exceptions import KubeHTTPException
 from scheduler.resources import Resource
 
@@ -56,7 +57,8 @@ class ReplicationController(Resource):
         url = self.api("/namespaces/{}/replicationcontrollers", namespace)
         resp = self.http_post(url, json=manifest)
         if self.unhealthy(resp.status_code):
-            self.log(namespace, 'template: {}'.format(json.dumps(manifest, indent=4)), 'DEBUG')
+            self.log(
+                namespace, 'template: {}'.format(json.dumps(manifest, indent=4)), logging.DEBUG)
             raise KubeHTTPException(
                 resp,
                 'create ReplicationController "{}" in Namespace "{}"', name, namespace
@@ -114,7 +116,7 @@ class ReplicationController(Resource):
         More information is also available at:
         https://github.com/kubernetes/kubernetes/blob/master/docs/devel/api-conventions.md#metadata
         """
-        self.log(namespace, "waiting for ReplicationController {} to get a newer generation (30s timeout)".format(name), 'DEBUG')  # noqa
+        self.log(namespace, "waiting for ReplicationController {} to get a newer generation (30s timeout)".format(name), logging.DEBUG)  # noqa
         for _ in range(30):
             try:
                 rc = self.get(namespace, name).json()
@@ -122,7 +124,7 @@ class ReplicationController(Resource):
                     "observedGeneration" in rc["status"] and
                     rc["status"]["observedGeneration"] >= rc["metadata"]["generation"]
                 ):
-                    self.log(namespace, "ReplicationController {} got a newer generation (30s timeout)".format(name), 'DEBUG')  # noqa
+                    self.log(namespace, "ReplicationController {} got a newer generation (30s timeout)".format(name), logging.DEBUG)  # noqa
                     break
 
                 time.sleep(1)

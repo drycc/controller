@@ -51,11 +51,11 @@ env:
     secretKeyRef:
       name: controller-creds
       key: django-secret-key
-- name: DRYCC_BUILDER_KEY
+- name: DRYCC_SERVICE_KEY
   valueFrom:
     secretKeyRef:
-      name: builder-key-auth
-      key: builder-key
+      name: controller-creds
+      key: service-key
 {{- if (.Values.valkeyUrl) }}
 - name: DRYCC_VALKEY_URL
   valueFrom:
@@ -119,18 +119,8 @@ env:
       name: controller-creds
       key: victoriametrics-url
 {{- else if .Values.victoriametrics.enabled }}
-- name: "DRYCC_VICTORIAMETRICS_USERNAME"
-  valueFrom:
-    secretKeyRef:
-      name: victoriametrics-vmauth-creds
-      key: username
-- name: "DRYCC_VICTORIAMETRICS_PASSWORD"
-  valueFrom:
-    secretKeyRef:
-      name: victoriametrics-vmauth-creds
-      key: password
 - name: "DRYCC_VICTORIAMETRICS_URL"
-  value: "http://$(DRYCC_VICTORIAMETRICS_USERNAME):$(DRYCC_VICTORIAMETRICS_PASSWORD)@drycc-victoriametrics-vmauth.{{$.Release.Namespace}}.svc.{{$.Values.global.clusterDomain}}:8427"
+  value: "http://drycc-victoriametrics-vmselect.{{$.Release.Namespace}}.svc.{{$.Values.global.clusterDomain}}:8481"
 {{- end }}
 {{- if .Values.passport.enabled }}
 - name: "DRYCC_PASSPORT_URL"
@@ -166,6 +156,10 @@ env:
       name: controller-creds
       key: passport-secret
 {{- end }}
+- name: QUICKWIT_SEARCHER_URL
+  value: http://drycc-quickwit-searcher.{{ $.Release.Namespace }}.svc.{{ .Values.global.clusterDomain }}:7280
+- name: QUICKWIT_LOG_INDEX_PREFIX
+  value: {{ .Values.quickwit.logIndexPrefix }}
 {{- range $key, $value := .Values.environment }}
 - name: {{ $key }}
   value: {{ $value | quote }}

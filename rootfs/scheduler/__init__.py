@@ -141,7 +141,7 @@ class KubeHTTPClient(object):
         return query
 
     @staticmethod
-    def log(namespace, message, level='INFO'):
+    def log(namespace, message, level=logging.INFO):
         """Logs a message in the context of this application.
 
         This prefixes log messages with a namespace "tag".
@@ -149,8 +149,7 @@ class KubeHTTPClient(object):
         sort like releasing or scaling, will be considered as "belonging" to the application
         instead of the controller and will be handled accordingly.
         """
-        lvl = getattr(logging, level.upper()) if hasattr(logging, level.upper()) else logging.INFO
-        logger.log(lvl, "[{}]: {}".format(namespace, message))
+        logger.log(level, "[{}]: {}".format(namespace, message))
 
     def http_head(self, path, **kwargs):
         """
