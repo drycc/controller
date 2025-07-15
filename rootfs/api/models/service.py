@@ -1,7 +1,6 @@
 import logging
 from functools import partial
 from django.db import models
-from django.conf import settings
 from django.contrib.auth import get_user_model
 from api.utils import validate_json
 from api.exceptions import ServiceUnavailable
@@ -53,9 +52,7 @@ class Service(AuditedModel):
 
     @property
     def domain(self):
-        return "{}.{}.svc.{}".format(
-            self.name, self.namespace, settings.KUBERNETES_CLUSTER_DOMAIN
-        )
+        return "{}.{}.svc".format(self.name, self.namespace)
 
     @property
     def namespace(self):

@@ -29,9 +29,7 @@ spec:
               - netcat
               - -v
               - -u
-              - $(DRYCC_DATABASE_URL),$(DRYCC_VALKEY_URL),$(DRYCC_DATABASE_REPLICA_URL)
-              - -a
-              - $(DRYCC_CONTROLLER_API_SERVICE_HOST):$(DRYCC_CONTROLLER_API_SERVICE_PORT)
+              - $(DRYCC_DATABASE_URL),$(DRYCC_VALKEY_URL),$(DRYCC_DATABASE_REPLICA_URL),http://drycc-controller-api
             {{- include "controller-job.envs" . | indent 12 }}
           containers:
           - image: {{.Values.imageRegistry}}/{{.Values.imageOrg}}/controller:{{.Values.imageTag}}

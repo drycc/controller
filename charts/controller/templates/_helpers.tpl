@@ -17,8 +17,6 @@ env:
   value: "{{ (tpl .Values.filerImage .) }}"
 - name: "DRYCC_FILER_IMAGE_PULL_POLICY"
   value: "{{ (tpl .Values.filerImagePullPolicy .) }}"
-- name: "KUBERNETES_CLUSTER_DOMAIN"
-  value: "{{ .Values.global.clusterDomain }}"
 - name: "DRYCC_APP_GATEWAY_CLASS"
   value: "{{ .Values.appGatewayClass }}"
 {{- if (.Values.appStorageClass) }}
@@ -69,7 +67,7 @@ env:
       name: valkey-creds
       key: password
 - name: DRYCC_VALKEY_URL
-  value: "redis://:$(VALKEY_PASSWORD)@drycc-valkey.{{.Release.Namespace}}.svc.{{.Values.global.clusterDomain}}:16379/0"
+  value: "redis://:$(VALKEY_PASSWORD)@drycc-valkey:16379/0"
 {{- end }}
 {{- if (.Values.databaseReplicaUrl) }}
 - name: DRYCC_DATABASE_REPLICA_URL
@@ -96,9 +94,9 @@ env:
       name: database-creds
       key: password
 - name: DRYCC_DATABASE_URL
-  value: "postgres://$(DRYCC_PG_USER):$(DRYCC_PG_PASSWORD)@drycc-database.{{.Release.Namespace}}.svc.{{.Values.global.clusterDomain}}:5432/controller"
+  value: "postgres://$(DRYCC_PG_USER):$(DRYCC_PG_PASSWORD)@drycc-database:5432/controller"
 - name: DRYCC_DATABASE_REPLICA_URL
-  value: "postgres://$(DRYCC_PG_USER):$(DRYCC_PG_PASSWORD)@drycc-database-replica.{{.Release.Namespace}}.svc.{{.Values.global.clusterDomain}}:5432/controller"
+  value: "postgres://$(DRYCC_PG_USER):$(DRYCC_PG_PASSWORD)@drycc-database-replica:5432/controller"
 {{- end }}
 {{- if (.Values.workflowManagerUrl) }}
 - name: WORKFLOW_MANAGER_URL
@@ -120,7 +118,7 @@ env:
       key: victoriametrics-url
 {{- else if .Values.victoriametrics.enabled }}
 - name: "DRYCC_VICTORIAMETRICS_URL"
-  value: "http://drycc-victoriametrics-vmselect.{{$.Release.Namespace}}.svc.{{$.Values.global.clusterDomain}}:8481"
+  value: "http://drycc-victoriametrics-vmselect:8481"
 {{- end }}
 {{- if .Values.passport.enabled }}
 - name: "DRYCC_PASSPORT_URL"
@@ -157,7 +155,7 @@ env:
       key: passport-secret
 {{- end }}
 - name: QUICKWIT_SEARCHER_URL
-  value: http://drycc-quickwit-searcher.{{ $.Release.Namespace }}.svc.{{ .Values.global.clusterDomain }}:7280
+  value: http://drycc-quickwit-searcher:7280
 - name: QUICKWIT_LOG_INDEX_PREFIX
   value: {{ .Values.quickwit.logIndexPrefix }}
 {{- range $key, $value := .Values.environment }}

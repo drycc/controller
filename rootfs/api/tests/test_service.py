@@ -1,6 +1,5 @@
 from django.contrib.auth import get_user_model
 from django.core.cache import cache
-from django.conf import settings
 
 from api.tests import DryccTransactionTestCase
 from api.tests.test_gateway import RouteTest
@@ -50,8 +49,7 @@ class ServiceTest(DryccTransactionTestCase):
         self.assertEqual(response.status_code, 200, response.data)
         self.assertEqual(len(response.data['services']), 1)
         expected0 = {
-            "domain": "%s-%s.%s.svc.%s" % (
-                app_id, "test", app_id, settings.KUBERNETES_CLUSTER_DOMAIN),
+            "domain": "%s-%s.%s.svc" % (app_id, "test", app_id),
             "ports": [{
                 'name': "%s-%s-%s-%s" % (app_id, "test", 'udp', 5000),
                 'port': 5000,
@@ -75,8 +73,7 @@ class ServiceTest(DryccTransactionTestCase):
 
         # add new port
         expected1 = {
-            "domain": "%s-%s.%s.svc.%s" % (
-                app_id, "test", app_id, settings.KUBERNETES_CLUSTER_DOMAIN),
+            "domain": "%s-%s.%s.svc" % (app_id, "test", app_id),
             "ports": [
                 {
                     'name': "%s-%s-%s-%s" % (app_id, "test", 'udp', 5000),
@@ -124,8 +121,7 @@ class ServiceTest(DryccTransactionTestCase):
         self.assertEqual(response.status_code, 200, response.data)
         self.assertEqual(len(response.data['services']), 2)
         expected2 = {
-            "domain": "%s-%s.%s.svc.%s" % (
-                app_id, "test2", app_id, settings.KUBERNETES_CLUSTER_DOMAIN),
+            "domain": "%s-%s.%s.svc" % (app_id, "test2", app_id),
             "ports": [{
                 'name': "%s-%s-%s-%s" % (app_id, "test2", 'udp', 5000),
                 'port': 5000,

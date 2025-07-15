@@ -452,8 +452,7 @@ class AppTest(DryccTestCase):
 
         # create app
         app_id = self.create_app()
-        hostname = 'http://{}.{}.svc.{}:80/'.format(
-            app_id, app_id, settings.KUBERNETES_CLUSTER_DOMAIN)
+        hostname = 'http://{}.{}.svc:80/'.format(app_id, app_id)
         mr = mock_requests.register_uri('GET', hostname, responses)
 
         # deploy app to get verification
@@ -488,8 +487,7 @@ class AppTest(DryccTestCase):
         # create app
         app_id = self.create_app()
 
-        hostname = 'http://{}.{}.svc.{}:80/'.format(
-            app_id, app_id, settings.KUBERNETES_CLUSTER_DOMAIN)
+        hostname = 'http://{}.{}.svc:80/'.format(app_id, app_id)
         mr = mock_requests.register_uri('GET', hostname, responses)
         # deploy app to get verification
         url = "/v2/apps/{}/build".format(app_id)
@@ -512,8 +510,7 @@ class AppTest(DryccTestCase):
         # create app
         app_id = self.create_app()
         # function tries to hit router 10 times
-        hostname = 'http://{}.{}.svc.{}:80/'.format(
-            app_id, app_id, settings.KUBERNETES_CLUSTER_DOMAIN)
+        hostname = 'http://{}.{}.svc:80/'.format(app_id, app_id)
         mr = mock_requests.register_uri('GET', hostname, text=_raise_exception)
 
         # deploy app to get verification

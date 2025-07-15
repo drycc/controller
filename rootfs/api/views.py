@@ -1338,8 +1338,8 @@ class QuickwitProxyView(View):
     permission = permissions.IsServiceToken()
     authentication = authentication.DryccAuthentication()
     authentication.ignore_authentication_failed = True
-    index_url_match = re.compile("^indexes/?$").match
-    search_url_match = re.compile("^(?P<index>[a-zA-Z*][\w.*-，]{0,})/search/?$").match
+    index_url_match = re.compile(r"^indexes/?$").match
+    search_url_match = re.compile(r"^(?P<index>[a-zA-Z*][\w.*-，]{0,})/search/?$").match
 
     async def get(self, request, username, path):
         if match := self.search_url_match(path):
@@ -1363,7 +1363,7 @@ class QuickwitProxyView(View):
 
     async def index(self, request, index):
         base_url = settings.QUICKWIT_SEARCHER_URL
-        url, params = urljoin(base_url, f"/api/v1/indexes"), dict(request.GET)
+        url, params = urljoin(base_url, "/api/v1/indexes"), dict(request.GET)
         params["index_id_patterns"] = index
         try:
             async with aiohttp.ClientSession() as session:
