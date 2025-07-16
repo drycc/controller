@@ -1340,14 +1340,22 @@ class QuickwitProxyView(View):
     authentication.ignore_authentication_failed = True
     index_url_match = re.compile(r"^indexes/?$").match
     search_url_match = re.compile(r"^(?P<index>[a-zA-Z*][\w.*-，]{0,})/search/?$").match
+    msearch_url_match = re.compile(r"^_elastic/_msearch/?$").match
+    field_caps_url_match = re.compile(r"_elastic/(?P<index>[a-zA-Z*][\w.*-，]{0,})/_field_caps/?$").match
 
-    async def get(self, request, username, path):
-        if match := self.search_url_match(path):
-            func, index = self.query, match.group("index")
-        elif self.index_url_match(path):
-            func, index = self.index, request.GET.get("index_id_patterns", "*")
+    async def proxy(self, request, username, path):
+        kwargs = {"request": request, "username": username}
+        if self.index_url_match(path):
+            func, kwargs["index"] = self.index, request.GET.get("index_id_patterns", "*")
+        elif match := self.search_url_match(path):
+            func, kwargs["index"] = self.query, match.group("index")
+        elif self.msearch_url_match(path):
+            func = self.msearch
+        elif match := self.field_caps_url_match(path):
+            func, kwargs["index"] = self.field_caps, match.group("index")
         else:
             raise JsonResponse({'error': 'Not Found'}, status=404)
+
         if self.permission.has_permission(request, None):
             if username != "drycc":
                 return JsonResponse({'error': 'Access denied'}, status=403)
@@ -1357,12 +1365,11 @@ class QuickwitProxyView(View):
                 return JsonResponse({'error': 'Unauthorized'}, status=401)
             if auth[0].username != username:
                 return JsonResponse({'error': 'Access denied'}, status=403)
-            else:
-                index = await self.get_app_indexes(username, index)
-        return await func(request, index)
+        return await func(**kwargs)
 
-    async def index(self, request, index):
+    async def index(self, request, username, index):
         base_url = settings.QUICKWIT_SEARCHER_URL
+        index = await self.get_app_indexes(username, index)
         url, params = urljoin(base_url, "/api/v1/indexes"), dict(request.GET)
         params["index_id_patterns"] = index
         try:
@@ -1373,8 +1380,9 @@ class QuickwitProxyView(View):
             data, status = {'error': f'quickwit connection failed: {str(e)}'}, 502
         return JsonResponse(data, status=status, safe=False)
 
-    async def query(self, request, index):
+    async def query(self, request, username, index):
         base_url = settings.QUICKWIT_SEARCHER_URL
+        index = await self.get_app_indexes(username, index)
         url, params = urljoin(base_url, f"/api/v1/{index}/search"), dict(request.GET)
         try:
             async with aiohttp.ClientSession() as session:
@@ -1384,17 +1392,62 @@ class QuickwitProxyView(View):
             data, status = {'error': f'quickwit connection failed: {str(e)}'}, 502
         return JsonResponse(data, status=status)
 
+    async def msearch(self, request, username):
+        base_url = settings.QUICKWIT_SEARCHER_URL
+        json_lines = request.body.decode('utf-8').strip().split('\n')
+        for i, json_line in enumerate(json_lines):
+            if i % 2 == 0:
+                request_header = json.loads(json_line)
+                request_header['index'] = ",".join(
+                    [await self.get_app_indexes(username, i) for i in request_header['index']]
+                ).split(",")
+                json_lines[i] = json.dumps(request_header)
+        url, params = urljoin(
+            base_url, f"/api/v1/_elastic/_msearch"), dict(request.GET)
+        try:
+            async with aiohttp.ClientSession() as session:
+                async with session.post(
+                    url, data="\n".join(json_lines), params=params, timeout=self.timeout
+                ) as response:
+                    data, status = await response.json(), response.status
+        except aiohttp.ClientError as e:
+            data, status = {'error': f'quickwit connection failed: {str(e)}'}, 502
+        return JsonResponse(data, status=status)
+
+    async def field_caps(self, request, username, index):
+        base_url = settings.QUICKWIT_SEARCHER_URL
+        index = await self.get_app_indexes(username, index)
+        url, params = urljoin(
+            base_url, f"/api/v1/_elastic/{index}/_field_caps"), dict(request.GET)
+        try:
+            async with aiohttp.ClientSession() as session:
+                async with session.get(url, params=params, timeout=self.timeout) as response:
+                    data, status = await response.json(), response.status
+        except aiohttp.ClientError as e:
+            data, status = {'error': f'quickwit connection failed: {str(e)}'}, 502
+        return JsonResponse(data, status=status)
+
     async def get_app_indexes(self, username, index):
+        if username == "drycc":
+            return index
         if "," in index:
             match = re.compile("|".join([f"^{i}$" for i in index.split(",")])).match
         else:
             match = re.compile(index).match
         app_indexes, log_index_prefix = [], settings.QUICKWIT_LOG_INDEX_PREFIX
-        async for app in models.app.App.objects.filter(owner__username=username):
-            app_index = f"{log_index_prefix}{app.id}"
+        if hasattr(self, "app_ids"):
+            app_ids = self.app_ids
+        else:
+            app_ids = [
+                app.id async for app in models.app.App.objects.filter(owner__username=username)]
+            setattr(self, "app_ids", app_ids)
+        for app_id in app_ids:
+            app_index = f"{log_index_prefix}{app_id}"
             if match(app_index):
                 app_indexes.append(app_index)
         return ",".join(app_indexes)
+
+    get = post = proxy
 
 
 @method_decorator(csrf_exempt, name='dispatch')
