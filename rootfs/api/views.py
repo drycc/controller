@@ -1333,17 +1333,41 @@ class MetricsProxyView(View):
 
 
 @method_decorator(csrf_exempt, name='dispatch')
-class QuickwitProxyView(View):
+class BaseUserProxyView(View):
     timeout = aiohttp.ClientTimeout(total=30, connect=10, sock_read=15)
     permission = permissions.IsServiceToken()
     authentication = authentication.DryccAuthentication()
     authentication.ignore_authentication_failed = True
+
+    async def authenticate(self, request, username):
+        """
+        Authenticate the user based on the provided request and username.
+        Returns the user ID on success; returns None and an error message on failure.
+        """
+        if self.permission.has_permission(request, None):
+            if username != "drycc":
+                return None, {'error': 'Access denied', "status_code": 403}
+            return -1, None
+        auth = await database_sync_to_async(self.authentication.authenticate)(request)
+        if not auth or len(auth) != 2:
+            return None, {'error': 'Unauthorized', "status_code": 401}
+        if auth[0].username != username:
+            return None, {'error': 'Access denied', "status_code": 403}
+        return auth[0].id, None        
+
+
+@method_decorator(csrf_exempt, name='dispatch')
+class QuickwitProxyView(BaseUserProxyView):
     index_url_match = re.compile(r"^indexes/?$").match
     search_url_match = re.compile(r"^(?P<index>[a-zA-Z*][\w.*-，]{0,})/search/?$").match
     msearch_url_match = re.compile(r"^_elastic/_msearch/?$").match
-    field_caps_url_match = re.compile(r"_elastic/(?P<index>[a-zA-Z*][\w.*-，]{0,})/_field_caps/?$").match
+    field_caps_url_match = re.compile(
+        r"_elastic/(?P<index>[a-zA-Z*][\w.*-，]{0,})/_field_caps/?$").match
 
     async def proxy(self, request, username, path):
+        user_id, message = await self.authenticate(request, username)
+        if user_id is None and message is not None:
+            return JsonResponse(message, status=message["status_code"])
         kwargs = {"request": request, "username": username}
         if self.index_url_match(path):
             func, kwargs["index"] = self.index, request.GET.get("index_id_patterns", "*")
@@ -1354,17 +1378,7 @@ class QuickwitProxyView(View):
         elif match := self.field_caps_url_match(path):
             func, kwargs["index"] = self.field_caps, match.group("index")
         else:
-            raise JsonResponse({'error': 'Not Found'}, status=404)
-
-        if self.permission.has_permission(request, None):
-            if username != "drycc":
-                return JsonResponse({'error': 'Access denied'}, status=403)
-        else:
-            auth = await database_sync_to_async(self.authentication.authenticate)(request)
-            if not auth or len(auth) != 2:
-                return JsonResponse({'error': 'Unauthorized'}, status=401)
-            if auth[0].username != username:
-                return JsonResponse({'error': 'Access denied'}, status=403)
+            return JsonResponse({'error': 'Not Found'}, status=404)
         return await func(**kwargs)
 
     async def index(self, request, username, index):
@@ -1403,7 +1417,7 @@ class QuickwitProxyView(View):
                 ).split(",")
                 json_lines[i] = json.dumps(request_header)
         url, params = urljoin(
-            base_url, f"/api/v1/_elastic/_msearch"), dict(request.GET)
+            base_url, "/api/v1/_elastic/_msearch"), dict(request.GET)
         try:
             async with aiohttp.ClientSession() as session:
                 async with session.post(
@@ -1451,30 +1465,23 @@ class QuickwitProxyView(View):
 
 
 @method_decorator(csrf_exempt, name='dispatch')
-class PrometheusProxyView(View):
-    timeout = aiohttp.ClientTimeout(total=30, connect=10, sock_read=15)
-    permission = permissions.IsServiceToken()
-    authentication = authentication.DryccAuthentication()
-    authentication.ignore_authentication_failed = True
-
+class PrometheusProxyView(BaseUserProxyView):
     async def proxy(self, request, username, path):
-        if self.permission.has_permission(request, None):
-            if username != "drycc":
-                return JsonResponse({'error': 'Access denied'}, status=403)
+        user_id, message = await self.authenticate(request, username)
+        if user_id is None and message is not None:
+            return JsonResponse(message, status=message["status_code"])
+        if username == "drycc":
             path = f"/select/0/prometheus/{path}"
         else:
-            auth = await database_sync_to_async(self.authentication.authenticate)(request)
-            if not auth or len(auth) != 2:
-                return JsonResponse({'error': 'Unauthorized'}, status=401)
-            if auth[0].username != username:
-                return JsonResponse({'error': 'Access denied'}, status=403)
-            else:
-                path = f"/select/{auth[0].id}/prometheus/{path}"
-        url = urljoin(settings.DRYCC_VICTORIAMETRICS_URL, path)
-        params = dict(request.GET) if request.method == "GET" else dict(request.POST)
+            path = f"/select/{user_id}/prometheus/{path}"
         try:
             async with aiohttp.ClientSession() as session:
-                async with session.get(url, params=params, timeout=self.timeout) as response:
+                async with session.post(
+                    urljoin(settings.DRYCC_VICTORIAMETRICS_URL, path),
+                    data=dict(request.GET) if request.method == "GET" else dict(request.POST),
+                    headers={"Content-Type": "application/x-www-form-urlencoded"},
+                    timeout=self.timeout
+                ) as response:
                     data, status = await response.json(), response.status
         except aiohttp.ClientError as e:
             data, status = {'error': f'victoriametrics connection failed: {str(e)}'}, 502
