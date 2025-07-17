@@ -320,28 +320,20 @@ kubelet_volume_stats_inodes_free: [namespace, persistentvolumeclaim, job]
 kubelet_volume_stats_inodes_used: [namespace, persistentvolumeclaim, job]
 {{- end }}
 
-{{/* Generate controller config default reserved names */}}
-{{ define "controller.config.defaultReservedNames" }}
-backup
-catalog
-cert-manager
-default
-drycc
-drycc-manager
-drycc-helmbroker
-drycc-builder
-drycc-grafana
-drycc-passport
-istio-gateway
-istio-system
-kube-node-lease
-kube-public
-kube-system
-longhorn-system
-metallb
-mount-s3
-topolvm
-rook-ceph
+{{/* Generate controller config default reserved name patterns */}}
+{{ define "controller.config.defaultReservedNamePatterns" }}
+^backup$
+^catalog$
+^cert-manager$
+^default$
+^drycc(?:-[\w-]+)?$
+^istio(?:-[\w-]+)?$
+^kube(?:-[\w-]+)?$
+^longhorn-system$
+^metallb$
+^mount-s3$
+^topolvm$
+^rook-ceph$
 {{- end }}
 
 {{/* Generate controller config default secrets template */}}

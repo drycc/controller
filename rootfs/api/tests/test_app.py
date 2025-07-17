@@ -158,8 +158,8 @@ class AppTest(DryccTestCase):
 
     def test_app_reserved_names(self, mock_requests):
         """Nobody should be able to create applications with names which are reserved."""
-        reserved_names = ['foo', 'bar']
-        with self.settings(RESERVED_NAMES=reserved_names):
+        reserved_names = ['fooooo', 'barrrrrr']
+        with self.settings(RESERVED_NAME_PATTERNS=reserved_names):
             for name in reserved_names:
                 response = self.client.post('/v2/apps', {'id': name})
                 self.assertContains(

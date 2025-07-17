@@ -6,6 +6,7 @@ from django.contrib.auth import get_user_model
 from django.db.models import Q
 from django.http import Http404
 
+from api.utils import validate_label
 from api.exceptions import ServiceUnavailable
 from scheduler import KubeException
 
@@ -22,7 +23,7 @@ HOSTNAME_PROTOCOLS = TLS_PROTOCOLS + ("HTTP", )
 class Gateway(AuditedModel):
     app = models.ForeignKey('App', on_delete=models.CASCADE)
     owner = models.ForeignKey(User, on_delete=models.PROTECT)
-    name = models.CharField(max_length=63, db_index=True)
+    name = models.CharField(max_length=63, db_index=True, validators=[validate_label])
     ports = models.JSONField(default=list)
 
     def log(self, message, level=logging.INFO):

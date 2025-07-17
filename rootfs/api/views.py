@@ -14,6 +14,7 @@ import warnings
 
 from urllib.parse import urljoin
 from asgiref.sync import async_to_sync
+from django.db import transaction
 from django.db.models import Q
 from django.core.cache import cache
 from django.http import Http404, HttpResponse
@@ -348,6 +349,11 @@ class AppViewSet(BaseDryccViewSet):
                 timeout=timeout, expires=expires)
         return Response(status=status.HTTP_204_NO_CONTENT)
 
+    @transaction.atomic
+    def create(self, request, *args, **kwargs):
+        return super().create(request, *args, **kwargs)
+
+    @transaction.atomic
     def update(self, request, **kwargs):
         app = self.get_object()
         old_owner = app.owner
@@ -360,6 +366,10 @@ class AppViewSet(BaseDryccViewSet):
             # is also updated
             downstream_model_owner.delay(app, old_owner, new_owner)
         return Response(status=status.HTTP_200_OK)
+
+    @transaction.atomic
+    def destroy(self, request, *args, **kwargs):
+        return super().destroy(request, *args, **kwargs)
 
 
 class BuildViewSet(ReleasableViewSet):
@@ -1353,7 +1363,7 @@ class BaseUserProxyView(View):
             return None, {'error': 'Unauthorized', "status_code": 401}
         if auth[0].username != username:
             return None, {'error': 'Access denied', "status_code": 403}
-        return auth[0].id, None        
+        return auth[0].id, None
 
 
 @method_decorator(csrf_exempt, name='dispatch')

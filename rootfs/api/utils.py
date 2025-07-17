@@ -75,6 +75,14 @@ def validate_label(value):
     match = re.match(r'^[a-z0-9-]+$', value)
     if not match:
         raise ValidationError("Can only contain a-z (lowercase), 0-9 and hyphens")
+    validate_reserved_names(value)
+
+
+def validate_reserved_names(value):
+    """A value cannot use some reserved names."""
+    for reserved_name_pattern in settings.RESERVED_NAME_PATTERNS:
+        if re.match(reserved_name_pattern, value):
+            raise ValidationError('{} is a reserved name.'.format(value))
 
 
 def random_string(num):

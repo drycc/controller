@@ -255,13 +255,13 @@ LOG_LINES = 100
 TEMPDIR = tempfile.mkdtemp(prefix='drycc')
 
 # names which apps cannot reserve for routing
-RESERVED_NAMES_PATH = os.environ.get(
-    'RESERVED_NAMES_PATH', '/etc/controller/reserved-names.txt')
-if os.path.exists(RESERVED_NAMES_PATH):
-    with open(RESERVED_NAMES_PATH) as f:
-        RESERVED_NAMES = [line.strip() for line in f if line]
+RESERVED_NAME_PATTERNS_PATH = os.environ.get(
+    'RESERVED_NAME_PATTERNS_PATH', '/etc/controller/reserved-name-patterns.txt')
+if os.path.exists(RESERVED_NAME_PATTERNS_PATH):
+    with open(RESERVED_NAME_PATTERNS_PATH) as f:
+        RESERVED_NAME_PATTERNS = [line.strip() for line in f if line.strip()]
 else:
-    RESERVED_NAMES = ["drycc", "drycc-helmbroker", "drycc-manager", "kube-system", "default"]
+    RESERVED_NAME_PATTERNS = [r"^drycc(?:-[\w-]+)?$", r"^kube(?:-[\w-]+)?$", r"^default$"]
 
 # the k8s namespace in which the controller and workflow were installed.
 WORKFLOW_NAMESPACE = os.environ.get('WORKFLOW_NAMESPACE', 'drycc')

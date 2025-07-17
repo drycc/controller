@@ -15,7 +15,7 @@ from rest_framework import serializers
 
 
 from api import models
-from api.utils import validate_json
+from api.utils import validate_json, validate_reserved_names
 from api.exceptions import DryccException
 from api.models.volume import Volume
 from api.models.base import PTYPE_MIN_LENGTH, PTYPE_MAX_LENGTH
@@ -78,6 +78,7 @@ def validate_ptype(value):
         raise serializers.ValidationError(
             "The length of ptype must be between {} and {}".format(
                 PTYPE_MIN_LENGTH, PTYPE_MAX_LENGTH))
+    validate_reserved_names(value)
     return value
 
 
@@ -91,6 +92,7 @@ def validate_name(value):
         raise serializers.ValidationError(
             "The length of name must be between {} and {}".format(
                 PTYPE_MIN_LENGTH, PTYPE_MAX_LENGTH))
+    validate_reserved_names(value)
     return value
 
 

@@ -22,7 +22,8 @@ from rest_framework.exceptions import ValidationError
 
 from api.utils import get_session, dict_diff
 from api.exceptions import AlreadyExists, DryccException, ServiceUnavailable
-from api.utils import CacheLock, DeployLock, generate_app_name, apply_tasks
+from api.utils import (
+    CacheLock, DeployLock, generate_app_name, apply_tasks, validate_reserved_names)
 from scheduler import KubeHTTPException, KubeException
 from .gateway import Gateway, Route
 from .limit import LimitPlan
@@ -88,21 +89,18 @@ def validate_app_id(value):
     if not match:
         raise ValidationError("App name must start with an alphabetic character, cannot end with a"
                               + " hyphen and can only contain a-z (lowercase), 0-9 and hyphens.")
+    validate_reserved_names(value)
 
 
 def validate_app_structure(value):
     """Error if the dict values aren't ints >= 0"""
     try:
-        if any(int(v) < 0 for v in value.values()):
-            raise ValueError("Must be greater than or equal to zero")
+        for k, v in value.items():
+            if int(v) < 0:
+                raise ValueError("Must be greater than or equal to zero")
+            validate_reserved_names(k)
     except ValueError as err:
         raise ValidationError(str(err))
-
-
-def validate_reserved_names(value):
-    """A value cannot use some reserved names."""
-    if value in settings.RESERVED_NAMES:
-        raise ValidationError('{} is a reserved name.'.format(value))
 
 
 class App(UuidAuditedModel):
@@ -112,8 +110,7 @@ class App(UuidAuditedModel):
 
     owner = models.ForeignKey(User, on_delete=models.PROTECT)
     id = models.SlugField(max_length=63, unique=True, null=True,
-                          validators=[validate_app_id,
-                                      validate_reserved_names])
+                          validators=[validate_app_id])
     structure = models.JSONField(
         default=dict, blank=True, validators=[validate_app_structure])
 
