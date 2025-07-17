@@ -1220,6 +1220,8 @@ class App(UuidAuditedModel):
 
         healthcheck = config.healthcheck.get(ptype, {})
         volumes, volume_mounts = self._get_volumes_and_mounts(ptype, volumes)
+        volumes.extend(limit_plan.pod_volumes)
+        volume_mounts.extend(limit_plan.container_volume_mounts)
         return {
             'tags': config.tags.get(ptype, {}),
             'envs': envs,
