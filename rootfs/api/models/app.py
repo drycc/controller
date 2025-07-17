@@ -1165,7 +1165,7 @@ class App(UuidAuditedModel):
         })
         return docker_config, name, True
 
-    def _get_volumes_and_mounts(self, ptype, volumes):
+    def _get_volumes_and_mounts(self, ptype, volumes, limit_plan):
         k8s_volumes, k8s_volume_mounts = [], []
         if volumes:
             for volume in volumes:
@@ -1173,6 +1173,12 @@ class App(UuidAuditedModel):
                     {"name": volume.name, "persistentVolumeClaim": {"claimName": volume.name}})
                 k8s_volume_mounts.append(
                     {"name": volume.name, "mountPath": volume.path.get(ptype)})
+        extra_volumes = limit_plan.pod_volumes
+        extra_volume_mounts = limit_plan.container_volume_mounts
+        if extra_volumes:
+            k8s_volumes.extend(extra_volumes)
+        if extra_volume_mounts:
+            k8s_volume_mounts.extend(extra_volume_mounts)
         return k8s_volumes, k8s_volume_mounts
 
     def _gather_app_settings(self, release, app_settings, ptype, replicas, volumes=None):
@@ -1219,7 +1225,7 @@ class App(UuidAuditedModel):
             ptype == PTYPE_WEB and app_settings.routable) else False
 
         healthcheck = config.healthcheck.get(ptype, {})
-        volumes, volume_mounts = self._get_volumes_and_mounts(ptype, volumes)
+        volumes, volume_mounts = self._get_volumes_and_mounts(ptype, volumes, limit_plan)
         return {
             'tags': config.tags.get(ptype, {}),
             'envs': envs,

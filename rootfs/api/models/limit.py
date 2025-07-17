@@ -117,7 +117,9 @@ class LimitPlan(AuditedModel):
     node_selector = models.JSONField(default=dict)
     runtime_class_name = models.CharField(max_length=63, default="")
     pod_security_context = models.JSONField(default=dict)
+    pod_volumes = models.JSONField(default=list)
     container_security_context = models.JSONField(default=dict)
+    container_volume_mounts = models.JSONField(default=list)
 
     class Meta:
         get_latest_by = 'created'
