@@ -13,7 +13,7 @@ from django.conf import settings
 from django.db.models.signals import post_delete, post_save
 from django.dispatch import receiver
 from django.contrib.auth import get_user_model
-from api.utils import get_session
+from api.utils import get_httpclient
 from api.tasks import send_measurements
 from api.models.app import App
 from api.models.service import Service
@@ -111,7 +111,8 @@ def _hook_release_created(**kwargs):
                 ).hexdigest()
 
             try:
-                get_session().post(url, headers=headers)
+                with get_httpclient() as session:
+                    session.post(url, headers=headers)
                 # just notify with the base URL, disregard the added URL query
                 release.log('Sent deploy hook to {}'.format(deploy_hook))
             except requests.RequestException as e:

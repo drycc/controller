@@ -8,7 +8,7 @@ from unittest import mock
 from datetime import datetime, timedelta, timezone
 from scheduler import KubeHTTPException
 from scheduler.tests import TestCase
-from scheduler.utils import generate_random_name
+from scheduler.tests.utils import generate_random_name
 from scheduler.states import PodState
 
 

@@ -7,6 +7,7 @@ import hashlib
 from django.db import models, transaction
 from django.conf import settings
 from django.contrib.auth import get_user_model
+from api.tasks import send_app_log
 from api.utils import unit_to_bytes, validate_label
 from api.exceptions import DryccException, ServiceUnavailable
 from scheduler import KubeException
@@ -74,6 +75,7 @@ class Volume(UuidAuditedModel):
         as "belonging" to the application instead of the controller and will be handled
         accordingly.
         """
+        send_app_log.delay(self.app.id, message, level)
         logger.log(level, "[{}]: {}".format(self.app.id, message))
 
     def to_measurements(self, timestamp: float):

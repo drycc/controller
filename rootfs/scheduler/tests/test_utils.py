@@ -1,5 +1,5 @@
 import unittest
-from scheduler import utils
+from api import utils
 
 
 class TestUtils(unittest.TestCase):

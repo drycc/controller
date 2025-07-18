@@ -7,7 +7,7 @@ from django.db import models
 from django.db.models import Q
 from django.contrib.auth import get_user_model
 from django.db.models import F, Func, Value, JSONField
-from api.tasks import run_pipeline
+from api.tasks import run_pipeline, send_app_log
 from api.exceptions import DryccException, AlreadyExists
 from scheduler import KubeHTTPException
 from scheduler.resources.pod import DEFAULT_CONTAINER_PORT
@@ -130,6 +130,7 @@ class Release(UuidAuditedModel):
         as "belonging" to the application instead of the controller and will be handled
         accordingly.
         """
+        send_app_log.delay(self.app.id, message, level)
         logger.log(level, "[{}]: {}".format(self.app.id, message))
 
     def new(self, user, config, build, summary=None):

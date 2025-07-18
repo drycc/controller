@@ -5,7 +5,8 @@ from django.conf import settings
 from django.core.cache import cache
 from requests.auth import HTTPBasicAuth
 
-from .utils import random_string, get_session, CacheLock
+from .tasks import send_app_log
+from .utils import random_string, get_httpclient, CacheLock
 
 logger = logging.getLogger(__name__)
 
@@ -21,6 +22,7 @@ class FilerClient(object):
 
     def log(self, message, level=logging.INFO):
         logger.log(level, "[{}]: {}".format(self.app_id, message))
+        send_app_log.delay(self.app_id, message, level)
 
     @property
     def server(self):
@@ -90,7 +92,8 @@ class FilerClient(object):
         cache.touch(self.cache_key, timeout=settings.DRYCC_FILER_DURATION)
         url = f"http://{server["address"]}:{self.bind.split(":")[1]}/{path}"
         kwargs["auth"] = HTTPBasicAuth(server["username"], server["password"])
-        return get_session().request(method, url, **kwargs)
+        with get_httpclient() as session:
+            session.request(method, url, **kwargs)
 
     def get(self, path, **kwargs):
         return self.request("GET", self.server, path, **kwargs)

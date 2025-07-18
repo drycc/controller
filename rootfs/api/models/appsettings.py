@@ -6,6 +6,7 @@ from django.db import transaction
 
 from rest_framework.exceptions import NotFound
 from django.contrib.auth import get_user_model
+from api.tasks import send_app_log
 from api.utils import dict_diff
 from api.exceptions import DryccException, AlreadyExists, UnprocessableEntity
 from .base import UuidAuditedModel
@@ -48,6 +49,7 @@ class AppSettings(UuidAuditedModel):
         as "belonging" to the application instead of the controller and will be handled
         accordingly.
         """
+        send_app_log.delay(self.app.id, message, level)
         logger.log(level, "[{}]: {}".format(self.app.id, message))
 
     def previous(self):

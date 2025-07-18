@@ -106,6 +106,14 @@ env:
 - name: WORKFLOW_MANAGER_SECRET_KEY
   value: "{{ .Values.workflowManagerSecretKey }}"
 {{- end }}
+- name: POD_IP
+  valueFrom:
+    fieldRef:
+      fieldPath: status.podIP
+- name: POD_NAME
+  valueFrom:
+    fieldRef:
+      fieldPath: metadata.name
 - name: WORKFLOW_NAMESPACE
   valueFrom:
     fieldRef:
@@ -154,6 +162,8 @@ env:
       name: controller-creds
       key: passport-secret
 {{- end }}
+- name: QUICKWIT_INDEXER_URL
+  value: http://drycc-quickwit-indexer:7280
 - name: QUICKWIT_SEARCHER_URL
   value: http://drycc-quickwit-searcher:7280
 - name: QUICKWIT_LOG_INDEX_PREFIX

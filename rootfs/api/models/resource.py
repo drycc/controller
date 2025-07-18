@@ -3,6 +3,7 @@ from functools import cmp_to_key
 from django.db import models, transaction
 from django.contrib.auth import get_user_model
 from api.exceptions import DryccException, AlreadyExists, ServiceUnavailable
+from api.tasks import send_app_log
 from api.utils import validate_label, get_scheduler
 from scheduler import KubeException
 from .base import UuidAuditedModel
@@ -124,6 +125,7 @@ class Resource(UuidAuditedModel):
         as "belonging" to the application instead of the controller and will be handled
         accordingly.
         """
+        send_app_log.delay(self.app.id, message, level)
         logger.log(level, "[{}]: {}".format(self.app.id, message))
 
     def bind(self, *args, **kwargs):

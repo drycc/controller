@@ -477,6 +477,7 @@ CACHES = {
 }
 
 # Quickwit Configuration
+QUICKWIT_INDEXER_URL = os.environ.get('QUICKWIT_INDEXER_URL', None)
 QUICKWIT_SEARCHER_URL = os.environ.get('QUICKWIT_SEARCHER_URL', None)
 QUICKWIT_LOG_INDEX_PREFIX = os.environ.get('QUICKWIT_LOG_INDEX_PREFIX', None)
 

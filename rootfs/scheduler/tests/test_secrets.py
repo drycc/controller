@@ -5,7 +5,7 @@ Run the tests with './manage.py test scheduler'
 """
 from scheduler import KubeHTTPException, KubeException
 from scheduler.tests import TestCase
-from scheduler.utils import generate_random_name
+from scheduler.tests.utils import generate_random_name
 
 
 class SecretsTest(TestCase):

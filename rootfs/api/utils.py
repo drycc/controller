@@ -18,9 +18,11 @@ import requests
 import importlib
 import jsonschema
 from copy import deepcopy
+from urllib.parse import urljoin
 from django.db import models
 from django.conf import settings
 from django.core.cache import cache
+from django.utils import timezone
 from asgiref.sync import sync_to_async
 from requests_toolbelt import user_agent
 from api import __version__ as drycc_version
@@ -30,21 +32,16 @@ from rest_framework.exceptions import ValidationError
 logger = logging.getLogger(__name__)
 
 
-session = None
-
-
-def get_session():
-    global session
-    if session is None:
-        session = requests.Session()
-        session.headers = {
-            # https://toolbelt.readthedocs.org/en/latest/user-agent.html#user-agent-constructor
-            'User-Agent': user_agent('Drycc Controller', drycc_version),
-        }
-        # `mount` a custom adapter that retries failed connections for HTTP and HTTPS requests.
-        # http://docs.python-requests.org/en/latest/api/#requests.adapters.HTTPAdapter
-        session.mount('http://', requests.adapters.HTTPAdapter(max_retries=10))
-        session.mount('https://', requests.adapters.HTTPAdapter(max_retries=10))
+def get_httpclient():
+    session = requests.Session()
+    session.headers = {
+        # https://toolbelt.readthedocs.org/en/latest/user-agent.html#user-agent-constructor
+        'User-Agent': user_agent('Drycc Controller', drycc_version),
+    }
+    # `mount` a custom adapter that retries failed connections for HTTP and HTTPS requests.
+    # http://docs.python-requests.org/en/latest/api/#requests.adapters.HTTPAdapter
+    session.mount('http://', requests.adapters.HTTPAdapter(max_retries=10))
+    session.mount('https://', requests.adapters.HTTPAdapter(max_retries=10))
     return session
 
 
@@ -93,6 +90,30 @@ def random_string(num):
 def generate_app_name():
     """Return a randomly-generated memorable name."""
     return "{}-{}".format(random_string(6), random_string(8))
+
+
+def send_app_log(app_id, msg, level=logging.INFO):
+    if not settings.QUICKWIT_INDEXER_URL:
+        return
+    pod_ip = os.environ.get("POD_IP", "unknown")
+    pod_name = os.environ.get("POD_NAME", "unknown")
+    namespace = os.environ.get("WORKFLOW_NAMESPACE", "unknown")
+    docker_id = hashlib.sha256(f"{namespace}:{pod_name}:{pod_ip}".encode("utf-8")).hexdigest()
+    data = {
+        "kubernetes": {
+            "container_name": "drycc-controller",
+            "docker_id": docker_id,
+            "namespace_name": app_id,
+            "pod_name": pod_name,
+        },
+        "log": f"{logging.getLevelName(level)}\t{app_id}\t{msg}",
+        "offset": int(time.time()),
+        "stream": "stdout",
+        "timestamp": timezone.now().isoformat(),
+    }
+    index = f"{settings.QUICKWIT_LOG_INDEX_PREFIX}{app_id}"
+    with get_httpclient() as session:
+        session.post(urljoin(settings.QUICKWIT_INDEXER_URL, f"/api/v1/{index}/ingest"), json=data)
 
 
 def dict_diff(dict1, dict2):

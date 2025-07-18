@@ -58,6 +58,10 @@ app.conf.update(
             'queue': 'controller.high',
             'exchange': 'controller.priority', 'routing_key': 'controller.priority.high',
         },
+        'api.tasks.send_app_log': {
+            'queue': 'controller.middle',
+            'exchange': 'controller.priority', 'routing_key': 'controller.priority.middle',
+        },
     },
     task_queues=(
         Queue(

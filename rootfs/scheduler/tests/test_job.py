@@ -4,7 +4,7 @@ Unit tests for the Drycc scheduler module.
 Run the tests with './manage.py test scheduler'
 """
 from scheduler.tests import TestCase
-from scheduler.utils import generate_random_name
+from scheduler.tests.utils import generate_random_name
 
 
 class JobTest(TestCase):

@@ -149,6 +149,7 @@ class KubeHTTPClient(object):
         sort like releasing or scaling, will be considered as "belonging" to the application
         instead of the controller and will be handled accordingly.
         """
+        utils.send_app_log(namespace, message, level)
         logger.log(level, "[{}]: {}".format(namespace, message))
 
     def http_head(self, path, **kwargs):

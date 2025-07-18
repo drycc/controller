@@ -5,7 +5,7 @@ from typing import List, Dict
 from django.core import signals
 from celery import shared_task
 
-from api import manager, models
+from api import utils, manager, models
 from api.exceptions import ServiceUnavailable
 logger = logging.getLogger(__name__)
 
@@ -23,6 +23,19 @@ def send_measurements(measurements: List[Dict[str, str]]):
     try:
         measurement = manager.Measurement()
         measurement.post(measurements)
+    except Exception as e:
+        signals.got_request_exception.send(sender=task_id)
+        raise e
+    else:
+        signals.request_finished.send(sender=task_id)
+
+
+@shared_task(retry_kwargs={'max_retries': 3})
+def send_app_log(app_id, msg, level=logging.INFO):
+    task_id = uuid.uuid4().hex
+    signals.request_started.send(sender=task_id)
+    try:
+        utils.send_app_log(app_id, msg, level)
     except Exception as e:
         signals.got_request_exception.send(sender=task_id)
         raise e

@@ -20,7 +20,8 @@ from django.db.models import F, Func, Value, JSONField
 from django.contrib.auth import get_user_model
 from rest_framework.exceptions import ValidationError
 
-from api.utils import get_session, dict_diff
+from api.tasks import send_app_log
+from api.utils import get_httpclient, dict_diff
 from api.exceptions import AlreadyExists, DryccException, ServiceUnavailable
 from api.utils import (
     CacheLock, DeployLock, generate_app_name, apply_tasks, validate_reserved_names)
@@ -185,6 +186,7 @@ class App(UuidAuditedModel):
         as "belonging" to the application instead of the controller and will be handled
         accordingly.
         """
+        send_app_log.delay(self.id, message, level)
         logger.log(level, "[{}]: {}".format(self.id, message))
 
     def create(self, *args, **kwargs):  # noqa
@@ -1007,9 +1009,10 @@ class App(UuidAuditedModel):
         response = None
         for _ in range(10):
             try:
-                # http://docs.python-requests.org/en/master/user/advanced/#timeouts
-                response = get_session().get(url, timeout=req_timeout)
-                failed = False
+                with get_httpclient() as session:
+                    # http://docs.python-requests.org/en/master/user/advanced/#timeouts
+                    response = session.get(url, timeout=req_timeout)
+                    failed = False
             except requests.exceptions.RequestException:
                 # In case of a failure where response object is not available
                 failed = True

@@ -3,6 +3,7 @@ import logging
 from django.db import models
 from django.db import transaction
 from django.contrib.auth import get_user_model
+from api.tasks import send_app_log
 from api.exceptions import AlreadyExists
 from api.exceptions import ServiceUnavailable
 from scheduler import KubeException
@@ -38,6 +39,7 @@ class TLS(UuidAuditedModel):
         as "belonging" to the application instead of the controller and will be handled
         accordingly.
         """
+        send_app_log.delay(self.app.id, message, level)
         logger.log(level, "[{}]: {}".format(self.app.id, message))
 
     @property

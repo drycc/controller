@@ -3,7 +3,7 @@ from django.test import TestCase as DjangoTestCase
 from django.conf import settings
 
 from scheduler import mock
-from scheduler.utils import generate_random_name
+from scheduler.tests.utils import generate_random_name
 
 
 class TestCase(DjangoTestCase):

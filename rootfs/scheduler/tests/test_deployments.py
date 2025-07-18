@@ -8,7 +8,7 @@ from unittest import mock
 from packaging.version import parse, Version, InvalidVersion
 from scheduler import KubeHTTPException, KubeException
 from scheduler.tests import TestCase
-from scheduler.utils import generate_random_name
+from scheduler.tests.utils import generate_random_name
 
 
 class DeploymentsTest(TestCase):

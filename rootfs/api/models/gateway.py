@@ -6,6 +6,7 @@ from django.contrib.auth import get_user_model
 from django.db.models import Q
 from django.http import Http404
 
+from api.tasks import send_app_log
 from api.utils import validate_label
 from api.exceptions import ServiceUnavailable
 from scheduler import KubeException
@@ -35,6 +36,7 @@ class Gateway(AuditedModel):
         as "belonging" to the application instead of the controller and will be handled
         accordingly.
         """
+        send_app_log.delay(self.app.id, message, level)
         logger.log(level, "[{}]: {}".format(self.app.id, message))
 
     def add(self, port, protocol):
@@ -255,6 +257,7 @@ class Route(AuditedModel):
         as "belonging" to the application instead of the controller and will be handled
         accordingly.
         """
+        send_app_log.delay(self.app.id, message, level)
         logger.log(level, "[{}]: {}".format(self.app.id, message))
 
     def refresh_to_k8s(self):
