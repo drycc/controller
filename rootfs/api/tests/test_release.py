@@ -132,7 +132,8 @@ class ReleaseTest(DryccTransactionTestCase):
             self.assertEqual(response.status_code, 201, response.data)
             url = f'/v2/apps/{app_id}/releases/'
             response = self.client.get(url)
-            self.assertEqual(response.data['results'][0]['conditions'][0]['exception'], 'Boom!')
+            self.assertEqual(
+                response.data['results'][0]['conditions'][0]['exception'], 'Exception: Boom!')
 
     def test_get_image(self, mock_requests):
         app_id = self.create_app()

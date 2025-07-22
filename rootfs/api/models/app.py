@@ -316,11 +316,11 @@ class App(UuidAuditedModel):
             ptypes = list(ptypes) if ptypes is not None else ptypes
             release.add_condition(state="succeed", action="pipeline", ptypes=ptypes)
         except Exception as e:
-            release.failed, release.state = True, "crashed"
+            release.failed, release.state, msg = True, "crashed", f"{type(e).__name__}: {e}"
             ptypes = list(ptypes) if ptypes is not None else ptypes
             release.add_condition(
-                state="crashed", action="pipeline", ptypes=ptypes, exception=str(e))
-            self.log(f"{prefix} pipeline runtime error: {release.exception}", logging.ERROR)
+                state="crashed", action="pipeline", ptypes=ptypes, exception=msg)
+            self.log(f"{prefix} pipeline runtime error, {msg}", logging.ERROR)
         finally:
             DeployLock(self.pk).release(ptypes)  # release all locks
             release.save(update_fields=["state", "failed"])  # avoid overwriting other fields
