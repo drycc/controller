@@ -148,9 +148,9 @@ class AuthSerializer(serializers.Serializer):
 class UserSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
-        fields = ['email', 'username', 'password', 'first_name', 'last_name', 'is_superuser',
-                  'is_staff', 'groups', 'user_permissions', 'last_login', 'date_joined',
-                  'is_active']
+        fields = ['id', 'email', 'username', 'password', 'first_name', 'last_name',
+                  'is_superuser', 'is_staff', 'groups', 'user_permissions', 'last_login',
+                  'date_joined', 'is_active']
         read_only_fields = ['id', 'is_superuser', 'is_staff', 'groups',
                             'user_permissions', 'last_login', 'date_joined', 'is_active']
         extra_kwargs = {'password': {'write_only': True}}

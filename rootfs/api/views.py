@@ -7,13 +7,13 @@ import logging
 import json
 import ssl
 import time
+import zlib
 import random
 import aiohttp
 import requests
 import warnings
 
 from urllib.parse import urljoin
-from asgiref.sync import async_to_sync
 from django.db import transaction
 from django.db.models import Q
 from django.core.cache import cache
@@ -1226,42 +1226,6 @@ class MetricView(BaseDryccViewSet):
         self.check_object_permissions(self.request, app)
         return app
 
-    def _get_usage(self, func):
-        def wrap(app_id, ptype, every, start, stop, step):
-            result = {}
-            for item in async_to_sync(func)(app_id, ptype, every, start, stop, step):
-                result[item['metric']['pod']] = item['values']
-            return result
-        return wrap
-
-    @method_decorator(cache_page(settings.DRYCC_METRICS_EXPIRY))
-    @method_decorator(vary_on_headers("Authorization"))
-    def status(self, request, **kwargs):
-        warnings.warn(
-            'this interface will be removed in the next version.', PendingDeprecationWarning)
-        app_id = self._get_app().id
-        data = serializers.MetricSerializer(data=self.request.query_params)
-        if not data.is_valid():
-            return Response(data.errors, status=status.HTTP_422_UNPROCESSABLE_ENTITY)
-        every, start, stop, step = data.validated_data["every"], data.validated_data[
-            'start'], data.validated_data['stop'], data.validated_data['step']
-        params = {
-            "app_id": app_id, "ptype": kwargs['ptype'], "every": every,
-            "start": start, "stop": stop, "step": step,
-        }
-        return Response({
-            "id": app_id,
-            "ptype": kwargs['ptype'],
-            "usage": {
-                "cpus": self._get_usage(monitor.query_cpu_usage)(**params),
-                "memory": self._get_usage(monitor.query_memory_usage)(**params),
-                "networks": {
-                    "receive": self._get_usage(monitor.query_network_receive_usage)(**params),
-                    "transmit": self._get_usage(monitor.query_network_transmit_usage)(**params),
-                }
-            }
-        })
-
     @method_decorator(cache_page(settings.DRYCC_METRICS_EXPIRY))
     @method_decorator(vary_on_headers("Authorization"))
     def metric(self, request, **kwargs):
@@ -1302,16 +1266,17 @@ class MetricsProxyView(View):
         app_id = labels.get("namespace", None)
         if not app_id:
             return None
-        owner_id, timeout = self.cache.get(app_id, self.default_cache_value)
-        if (owner_id < 0 and timeout < 0) or time.time() > timeout:
+        account_id, timeout = self.cache.get(app_id, self.default_cache_value)
+        if (account_id < 0 and timeout < 0) or time.time() > timeout:
             if app := await models.app.App.objects.filter(id=app_id).afirst():
-                owner_id = app.owner_id
+                account_id = app.owner_id
             else:
-                owner_id = -1
-            self.cache[app_id] = (owner_id, time.time() + random.randint(600, 1200))
-        if owner_id < 0:
+                account_id = -1
+            self.cache[app_id] = (account_id, time.time() + random.randint(600, 1200))
+        if account_id < 0:
             return None
-        labels.update({'vm_project_id': app_id, 'vm_account_id': owner_id})
+        project_id = zlib.crc32(app_id.encode("utf-8"))
+        labels.update({'vm_account_id': account_id, 'vm_project_id': project_id})
         return "%s{%s} %s\n" % (name, ",".join([f'{k}="{v}"' for k, v in labels.items()]), value)
 
     async def get(self, request, node, metrics=None):
