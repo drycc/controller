@@ -1,0 +1,19 @@
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: drycc-controller-metric
+spec:
+  podSelector:
+    matchLabels:
+      app: drycc-controller
+      component: drycc-controller-metric
+  policyTypes:
+  - Ingress
+  ingress:
+  - from:
+    - namespaceSelector:
+        matchLabels:
+          kubernetes.io/metadata.name: {{.Release.Namespace}}
+      podSelector:
+        matchLabels:
+          app: drycc-victoriametrics

@@ -1,0 +1,87 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: drycc-controller-api
+  labels:
+    heritage: drycc
+  annotations:
+    component.drycc.cc/version: {{ .Values.imageTag }}
+spec:
+  replicas: {{ .Values.api.replicas }}
+  strategy:
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+    type: RollingUpdate
+  selector:
+    matchLabels:
+      app: drycc-controller
+      component: drycc-controller-api
+  template:
+    metadata:
+      labels: {{- include "common.labels.standard" . | nindent 8 }}
+        app: drycc-controller
+        component: drycc-controller-api
+    spec:
+      affinity:
+        podAffinity: {{- include "common.affinities.pods" (dict "type" .Values.api.podAffinityPreset.type "component" "" "extraMatchLabels" .Values.api.podAffinityPreset.extraMatchLabels "topologyKey" "" "context" $) | nindent 10 }}
+        podAntiAffinity: {{- include "common.affinities.pods" (dict "type" .Values.api.podAntiAffinityPreset.type "component" "" "extraMatchLabels" .Values.api.podAntiAffinityPreset.extraMatchLabels "topologyKey" "" "context" $) | nindent 10 }}
+        nodeAffinity: {{- include "common.affinities.nodes" (dict "type" .Values.api.nodeAffinityPreset.type "key" .Values.api.nodeAffinityPreset.key "values" .Values.api.nodeAffinityPreset.values ) | nindent 10 }}
+      serviceAccount: drycc-controller
+      initContainers:
+      - name: drycc-controller-api-init
+        image: {{.Values.imageRegistry}}/{{.Values.imageOrg}}/python-dev:latest
+        imagePullPolicy: {{.Values.imagePullPolicy}}
+        args:
+        - netcat
+        - -v
+        - -u
+        - $(DRYCC_DATABASE_URL),$(DRYCC_VALKEY_URL),$(DRYCC_DATABASE_REPLICA_URL)
+        {{- include "controller-api.envs" . | indent 8 }}
+      containers:
+      - name: drycc-controller-api
+        image: {{.Values.imageRegistry}}/{{.Values.imageOrg}}/controller:{{.Values.imageTag}}
+        imagePullPolicy: {{.Values.imagePullPolicy}}
+        {{- if .Values.diagnosticMode.enabled }}
+        command: {{- include "common.tplvalues.render" (dict "value" .Values.diagnosticMode.command "context" $) | nindent 10 }}
+        args: {{- include "common.tplvalues.render" (dict "value" .Values.diagnosticMode.args "context" $) | nindent 10 }}
+        {{- end }}
+        {{- if not .Values.diagnosticMode.enabled }}
+        startupProbe:
+          tcpSocket:
+            port: 8000
+          initialDelaySeconds: 30
+          periodSeconds: 60
+          timeoutSeconds: 1
+          successThreshold: 1
+          failureThreshold: 10
+        livenessProbe:
+          httpGet:
+            path: /healthz
+            port: 8000
+          initialDelaySeconds: 30
+          timeoutSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /readiness
+            port: 8000
+          initialDelaySeconds: 30
+          timeoutSeconds: 10
+          periodSeconds: 5
+        {{- end }}
+        ports:
+          - containerPort: 8000
+            name: http
+        {{- with index .Values "api" "resources" }}
+        resources:
+          {{- toYaml . | nindent 10 }}
+        {{- end }}
+        {{- include "controller-api.envs" . | indent 8 }}
+        volumeMounts:
+        - name: controller-config
+          readOnly: false
+          mountPath: /etc/controller
+      volumes:
+      - name: controller-config
+        configMap:
+          name: controller-config

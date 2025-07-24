@@ -3,13 +3,15 @@ kind: Deployment
 metadata:
   name: drycc-controller-mutate
 spec:
-  replicas: {{ .Values.mutateReplicas }}
+  replicas: {{ .Values.mutate.replicas }}
   selector:
     matchLabels:
+      app: drycc-controller
       component: drycc-controller-mutate
   template:
     metadata:
       labels: {{- include "common.labels.standard" . | nindent 8 }}
+        app: drycc-controller
         component: drycc-controller-mutate
     spec:
       affinity:
@@ -17,7 +19,7 @@ spec:
         podAntiAffinity: {{- include "common.affinities.pods" (dict "type" .Values.mutate.podAntiAffinityPreset.type "component" "" "extraMatchLabels" .Values.mutate.podAntiAffinityPreset.extraMatchLabels "topologyKey" "" "context" $) | nindent 10 }}
         nodeAffinity: {{- include "common.affinities.nodes" (dict "type" .Values.mutate.nodeAffinityPreset.type "key" .Values.mutate.nodeAffinityPreset.key "values" .Values.mutate.nodeAffinityPreset.values ) | nindent 10 }}
       initContainers:
-      - name: drycc-controller-init
+      - name: drycc-controller-mutate-init
         image: {{.Values.imageRegistry}}/{{.Values.imageOrg}}/python-dev:latest
         imagePullPolicy: {{.Values.imagePullPolicy}}
         args:
@@ -25,9 +27,9 @@ spec:
         - -v
         - -u
         - $(DRYCC_DATABASE_URL),$(DRYCC_VALKEY_URL),$(DRYCC_DATABASE_REPLICA_URL),http://drycc-controller-api
-        {{- include "controller.envs" . | indent 8 }}
+        {{- include "controller-mutate.envs" . | indent 8 }}
       containers:
-      - name: drycc-controller
+      - name: drycc-controller-mutate
         image: {{.Values.imageRegistry}}/{{.Values.imageOrg}}/controller:{{.Values.imageTag}}
         imagePullPolicy: {{.Values.imagePullPolicy}}
         {{- if .Values.diagnosticMode.enabled }}
@@ -56,12 +58,12 @@ spec:
         {{- end }}
         volumeMounts:
         - name: controller-mutate-cert
-          mountPath: /etc/controller/mutate/cert
+          mountPath: /etc/controller/cert
         {{- with index .Values "mutate" "resources" }}
         resources:
           {{- toYaml . | nindent 10 }}
         {{- end }}
-        {{- include "controller.envs" . | indent 8 }}
+        {{- include "controller-mutate.envs" . | indent 8 }}
       volumes:
       - name: controller-mutate-cert                                                                                                                                                                                               
         secret:                                                                                                                                                                                                                           

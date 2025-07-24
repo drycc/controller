@@ -43,12 +43,6 @@ appRuntimeClass: ""
 appDNSPolicy: ""
 # set timeout seconds. It is used for pod exec
 appPodExecTimeout: 3600
-# Set api replicas
-apiReplicas: 1
-# Set celery replicas
-celeryReplicas: 1
-# Set mutate replicas
-mutateReplicas: 1
 # Set cronjob concurrencyPolicy
 # Allow (default): The cron job allows concurrently running jobs
 # Forbid: The cron job does not allow concurrent runs; if it is time for a new job run and the previous job run hasn't finished yet, the cron job skips the new job run
@@ -92,6 +86,7 @@ service:
 environment: {}
 
 api:
+  replicas: 1
   resources: {}
     # limits:
     #   cpu: 200m
@@ -114,6 +109,7 @@ api:
       app: "drycc-controller-api"
 
 celery:
+  replicas: 1
   resources: {}
     # limits:
     #   cpu: 200m
@@ -135,7 +131,31 @@ celery:
     extraMatchLabels:
       app: "drycc-controller-celery"
 
+metric:
+  replicas: 1
+  resources: {}
+    # limits:
+    #   cpu: 200m
+    #   memory: 50Mi
+    # requests:
+    #   cpu: 100m
+    #   memory: 30Mi
+  nodeAffinityPreset:
+    key: "drycc.cc/node"
+    type: "soft"
+    values:
+    - "true"
+  podAffinityPreset:
+    type: ""
+    extraMatchLabels:
+      security: "drycc-security"
+  podAntiAffinityPreset:
+    type: "soft"
+    extraMatchLabels:
+      component: "drycc-controller-metric"
+
 mutate:
+  replicas: 1
   resources: {}
     # limits:
     #   cpu: 200m

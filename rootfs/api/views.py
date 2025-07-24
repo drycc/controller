@@ -220,7 +220,7 @@ class AdmissionWebhookViewSet(GenericViewSet):
     def handle(self, request,  **kwargs):
         key = kwargs['key']
         data = json.loads(request.body.decode("utf8"))["request"]
-        if settings.MUTATE_KEY == key:
+        if settings.CERT_KEY == key:
             allowed = True
             for admission_class in self.admission_classes:
                 admission = admission_class()
@@ -1279,16 +1279,19 @@ class MetricsProxyView(View):
         labels.update({'vm_account_id': account_id, 'vm_project_id': project_id})
         return "%s{%s} %s\n" % (name, ",".join([f'{k}="{v}"' for k, v in labels.items()]), value)
 
-    async def get(self, request, node, metrics=None):
-        if not metrics:
-            url = f"{settings.SCHEDULER_URL}/api/v1/nodes/{node}/proxy/metrics"
-        else:
-            url = f"{settings.SCHEDULER_URL}/api/v1/nodes/{node}/proxy/metrics/{metrics}"
+    async def get(self, request):
+        params = dict(request.GET)
+        if not set(["host", "port"]).issubset(params.keys()):
+            return HttpResponse(
+                "Error: Required parameter 'host' or 'port' is missing or empty", status=400)
+        host, port = params.pop('host')[0], params.pop('port')[0]
+        scheme, path = params.pop('scheme', ['http'])[0], params.pop('path', ['/metrics'])[0]
+        url = urljoin(f"{scheme}://{host}:{port}", path)
         headers = {"Authorization": request.META.get("HTTP_AUTHORIZATION", "")}
 
         async def stream_response():
             async with aiohttp.ClientSession(connector=self.connector) as session:
-                async with session.get(url, headers=headers) as resp:
+                async with session.get(url, params=params, headers=headers) as resp:
                     async for line_bytes in resp.content:
                         line = line_bytes.decode('utf-8', errors='ignore').strip(' \n')
                         if line.startswith('#') and (match := self.match_meta(line)):

@@ -244,14 +244,9 @@ app_urlpatterns = [
     re_path(
         r"^apps/(?P<id>{})/perms/(?P<username>[\w.@+-]+)/?$".format(settings.APP_URL_REGEX),
         views.AppPermViewSet.as_view({'put': 'update', 'delete': 'destroy'})),
-    # nodes
-    re_path(
-        r'^nodes/(?P<node>[a-zA-Z0-9-]+)/proxy/metrics(?:/(?P<metrics>[^/]+))?/?$',
-        views.MetricsProxyView.as_view()),
     # quickwit
     re_path(
-        r'^quickwit/(?P<username>[\w.@+-]+)/(?P<path>.+)/?$',
-        views.QuickwitProxyView.as_view()),
+        r'^quickwit/(?P<username>[\w.@+-]+)/(?P<path>.+)/?$', views.QuickwitProxyView.as_view()),
     # prometheus
     re_path(
         r'^prometheus/(?P<username>[\w.@+-]+)/(?P<path>.+)/?$',
@@ -261,6 +256,10 @@ app_urlpatterns = [
     re_path(
         r"^tokens/(?P<pk>[-_\w]+)/?$",
         views.TokenViewSet.as_view({'get': 'retrieve', 'delete': 'destroy'})),
+]
+
+metric_urlpatterns = [
+    re_path(r'^metrics/?$', views.MetricsProxyView.as_view()),
 ]
 
 mutate_urlpatterns = [
@@ -277,8 +276,9 @@ social_urlpatterns = [
     re_path('', include('social_django.urls', namespace='social')),
 ]
 
-# If there is a mutating admission mutate configuration, use mutate url
-if settings.MUTATE_KEY:
+if settings.RUNNER == 'metric':
+    urlpatterns = metric_urlpatterns
+elif settings.RUNNER == 'mutate':
     urlpatterns = mutate_urlpatterns
 else:
     urlpatterns = app_urlpatterns + social_urlpatterns

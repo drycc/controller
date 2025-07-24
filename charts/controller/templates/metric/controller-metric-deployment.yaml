@@ -1,13 +1,13 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: drycc-controller
+  name: drycc-controller-metric
   labels:
     heritage: drycc
   annotations:
     component.drycc.cc/version: {{ .Values.imageTag }}
 spec:
-  replicas: {{ .Values.apiReplicas }}
+  replicas: {{ .Values.metric.replicas }}
   strategy:
     rollingUpdate:
       maxSurge: 1
@@ -15,19 +15,21 @@ spec:
     type: RollingUpdate
   selector:
     matchLabels:
-      app: drycc-controller-api
+      app: drycc-controller
+      component: drycc-controller-metric
   template:
     metadata:
       labels: {{- include "common.labels.standard" . | nindent 8 }}
-        app: drycc-controller-api
+        app: drycc-controller
+        component: drycc-controller-metric
     spec:
       affinity:
-        podAffinity: {{- include "common.affinities.pods" (dict "type" .Values.api.podAffinityPreset.type "component" "" "extraMatchLabels" .Values.api.podAffinityPreset.extraMatchLabels "topologyKey" "" "context" $) | nindent 10 }}
-        podAntiAffinity: {{- include "common.affinities.pods" (dict "type" .Values.api.podAntiAffinityPreset.type "component" "" "extraMatchLabels" .Values.api.podAntiAffinityPreset.extraMatchLabels "topologyKey" "" "context" $) | nindent 10 }}
-        nodeAffinity: {{- include "common.affinities.nodes" (dict "type" .Values.api.nodeAffinityPreset.type "key" .Values.api.nodeAffinityPreset.key "values" .Values.api.nodeAffinityPreset.values ) | nindent 10 }}
+        podAffinity: {{- include "common.affinities.pods" (dict "type" .Values.metric.podAffinityPreset.type "component" "" "extraMatchLabels" .Values.metric.podAffinityPreset.extraMatchLabels "topologyKey" "" "context" $) | nindent 10 }}
+        podAntiAffinity: {{- include "common.affinities.pods" (dict "type" .Values.metric.podAntiAffinityPreset.type "component" "" "extraMatchLabels" .Values.metric.podAntiAffinityPreset.extraMatchLabels "topologyKey" "" "context" $) | nindent 10 }}
+        nodeAffinity: {{- include "common.affinities.nodes" (dict "type" .Values.metric.nodeAffinityPreset.type "key" .Values.metric.nodeAffinityPreset.key "values" .Values.metric.nodeAffinityPreset.values ) | nindent 10 }}
       serviceAccount: drycc-controller
       initContainers:
-      - name: drycc-controller-init
+      - name: drycc-controller-metric-init
         image: {{.Values.imageRegistry}}/{{.Values.imageOrg}}/python-dev:latest
         imagePullPolicy: {{.Values.imagePullPolicy}}
         args:
@@ -35,9 +37,9 @@ spec:
         - -v
         - -u
         - $(DRYCC_DATABASE_URL),$(DRYCC_VALKEY_URL),$(DRYCC_DATABASE_REPLICA_URL)
-        {{- include "controller.envs" . | indent 8 }}
+        {{- include "controller-metric.envs" . | indent 8 }}
       containers:
-      - name: drycc-controller
+      - name: drycc-controller-metric
         image: {{.Values.imageRegistry}}/{{.Values.imageOrg}}/controller:{{.Values.imageTag}}
         imagePullPolicy: {{.Values.imagePullPolicy}}
         {{- if .Values.diagnosticMode.enabled }}
@@ -70,11 +72,11 @@ spec:
         ports:
           - containerPort: 8000
             name: http
-        {{- with index .Values "api" "resources" }}
+        {{- with index .Values "metric" "resources" }}
         resources:
           {{- toYaml . | nindent 10 }}
         {{- end }}
-        {{- include "controller.envs" . | indent 8 }}
+        {{- include "controller-metric.envs" . | indent 8 }}
         volumeMounts:
         - name: controller-config
           readOnly: false

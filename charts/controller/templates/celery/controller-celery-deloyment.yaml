@@ -7,7 +7,7 @@ metadata:
   annotations:
     component.drycc.cc/version: {{ .Values.imageTag }}
 spec:
-  replicas: {{ .Values.celeryReplicas }}
+  replicas: {{ .Values.celery.replicas }}
   strategy:
     rollingUpdate:
       maxSurge: 1
@@ -15,11 +15,13 @@ spec:
     type: RollingUpdate
   selector:
     matchLabels:
-      app: drycc-controller-celery
+      app: drycc-controller
+      component: drycc-controller-celery
   template:
     metadata:
       labels: {{- include "common.labels.standard" . | nindent 8 }}
-        app: drycc-controller-celery
+        app: drycc-controller
+        component: drycc-controller-celery
     spec:
       affinity:
         podAffinity: {{- include "common.affinities.pods" (dict "type" .Values.celery.podAffinityPreset.type "component" "" "extraMatchLabels" .Values.celery.podAffinityPreset.extraMatchLabels "topologyKey" "" "context" $) | nindent 10 }}

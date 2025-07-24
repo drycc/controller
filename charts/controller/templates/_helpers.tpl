@@ -180,6 +180,24 @@ env:
   value: api.routers.DefaultReplicaRouter
 {{- end }}
 
+{{- define "controller-api.envs" }}
+{{- include "controller.envs" . }}
+- name: DRYCC_CONTROLLER_RUNNER
+  value: api
+{{- end }}
+
+{{- define "controller-metric.envs" }}
+{{- include "controller.envs" . }}
+- name: DRYCC_CONTROLLER_RUNNER
+  value: metric
+{{- end }}
+
+{{- define "controller-mutate.envs" }}
+{{- include "controller.envs" . }}
+- name: DRYCC_CONTROLLER_RUNNER
+  value: mutate
+{{- end }}
+
 {{/* Generate controller config default limit specs */}}
 {{ define "controller.config.defaultLimitSpecs" }}
 - model: api.limitspec
