@@ -1325,7 +1325,7 @@ class BaseUserProxyView(View):
         if self.permission.has_permission(request, None):
             if username != "drycc":
                 return None, {'error': 'Access denied', "status_code": 403}
-            return -1, None
+            return 0, None
         auth = await database_sync_to_async(self.authentication.authenticate)(request)
         if not auth or len(auth) != 2:
             return None, {'error': 'Unauthorized', "status_code": 401}
@@ -1448,15 +1448,13 @@ class PrometheusProxyView(BaseUserProxyView):
         user_id, message = await self.authenticate(request, username)
         if user_id is None and message is not None:
             return JsonResponse(message, status=message["status_code"])
-        if username == "drycc":
-            path = f"/select/0/prometheus/{path}"
-        else:
-            path = f"/select/{user_id}/prometheus/{path}"
+        data = dict(request.GET) if request.method == "GET" else dict(request.POST)
+        data['extra_filters[]'] = '{vm_account_id="%s"}' % user_id
         try:
             async with aiohttp.ClientSession() as session:
                 async with session.post(
-                    urljoin(settings.DRYCC_VICTORIAMETRICS_URL, path),
-                    data=dict(request.GET) if request.method == "GET" else dict(request.POST),
+                    f"{settings.DRYCC_VICTORIAMETRICS_URL.rstrip("/")}/{path}",
+                    data=data,
                     headers={"Content-Type": "application/x-www-form-urlencoded"},
                     timeout=self.timeout
                 ) as response:

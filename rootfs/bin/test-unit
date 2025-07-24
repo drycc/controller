@@ -15,4 +15,4 @@ function start_valkey() {
 gosu postgres pg_ctl -D "$PGDATA" start && ln -s /tmp/.s.PGSQL.5432 /var/run/postgresql/.s.PGSQL.5432
 start_valkey
 python3 manage.py check
-coverage run --source=api,scheduler manage.py test --settings=api.settings.testing --noinput api scheduler.tests --exclude-tag=auth
+coverage run --source=api,scheduler manage.py test --settings=api.settings.testing --noinput api scheduler.tests --exclude-tag=auth --parallel="${TEST_PARALLEL:-8}"

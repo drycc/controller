@@ -126,7 +126,7 @@ env:
       key: victoriametrics-url
 {{- else if .Values.victoriametrics.enabled }}
 - name: "DRYCC_VICTORIAMETRICS_URL"
-  value: "http://drycc-victoriametrics-vmselect:8481"
+  value: "http://drycc-victoriametrics-vmselect:8481/select/multitenant/prometheus"
 {{- end }}
 {{- if .Values.passport.enabled }}
 - name: "DRYCC_PASSPORT_URL"
