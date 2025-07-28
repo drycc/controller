@@ -9,10 +9,6 @@ query_last_metrics_promql_tpl = """
 last_over_time({__name__=~"%s",namespace="%s"}[%s])
 """
 
-query_loadbalancer_promql_tpl = """
-kube_service_status_load_balancer_ingress{namespace=~"%s"}
-"""
-
 query_network_receive_flow_promql_tpl = """
 increase(container_network_receive_bytes_total{namespace=~"%s"}[%s])
 """
@@ -72,13 +68,6 @@ async def last_metrics(namespace) -> AsyncGenerator[Iterator, str]:
             ]),
             item['value'][1]
         )
-
-
-async def query_loadbalancer(namespaces: Iterator[str], start: int, stop: int
-                             ) -> list[tuple[dict[str, str], int]]:
-    url = urljoin(settings.DRYCC_VICTORIAMETRICS_URL, "/select/0/prometheus/api/v1/query")
-    promql = query_loadbalancer_promql_tpl % "|".join(namespaces)
-    return await query_prom(url, {"query": promql, "start": start, "end": stop})
 
 
 async def query_network_receive_flow(namespaces: Iterator[str], start: int, stop: int

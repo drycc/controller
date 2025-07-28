@@ -142,6 +142,20 @@ class Gateway(AuditedModel):
             )
         return super().delete(*args, **kwargs)
 
+    def to_measurements(self, timestamp: float):
+        return [{
+            "app_id": str(self.app_id),
+            "owner": self.owner_id,
+            "name": settings.DRYCC_APP_GATEWAY_CLASS,
+            "type": "gateway",
+            "unit": "number",
+            "usage": 1,
+            "kwargs": {
+                "name": self.name,
+            },
+            "timestamp": int(timestamp)
+        }]
+
     def _check_port(self, port, protocol):
         for item in self.ports:
             if item["port"] == port:

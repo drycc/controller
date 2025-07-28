@@ -59,7 +59,7 @@ spec:
             args:
             - /bin/bash
             - -c
-            - python -u /workspace/manage.py measure_loadbalancers
+            - python -u /workspace/manage.py measure_gateway
             {{- end }}
             {{- include "controller.envs" . | indent 12 }}
             {{- include "controller-job.envs" . | indent 12 }}
