@@ -724,12 +724,12 @@ class App(UuidAuditedModel):
         else:
             self.scheduler.secret.update(self.id, secret_name, secrets_env, labels=labels)
 
-    def to_measurements(self, timestamp: float):
-        measurements = []
+    def to_usages(self, timestamp: float):
+        usage = []
         config = self.config_set.latest()
         for ptype, scale in self.structure.items():
             plan = config.limits.get(ptype)
-            measurements.append({
+            usage.append({
                 "app_id": str(self.uuid),
                 "owner": self.owner_id,
                 "name": plan,
@@ -741,7 +741,7 @@ class App(UuidAuditedModel):
                 },
                 "timestamp": int(timestamp),
             })
-        return measurements
+        return usage
 
     def __str__(self):
         return self.id

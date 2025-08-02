@@ -142,7 +142,7 @@ class Gateway(AuditedModel):
             )
         return super().delete(*args, **kwargs)
 
-    def to_measurements(self, timestamp: float):
+    def to_usages(self, timestamp: float):
         return [{
             "app_id": str(self.app_id),
             "owner": self.owner_id,

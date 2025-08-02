@@ -633,7 +633,7 @@ class ConfigTest(DryccTransactionTestCase):
     def call_command(self, *args, **kwargs):
         out = StringIO()
         call_command(
-            "measure_apps",
+            "upload_app_usage",
             *args,
             stdout=out,
             stderr=StringIO(),

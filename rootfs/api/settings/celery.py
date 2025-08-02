@@ -34,7 +34,7 @@ app.config_from_object(Config())
 app.conf.update(
     timezone=os.environ.get('TZ', 'UTC'),
     task_routes={
-        'api.tasks.send_measurements': {
+        'api.tasks.send_usage': {
             'queue': 'controller.low',
             'exchange': 'controller.priority', 'routing_key': 'controller.priority.low',
         },

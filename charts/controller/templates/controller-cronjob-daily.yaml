@@ -71,7 +71,7 @@ spec:
             args:
               - /bin/bash
               - -c
-              - python -u /workspace/manage.py measure_apps
+              - python -u /workspace/manage.py upload_app_usage
             {{- end }}
             {{- include "controller.envs" . | indent 12 }}
             {{- include "controller-job.envs" . | indent 12 }}
@@ -85,7 +85,7 @@ spec:
             args:
             - /bin/bash
             - -c
-            - python -u /workspace/manage.py measure_resources
+            - python -u /workspace/manage.py upload_resource_usage
             {{- end }}
             {{- include "controller.envs" . | indent 12 }}
             {{- include "controller-job.envs" . | indent 12 }}
@@ -99,7 +99,7 @@ spec:
             args:
             - /bin/bash
             - -c
-            - python -u /workspace/manage.py measure_volumes
+            - python -u /workspace/manage.py upload_volume_usage
             {{- end }}
             {{- include "controller.envs" . | indent 12 }}
             {{- include "controller-job.envs" . | indent 12 }}

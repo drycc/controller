@@ -17,12 +17,11 @@ logger = logging.getLogger(__name__)
     retry_backoff_max=3600,
     retry_kwargs={'max_retries': None}
 )
-def send_measurements(measurements: List[Dict[str, str]]):
+def send_usage(usage: List[Dict[str, str]]):
     task_id = uuid.uuid4().hex
     signals.request_started.send(sender=task_id)
     try:
-        measurement = manager.Measurement()
-        measurement.post(measurements)
+        manager.UsageAPI().post(usage)
     except Exception as e:
         signals.got_request_exception.send(sender=task_id)
         raise e

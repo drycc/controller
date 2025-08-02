@@ -4,8 +4,8 @@ import logging
 from django.utils import timezone
 from django.core.management.base import BaseCommand
 from django.conf import settings
-from api.models.resource import Resource
-from api.tasks import send_measurements
+from api.models.app import App
+from api.tasks import send_usage
 
 logger = logging.getLogger(__name__)
 
@@ -18,13 +18,13 @@ class Command(BaseCommand):
             timestamp = time.time()
             task_id = uuid.uuid4().hex
             logger.info(f"pushing {task_id} resources to workflow_manager when {timezone.now()}")
-            resource_list = []
-            for resource in Resource.objects.filter(status="Ready"):
-                resource_list.extend(resource.to_measurements(timestamp))
-                if len(resource_list) % 1000 == 0:
-                    send_measurements.delay(resource_list)
-                    resource_list = []
-            if len(resource_list) > 0:
-                send_measurements.delay(resource_list)
+            app_list = []
+            for app in App.objects.all():
+                app_list.extend(app.to_usages(timestamp))
+                if len(app_list) % 1000 == 0:
+                    send_usage.delay(app_list)
+                    app_list = []
+            if len(app_list) > 0:
+                send_usage.delay(app_list)
             logger.info(f"pushed {task_id} resources to workflow_manager when {timezone.now()}")
             self.stdout.write("done")

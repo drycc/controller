@@ -14,7 +14,7 @@ from django.db.models.signals import post_delete, post_save
 from django.dispatch import receiver
 from django.contrib.auth import get_user_model
 from api.utils import get_httpclient
-from api.tasks import send_measurements
+from api.tasks import send_usage
 from api.models.app import App
 from api.models.service import Service
 from api.models.gateway import Gateway
@@ -143,8 +143,8 @@ def app_changed_handle(sender, instance: App, created=False, update_fields=None,
     if settings.WORKFLOW_MANAGER_URL and not created and (
             update_fields is not None and "structure" in update_fields):
         timestamp = time.time()
-        send_measurements.apply_async(
-            args=[instance.to_measurements(timestamp), ],
+        send_usage.apply_async(
+            args=[instance.to_usages(timestamp), ],
         )
 
 
@@ -222,8 +222,8 @@ def config_changed_handle(sender, instance: Config, created=False, update_fields
     if settings.WORKFLOW_MANAGER_URL and (
             created or (update_fields is not None and "limits" in update_fields)):
         timestamp = time.time()
-        send_measurements.apply_async(
-            args=[instance.app.to_measurements(timestamp), ],
+        send_usage.apply_async(
+            args=[instance.app.to_usages(timestamp), ],
         )
 
 
@@ -232,8 +232,8 @@ def volume_changed_handle(sender, instance: Volume, created=False, update_fields
     # measure volumes to workflow manager
     if settings.WORKFLOW_MANAGER_URL and created:
         timestamp = time.time()
-        send_measurements.apply_async(
-            args=[instance.to_measurements(timestamp), ],
+        send_usage.apply_async(
+            args=[instance.to_usages(timestamp), ],
         )
 
 
@@ -247,6 +247,6 @@ def resource_changed_handle(
                 "plan" in update_fields
             ))):
         timestamp = time.time()
-        send_measurements.apply_async(
-            args=[instance.to_measurements(timestamp), ],
+        send_usage.apply_async(
+            args=[instance.to_usages(timestamp), ],
         )

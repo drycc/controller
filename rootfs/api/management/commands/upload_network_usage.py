@@ -7,7 +7,7 @@ from django.core.management.base import BaseCommand
 from django.conf import settings
 from api import monitor
 from api.models.app import App
-from api.tasks import send_measurements
+from api.tasks import send_usage
 
 logger = logging.getLogger(__name__)
 
@@ -15,7 +15,7 @@ logger = logging.getLogger(__name__)
 class Command(BaseCommand):
     """Management command for push data to manager"""
 
-    def _measure_networks(self, app_map, timestamp):
+    def _upload_network_usage(self, app_map, timestamp):
         stop = timestamp - (timestamp % 3600)
         start = stop - 3600
         networks = []
@@ -49,7 +49,7 @@ class Command(BaseCommand):
                 },
                 "timestamp": start
             })
-        send_measurements.delay(networks)
+        send_usage.delay(networks)
 
     def handle(self, *args, **options):
         if settings.WORKFLOW_MANAGER_URL:
@@ -60,9 +60,9 @@ class Command(BaseCommand):
             for app in App.objects.all():
                 app_map[app.id] = app
                 if len(app_map) % 1000 == 0:
-                    self._measure_networks(app_map, timestamp)
+                    self._upload_network_usage(app_map, timestamp)
                     app_map = {}
             if len(app_map) > 0:
-                self._measure_networks(app_map, timestamp)
+                self._upload_network_usage(app_map, timestamp)
             logger.info(f"pushed {task_id} limits to workflow_manager when {timezone.now()}")
             self.stdout.write("done")

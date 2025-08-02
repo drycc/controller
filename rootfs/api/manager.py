@@ -54,7 +54,7 @@ class ManagerAPI(object):
         return self.request('delete', url, **kwargs)
 
 
-class User(ManagerAPI):
+class UserAPI(ManagerAPI):
 
     def get_status(self, id):
         """
@@ -78,21 +78,21 @@ class User(ManagerAPI):
         return status
 
 
-class Measurement(ManagerAPI):
+class UsageAPI(ManagerAPI):
 
-    def post(self, measurements: List[Dict[str, str]]):
+    def post(self, usages: List[Dict[str, str]]):
         """
         [
             {
                 "app_id":  "test",
                 "owner": "test",
-                "name": web,
-                "type": "CPU",
-                "unit": "G"
+                "name": "web",
+                "type": "limits",
+                "unit": "std1.large.c1m1",
                 "usage": "2",
                 "timestamp": "1609231998.9103732"
             }
         ]
         """
-        url = "%s/measurements/" % settings.WORKFLOW_MANAGER_URL
-        return super().post(url=url, json=measurements)
+        url = "%s/usages/" % settings.WORKFLOW_MANAGER_URL
+        return super().post(url=url, json=usages)
