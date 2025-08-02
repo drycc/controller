@@ -7,7 +7,7 @@ from django.core.management.base import BaseCommand
 from django.conf import settings
 from api import monitor
 from api.models.app import App
-from api.tasks import send_measurements
+from api.tasks import send_usages
 
 logger = logging.getLogger(__name__)
 
@@ -49,7 +49,7 @@ class Command(BaseCommand):
                 },
                 "timestamp": start
             })
-        send_measurements.delay(networks)
+        send_usages.delay(networks)
 
     def handle(self, *args, **options):
         if settings.WORKFLOW_MANAGER_URL:
