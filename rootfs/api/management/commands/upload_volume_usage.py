@@ -1,6 +1,8 @@
 import uuid
 import time
 import logging
+import random
+from datetime import timedelta
 from django.utils import timezone
 from django.core.management.base import BaseCommand
 from django.conf import settings
@@ -15,16 +17,21 @@ class Command(BaseCommand):
 
     def handle(self, *args, **options):
         if settings.WORKFLOW_MANAGER_URL:
-            timestamp = time.time()
-            task_id = uuid.uuid4().hex
-            logger.info(f"pushing {task_id} volumes to workflow_manager when {timezone.now()}")
+            start_time, timestamp, task_id = timezone.now(), time.time(), uuid.uuid4().hex
+            logger.info(f"pushing {task_id} volumes to workflow_manager when {start_time}")
             volume_list = []
             for volume in Volume.objects.all():
                 volume_list.extend(volume.to_usages(timestamp))
                 if len(volume_list) % 1000 == 0:
-                    send_usage.delay(volume_list)
+                    send_usage.apply_async(
+                        args=(volume_list,),
+                        eta=start_time + timedelta(seconds=random.randint(1, 1800))
+                    )
                     volume_list = []
             if len(volume_list) > 0:
-                send_usage.delay(volume_list)
+                send_usage.apply_async(
+                    args=(volume_list,),
+                    eta=start_time + timedelta(seconds=random.randint(1, 1800))
+                )
             logger.info(f"pushed {task_id} volumes to workflow_manager when {timezone.now()}")
             self.stdout.write("done")

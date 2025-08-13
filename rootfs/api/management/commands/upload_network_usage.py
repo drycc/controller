@@ -1,6 +1,8 @@
 import uuid
 import time
 import logging
+import random
+from datetime import timedelta
 from asgiref.sync import async_to_sync
 from django.utils import timezone
 from django.core.management.base import BaseCommand
@@ -15,7 +17,7 @@ logger = logging.getLogger(__name__)
 class Command(BaseCommand):
     """Management command for push data to manager"""
 
-    def _upload_network_usage(self, app_map, timestamp):
+    def _upload_network_usage(self, start_time, app_map, timestamp):
         stop = timestamp - (timestamp % 3600)
         start = stop - 3600
         networks = []
@@ -49,20 +51,21 @@ class Command(BaseCommand):
                 },
                 "timestamp": start
             })
-        send_usage.delay(networks)
+        send_usage.apply_async(
+            args=(networks,), eta=start_time + timedelta(seconds=random.randint(1, 1800))
+        )
 
     def handle(self, *args, **options):
         if settings.WORKFLOW_MANAGER_URL:
-            timestamp = int(time.time())
-            task_id = uuid.uuid4().hex
+            start_time, timestamp, task_id = timezone.now(), int(time.time()), uuid.uuid4().hex
             logger.info(f"pushing {task_id} limits to workflow_manager when {timezone.now()}")
             app_map = {}
             for app in App.objects.all():
                 app_map[app.id] = app
                 if len(app_map) % 1000 == 0:
-                    self._upload_network_usage(app_map, timestamp)
+                    self._upload_network_usage(start_time, app_map, timestamp)
                     app_map = {}
             if len(app_map) > 0:
-                self._upload_network_usage(app_map, timestamp)
+                self._upload_network_usage(start_time, app_map, timestamp)
             logger.info(f"pushed {task_id} limits to workflow_manager when {timezone.now()}")
             self.stdout.write("done")
