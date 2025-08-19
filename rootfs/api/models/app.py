@@ -114,6 +114,7 @@ class App(UuidAuditedModel):
                           validators=[validate_app_id])
     structure = models.JSONField(
         default=dict, blank=True, validators=[validate_app_structure])
+    suspended_state = models.JSONField(default=dict, blank=True)
 
     class Meta:
         verbose_name = 'Application'

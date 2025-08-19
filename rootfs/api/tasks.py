@@ -158,3 +158,19 @@ def downstream_model_owner(app, old_owner, new_owner):
         raise e
     else:
         signals.request_finished.send(sender=task_id)
+
+
+@shared_task(
+    autoretry_for=(ServiceUnavailable, ),
+    retry_kwargs={'max_retries': None}
+)
+def scale_resources(blocklist, app, suspended_state, scale_type):
+    task_id = uuid.uuid4().hex
+    signals.request_started.send(sender=task_id)
+    try:
+        blocklist.scale_resources(app, suspended_state, scale_type)
+    except Exception as e:
+        signals.got_request_exception.send(sender=task_id)
+        raise e
+    else:
+        signals.request_finished.send(sender=task_id)

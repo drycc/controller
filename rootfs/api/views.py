@@ -35,7 +35,7 @@ from rest_framework.exceptions import PermissionDenied
 
 from api import monitor, models, permissions, serializers, viewsets, authentication, __version__
 from api.tasks import scale_app, restart_app, mount_app, downstream_model_owner, \
-    delete_pod
+    delete_pod, scale_resources
 from api.exceptions import AlreadyExists, ServiceUnavailable, DryccException
 
 from django.views.decorators.cache import never_cache
@@ -183,13 +183,17 @@ class WorkflowManagerViewset(GenericViewSet):
 
     def block(self, request,  **kwargs):
         try:
-            blocklist, _ = models.blocklist.Blocklist.objects.get_or_create(
+            blocklist, created = models.blocklist.Blocklist.objects.get_or_create(
                 id=kwargs['id'],
                 type=models.blocklist.Blocklist.get_type(kwargs["type"]),
                 defaults={"remark": request.data.get("remark")}
             )
             for app in blocklist.related_apps:
-                scale_app.delay(app, app.owner, {key: 0 for key in app.structure.keys()})
+                if created:
+                    app.suspended_state = blocklist.suspended_state(app)
+                    app.save()
+                # scale to 0
+                scale_resources.delay(blocklist, app, app.suspended_state, "block")
             return HttpResponse(status=201)
         except ValueError as e:
             logger.info(e)
@@ -197,10 +201,17 @@ class WorkflowManagerViewset(GenericViewSet):
 
     def unblock(self, request,  **kwargs):
         try:
-            models.blocklist.Blocklist.objects.filter(
+            blocklists = models.blocklist.Blocklist.objects.filter(
                 id=kwargs['id'],
                 type=models.blocklist.Blocklist.get_type(kwargs["type"])
-            ).delete()
+            )
+            for blocklist in blocklists:
+                for app in blocklist.related_apps:
+                    # scale to up
+                    scale_resources.delay(blocklist, app, app.suspended_state, "unblock")
+                    app.suspended_state = {}
+                    app.save()
+                blocklist.delete()
             return HttpResponse(status=204)
         except ValueError as e:
             logger.info(e)
