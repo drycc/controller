@@ -18,6 +18,8 @@ from scheduler.exceptions import KubeHTTPException
 from django.conf import settings
 from django.core.cache import cache
 
+from api import utils
+
 import logging
 logger = logging.getLogger(__name__)
 
@@ -84,6 +86,7 @@ resources = [
     'persistentvolumeclaims', 'serviceinstances', 'servicebindings',
     'limitranges', 'gateways', 'httproutes', 'tcproutes', 'udproutes',
     'issuers', 'certificates', 'certificaterequests', 'jobs', 'clusterserviceclasses',
+    'statefulsets', 'daemonsets',
 ]
 
 
@@ -902,7 +905,7 @@ def patch(request, context):  # noqa: C901
     data = request.json()
 
     # merge new data into old but keep labels separate in case they changed
-    if 'labels' in data['metadata']:
+    if 'labels' in data.get('metadata', {}):
         labels = data['metadata'].pop('labels')
         item['metadata'].update(data['metadata'])
         data['metadata'] = item['metadata']
@@ -934,6 +937,10 @@ def patch(request, context):  # noqa: C901
             manage_replicasets(data, url)
     elif resource_type in ['gateways']:
         data['status'] = item['status']
+        cache.set(url, data, None)
+    elif resource_type in ['daemonsets', 'statefulsets']:
+        # item data merge-patch
+        data = utils.dict_merge(item, data)
         cache.set(url, data, None)
     else:
         # Update the individual resource
@@ -1106,7 +1113,14 @@ class MockSchedulerClient(KubeHTTPClient):
             self.ns.get('duplicate')
         except KubeHTTPException:
             self.ns.create('duplicate')
+        # node
+        self._setup_node()
+        # daemonset
+        self._setup_daemonset()
+        # statefulset
+        self._setup_statefulset()
 
+    def _setup_node(self):
         try:
             self.node.get('172.17.8.100')
         except KubeHTTPException:
@@ -1183,12 +1197,146 @@ class MockSchedulerClient(KubeHTTPClient):
                     }
                 }
             }
-
             name = 'api_v1_nodes_172.17.8.100'
             cache.set(name, data, None)
             cache.set('api_v1_nodes', [name], None)
-        except Exception as e:
-            logger.critical(e)
+
+    def _setup_daemonset(self):
+        data = {
+            "apiVersion": "apps/v1",
+            "kind": "DaemonSet",
+            "metadata": {
+                "name": "drycc",
+                "namespace": "drycc",
+                "labels": {
+                    "app.kubernetes.io/managed-by": "Helm",
+                    "app.kubernetes.io/name": "drycc"
+                }
+            },
+            "spec": {
+                "selector": {
+                    "matchLabels": {
+                        "app.kubernetes.io/name": "drycc"
+                    }
+                },
+                "template": {
+                    "metadata": {
+                        "labels": {
+                            "app.kubernetes.io/managed-by": "Helm",
+                            "app.kubernetes.io/name": "drycc"
+                        }
+                    },
+                    "spec": {
+                        "affinity": {
+                            "nodeAffinity": {
+                                "requiredDuringSchedulingIgnoredDuringExecution": {
+                                    "nodeSelectorTerms": [
+                                        {
+                                            "matchExpressions": [{
+                                                "key": "kubernetes.io/hostname",
+                                                "operator": "In",
+                                                "values": [
+                                                    "server-01",
+                                                    "server-02",
+                                                    "server-03"
+                                                ]}
+                                            ]
+                                        }
+                                    ]
+                                }
+                            }
+                        },
+                        "containers": [{
+                            "image": "registry.drycc.cc/drycc/drycc",
+                            "imagePullPolicy": "IfNotPresent",
+                            "name": "drycc"
+                        }]
+                    }
+                }
+            },
+            "status": {
+                "currentNumberScheduled": 3,
+                "desiredNumberScheduled": 3,
+                "numberAvailable": 3,
+                "numberMisscheduled": 0,
+                "numberReady": 3,
+                "observedGeneration": 2,
+                "updatedNumberScheduled": 3
+            }
+        }
+        name = 'apis_apps_v1_namespaces_drycc_daemonsets_drycc'
+        cache.set(name, data, None)
+        cache.set('apis_apps_v1_namespaces_drycc_daemonsets', [name], None)
+
+    def _setup_statefulset(self):
+        data = {
+            "apiVersion": "apps/v1",
+            "kind": "StatefulSet",
+            "metadata": {
+                "labels": {
+                    "app.kubernetes.io/managed-by": "Helm",
+                    "app.kubernetes.io/name": "drycc"
+                },
+                "name": "drycc",
+                "namespace": "drycc"
+            },
+            "spec": {
+                "persistentVolumeClaimRetentionPolicy": {
+                    "whenDeleted": "Delete",
+                    "whenScaled": "Retain"
+                },
+                "selector": {
+                    "matchLabels": {
+                        "app.kubernetes.io/name": "drycc"
+                    }
+                },
+                "template": {
+                    "metadata": {
+                        "labels": {
+                            "app.kubernetes.io/managed-by": "Helm",
+                            "app.kubernetes.io/name": "drycc"
+                        }
+                    },
+                    "spec": {
+                            "containers": [{
+                                "image": "registry.drycc.cc/drycc/drycc",
+                                "imagePullPolicy": "IfNotPresent",
+                                "name": "drycc"
+                            }]
+                        }
+                    },
+                "volumeClaimTemplates": [{
+                    "apiVersion": "v1",
+                    "kind": "PersistentVolumeClaim",
+                    "metadata": {
+                        "name": "work-data"
+                    },
+                    "spec": {
+                        "accessModes": [
+                            "ReadWriteOnce"
+                        ],
+                        "resources": {
+                            "requests": {
+                                "storage": "1Gi"
+                            }
+                        },
+                        "volumeMode": "Filesystem"
+                    }
+                }]
+            },
+            "status": {
+                "availableReplicas": 2,
+                "collisionCount": 0,
+                "currentReplicas": 2,
+                "observedGeneration": 4,
+                "readyReplicas": 2,
+                "replicas": 2,
+                "updatedReplicas": 2
+            }
+        }
+        name = 'apis_apps_v1_namespaces_drycc_statefulsets_drycc'
+        cache.set(name, data, None)
+        cache.set('apis_apps_v1_namespaces_drycc_statefulsets', [name], None)
 
 
 scheduler.session = session()

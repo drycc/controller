@@ -21,7 +21,7 @@ class DryccOIDC(OpenIdConnectAuth):
     USERINFO_URL = settings.SOCIAL_AUTH_DRYCC_USERINFO_URL
     JWKS_URI = settings.SOCIAL_AUTH_DRYCC_JWKS_URI
     OIDC_ENDPOINT = settings.SOCIAL_AUTH_DRYCC_OIDC_ENDPOINT
-    DEFAULT_SCOPE = ['openid']
+    DEFAULT_SCOPE = ['openid', 'profile', 'email']
     EXTRA_DATA = [
         ('id', 'id'),
         ('access_token', 'access_token'),

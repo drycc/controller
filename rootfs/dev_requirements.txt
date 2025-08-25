@@ -8,3 +8,6 @@ flake8==7.2.0
 
 # mock out python-requests, mostly k8s
 requests-mock==1.12.1
+
+# tracebacks
+tblib==3.1.0
