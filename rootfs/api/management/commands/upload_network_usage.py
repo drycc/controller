@@ -58,7 +58,7 @@ class Command(BaseCommand):
     def handle(self, *args, **options):
         if settings.WORKFLOW_MANAGER_URL:
             start_time, timestamp, task_id = timezone.now(), int(time.time()), uuid.uuid4().hex
-            logger.info(f"pushing {task_id} limits to workflow_manager when {timezone.now()}")
+            logger.info(f"pushing {task_id} networks to workflow_manager when {timezone.now()}")
             app_map = {}
             for app in App.objects.all():
                 app_map[app.id] = app
@@ -67,5 +67,5 @@ class Command(BaseCommand):
                     app_map = {}
             if len(app_map) > 0:
                 self._upload_network_usage(start_time, app_map, timestamp)
-            logger.info(f"pushed {task_id} limits to workflow_manager when {timezone.now()}")
+            logger.info(f"pushed {task_id} networks to workflow_manager when {timezone.now()}")
             self.stdout.write("done")

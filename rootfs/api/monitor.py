@@ -28,6 +28,18 @@ sum (avg_over_time (container_memory_working_set_bytes{pod=~"^%s-.*$",namespace=
 by (pod)
 """
 
+query_volume_size_promql_tpl = """
+max by(namespace, persistentvolumeclaim, storageclass) (
+  kube_persistentvolumeclaim_resource_requests_storage_bytes{namespace="%s"}
+  * on(namespace, persistentvolumeclaim) group_left(storageclass)
+  kube_persistentvolumeclaim_info{namespace="%s"}
+  * on(namespace, persistentvolumeclaim) group_left()
+  kube_persistentvolumeclaim_annotations{
+    namespace="%s",
+    annotation_billing_drycc_cc_type="usage"
+  }
+)
+"""
 
 query_network_receive_usage_promql_tpl = """
 sum (rate (container_network_receive_bytes_total{pod=~"^%s-.*$",namespace="%s"}[%s]))
@@ -68,6 +80,14 @@ async def last_metrics(namespace) -> AsyncGenerator[Iterator, str]:
             ]),
             item['value'][1]
         )
+
+
+async def query_volume_size(namespaces: Iterator[str], start: int, stop: int
+                            ) -> list[tuple[dict[str, str], int]]:
+    url = urljoin(settings.DRYCC_VICTORIAMETRICS_URL, "/select/0/prometheus/api/v1/query")
+    promql = query_volume_size_promql_tpl % (
+        "|".join(namespaces), "|".join(namespaces), "|".join(namespaces))
+    return await query_prom(url, {"query": promql, "start": start, "end": stop})
 
 
 async def query_network_receive_flow(namespaces: Iterator[str], start: int, stop: int

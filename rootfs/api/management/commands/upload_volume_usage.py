@@ -3,10 +3,12 @@ import time
 import logging
 import random
 from datetime import timedelta
+from asgiref.sync import async_to_sync
 from django.utils import timezone
 from django.core.management.base import BaseCommand
 from django.conf import settings
-from api.models.volume import Volume
+from api import monitor
+from api.models.app import App
 from api.tasks import send_usage
 
 logger = logging.getLogger(__name__)
@@ -15,23 +17,40 @@ logger = logging.getLogger(__name__)
 class Command(BaseCommand):
     """Management command for push data to manager"""
 
+    def _upload_volume_usage(self, start_time, app_map, timestamp):
+        stop = timestamp - (timestamp % 3600)
+        start = stop - 3600
+        volumes = []
+        for item in async_to_sync(monitor.query_volume_size)(app_map.keys(), start, stop):  # noqa
+            metric = item["metric"]
+            _, value = item["value"]
+            volumes.append({
+                "app_id":  str(app_map[metric['namespace']].uuid),
+                "owner": app_map[metric['namespace']].owner_id,
+                "type": "volume",
+                "unit": "bytes",
+                "name": metric["storageclass"],
+                "usage": value,
+                "kwargs": {
+                    "persistentvolumeclaim": metric['persistentvolumeclaim'],
+                },
+                "timestamp": start
+            })
+        send_usage.apply_async(
+            args=(volumes,), eta=start_time + timedelta(seconds=random.randint(1, 1800))
+        )
+
     def handle(self, *args, **options):
         if settings.WORKFLOW_MANAGER_URL:
-            start_time, timestamp, task_id = timezone.now(), time.time(), uuid.uuid4().hex
-            logger.info(f"pushing {task_id} volumes to workflow_manager when {start_time}")
-            volume_list = []
-            for volume in Volume.objects.all():
-                volume_list.extend(volume.to_usages(timestamp))
-                if len(volume_list) % 1000 == 0:
-                    send_usage.apply_async(
-                        args=(volume_list,),
-                        eta=start_time + timedelta(seconds=random.randint(1, 1800))
-                    )
-                    volume_list = []
-            if len(volume_list) > 0:
-                send_usage.apply_async(
-                    args=(volume_list,),
-                    eta=start_time + timedelta(seconds=random.randint(1, 1800))
-                )
+            start_time, timestamp, task_id = timezone.now(), int(time.time()), uuid.uuid4().hex
+            logger.info(f"pushing {task_id} volumes to workflow_manager when {timezone.now()}")
+            app_map = {}
+            for app in App.objects.all():
+                app_map[app.id] = app
+                if len(app_map) % 1000 == 0:
+                    self._upload_volume_usage(start_time, app_map, timestamp)
+                    app_map = {}
+            if len(app_map) > 0:
+                self._upload_volume_usage(start_time, app_map, timestamp)
             logger.info(f"pushed {task_id} volumes to workflow_manager when {timezone.now()}")
             self.stdout.write("done")

@@ -416,6 +416,9 @@ oss:
 {{/* Generate controller config default volume claim template */}}
 {{ define "controller.config.defaultVolumeClaimTemplate" }}
 csi:
+  metadata:
+    annotations:
+      billing.drycc.cc/type: usage
   spec:
     accessModes:
     - ReadWriteMany
@@ -425,6 +428,9 @@ csi:
         storage: $size
     volumeMode: Filesystem
 nfs:
+  metadata:
+    annotations:
+      billing.drycc.cc/type: basic
   spec:
     accessModes:
     - ReadWriteMany
@@ -434,6 +440,9 @@ nfs:
         storage: $size
     volumeName: $volume_name
 oss:
+  metadata:
+    annotations:
+      billing.drycc.cc/type: basic
   spec:
     accessModes:
     - ReadWriteMany

@@ -1,5 +1,6 @@
 import json
 import logging
+from api import utils
 from scheduler.resources import Resource
 from scheduler.exceptions import KubeHTTPException
 
@@ -20,7 +21,7 @@ class PersistentVolumeClaim(Resource):
                 'labels': labels
             }
         }
-        data.update(kwargs)
+        data = utils.dict_merge(data, kwargs)
         if version:
             data["metadata"]["resourceVersion"] = version
         return data
