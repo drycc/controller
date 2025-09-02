@@ -50,7 +50,7 @@ spec:
         args:
           - /bin/bash
           - -c
-          - celery --app api worker --queues controller.{{$key}} --autoscale=32,1 --loglevel=WARNING
+          - celery --app api worker -n {{uuidv4}}@%h --queues controller.{{$key}} --autoscale=32,1 --loglevel=WARNING
         {{- end }}
         {{- with index $.Values "celery" "resources" }}
         resources:
