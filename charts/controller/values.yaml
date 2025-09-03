@@ -58,6 +58,7 @@ passportUrl: ""
 passportKey: ""
 passportSecret: ""
 # victoriametricsUrl is will no longer use the built-in victoriametrics component
+# format: http://victoriametrics-server/select/0/prometheus
 victoriametricsUrl: ""
 # Workflow-manager Configuration Options
 workflowManagerUrl: ""
