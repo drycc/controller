@@ -1,4 +1,5 @@
 import logging
+import hashlib
 import threading
 from django.db import models
 from django.conf import settings
@@ -153,7 +154,8 @@ class Gateway(AuditedModel):
             "kwargs": {
                 "name": self.name,
             },
-            "timestamp": int(timestamp)
+            "timestamp": int(timestamp),
+            "identifier": hashlib.md5(self.name.encode("utf-8")).hexdigest(),
         }]
 
     def _check_port(self, port, protocol):

@@ -49,6 +49,10 @@ spec:
             {{- end }}
             {{- include "controller.envs" . | indent 12 }}
             {{- include "controller-job.envs" . | indent 12 }}
+            volumeMounts:
+            - name: controller-config
+              readOnly: false
+              mountPath: /etc/controller
           - image: {{.Values.imageRegistry}}/{{.Values.imageOrg}}/controller:{{.Values.imageTag}}
             imagePullPolicy: {{.Values.pull_policy}}
             name: drycc-controller-upload-gateway-usage
@@ -63,6 +67,10 @@ spec:
             {{- end }}
             {{- include "controller.envs" . | indent 12 }}
             {{- include "controller-job.envs" . | indent 12 }}
+            volumeMounts:
+            - name: controller-config
+              readOnly: false
+              mountPath: /etc/controller
           - image: {{.Values.imageRegistry}}/{{.Values.imageOrg}}/controller:{{.Values.imageTag}}
             imagePullPolicy: {{.Values.pull_policy}}
             name: drycc-controller-upload-app-usage
@@ -77,6 +85,10 @@ spec:
             {{- end }}
             {{- include "controller.envs" . | indent 12 }}
             {{- include "controller-job.envs" . | indent 12 }}
+            volumeMounts:
+            - name: controller-config
+              readOnly: false
+              mountPath: /etc/controller
           - image: {{.Values.imageRegistry}}/{{.Values.imageOrg}}/controller:{{.Values.imageTag}}
             imagePullPolicy: {{.Values.pull_policy}}
             name: drycc-controller-upload-resources-usage
@@ -91,6 +103,10 @@ spec:
             {{- end }}
             {{- include "controller.envs" . | indent 12 }}
             {{- include "controller-job.envs" . | indent 12 }}
+            volumeMounts:
+            - name: controller-config
+              readOnly: false
+              mountPath: /etc/controller
           - image: {{.Values.imageRegistry}}/{{.Values.imageOrg}}/controller:{{.Values.imageTag}}
             imagePullPolicy: {{.Values.pull_policy}}
             name: drycc-controller-upload-volume-usage
@@ -105,3 +121,11 @@ spec:
             {{- end }}
             {{- include "controller.envs" . | indent 12 }}
             {{- include "controller-job.envs" . | indent 12 }}
+            volumeMounts:
+            - name: controller-config
+              readOnly: false
+              mountPath: /etc/controller
+          volumes:
+          - name: controller-config
+            configMap:
+              name: controller-config

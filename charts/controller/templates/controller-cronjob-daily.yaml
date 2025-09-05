@@ -47,6 +47,10 @@ spec:
             {{- end }}
             {{- include "controller.envs" . | indent 12 }}
             {{- include "controller-job.envs" . | indent 12 }}
+            volumeMounts:
+            - name: controller-config
+              readOnly: false
+              mountPath: /etc/controller
           - image: {{.Values.imageRegistry}}/{{.Values.imageOrg}}/controller:{{.Values.imageTag}}
             imagePullPolicy: {{.Values.imagePullPolicy}}
             name: drycc-controller-load-db-state-to-k8s
@@ -61,3 +65,11 @@ spec:
             {{- end }}
             {{- include "controller.envs" . | indent 12 }}
             {{- include "controller-job.envs" . | indent 12 }}
+            volumeMounts:
+            - name: controller-config
+              readOnly: false
+              mountPath: /etc/controller
+          volumes:
+          - name: controller-config
+            configMap:
+              name: controller-config

@@ -741,6 +741,7 @@ class App(UuidAuditedModel):
                     "ptype": ptype,
                 },
                 "timestamp": int(timestamp),
+                "identifier": self.uuid.hex,
             })
         return usage
 

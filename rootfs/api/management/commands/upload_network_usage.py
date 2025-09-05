@@ -1,5 +1,5 @@
 import uuid
-import time
+import hashlib
 import logging
 import random
 from datetime import timedelta
@@ -24,6 +24,7 @@ class Command(BaseCommand):
         for item in async_to_sync(monitor.query_network_usage)(app_map.keys(), start, stop):
             metric = item["metric"]
             _, value = item["value"]
+            pod_name = metric['pod']
             networks.append({
                 "app_id":  str(app_map[metric['namespace']].uuid),
                 "owner": app_map[metric['namespace']].owner_id,
@@ -32,18 +33,21 @@ class Command(BaseCommand):
                 "name": metric['direction'],
                 "usage": value,
                 "kwargs": {
-                    "pod": metric['pod'],
+                    "pod": pod_name,
                 },
-                "timestamp": start
+                "timestamp": start,
+                "identifier": hashlib.md5(pod_name.encode("utf-8")).hexdigest(),
             })
+        logger.info(f"bulk sent: {len(networks)}")
         send_usage.apply_async(
-            args=(networks,), eta=start_time + timedelta(seconds=random.randint(1, 1800))
+            args=(networks,), eta=start_time + timedelta(seconds=random.randint(1, 3600))
         )
 
     def handle(self, *args, **options):
         if settings.WORKFLOW_MANAGER_URL:
-            start_time, timestamp, task_id = timezone.now(), int(time.time()), uuid.uuid4().hex
-            logger.info(f"pushing {task_id} networks to workflow_manager when {timezone.now()}")
+            now = timezone.now()
+            start_time, timestamp, task_id = now, int(now.timestamp()), uuid.uuid4().hex
+            logger.info(f"pushing {task_id} networks to workflow_manager when {now}")
             app_map = {}
             for app in App.objects.all():
                 app_map[app.id] = app

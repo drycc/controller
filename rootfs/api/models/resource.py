@@ -218,7 +218,8 @@ class Resource(UuidAuditedModel):
             "kwargs": {
                 "name": self.name,
             },
-            "timestamp": int(timestamp)
+            "timestamp": int(timestamp),
+            "identifier": self.uuid.hex,
         }]
 
     def _retrieve_status(self):
