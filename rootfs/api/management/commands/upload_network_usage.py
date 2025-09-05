@@ -21,7 +21,7 @@ class Command(BaseCommand):
         stop = timestamp - (timestamp % 3600)
         start = stop - 3600
         networks = []
-        for item in async_to_sync(monitor.query_network_receive_flow)(app_map.keys(), start, stop):  # noqa
+        for item in async_to_sync(monitor.query_network_usage)(app_map.keys(), start, stop):
             metric = item["metric"]
             _, value = item["value"]
             networks.append({
@@ -29,22 +29,7 @@ class Command(BaseCommand):
                 "owner": app_map[metric['namespace']].owner_id,
                 "type": "network",
                 "unit": "bytes",
-                "name": "rx",
-                "usage": value,
-                "kwargs": {
-                    "pod": metric['pod'],
-                },
-                "timestamp": start
-            })
-        for item in async_to_sync(monitor.query_network_transmit_flow)(app_map.keys(), start, stop):  # noqa
-            metric = item["metric"]
-            _, value = item["value"]
-            networks.append({
-                "app_id":  str(app_map[metric['namespace']].uuid),
-                "owner": app_map[metric['namespace']].owner_id,
-                "type": "network",
-                "unit": "bytes",
-                "name": "tx",
+                "name": metric['direction'],
                 "usage": value,
                 "kwargs": {
                     "pod": metric['pod'],

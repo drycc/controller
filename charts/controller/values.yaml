@@ -75,6 +75,8 @@ config:
   secretTemplate: ""
   volumeTemplate: ""
   volumeClaimTemplate: ""
+  volumeUsageTemplate: ""
+  networkUsageTemplate: ""
 
 # Service
 service:

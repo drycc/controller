@@ -452,3 +452,32 @@ oss:
         storage: $size
     volumeName: $volume_name
 {{- end }}
+
+{{/* Generate controller config default volume usage template */}}
+{{ define "controller.config.defaultVolumeUsageTemplate" }}
+max by(namespace, persistentvolumeclaim, storageclass) (
+  kube_persistentvolumeclaim_resource_requests_storage_bytes{
+    namespace=~"${namespaces}"
+  }
+  * on(namespace, persistentvolumeclaim) group_left(storageclass)
+  kube_persistentvolumeclaim_info{namespace=~"${namespaces}"}
+  * on(namespace, persistentvolumeclaim) group_left()
+  kube_persistentvolumeclaim_annotations{
+    namespace=~"${namespaces}",
+    annotation_billing_drycc_cc_type="usage"
+  }
+)
+{{- end }}
+
+{{/* Generate controller config default network usage template */}}
+{{ define "controller.config.defaultNetworkUsageTemplate" }}
+label_replace(
+  sum(increase(istio_request_bytes_sum{namespace=~"${namespaces}"}[${duration}])) by (namespace,pod),
+  "direction", "rx", "", ""
+)
+or
+label_replace(
+  sum(increase(istio_response_bytes_sum{namespace=~"${namespaces}"}[${duration}])) by (namespace,pod),
+  "direction", "tx", "", ""
+)
+{{- end }}

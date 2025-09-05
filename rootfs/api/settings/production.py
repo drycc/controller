@@ -310,6 +310,22 @@ if os.path.exists(DRYCC_VOLUME_CLAIM_TEMPLATE_PATH):
     with open(DRYCC_VOLUME_CLAIM_TEMPLATE_PATH) as fd:
         DRYCC_VOLUME_CLAIM_TEMPLATE = json.load(fd)
 
+# drycc volume usage template
+DRYCC_VOLUME_USAGE_TEMPLATE = ""
+DRYCC_VOLUME_USAGE_TEMPLATE_PATH = os.environ.get(
+    'DRYCC_VOLUME_USAGE_TEMPLATE_PATH', '/etc/controller/volume-usage-template.promql')
+if os.path.exists(DRYCC_VOLUME_USAGE_TEMPLATE_PATH):
+    with open(DRYCC_VOLUME_USAGE_TEMPLATE_PATH) as fd:
+        DRYCC_VOLUME_USAGE_TEMPLATE = fd.read()
+
+# drycc network usage template
+DRYCC_NETWORK_USAGE_TEMPLATE = ""
+DRYCC_NETWORK_USAGE_TEMPLATE_PATH = os.environ.get(
+    'DRYCC_NETWORK_USAGE_TEMPLATE_PATH', '/etc/controller/network-usage-template.promql')
+if os.path.exists(DRYCC_NETWORK_USAGE_TEMPLATE_PATH):
+    with open(DRYCC_NETWORK_USAGE_TEMPLATE_PATH) as fd:
+        DRYCC_NETWORK_USAGE_TEMPLATE = fd.read()
+
 # Django secret key
 SECRET_KEY = os.environ.get('DRYCC_SECRET_KEY', randstr(64))
 

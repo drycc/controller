@@ -21,7 +21,7 @@ class Command(BaseCommand):
         stop = timestamp - (timestamp % 3600)
         start = stop - 3600
         volumes = []
-        for item in async_to_sync(monitor.query_volume_size)(app_map.keys(), start, stop):  # noqa
+        for item in async_to_sync(monitor.query_volume_usage)(app_map.keys(), start, stop):
             metric = item["metric"]
             _, value = item["value"]
             volumes.append({
