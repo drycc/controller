@@ -15,7 +15,7 @@ logger = logging.getLogger(__name__)
     retry_backoff=8,
     retry_jitter=True,
     retry_backoff_max=3600,
-    retry_kwargs={'max_retries': None}
+    retry_kwargs={'max_retries': 32}
 )
 def send_usage(usage: List[Dict[str, str]]):
     task_id = uuid.uuid4().hex
@@ -44,7 +44,7 @@ def send_app_log(app_id, msg, level=logging.INFO):
 
 @shared_task(
     autoretry_for=(ServiceUnavailable, ),
-    retry_kwargs={'max_retries': None}
+    retry_kwargs={'max_retries': 3}
 )
 def scale_app(app, user, structure):
     task_id = uuid.uuid4().hex
@@ -60,7 +60,7 @@ def scale_app(app, user, structure):
 
 @shared_task(
     autoretry_for=(ServiceUnavailable, ),
-    retry_kwargs={'max_retries': None}
+    retry_kwargs={'max_retries': 3}
 )
 def run_pipeline(release, *args, **kwargs):
     task_id = uuid.uuid4().hex
@@ -162,7 +162,7 @@ def downstream_model_owner(app, old_owner, new_owner):
 
 @shared_task(
     autoretry_for=(ServiceUnavailable, ),
-    retry_kwargs={'max_retries': None}
+    retry_kwargs={'max_retries': 3}
 )
 def scale_resources(blocklist, app, suspended_state, scale_type):
     task_id = uuid.uuid4().hex
