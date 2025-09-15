@@ -8,9 +8,9 @@ COPY dev_requirements.txt ${DRYCC_HOME_DIR}/dev_requirements.txt
 
 ENV PGDATA="/opt/drycc/postgresql/data" \
   PYTHON_VERSION="3.13" \
-  VALKEY_VERSION="8.1.0" \
-  POSTGRES_VERSION="15.12" \
-  GOSU_VERSION="1.17"
+  VALKEY_VERSION="8.1.3" \
+  POSTGRES_VERSION="17.6" \
+  GOSU_VERSION="1.18"
 
 RUN buildDeps='gcc rustc cargo  libffi-dev musl-dev openssl'; \
   install-packages mercurial ca-certificates git inotify-tools $buildDeps \
