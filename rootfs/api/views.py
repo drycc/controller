@@ -277,7 +277,7 @@ class BaseDryccViewSet(viewsets.OwnerViewSet):
     renderer_classes = [renderers.JSONRenderer]
 
 
-class AppResourceViewSet(BaseDryccViewSet):
+class AppFilterViewSet(BaseDryccViewSet):
     """A viewset for objects which are attached to an application."""
 
     def get_app(self):
@@ -294,10 +294,10 @@ class AppResourceViewSet(BaseDryccViewSet):
 
     def create(self, request, **kwargs):
         request.data['app'] = self.get_app()
-        return super(AppResourceViewSet, self).create(request, **kwargs)
+        return super(AppFilterViewSet, self).create(request, **kwargs)
 
 
-class ReleasableViewSet(AppResourceViewSet):
+class ReleasableViewSet(AppFilterViewSet):
     """A viewset for application resources which affect the release cycle."""
 
     def get_object(self):
@@ -471,7 +471,7 @@ class ConfigViewSet(ReleasableViewSet):
             raise DryccException(str(e)) from e
 
 
-class PodViewSet(AppResourceViewSet):
+class PodViewSet(AppFilterViewSet):
     model = models.app.App
     serializer_class = serializers.PodSerializer
 
@@ -499,7 +499,7 @@ class PodViewSet(AppResourceViewSet):
         return Response(status=status.HTTP_200_OK)
 
 
-class PtypeViewSet(AppResourceViewSet):
+class PtypeViewSet(AppFilterViewSet):
     model = models.app.App
     serializer_class = serializers.PtypeSerializer
 
@@ -547,7 +547,7 @@ class PtypeViewSet(AppResourceViewSet):
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 
-class EventViewSet(AppResourceViewSet):
+class EventViewSet(AppFilterViewSet):
     model = models.app.App
     serializer_class = serializers.EventSerializer
 
@@ -566,12 +566,12 @@ class EventViewSet(AppResourceViewSet):
         return Response(pagination, status=status.HTTP_200_OK)
 
 
-class AppSettingsViewSet(AppResourceViewSet):
+class AppSettingsViewSet(AppFilterViewSet):
     model = models.appsettings.AppSettings
     serializer_class = serializers.AppSettingsSerializer
 
 
-class DomainViewSet(AppResourceViewSet):
+class DomainViewSet(AppFilterViewSet):
     """A viewset for interacting with Domain objects."""
     model = models.domain.Domain
     serializer_class = serializers.DomainSerializer
@@ -596,7 +596,7 @@ class DomainViewSet(AppResourceViewSet):
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 
-class ServiceViewSet(AppResourceViewSet):
+class ServiceViewSet(AppFilterViewSet):
     """A viewset for interacting with Service objects."""
     model = models.service.Service
     serializer_class = serializers.ServiceSerializer
@@ -640,7 +640,7 @@ class ServiceViewSet(AppResourceViewSet):
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 
-class CertificateViewSet(AppResourceViewSet):
+class CertificateViewSet(AppFilterViewSet):
     """A viewset for interacting with Certificate objects."""
     model = models.certificate.Certificate
     serializer_class = serializers.CertificateSerializer
@@ -678,7 +678,7 @@ class KeyViewSet(BaseDryccViewSet):
     serializer_class = serializers.KeySerializer
 
 
-class ReleaseViewSet(AppResourceViewSet):
+class ReleaseViewSet(AppFilterViewSet):
     """A viewset for interacting with Release objects."""
     model = models.release.Release
     serializer_class = serializers.ReleaseSerializer
@@ -729,7 +729,7 @@ class ReleaseViewSet(AppResourceViewSet):
         return Response(response, status=status.HTTP_201_CREATED)
 
 
-class TLSViewSet(AppResourceViewSet):
+class TLSViewSet(AppFilterViewSet):
     model = models.tls.TLS
     serializer_class = serializers.TLSSerializer
 
@@ -858,7 +858,7 @@ class ConfigHookViewSet(BaseHookViewSet):
         return Response(serializer.data, status=status.HTTP_200_OK)
 
 
-class AppPermViewSet(AppResourceViewSet):
+class AppPermViewSet(AppFilterViewSet):
     """RESTful views for sharing apps with collaborators."""
 
     def get_app(self, request):
@@ -934,7 +934,7 @@ class AppPermViewSet(AppResourceViewSet):
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 
-class AppVolumesViewSet(AppResourceViewSet):
+class AppVolumesViewSet(AppFilterViewSet):
     """RESTful views for volumes apps with collaborators."""
     model = models.volume.Volume
     serializer_class = serializers.VolumeSerializer
@@ -985,7 +985,7 @@ class AppVolumesViewSet(AppResourceViewSet):
         return Response(serializer.data)
 
 
-class AppFilerClientViewSet(AppResourceViewSet):
+class AppFilerClientViewSet(AppFilterViewSet):
     """RESTful views for volumes apps with collaborators."""
     model = models.volume.Volume
     parser_classes = [FilerUploadParser]
@@ -1030,7 +1030,7 @@ class AppFilerClientViewSet(AppResourceViewSet):
         return Response(data=response.content, status=response.status_code)
 
 
-class AppResourcesViewSet(AppResourceViewSet):
+class AppResourcesViewSet(AppFilterViewSet):
     """RESTful views for resources apps with collaborators."""
     model = models.resource.Resource
     serializer_class = serializers.ResourceSerializer
@@ -1053,7 +1053,7 @@ class AppResourcesViewSet(AppResourceViewSet):
         ))
 
 
-class AppSingleResourceViewSet(AppResourceViewSet):
+class AppSingleResourceViewSet(AppFilterViewSet):
     """RESTful views for resource apps with collaborators."""
     model = models.resource.Resource
     serializer_class = serializers.ResourceSerializer
@@ -1085,7 +1085,7 @@ class AppSingleResourceViewSet(AppResourceViewSet):
         return Response(resource.data)
 
 
-class AppResourceBindingViewSet(AppResourceViewSet):
+class AppResourceBindingViewSet(AppFilterViewSet):
     model = models.resource.Resource
     serializer_class = serializers.ResourceSerializer
 
@@ -1112,7 +1112,7 @@ class AppResourceBindingViewSet(AppResourceViewSet):
             return Response("unknown action", status=status.HTTP_404_NOT_FOUND)
 
 
-class GatewayViewSet(AppResourceViewSet):
+class GatewayViewSet(AppFilterViewSet):
     """A viewset for interacting with Gateway objects."""
     model = models.gateway.Gateway
     filter_backends = [filters.SearchFilter]
@@ -1148,7 +1148,7 @@ class GatewayViewSet(AppResourceViewSet):
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 
-class RouteViewSet(AppResourceViewSet):
+class RouteViewSet(AppFilterViewSet):
     """A viewset for interacting with Route objects."""
     model = models.gateway.Route
     filter_backends = [filters.SearchFilter]
