@@ -284,7 +284,7 @@ class Deployment(Resource):
                 namespace,
                 'Deployment {} had stalled due an error and will be rolled back. {}'.format(
                     name, str(e)),
-                level='DEBUG'
+                level=logging.DEBUG
             )
             return False, True
 
@@ -305,7 +305,7 @@ class Deployment(Resource):
                 namespace,
                 'Deploy operation for Deployment {} in has expired. '
                 'Rolling back to last good known release'.format(name),
-                level='DEBUG',
+                level=logging.DEBUG,
             )
             return False, True
 
