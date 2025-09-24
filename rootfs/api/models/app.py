@@ -312,7 +312,7 @@ class App(UuidAuditedModel):
                 if not rollback_on_failure:
                     self.log(f"{prefix} deploy do not rollback on failure")
                 self.deploy(release, ptypes, force_deploy, rollback_on_failure)
-            if release.state == "created":
+            if release.state in ["created", "crashed"]:
                 release.state = "succeed"
             ptypes = list(ptypes) if ptypes is not None else ptypes
             release.add_condition(state="succeed", action="pipeline", ptypes=ptypes)

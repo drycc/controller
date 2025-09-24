@@ -59,8 +59,10 @@ class Gateway(Resource):
             json=data,
             headers={"Content-Type": "application/merge-patch+json"}
         )
+        if response.status_code == 409:
+            return response
         if not ignore_exception and self.unhealthy(response.status_code):
-            raise KubeHTTPException(response, "put gateway {}".format(namespace))
+            raise KubeHTTPException(response, "patch gateway {}".format(namespace))
         return response
 
     def delete(self, namespace, name, ignore_exception=True):
@@ -128,7 +130,7 @@ class Route(Resource):
             headers={"Content-Type": "application/merge-patch+json"}
         )
         if not ignore_exception and self.unhealthy(response.status_code):
-            raise KubeHTTPException(response, "put {} {}".format(self.kind.lower(), namespace))
+            raise KubeHTTPException(response, "patch {} {}".format(self.kind.lower(), namespace))
         return response
 
     def delete(self, namespace, name, ignore_exception=True):
