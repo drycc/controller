@@ -445,9 +445,10 @@ class ConfigViewSet(ReleasableViewSet):
 
         config = self.model(app=self.get_app(), owner=self.request.user, values_refs={})
         old_values_refs = config.previous().values_refs.copy()
-        for ptype, groups in values_refs.items():
-            for group in old_values_refs.get(ptype, []):
-                if group not in groups:
+        for ptype, old_groups in old_values_refs.items():
+            groups_to_delete = values_refs.get(ptype, [])
+            for group in old_groups:
+                if group not in groups_to_delete:
                     if ptype not in config.values_refs:
                         config.values_refs[ptype] = [group]
                     elif group not in config.values_refs[ptype]:
