@@ -141,6 +141,78 @@ class ConfigTest(DryccTransactionTestCase):
         self.assertEqual(response.status_code, 405, response.data)
         return config5
 
+    def test_config_merge_false(self, mock_requests):
+        """
+        Test that config can be created with merge='false' parameter
+        which replaces the entire config instead of merging
+        """
+        app_id = self.create_app()
+
+        # set initial config values
+        url = f"/v2/apps/{app_id}/config"
+        value1 = {"name": "DEBUG", "value": "true", "group": "global"}
+        value2 = {"name": "DATABASE_URL", "value": "postgres://localhost/db", "group": "global"}
+        body = {'values': [value1, value2]}
+        response = self.client.post(url, body)
+        self.assertEqual(response.status_code, 201, response.data)
+        self.assertEqual(len(response.data['values']), 2)
+
+        # replace entire config with merge='false'
+        value3 = {"name": "NEW_CONFIG", "value": "replacement_value", "group": "global"}
+        body = {'values': [value3]}
+        response = self.client.post(f"{url}?merge=false", body)
+        self.assertEqual(response.status_code, 201, response.data)
+
+        # verify only the new config exists
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, 200, response.data)
+        self.assertEqual(len(response.data['values']), 1)
+        self.assertEqual(response.data['values'][0]['name'], "NEW_CONFIG")
+        self.assertEqual(response.data['values'][0]['value'], "replacement_value")
+
+    def test_config_merge_false_with_empty_values(self, mock_requests):
+        """
+        Test that config can be created with merge='false' and empty values
+        """
+        app_id = self.create_app()
+
+        # set initial config values
+        url = f"/v2/apps/{app_id}/config"
+        value1 = {"name": "DEBUG", "value": "true", "group": "global"}
+        body = {'values': [value1]}
+        response = self.client.post(url, body)
+        self.assertEqual(response.status_code, 201, response.data)
+        self.assertEqual(len(response.data['values']), 1)
+
+        # replace with empty config using merge='false'
+        body = {'values': []}
+        response = self.client.post(f"{url}?merge=false", body)
+        self.assertEqual(response.status_code, 201, response.data)
+
+        # verify config is empty
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, 200, response.data)
+        self.assertEqual(len(response.data['values']), 0)
+
+    def test_config_merge_false_case_insensitive(self, mock_requests):
+        """
+        Test that merge parameter is case insensitive
+        """
+        app_id = self.create_app()
+
+        url = f"/v2/apps/{app_id}/config"
+        value1 = {"name": "DEBUG", "value": "true", "group": "global"}
+        body = {'values': [value1]}
+
+        # test with uppercase FALSE
+        response = self.client.post(f"{url}?merge=FALSE", body)
+        self.assertEqual(response.status_code, 201, response.data)
+
+        # verify config was replaced
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, 200, response.data)
+        self.assertEqual(len(response.data['values']), 1)
+
     def test_registry_set(self, mock_requests):
         app_id = self.create_app()
         # set an initial config value

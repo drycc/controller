@@ -260,7 +260,7 @@ class TokenViewSet(viewsets.OwnerViewSet):
 
     def destroy(self, *args, **kwargs):
         key = self.get_object().key
-        response = super(TokenViewSet, self).destroy(self, *args, **kwargs)
+        response = super().destroy(self, *args, **kwargs)
         cache.delete(key)
         return response
 
@@ -294,7 +294,7 @@ class AppFilterViewSet(BaseDryccViewSet):
 
     def create(self, request, **kwargs):
         request.data['app'] = self.get_app()
-        return super(AppFilterViewSet, self).create(request, **kwargs)
+        return super().create(request, **kwargs)
 
 
 class ReleasableViewSet(AppFilterViewSet):
@@ -327,7 +327,7 @@ class AppViewSet(BaseDryccViewSet):
         which are owned by the user as well as any apps they have been given permission to
         interact with.
         """
-        queryset = super(AppViewSet, self).get_queryset(**kwargs) | \
+        queryset = super().get_queryset(**kwargs) | \
             get_objects_for_user(
                 self.request.user, f'api.{models.app.VIEW_APP_PERMISSION.codename}')
         instance = self.filter_queryset(queryset)
@@ -394,7 +394,7 @@ class BuildViewSet(ReleasableViewSet):
             if is_loopback(image):
                 raise DryccException("image must not use the loopback address")
         build.create_release(self.request.user)
-        super(BuildViewSet, self).post_save(build)
+        super().post_save(build)
 
 
 class LimitSpecViewSet(BaseDryccViewSet):
@@ -437,6 +437,15 @@ class ConfigViewSet(ReleasableViewSet):
     """A viewset for interacting with Config objects."""
     model = models.config.Config
     serializer_class = serializers.ConfigSerializer
+
+    def create(self, request, **kwargs):
+        if self.request.query_params.get('merge', 'true').lower() == 'true':
+            return super().create(request, **kwargs)
+        values = self.get_serializer().validate_values(request.data.get('values'))
+        config = self.model(app=self.get_app(), owner=self.request.user, values=values)
+        config.save(ignore_update_fields=["values"])
+        self.post_save(config)
+        return Response(status=status.HTTP_201_CREATED)
 
     def delete(self, request, **kwargs):
         values_refs = self.get_serializer().validate_values_refs(request.data.get('values_refs'))
@@ -691,7 +700,7 @@ class ReleaseViewSet(AppFilterViewSet):
 
     def get_queryset(self, **kwargs):
         ptypes = self.request.query_params.get('ptypes', '').strip()
-        queryset = super(ReleaseViewSet, self).get_queryset(**kwargs)
+        queryset = super().get_queryset(**kwargs)
         if ptypes:
             queryset = queryset.filter(Q(
                 deployed_ptypes__contains=[
@@ -829,7 +838,7 @@ class BuildHookViewSet(BaseHookViewSet):
             return Response(message, status=status.HTTP_403_FORBIDDEN)
         request.data['app'] = app
         request.data['owner'] = self.user
-        super(BuildHookViewSet, self).create(request, *args, **kwargs)
+        super().create(request, *args, **kwargs)
         # return the application databag
         response = {
             'release': {
@@ -1067,7 +1076,7 @@ class AppSingleResourceViewSet(AppFilterViewSet):
     def retrieve(self, request, *args, **kwargs):
         resource = self.get_object()
         resource.retrieve(request)
-        response =  super(AppSingleResourceViewSet, self).retrieve(request, *args, **kwargs)  # noqa
+        response =  super().retrieve(request, *args, **kwargs)  # noqa
         response.data["message"] = resource.message
         return response
 
