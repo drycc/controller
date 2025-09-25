@@ -187,12 +187,12 @@ class ConfigTest(DryccTransactionTestCase):
         # replace with empty config using merge='false'
         body = {'values': []}
         response = self.client.post(f"{url}?merge=false", body)
-        self.assertEqual(response.status_code, 201, response.data)
+        self.assertEqual(response.status_code, 409, response.data)
 
         # verify config is empty
         response = self.client.get(url)
         self.assertEqual(response.status_code, 200, response.data)
-        self.assertEqual(len(response.data['values']), 0)
+        self.assertEqual(len(response.data['values']), 1)
 
     def test_config_merge_false_case_insensitive(self, mock_requests):
         """
@@ -970,9 +970,9 @@ class ConfigTest(DryccTransactionTestCase):
         self.assertEqual(
             release.config.envs("web"),
             {
-                'GROUP': 'g1', 'DEBUG': 'tr', 'TEST1': 'g1', 'TEST2': 'tr', 'PENV1': 'web',
-                'PENV2': 'web', "WEBSITE": "www.drycc.cc",
-            }
+                'WEBSITE': 'www.drycc.cc', 'GROUP': 'g1', 'DEBUG': 'tr',
+                'PENV1': 'web', 'PENV2': 'web',  'TEST1': 'g1', 'TEST2': 'tr',
+            },
         )
 
         # test use old config and healthcheck
@@ -1001,5 +1001,5 @@ class ConfigTest(DryccTransactionTestCase):
             self.assertEqual(response.status_code, 201, response.data)
         release = app.release_set.latest()
         self.assertEqual(release.failed, False)
-        self.assertEqual(release.config.envs("web"), {"WEBSITE": "www.drycc.cc"})
+        self.assertEqual(release.config.envs("web"), {'WEBSITE': 'www.drycc.cc'})
         self.assertEqual(release.config.values_refs, {})

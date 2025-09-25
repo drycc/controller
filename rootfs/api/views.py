@@ -443,6 +443,11 @@ class ConfigViewSet(ReleasableViewSet):
             return super().create(request, **kwargs)
         values = self.get_serializer().validate_values(request.data.get('values'))
         config = self.model(app=self.get_app(), owner=self.request.user, values=values)
+        old_config = config.previous()
+        if old_config and old_config.values:
+            replace_ptypes = {v['ptype'] for v in config.values if 'ptype' in v}
+            replace_groups = {v['group'] for v in config.values if 'group' in v}
+            config.merge_field("values", old_config, replace_ptypes, replace_groups)
         config.save(ignore_update_fields=["values"])
         self.post_save(config)
         return Response(status=status.HTTP_201_CREATED)
