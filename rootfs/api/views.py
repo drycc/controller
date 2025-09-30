@@ -1286,10 +1286,12 @@ class MetricsProxyView(View):
         fields = set(settings.DRYCC_METRICS_CONFIG[name])
         labels = {}
         for pair in labels_str.strip(" {}").split(','):
+            if '=' not in pair:
+                continue
             k, v = pair.split('=', 1)
             if k in fields:
                 labels[k] = v.strip(' "')
-        app_id = labels.get("namespace", None)
+        app_id = labels.get("namespace", labels.get(settings.DRYCC_METRICS_CONFIG[name][0]))
         if not app_id:
             return None
         account_id, timeout = self.cache.get(app_id, self.default_cache_value)
