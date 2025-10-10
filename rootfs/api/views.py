@@ -450,7 +450,9 @@ class ConfigViewSet(ReleasableViewSet):
             config.merge_field("values", old_config, replace_ptypes, replace_groups)
         config.save(ignore_update_fields=["values"])
         self.post_save(config)
-        return Response(status=status.HTTP_201_CREATED)
+        data = self.get_serializer(config).data
+        headers = self.get_success_headers(data)
+        return Response(data, status=status.HTTP_201_CREATED, headers=headers)
 
     def delete(self, request, **kwargs):
         values_refs = self.get_serializer().validate_values_refs(request.data.get('values_refs'))
