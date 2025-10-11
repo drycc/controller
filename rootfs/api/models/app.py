@@ -314,6 +314,7 @@ class App(UuidAuditedModel):
                 self.deploy(release, ptypes, force_deploy, rollback_on_failure)
             if release.state in ["created", "crashed"]:
                 release.state = "succeed"
+                release.failed = False
             ptypes = list(ptypes) if ptypes is not None else ptypes
             release.add_condition(state="succeed", action="pipeline", ptypes=ptypes)
         except Exception as e:
