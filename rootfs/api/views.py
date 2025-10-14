@@ -7,13 +7,13 @@ import logging
 import json
 import ssl
 import time
+import zlib
 import random
 import aiohttp
 import requests
 import warnings
 
 from urllib.parse import urljoin
-from asgiref.sync import async_to_sync
 from django.db import transaction
 from django.db.models import Q
 from django.core.cache import cache
@@ -35,7 +35,7 @@ from rest_framework.exceptions import PermissionDenied
 
 from api import monitor, models, permissions, serializers, viewsets, authentication, __version__
 from api.tasks import scale_app, restart_app, mount_app, downstream_model_owner, \
-    delete_pod
+    delete_pod, scale_resources
 from api.exceptions import AlreadyExists, ServiceUnavailable, DryccException
 
 from django.views.decorators.cache import never_cache
@@ -183,13 +183,17 @@ class WorkflowManagerViewset(GenericViewSet):
 
     def block(self, request,  **kwargs):
         try:
-            blocklist, _ = models.blocklist.Blocklist.objects.get_or_create(
+            blocklist, created = models.blocklist.Blocklist.objects.get_or_create(
                 id=kwargs['id'],
                 type=models.blocklist.Blocklist.get_type(kwargs["type"]),
                 defaults={"remark": request.data.get("remark")}
             )
             for app in blocklist.related_apps:
-                scale_app.delay(app, app.owner, {key: 0 for key in app.structure.keys()})
+                if created:
+                    app.suspended_state = blocklist.suspended_state(app)
+                    app.save()
+                # scale to 0
+                scale_resources.delay(blocklist, app, app.suspended_state, "block")
             return HttpResponse(status=201)
         except ValueError as e:
             logger.info(e)
@@ -197,10 +201,17 @@ class WorkflowManagerViewset(GenericViewSet):
 
     def unblock(self, request,  **kwargs):
         try:
-            models.blocklist.Blocklist.objects.filter(
+            blocklists = models.blocklist.Blocklist.objects.filter(
                 id=kwargs['id'],
                 type=models.blocklist.Blocklist.get_type(kwargs["type"])
-            ).delete()
+            )
+            for blocklist in blocklists:
+                for app in blocklist.related_apps:
+                    # scale to up
+                    scale_resources.delay(blocklist, app, app.suspended_state, "unblock")
+                    app.suspended_state = {}
+                    app.save()
+                blocklist.delete()
             return HttpResponse(status=204)
         except ValueError as e:
             logger.info(e)
@@ -220,7 +231,7 @@ class AdmissionWebhookViewSet(GenericViewSet):
     def handle(self, request,  **kwargs):
         key = kwargs['key']
         data = json.loads(request.body.decode("utf8"))["request"]
-        if settings.MUTATE_KEY == key:
+        if settings.CERT_KEY == key:
             allowed = True
             for admission_class in self.admission_classes:
                 admission = admission_class()
@@ -249,7 +260,7 @@ class TokenViewSet(viewsets.OwnerViewSet):
 
     def destroy(self, *args, **kwargs):
         key = self.get_object().key
-        response = super(TokenViewSet, self).destroy(self, *args, **kwargs)
+        response = super().destroy(self, *args, **kwargs)
         cache.delete(key)
         return response
 
@@ -266,7 +277,7 @@ class BaseDryccViewSet(viewsets.OwnerViewSet):
     renderer_classes = [renderers.JSONRenderer]
 
 
-class AppResourceViewSet(BaseDryccViewSet):
+class AppFilterViewSet(BaseDryccViewSet):
     """A viewset for objects which are attached to an application."""
 
     def get_app(self):
@@ -283,10 +294,10 @@ class AppResourceViewSet(BaseDryccViewSet):
 
     def create(self, request, **kwargs):
         request.data['app'] = self.get_app()
-        return super(AppResourceViewSet, self).create(request, **kwargs)
+        return super().create(request, **kwargs)
 
 
-class ReleasableViewSet(AppResourceViewSet):
+class ReleasableViewSet(AppFilterViewSet):
     """A viewset for application resources which affect the release cycle."""
 
     def get_object(self):
@@ -316,7 +327,7 @@ class AppViewSet(BaseDryccViewSet):
         which are owned by the user as well as any apps they have been given permission to
         interact with.
         """
-        queryset = super(AppViewSet, self).get_queryset(**kwargs) | \
+        queryset = super().get_queryset(**kwargs) | \
             get_objects_for_user(
                 self.request.user, f'api.{models.app.VIEW_APP_PERMISSION.codename}')
         instance = self.filter_queryset(queryset)
@@ -383,7 +394,7 @@ class BuildViewSet(ReleasableViewSet):
             if is_loopback(image):
                 raise DryccException("image must not use the loopback address")
         build.create_release(self.request.user)
-        super(BuildViewSet, self).post_save(build)
+        super().post_save(build)
 
 
 class LimitSpecViewSet(BaseDryccViewSet):
@@ -427,6 +438,22 @@ class ConfigViewSet(ReleasableViewSet):
     model = models.config.Config
     serializer_class = serializers.ConfigSerializer
 
+    def create(self, request, **kwargs):
+        if self.request.query_params.get('merge', 'true').lower() == 'true':
+            return super().create(request, **kwargs)
+        values = self.get_serializer().validate_values(request.data.get('values'))
+        config = self.model(app=self.get_app(), owner=self.request.user, values=values)
+        old_config = config.previous()
+        if old_config and old_config.values:
+            replace_ptypes = {v['ptype'] for v in config.values if 'ptype' in v}
+            replace_groups = {v['group'] for v in config.values if 'group' in v}
+            config.merge_field("values", old_config, replace_ptypes, replace_groups)
+        config.save(ignore_update_fields=["values"])
+        self.post_save(config)
+        data = self.get_serializer(config).data
+        headers = self.get_success_headers(data)
+        return Response(data, status=status.HTTP_201_CREATED, headers=headers)
+
     def delete(self, request, **kwargs):
         values_refs = self.get_serializer().validate_values_refs(request.data.get('values_refs'))
         if not values_refs or not values_refs.values():
@@ -434,9 +461,10 @@ class ConfigViewSet(ReleasableViewSet):
 
         config = self.model(app=self.get_app(), owner=self.request.user, values_refs={})
         old_values_refs = config.previous().values_refs.copy()
-        for ptype, groups in values_refs.items():
-            for group in old_values_refs.get(ptype, []):
-                if group not in groups:
+        for ptype, old_groups in old_values_refs.items():
+            groups_to_delete = values_refs.get(ptype, [])
+            for group in old_groups:
+                if group not in groups_to_delete:
                     if ptype not in config.values_refs:
                         config.values_refs[ptype] = [group]
                     elif group not in config.values_refs[ptype]:
@@ -460,7 +488,7 @@ class ConfigViewSet(ReleasableViewSet):
             raise DryccException(str(e)) from e
 
 
-class PodViewSet(AppResourceViewSet):
+class PodViewSet(AppFilterViewSet):
     model = models.app.App
     serializer_class = serializers.PodSerializer
 
@@ -488,7 +516,7 @@ class PodViewSet(AppResourceViewSet):
         return Response(status=status.HTTP_200_OK)
 
 
-class PtypeViewSet(AppResourceViewSet):
+class PtypeViewSet(AppFilterViewSet):
     model = models.app.App
     serializer_class = serializers.PtypeSerializer
 
@@ -536,7 +564,7 @@ class PtypeViewSet(AppResourceViewSet):
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 
-class EventViewSet(AppResourceViewSet):
+class EventViewSet(AppFilterViewSet):
     model = models.app.App
     serializer_class = serializers.EventSerializer
 
@@ -555,12 +583,12 @@ class EventViewSet(AppResourceViewSet):
         return Response(pagination, status=status.HTTP_200_OK)
 
 
-class AppSettingsViewSet(AppResourceViewSet):
+class AppSettingsViewSet(AppFilterViewSet):
     model = models.appsettings.AppSettings
     serializer_class = serializers.AppSettingsSerializer
 
 
-class DomainViewSet(AppResourceViewSet):
+class DomainViewSet(AppFilterViewSet):
     """A viewset for interacting with Domain objects."""
     model = models.domain.Domain
     serializer_class = serializers.DomainSerializer
@@ -585,7 +613,7 @@ class DomainViewSet(AppResourceViewSet):
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 
-class ServiceViewSet(AppResourceViewSet):
+class ServiceViewSet(AppFilterViewSet):
     """A viewset for interacting with Service objects."""
     model = models.service.Service
     serializer_class = serializers.ServiceSerializer
@@ -629,7 +657,7 @@ class ServiceViewSet(AppResourceViewSet):
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 
-class CertificateViewSet(AppResourceViewSet):
+class CertificateViewSet(AppFilterViewSet):
     """A viewset for interacting with Certificate objects."""
     model = models.certificate.Certificate
     serializer_class = serializers.CertificateSerializer
@@ -667,7 +695,7 @@ class KeyViewSet(BaseDryccViewSet):
     serializer_class = serializers.KeySerializer
 
 
-class ReleaseViewSet(AppResourceViewSet):
+class ReleaseViewSet(AppFilterViewSet):
     """A viewset for interacting with Release objects."""
     model = models.release.Release
     serializer_class = serializers.ReleaseSerializer
@@ -679,7 +707,7 @@ class ReleaseViewSet(AppResourceViewSet):
 
     def get_queryset(self, **kwargs):
         ptypes = self.request.query_params.get('ptypes', '').strip()
-        queryset = super(ReleaseViewSet, self).get_queryset(**kwargs)
+        queryset = super().get_queryset(**kwargs)
         if ptypes:
             queryset = queryset.filter(Q(
                 deployed_ptypes__contains=[
@@ -718,7 +746,7 @@ class ReleaseViewSet(AppResourceViewSet):
         return Response(response, status=status.HTTP_201_CREATED)
 
 
-class TLSViewSet(AppResourceViewSet):
+class TLSViewSet(AppFilterViewSet):
     model = models.tls.TLS
     serializer_class = serializers.TLSSerializer
 
@@ -817,7 +845,7 @@ class BuildHookViewSet(BaseHookViewSet):
             return Response(message, status=status.HTTP_403_FORBIDDEN)
         request.data['app'] = app
         request.data['owner'] = self.user
-        super(BuildHookViewSet, self).create(request, *args, **kwargs)
+        super().create(request, *args, **kwargs)
         # return the application databag
         response = {
             'release': {
@@ -847,7 +875,7 @@ class ConfigHookViewSet(BaseHookViewSet):
         return Response(serializer.data, status=status.HTTP_200_OK)
 
 
-class AppPermViewSet(AppResourceViewSet):
+class AppPermViewSet(AppFilterViewSet):
     """RESTful views for sharing apps with collaborators."""
 
     def get_app(self, request):
@@ -923,7 +951,7 @@ class AppPermViewSet(AppResourceViewSet):
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 
-class AppVolumesViewSet(AppResourceViewSet):
+class AppVolumesViewSet(AppFilterViewSet):
     """RESTful views for volumes apps with collaborators."""
     model = models.volume.Volume
     serializer_class = serializers.VolumeSerializer
@@ -974,7 +1002,7 @@ class AppVolumesViewSet(AppResourceViewSet):
         return Response(serializer.data)
 
 
-class AppFilerClientViewSet(AppResourceViewSet):
+class AppFilerClientViewSet(AppFilterViewSet):
     """RESTful views for volumes apps with collaborators."""
     model = models.volume.Volume
     parser_classes = [FilerUploadParser]
@@ -1019,7 +1047,7 @@ class AppFilerClientViewSet(AppResourceViewSet):
         return Response(data=response.content, status=response.status_code)
 
 
-class AppResourcesViewSet(AppResourceViewSet):
+class AppResourcesViewSet(AppFilterViewSet):
     """RESTful views for resources apps with collaborators."""
     model = models.resource.Resource
     serializer_class = serializers.ResourceSerializer
@@ -1042,7 +1070,7 @@ class AppResourcesViewSet(AppResourceViewSet):
         ))
 
 
-class AppSingleResourceViewSet(AppResourceViewSet):
+class AppSingleResourceViewSet(AppFilterViewSet):
     """RESTful views for resource apps with collaborators."""
     model = models.resource.Resource
     serializer_class = serializers.ResourceSerializer
@@ -1055,7 +1083,7 @@ class AppSingleResourceViewSet(AppResourceViewSet):
     def retrieve(self, request, *args, **kwargs):
         resource = self.get_object()
         resource.retrieve(request)
-        response =  super(AppSingleResourceViewSet, self).retrieve(request, *args, **kwargs)  # noqa
+        response =  super().retrieve(request, *args, **kwargs)  # noqa
         response.data["message"] = resource.message
         return response
 
@@ -1074,7 +1102,7 @@ class AppSingleResourceViewSet(AppResourceViewSet):
         return Response(resource.data)
 
 
-class AppResourceBindingViewSet(AppResourceViewSet):
+class AppResourceBindingViewSet(AppFilterViewSet):
     model = models.resource.Resource
     serializer_class = serializers.ResourceSerializer
 
@@ -1101,7 +1129,7 @@ class AppResourceBindingViewSet(AppResourceViewSet):
             return Response("unknown action", status=status.HTTP_404_NOT_FOUND)
 
 
-class GatewayViewSet(AppResourceViewSet):
+class GatewayViewSet(AppFilterViewSet):
     """A viewset for interacting with Gateway objects."""
     model = models.gateway.Gateway
     filter_backends = [filters.SearchFilter]
@@ -1137,7 +1165,7 @@ class GatewayViewSet(AppResourceViewSet):
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 
-class RouteViewSet(AppResourceViewSet):
+class RouteViewSet(AppFilterViewSet):
     """A viewset for interacting with Route objects."""
     model = models.gateway.Route
     filter_backends = [filters.SearchFilter]
@@ -1226,42 +1254,6 @@ class MetricView(BaseDryccViewSet):
         self.check_object_permissions(self.request, app)
         return app
 
-    def _get_usage(self, func):
-        def wrap(app_id, ptype, every, start, stop, step):
-            result = {}
-            for item in async_to_sync(func)(app_id, ptype, every, start, stop, step):
-                result[item['metric']['pod']] = item['values']
-            return result
-        return wrap
-
-    @method_decorator(cache_page(settings.DRYCC_METRICS_EXPIRY))
-    @method_decorator(vary_on_headers("Authorization"))
-    def status(self, request, **kwargs):
-        warnings.warn(
-            'this interface will be removed in the next version.', PendingDeprecationWarning)
-        app_id = self._get_app().id
-        data = serializers.MetricSerializer(data=self.request.query_params)
-        if not data.is_valid():
-            return Response(data.errors, status=status.HTTP_422_UNPROCESSABLE_ENTITY)
-        every, start, stop, step = data.validated_data["every"], data.validated_data[
-            'start'], data.validated_data['stop'], data.validated_data['step']
-        params = {
-            "app_id": app_id, "ptype": kwargs['ptype'], "every": every,
-            "start": start, "stop": stop, "step": step,
-        }
-        return Response({
-            "id": app_id,
-            "ptype": kwargs['ptype'],
-            "usage": {
-                "cpus": self._get_usage(monitor.query_cpu_usage)(**params),
-                "memory": self._get_usage(monitor.query_memory_usage)(**params),
-                "networks": {
-                    "receive": self._get_usage(monitor.query_network_receive_usage)(**params),
-                    "transmit": self._get_usage(monitor.query_network_transmit_usage)(**params),
-                }
-            }
-        })
-
     @method_decorator(cache_page(settings.DRYCC_METRICS_EXPIRY))
     @method_decorator(vary_on_headers("Authorization"))
     def metric(self, request, **kwargs):
@@ -1296,34 +1288,40 @@ class MetricsProxyView(View):
         fields = set(settings.DRYCC_METRICS_CONFIG[name])
         labels = {}
         for pair in labels_str.strip(" {}").split(','):
+            if '=' not in pair:
+                continue
             k, v = pair.split('=', 1)
             if k in fields:
                 labels[k] = v.strip(' "')
-        app_id = labels.get("namespace", None)
+        app_id = labels.get("namespace", labels.get(settings.DRYCC_METRICS_CONFIG[name][0]))
         if not app_id:
             return None
-        owner_id, timeout = self.cache.get(app_id, self.default_cache_value)
-        if (owner_id < 0 and timeout < 0) or time.time() > timeout:
+        account_id, timeout = self.cache.get(app_id, self.default_cache_value)
+        if (account_id < 0 and timeout < 0) or time.time() > timeout:
             if app := await models.app.App.objects.filter(id=app_id).afirst():
-                owner_id = app.owner_id
+                account_id = app.owner_id
             else:
-                owner_id = -1
-            self.cache[app_id] = (owner_id, time.time() + random.randint(600, 1200))
-        if owner_id < 0:
+                account_id = -1
+            self.cache[app_id] = (account_id, time.time() + random.randint(600, 1200))
+        if account_id < 0:
             return None
-        labels.update({'vm_project_id': app_id, 'vm_account_id': owner_id})
+        project_id = zlib.crc32(app_id.encode("utf-8"))
+        labels.update({'vm_account_id': account_id, 'vm_project_id': project_id})
         return "%s{%s} %s\n" % (name, ",".join([f'{k}="{v}"' for k, v in labels.items()]), value)
 
-    async def get(self, request, node, metrics=None):
-        if not metrics:
-            url = f"{settings.SCHEDULER_URL}/api/v1/nodes/{node}/proxy/metrics"
-        else:
-            url = f"{settings.SCHEDULER_URL}/api/v1/nodes/{node}/proxy/metrics/{metrics}"
+    async def get(self, request):
+        params = dict(request.GET)
+        if not set(["host", "port"]).issubset(params.keys()):
+            return HttpResponse(
+                "Error: Required parameter 'host' or 'port' is missing or empty", status=400)
+        host, port = params.pop('host')[0], params.pop('port')[0]
+        scheme, path = params.pop('scheme', ['http'])[0], params.pop('path', ['/metrics'])[0]
+        url = urljoin(f"{scheme}://{host}:{port}", path)
         headers = {"Authorization": request.META.get("HTTP_AUTHORIZATION", "")}
 
         async def stream_response():
             async with aiohttp.ClientSession(connector=self.connector) as session:
-                async with session.get(url, headers=headers) as resp:
+                async with session.get(url, params=params, headers=headers) as resp:
                     async for line_bytes in resp.content:
                         line = line_bytes.decode('utf-8', errors='ignore').strip(' \n')
                         if line.startswith('#') and (match := self.match_meta(line)):
@@ -1357,7 +1355,7 @@ class BaseUserProxyView(View):
         if self.permission.has_permission(request, None):
             if username != "drycc":
                 return None, {'error': 'Access denied', "status_code": 403}
-            return -1, None
+            return 0, None
         auth = await database_sync_to_async(self.authentication.authenticate)(request)
         if not auth or len(auth) != 2:
             return None, {'error': 'Unauthorized', "status_code": 401}
@@ -1480,15 +1478,13 @@ class PrometheusProxyView(BaseUserProxyView):
         user_id, message = await self.authenticate(request, username)
         if user_id is None and message is not None:
             return JsonResponse(message, status=message["status_code"])
-        if username == "drycc":
-            path = f"/select/0/prometheus/{path}"
-        else:
-            path = f"/select/{user_id}/prometheus/{path}"
+        data = dict(request.GET) if request.method == "GET" else dict(request.POST)
+        data['extra_filters[]'] = '{vm_account_id="%s"}' % user_id
         try:
             async with aiohttp.ClientSession() as session:
                 async with session.post(
-                    urljoin(settings.DRYCC_VICTORIAMETRICS_URL, path),
-                    data=dict(request.GET) if request.method == "GET" else dict(request.POST),
+                    f"{settings.DRYCC_VICTORIAMETRICS_URL.rstrip("/")}/{path}",
+                    data=data,
                     headers={"Content-Type": "application/x-www-form-urlencoded"},
                     timeout=self.timeout
                 ) as response:

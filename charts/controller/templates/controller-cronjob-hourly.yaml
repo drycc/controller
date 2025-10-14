@@ -17,7 +17,8 @@ spec:
       template:
         metadata:
           labels: {{- include "common.labels.standard" . | nindent 12 }}
-            app: drycc-controller-conjob
+            app: drycc-controller
+            component: drycc-controller-conjob-hourly
         spec:
           restartPolicy: OnFailure
           serviceAccount: drycc-controller
@@ -36,7 +37,7 @@ spec:
           containers:
           - image: {{.Values.imageRegistry}}/{{.Values.imageOrg}}/controller:{{.Values.imageTag}}
             imagePullPolicy: {{.Values.pull_policy}}
-            name: drycc-controller-measure-networks
+            name: drycc-controller-upload-network-usage
             {{- if .Values.diagnosticMode.enabled }}
             command: {{- include "common.tplvalues.render" (dict "value" .Values.diagnosticMode.command "context" $) | nindent 14 }}
             args: {{- include "common.tplvalues.render" (dict "value" .Values.diagnosticMode.args "context" $) | nindent 14 }}
@@ -44,13 +45,17 @@ spec:
             args:
             - /bin/bash
             - -c
-            - python -u /workspace/manage.py measure_networks
+            - python -u /workspace/manage.py upload_network_usage
             {{- end }}
             {{- include "controller.envs" . | indent 12 }}
             {{- include "controller-job.envs" . | indent 12 }}
+            volumeMounts:
+            - name: controller-config
+              readOnly: false
+              mountPath: /etc/controller
           - image: {{.Values.imageRegistry}}/{{.Values.imageOrg}}/controller:{{.Values.imageTag}}
             imagePullPolicy: {{.Values.pull_policy}}
-            name: drycc-controller-measure-loadbalancer
+            name: drycc-controller-upload-gateway-usage
             {{- if .Values.diagnosticMode.enabled }}
             command: {{- include "common.tplvalues.render" (dict "value" .Values.diagnosticMode.command "context" $) | nindent 14 }}
             args: {{- include "common.tplvalues.render" (dict "value" .Values.diagnosticMode.args "context" $) | nindent 14 }}
@@ -58,7 +63,69 @@ spec:
             args:
             - /bin/bash
             - -c
-            - python -u /workspace/manage.py measure_loadbalancers
+            - python -u /workspace/manage.py upload_gateway_usage
             {{- end }}
             {{- include "controller.envs" . | indent 12 }}
             {{- include "controller-job.envs" . | indent 12 }}
+            volumeMounts:
+            - name: controller-config
+              readOnly: false
+              mountPath: /etc/controller
+          - image: {{.Values.imageRegistry}}/{{.Values.imageOrg}}/controller:{{.Values.imageTag}}
+            imagePullPolicy: {{.Values.pull_policy}}
+            name: drycc-controller-upload-app-usage
+            {{- if .Values.diagnosticMode.enabled }}
+            command: {{- include "common.tplvalues.render" (dict "value" .Values.diagnosticMode.command "context" $) | nindent 14 }}
+            args: {{- include "common.tplvalues.render" (dict "value" .Values.diagnosticMode.args "context" $) | nindent 14 }}
+            {{- else }}
+            args:
+              - /bin/bash
+              - -c
+              - python -u /workspace/manage.py upload_app_usage
+            {{- end }}
+            {{- include "controller.envs" . | indent 12 }}
+            {{- include "controller-job.envs" . | indent 12 }}
+            volumeMounts:
+            - name: controller-config
+              readOnly: false
+              mountPath: /etc/controller
+          - image: {{.Values.imageRegistry}}/{{.Values.imageOrg}}/controller:{{.Values.imageTag}}
+            imagePullPolicy: {{.Values.pull_policy}}
+            name: drycc-controller-upload-resources-usage
+            {{- if .Values.diagnosticMode.enabled }}
+            command: {{- include "common.tplvalues.render" (dict "value" .Values.diagnosticMode.command "context" $) | nindent 14 }}
+            args: {{- include "common.tplvalues.render" (dict "value" .Values.diagnosticMode.args "context" $) | nindent 14 }}
+            {{- else }}
+            args:
+            - /bin/bash
+            - -c
+            - python -u /workspace/manage.py upload_resource_usage
+            {{- end }}
+            {{- include "controller.envs" . | indent 12 }}
+            {{- include "controller-job.envs" . | indent 12 }}
+            volumeMounts:
+            - name: controller-config
+              readOnly: false
+              mountPath: /etc/controller
+          - image: {{.Values.imageRegistry}}/{{.Values.imageOrg}}/controller:{{.Values.imageTag}}
+            imagePullPolicy: {{.Values.pull_policy}}
+            name: drycc-controller-upload-volume-usage
+            {{- if .Values.diagnosticMode.enabled }}
+            command: {{- include "common.tplvalues.render" (dict "value" .Values.diagnosticMode.command "context" $) | nindent 14 }}
+            args: {{- include "common.tplvalues.render" (dict "value" .Values.diagnosticMode.args "context" $) | nindent 14 }}
+            {{- else }}
+            args:
+            - /bin/bash
+            - -c
+            - python -u /workspace/manage.py upload_volume_usage
+            {{- end }}
+            {{- include "controller.envs" . | indent 12 }}
+            {{- include "controller-job.envs" . | indent 12 }}
+            volumeMounts:
+            - name: controller-config
+              readOnly: false
+              mountPath: /etc/controller
+          volumes:
+          - name: controller-config
+            configMap:
+              name: controller-config

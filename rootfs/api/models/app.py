@@ -114,6 +114,7 @@ class App(UuidAuditedModel):
                           validators=[validate_app_id])
     structure = models.JSONField(
         default=dict, blank=True, validators=[validate_app_structure])
+    suspended_state = models.JSONField(default=dict, blank=True)
 
     class Meta:
         verbose_name = 'Application'
@@ -311,8 +312,8 @@ class App(UuidAuditedModel):
                 if not rollback_on_failure:
                     self.log(f"{prefix} deploy do not rollback on failure")
                 self.deploy(release, ptypes, force_deploy, rollback_on_failure)
-            if release.state == "created":
-                release.state = "succeed"
+
+            release.state, release.failed = "succeed", False
             ptypes = list(ptypes) if ptypes is not None else ptypes
             release.add_condition(state="succeed", action="pipeline", ptypes=ptypes)
         except Exception as e:
@@ -724,12 +725,12 @@ class App(UuidAuditedModel):
         else:
             self.scheduler.secret.update(self.id, secret_name, secrets_env, labels=labels)
 
-    def to_measurements(self, timestamp: float):
-        measurements = []
+    def to_usages(self, timestamp: float):
+        usage = []
         config = self.config_set.latest()
         for ptype, scale in self.structure.items():
             plan = config.limits.get(ptype)
-            measurements.append({
+            usage.append({
                 "app_id": str(self.uuid),
                 "owner": self.owner_id,
                 "name": plan,
@@ -740,8 +741,9 @@ class App(UuidAuditedModel):
                     "ptype": ptype,
                 },
                 "timestamp": int(timestamp),
+                "identifier": self.uuid.hex,
             })
-        return measurements
+        return usage
 
     def __str__(self):
         return self.id

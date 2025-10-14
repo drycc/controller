@@ -7,7 +7,6 @@ import json
 import random
 import string
 import os.path
-import tempfile
 import dj_database_url
 
 
@@ -250,9 +249,8 @@ LOGGING = {
 }
 TEST_RUNNER = 'api.tests.SilentDjangoTestSuiteRunner'
 
-# default drycc settings
-LOG_LINES = 100
-TEMPDIR = tempfile.mkdtemp(prefix='drycc')
+# drycc controller runner(api, metric, mutate)
+RUNNER = os.environ.get('DRYCC_CONTROLLER_RUNNER', 'api')
 
 # names which apps cannot reserve for routing
 RESERVED_NAME_PATTERNS_PATH = os.environ.get(
@@ -312,19 +310,35 @@ if os.path.exists(DRYCC_VOLUME_CLAIM_TEMPLATE_PATH):
     with open(DRYCC_VOLUME_CLAIM_TEMPLATE_PATH) as fd:
         DRYCC_VOLUME_CLAIM_TEMPLATE = json.load(fd)
 
+# drycc volume usage template
+DRYCC_VOLUME_USAGE_TEMPLATE = ""
+DRYCC_VOLUME_USAGE_TEMPLATE_PATH = os.environ.get(
+    'DRYCC_VOLUME_USAGE_TEMPLATE_PATH', '/etc/controller/volume-usage-template.promql')
+if os.path.exists(DRYCC_VOLUME_USAGE_TEMPLATE_PATH):
+    with open(DRYCC_VOLUME_USAGE_TEMPLATE_PATH) as fd:
+        DRYCC_VOLUME_USAGE_TEMPLATE = fd.read()
+
+# drycc network usage template
+DRYCC_NETWORK_USAGE_TEMPLATE = ""
+DRYCC_NETWORK_USAGE_TEMPLATE_PATH = os.environ.get(
+    'DRYCC_NETWORK_USAGE_TEMPLATE_PATH', '/etc/controller/network-usage-template.promql')
+if os.path.exists(DRYCC_NETWORK_USAGE_TEMPLATE_PATH):
+    with open(DRYCC_NETWORK_USAGE_TEMPLATE_PATH) as fd:
+        DRYCC_NETWORK_USAGE_TEMPLATE = fd.read()
+
 # Django secret key
 SECRET_KEY = os.environ.get('DRYCC_SECRET_KEY', randstr(64))
 
 # Drycc service key
 SERVICE_KEY = os.environ.get('DRYCC_SERVICE_KEY', randstr(64))
 
-# Drycc admission mutate key
-MUTATE_KEY_PATH = os.environ.get('DRYCC_MUTATE_KEY_PATH', '/etc/controller/mutate/cert/key')
-if os.path.exists(MUTATE_KEY_PATH):
-    with open(MUTATE_KEY_PATH) as f:
-        MUTATE_KEY = f.read()
+# Drycc cert key
+CERT_KEY_PATH = os.environ.get('DRYCC_CERT_KEY_PATH', '/etc/controller/cert/key')
+if os.path.exists(CERT_KEY_PATH):
+    with open(CERT_KEY_PATH) as f:
+        CERT_KEY = f.read()
 else:
-    MUTATE_KEY = None
+    CERT_KEY = None
 
 IMAGE_PULL_POLICY = os.environ.get('IMAGE_PULL_POLICY', "IfNotPresent")
 

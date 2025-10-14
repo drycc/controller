@@ -7,11 +7,14 @@ metadata:
     {{- toYaml . | nindent 4 }}
     {{- end }}
   labels:
+    app: drycc-controller
     heritage: drycc
+    component: drycc-controller-api
 spec:
   ports:
     - name: http
       port: 80
       targetPort: 8000
   selector:
-    app: drycc-controller-api
+    app: drycc-controller
+    component: drycc-controller-api

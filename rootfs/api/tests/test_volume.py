@@ -277,7 +277,7 @@ class VolumeTest(DryccTransactionTestCase):
         from django.core.management import call_command
         out = StringIO()
         call_command(
-            "measure_volumes",
+            "upload_volume_usage",
             *args,
             stdout=out,
             stderr=StringIO(),
@@ -285,7 +285,7 @@ class VolumeTest(DryccTransactionTestCase):
         )
         return out.getvalue()
 
-    def test_measure_volumes(self, *args, **kwargs):
+    def test_upload_volume_usage(self, *args, **kwargs):
         # create
         app_id = self.create_app()
         data = [

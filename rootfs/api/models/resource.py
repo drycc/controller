@@ -207,7 +207,7 @@ class Resource(UuidAuditedModel):
             self.save()
         return self.status == self.binding == "Ready"
 
-    def to_measurements(self, timestamp: float):
+    def to_usages(self, timestamp: float):
         return [{
             "app_id": str(self.app_id),
             "owner": self.owner_id,
@@ -218,7 +218,8 @@ class Resource(UuidAuditedModel):
             "kwargs": {
                 "name": self.name,
             },
-            "timestamp": int(timestamp)
+            "timestamp": int(timestamp),
+            "identifier": self.uuid.hex,
         }]
 
     def _retrieve_status(self):

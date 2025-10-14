@@ -7,7 +7,7 @@ metadata:
   annotations:
     component.drycc.cc/version: {{ .Values.imageTag }}
 spec:
-  replicas: {{ .Values.celeryReplicas }}
+  replicas: {{ .Values.celery.replicas }}
   strategy:
     rollingUpdate:
       maxSurge: 1
@@ -15,11 +15,13 @@ spec:
     type: RollingUpdate
   selector:
     matchLabels:
-      app: drycc-controller-celery
+      app: drycc-controller
+      component: drycc-controller-celery
   template:
     metadata:
       labels: {{- include "common.labels.standard" . | nindent 8 }}
-        app: drycc-controller-celery
+        app: drycc-controller
+        component: drycc-controller-celery
     spec:
       affinity:
         podAffinity: {{- include "common.affinities.pods" (dict "type" .Values.celery.podAffinityPreset.type "component" "" "extraMatchLabels" .Values.celery.podAffinityPreset.extraMatchLabels "topologyKey" "" "context" $) | nindent 10 }}
@@ -37,7 +39,8 @@ spec:
           - $(DRYCC_DATABASE_URL),$(DRYCC_VALKEY_URL),$(DRYCC_DATABASE_REPLICA_URL),http://drycc-controller-api
         {{- include "controller.envs" . | indent 8 }}
       containers:
-      - name: drycc-controller-celery
+      {{- range $key := (list "low" "middle" "high") }}
+      - name: drycc-controller-celery-{{$key}}
         image: {{$.Values.imageRegistry}}/{{$.Values.imageOrg}}/controller:{{$.Values.imageTag}}
         imagePullPolicy: {{$.Values.imagePullPolicy}}
         {{- if $.Values.diagnosticMode.enabled }}
@@ -47,9 +50,9 @@ spec:
         args:
           - /bin/bash
           - -c
-          - celery --app api worker --queues controller.low,controller.high,controller.middle --autoscale=32,1 --loglevel=WARNING
+          - celery --app api worker -n {{uuidv4}}@%h --queues controller.{{$key}} --autoscale=32,1 --loglevel=WARNING
         {{- end }}
-        {{- with index .Values "celery" "resources" }}
+        {{- with index $.Values "celery" "resources" }}
         resources:
           {{- toYaml . | nindent 10 }}
         {{- end }}
@@ -58,6 +61,7 @@ spec:
         - name: controller-config
           readOnly: false
           mountPath: /etc/controller
+      {{- end }}
       volumes:
       - name: controller-config
         configMap:

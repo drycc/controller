@@ -1,4 +1,5 @@
 import logging
+import hashlib
 import threading
 from django.db import models
 from django.conf import settings
@@ -104,13 +105,17 @@ class Gateway(AuditedModel):
                 data = self.scheduler.gateways.get(self.app.id, self.name).json()
                 if len(kwargs["listeners"]) > 0:
                     kwargs["version"] = data["metadata"]["resourceVersion"]
-                    self.scheduler.gateways.patch(self.app.id, self.name, **kwargs)
+                    response = self.scheduler.gateways.patch(self.app.id, self.name, **kwargs)
+                    if response.status_code == 409:
+                        raise ServiceUnavailable(f'Kubernetes gateway could not be patched: {response.status_code} {response.reason}, please retry')  # noqa 
                 else:
                     logger.debug("delete k8s resource when listeners are empty")
                     self.scheduler.gateways.delete(
                         self.app.id, self.name, ignore_exception=True)
             except KubeException:
                 if len(kwargs["listeners"]) > 0:
+                    if "version" in kwargs:
+                        kwargs.pop("version")
                     self.scheduler.gateways.create(self.app.id, self.name, **kwargs)
                 else:
                     logger.debug("skip creating k8s resource when listeners are empty")
@@ -141,6 +146,21 @@ class Gateway(AuditedModel):
                 level=logging.ERROR,
             )
         return super().delete(*args, **kwargs)
+
+    def to_usages(self, timestamp: float):
+        return [{
+            "app_id": str(self.app_id),
+            "owner": self.owner_id,
+            "name": settings.DRYCC_APP_GATEWAY_CLASS,
+            "type": "gateway",
+            "unit": "number",
+            "usage": 1,
+            "kwargs": {
+                "name": self.name,
+            },
+            "timestamp": int(timestamp),
+            "identifier": hashlib.md5(self.name.encode("utf-8")).hexdigest(),
+        }]
 
     def _check_port(self, port, protocol):
         for item in self.ports:

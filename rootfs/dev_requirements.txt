@@ -1,10 +1,13 @@
 # test module
 # test
 # Run "make test-unit" for the % of code exercised during tests
-coverage==7.8.0
+coverage==7.10.6
 
 # Run "make test-style" to check python syntax and style
-flake8==7.2.0
+flake8==7.3.0
 
 # mock out python-requests, mostly k8s
 requests-mock==1.12.1
+
+# tracebacks
+tblib==3.1.0

@@ -155,7 +155,7 @@ class ResourceTest(DryccTransactionTestCase):
         from django.core.management import call_command
         out = StringIO()
         call_command(
-            "measure_resources",
+            "upload_resource_usage",
             *args,
             stdout=out,
             stderr=StringIO(),
@@ -163,7 +163,7 @@ class ResourceTest(DryccTransactionTestCase):
         )
         return out.getvalue()
 
-    def test_measure_resources(self, *args, **kwargs):
+    def test_upload_resource_usage(self, *args, **kwargs):
         # create
         app_id = self.create_app()
         data = [

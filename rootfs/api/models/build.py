@@ -120,13 +120,14 @@ class Build(UuidAuditedModel):
         """
         dryccfile to config
         """
-        config_values, config_values_ref, changed_fields = [], {}, set()
+        config_values, config_values_ref, changed_fields, replace_groups = [], {}, set(), set()
         for group, envs in self.dryccfile.get('config', {}).items():
             for key, value in envs.items():
+                replace_groups.add(group)
                 config_values.append({"name": key, "group": group, "value": value})
             changed_fields.update(["values", "values_refs"])
 
-        replace_values_ptypes = set()
+        replace_ptypes = set()
         for pipeline in self.dryccfile.get('pipeline', {}).values():
             if 'env' in pipeline or 'config' in pipeline:
                 for key, value in pipeline.get('env', {}).items():
@@ -136,7 +137,7 @@ class Build(UuidAuditedModel):
                         config_values_ref[pipeline['ptype']] = [config_ref]
                     else:
                         config_values_ref[pipeline['ptype']].append(config_ref)
-                replace_values_ptypes.add(pipeline['ptype'])
+                replace_ptypes.add(pipeline['ptype'])
                 changed_fields.update(["values", "values_refs"])
 
         old_config = self.app.release_set.filter(failed=False).latest().config
@@ -144,7 +145,7 @@ class Build(UuidAuditedModel):
             return old_config
         config = Config(
             owner=self.owner, app=self.app, values=config_values, values_refs=config_values_ref)
-        config.merge_field("values", old_config, replace_values_ptypes)
-        config.merge_field("values_refs", old_config, replace_values_ptypes)
+        config.merge_field("values", old_config, replace_ptypes, replace_groups)
+        config.merge_field("values_refs", old_config, replace_ptypes)
         config.save(ignore_update_fields=changed_fields)
         return config

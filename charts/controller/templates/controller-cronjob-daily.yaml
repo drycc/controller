@@ -17,7 +17,8 @@ spec:
       template:
         metadata:
           labels: {{- include "common.labels.standard" . | nindent 12 }}
-            app: drycc-controller-conjob
+            app: drycc-controller
+            component: drycc-controller-conjob-daily
         spec:
           restartPolicy: OnFailure
           serviceAccount: drycc-controller
@@ -46,6 +47,10 @@ spec:
             {{- end }}
             {{- include "controller.envs" . | indent 12 }}
             {{- include "controller-job.envs" . | indent 12 }}
+            volumeMounts:
+            - name: controller-config
+              readOnly: false
+              mountPath: /etc/controller
           - image: {{.Values.imageRegistry}}/{{.Values.imageOrg}}/controller:{{.Values.imageTag}}
             imagePullPolicy: {{.Values.imagePullPolicy}}
             name: drycc-controller-load-db-state-to-k8s
@@ -60,45 +65,11 @@ spec:
             {{- end }}
             {{- include "controller.envs" . | indent 12 }}
             {{- include "controller-job.envs" . | indent 12 }}
-          - image: {{.Values.imageRegistry}}/{{.Values.imageOrg}}/controller:{{.Values.imageTag}}
-            imagePullPolicy: {{.Values.pull_policy}}
-            name: drycc-controller-measure-apps
-            {{- if .Values.diagnosticMode.enabled }}
-            command: {{- include "common.tplvalues.render" (dict "value" .Values.diagnosticMode.command "context" $) | nindent 14 }}
-            args: {{- include "common.tplvalues.render" (dict "value" .Values.diagnosticMode.args "context" $) | nindent 14 }}
-            {{- else }}
-            args:
-              - /bin/bash
-              - -c
-              - python -u /workspace/manage.py measure_apps
-            {{- end }}
-            {{- include "controller.envs" . | indent 12 }}
-            {{- include "controller-job.envs" . | indent 12 }}
-          - image: {{.Values.imageRegistry}}/{{.Values.imageOrg}}/controller:{{.Values.imageTag}}
-            imagePullPolicy: {{.Values.pull_policy}}
-            name: drycc-controller-measure-resources
-            {{- if .Values.diagnosticMode.enabled }}
-            command: {{- include "common.tplvalues.render" (dict "value" .Values.diagnosticMode.command "context" $) | nindent 14 }}
-            args: {{- include "common.tplvalues.render" (dict "value" .Values.diagnosticMode.args "context" $) | nindent 14 }}
-            {{- else }}
-            args:
-            - /bin/bash
-            - -c
-            - python -u /workspace/manage.py measure_resources
-            {{- end }}
-            {{- include "controller.envs" . | indent 12 }}
-            {{- include "controller-job.envs" . | indent 12 }}
-          - image: {{.Values.imageRegistry}}/{{.Values.imageOrg}}/controller:{{.Values.imageTag}}
-            imagePullPolicy: {{.Values.pull_policy}}
-            name: drycc-controller-measure-volumes
-            {{- if .Values.diagnosticMode.enabled }}
-            command: {{- include "common.tplvalues.render" (dict "value" .Values.diagnosticMode.command "context" $) | nindent 14 }}
-            args: {{- include "common.tplvalues.render" (dict "value" .Values.diagnosticMode.args "context" $) | nindent 14 }}
-            {{- else }}
-            args:
-            - /bin/bash
-            - -c
-            - python -u /workspace/manage.py measure_volumes
-            {{- end }}
-            {{- include "controller.envs" . | indent 12 }}
-            {{- include "controller-job.envs" . | indent 12 }}
+            volumeMounts:
+            - name: controller-config
+              readOnly: false
+              mountPath: /etc/controller
+          volumes:
+          - name: controller-config
+            configMap:
+              name: controller-config

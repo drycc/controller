@@ -47,3 +47,15 @@ data:
     {{- else}}
     {{- include "controller.config.defaultVolumeClaimTemplate" . | fromYaml | toPrettyJson | nindent 4 }}
     {{- end }}
+  volume-usage-template.promql: |
+    {{- if .Values.config.volumeUsageTemplate }}
+    {{- (tpl .Values.config.volumeUsageTemplate $)  | nindent 4 }}
+    {{- else}}
+    {{- include "controller.config.defaultVolumeUsageTemplate" . | nindent 4 }}
+    {{- end }}
+  network-usage-template.promql: |
+    {{- if .Values.config.networkUsageTemplate }}
+    {{- (tpl .Values.config.networkUsageTemplate $)  | nindent 4 }}
+    {{- else}}
+    {{- include "controller.config.defaultNetworkUsageTemplate" . | nindent 4 }}
+    {{- end }}

@@ -139,12 +139,12 @@ class Config(UuidAuditedModel):
             self._update_tags(previous_config={'tags': {}})
         return super(Config, self).save(*args, **kwargs)
 
-    def merge_field(self, field, old_config, replace_ptypes=[]):
+    def merge_field(self, field, old_config, *args, **kwargs):
         getattr(
             self,
             "_update_%s" % field,
             partial(self._update_field, field)
-        )(old_config, replace_ptypes)
+        )(old_config, *args, **kwargs)
 
     def _update_field(self, field, previous_config, replace_ptypes=[]):
         data = {
@@ -164,10 +164,10 @@ class Config(UuidAuditedModel):
                 data[key] = self._merge_data(field, data.get(key, {}), value)
         setattr(self, field, data)
 
-    def _update_values(self, previous_config, replace_ptypes=[]):
+    def _update_values(self, previous_config, replace_ptypes=[], replace_groups=[]):
         data = [
             item for item in getattr(previous_config, 'values', []).copy()
-            if item.get('ptype') not in replace_ptypes
+            if item.get('ptype') not in replace_ptypes and item.get('group') not in replace_groups
         ]
         new_data = getattr(self, 'values', []).copy()
         for new_item in new_data:

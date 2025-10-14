@@ -2,12 +2,13 @@
 
 from django.db import migrations
 from guardian.shortcuts import assign_perm, get_users_with_perms, remove_perm
-from api.models.app import App, VIEW_APP_PERMISSION, CHANGE_APP_PERMISSION
+from api.models.app import VIEW_APP_PERMISSION, CHANGE_APP_PERMISSION
 from api.models.domain import Domain
 from api.models.certificate import Certificate
 
 
 def migration_permission(apps, schema_editor):
+    App = apps.get_model('api', 'App')
     for app in App.objects.all():
         for user in get_users_with_perms(app):
             remove_perm('use_app', user, app)
