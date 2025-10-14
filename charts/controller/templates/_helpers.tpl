@@ -346,6 +346,10 @@ kubelet_volume_stats_capacity_bytes: [namespace, persistentvolumeclaim]
 kubelet_volume_stats_inodes: [namespace, persistentvolumeclaim]
 kubelet_volume_stats_inodes_free: [namespace, persistentvolumeclaim]
 kubelet_volume_stats_inodes_used: [namespace, persistentvolumeclaim]
+istio_requests_total: [source_workload_namespace, reporter, destination_service, response_code, connection_security_policy, source_workload]
+istio_request_duration_milliseconds_bucket: [source_workload_namespace, reporter, destination_service, connection_security_policy, source_workload, le]
+istio_request_bytes_bucket: [source_workload_namespace, reporter, destination_service, connection_security_policy, source_workload, le]
+istio_response_bytes_bucket: [source_workload_namespace, reporter, destination_service, connection_security_policy, source_workload, le]
 {{- end }}
 
 {{/* Generate controller config default reserved name patterns */}}
