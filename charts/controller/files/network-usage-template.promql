@@ -1,0 +1,9 @@
+label_replace(
+  sum(increase(istio_request_bytes_sum{namespace=~"{{namespaces}}"}[{{duration}}])) by (namespace,pod),
+  "direction", "rx", "", ""
+)
+or
+label_replace(
+  sum(increase(istio_response_bytes_sum{namespace=~"{{namespaces}}"}[{{duration}}])) by (namespace,pod),
+  "direction", "tx", "", ""
+)

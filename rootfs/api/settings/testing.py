@@ -61,33 +61,66 @@ MIGRATION_MODULES = DisableMigrations()
 WORKFLOW_MANAGER_ACCESS_KEY = "1234567890"
 WORKFLOW_MANAGER_SECRET_KEY = "1234567890"
 
-DRYCC_VOLUME_CLAIM_TEMPLATE = {
-    "csi": {
-        "spec": {
-            "accessModes": [
-                "ReadWriteMany"
-            ],
-            "resources": {
-                "requests": {
-                    "storage": "$size"
-                }
-            },
-            "storageClassName": "$storage_class",
-            "volumeMode": "Filesystem"
-        }
-    },
-    "nfs": {
-        "spec": {
-            "accessModes": [
-                "ReadWriteMany"
-            ],
-            "resources": {
-                "requests": {
-                    "storage": "$size"
-                }
-            },
-            "storageClassName": "",
-            "volumeName": "$volume_name"
-        }
+DRYCC_VOLUME_CLAIM_TEMPLATE = """
+{% if type == 'csi' %}
+{
+  "metadata": {
+    "annotations": {
+      "billing.drycc.cc/type": "usage"
     }
+  },
+  "spec": {
+    "accessModes": [
+      "ReadWriteMany"
+    ],
+    "storageClassName": "{{storage_class}}",
+    "resources": {
+      "requests": {
+        "storage": "{{size}}"
+      }
+    },
+    "volumeMode": "Filesystem"
+  }
 }
+{% elif type == 'nfs' %}
+{
+  "metadata": {
+    "annotations": {
+      "billing.drycc.cc/type": "basic"
+    }
+  },
+  "spec": {
+    "accessModes": [
+      "ReadWriteMany"
+    ],
+    "storageClassName": "",
+    "resources": {
+      "requests": {
+        "storage": "{{size}}"
+      }
+    },
+    "volumeName": "{{volume_name}}"
+  }
+}
+{% elif type == 'nfs' %}
+{
+  "metadata": {
+    "annotations": {
+      "billing.drycc.cc/type": "basic"
+    }
+  },
+  "spec": {
+    "accessModes": [
+      "ReadWriteMany"
+    ],
+    "storageClassName": "",
+    "resources": {
+      "requests": {
+        "storage": "{{size}}"
+      }
+    },
+    "volumeName": "{{volume_name}}"
+  }
+}
+{% endif %}
+"""

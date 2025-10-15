@@ -1,0 +1,12 @@
+max by(namespace, persistentvolumeclaim, storageclass) (
+  kube_persistentvolumeclaim_resource_requests_storage_bytes{
+    namespace=~"{{namespaces}}"
+  }
+  * on(namespace, persistentvolumeclaim) group_left(storageclass)
+  kube_persistentvolumeclaim_info{namespace=~"{{namespaces}}"}
+  * on(namespace, persistentvolumeclaim) group_left()
+  kube_persistentvolumeclaim_annotations{
+    namespace=~"{{namespaces}}",
+    annotation_billing_drycc_cc_type="usage"
+  }
+)

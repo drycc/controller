@@ -1,0 +1,466 @@
+{
+  "container_cpu_load_average_10s": [
+    "instance",
+    "namespace",
+    "pod",
+    "container"
+  ],
+  "container_cpu_system_seconds_total": [
+    "instance",
+    "namespace",
+    "pod",
+    "container"
+  ],
+  "container_cpu_usage_seconds_total": [
+    "instance",
+    "namespace",
+    "pod",
+    "container"
+  ],
+  "container_cpu_user_seconds_total": [
+    "instance",
+    "namespace",
+    "pod",
+    "container"
+  ],
+  "container_cpu_cfs_periods_total": [
+    "instance",
+    "namespace",
+    "pod",
+    "container"
+  ],
+  "container_cpu_cfs_throttled_periods_total": [
+    "instance",
+    "namespace",
+    "pod",
+    "container"
+  ],
+  "container_cpu_cfs_throttled_seconds_total": [
+    "instance",
+    "namespace",
+    "pod",
+    "container"
+  ],
+  "container_fs_inodes_free": [
+    "instance",
+    "namespace",
+    "pod",
+    "container"
+  ],
+  "container_fs_usage_bytes": [
+    "instance",
+    "namespace",
+    "pod",
+    "container"
+  ],
+  "container_fs_inodes_total": [
+    "instance",
+    "namespace",
+    "pod",
+    "container"
+  ],
+  "container_fs_io_current": [
+    "instance",
+    "namespace",
+    "pod",
+    "container"
+  ],
+  "container_fs_io_time_seconds_total": [
+    "instance",
+    "namespace",
+    "pod",
+    "container"
+  ],
+  "container_fs_io_time_weighted_seconds_total": [
+    "instance",
+    "namespace",
+    "pod",
+    "container"
+  ],
+  "container_fs_limit_bytes": [
+    "instance",
+    "namespace",
+    "pod",
+    "container"
+  ],
+  "container_fs_reads_bytes_total": [
+    "instance",
+    "namespace",
+    "pod",
+    "container"
+  ],
+  "container_fs_read_seconds_total": [
+    "instance",
+    "namespace",
+    "pod",
+    "container"
+  ],
+  "container_fs_reads_merged_total": [
+    "instance",
+    "namespace",
+    "pod",
+    "container"
+  ],
+  "container_fs_reads_total": [
+    "instance",
+    "namespace",
+    "pod",
+    "container"
+  ],
+  "container_fs_sector_reads_total": [
+    "instance",
+    "namespace",
+    "pod",
+    "container"
+  ],
+  "container_fs_sector_writes_total": [
+    "instance",
+    "namespace",
+    "pod",
+    "container"
+  ],
+  "container_fs_writes_bytes_total": [
+    "instance",
+    "namespace",
+    "pod",
+    "container"
+  ],
+  "container_fs_write_seconds_total": [
+    "instance",
+    "namespace",
+    "pod",
+    "container"
+  ],
+  "container_fs_writes_merged_total": [
+    "instance",
+    "namespace",
+    "pod",
+    "container"
+  ],
+  "container_fs_writes_total": [
+    "instance",
+    "namespace",
+    "pod",
+    "container"
+  ],
+  "container_blkio_device_usage_total": [
+    "instance",
+    "namespace",
+    "pod",
+    "container"
+  ],
+  "container_memory_failures_total": [
+    "instance",
+    "namespace",
+    "pod",
+    "container"
+  ],
+  "container_memory_failcnt": [
+    "instance",
+    "namespace",
+    "pod",
+    "container"
+  ],
+  "container_memory_cache": [
+    "instance",
+    "namespace",
+    "pod",
+    "container"
+  ],
+  "container_memory_mapped_file": [
+    "instance",
+    "namespace",
+    "pod",
+    "container"
+  ],
+  "container_memory_max_usage_bytes": [
+    "instance",
+    "namespace",
+    "pod",
+    "container"
+  ],
+  "container_memory_rss": [
+    "instance",
+    "namespace",
+    "pod",
+    "container"
+  ],
+  "container_memory_swap": [
+    "instance",
+    "namespace",
+    "pod",
+    "container"
+  ],
+  "container_memory_usage_bytes": [
+    "instance",
+    "namespace",
+    "pod",
+    "container"
+  ],
+  "container_memory_working_set_bytes": [
+    "instance",
+    "namespace",
+    "pod",
+    "container"
+  ],
+  "container_network_receive_bytes_total": [
+    "instance",
+    "namespace",
+    "pod",
+    "container"
+  ],
+  "container_network_receive_errors_total": [
+    "instance",
+    "namespace",
+    "pod",
+    "container"
+  ],
+  "container_network_receive_packets_dropped_total": [
+    "instance",
+    "namespace",
+    "pod",
+    "container"
+  ],
+  "container_network_receive_packets_total": [
+    "instance",
+    "namespace",
+    "pod",
+    "container"
+  ],
+  "container_network_transmit_bytes_total": [
+    "instance",
+    "namespace",
+    "pod",
+    "container"
+  ],
+  "container_network_transmit_errors_total": [
+    "instance",
+    "namespace",
+    "pod",
+    "container"
+  ],
+  "container_network_transmit_packets_dropped_total": [
+    "instance",
+    "namespace",
+    "pod",
+    "container"
+  ],
+  "container_network_transmit_packets_total": [
+    "instance",
+    "namespace",
+    "pod",
+    "container"
+  ],
+  "container_oom_events_total": [
+    "instance",
+    "namespace",
+    "pod",
+    "container"
+  ],
+  "container_processes": [
+    "instance",
+    "namespace",
+    "pod",
+    "container"
+  ],
+  "container_sockets": [
+    "instance",
+    "namespace",
+    "pod",
+    "container"
+  ],
+  "container_file_descriptors": [
+    "instance",
+    "namespace",
+    "pod",
+    "container"
+  ],
+  "container_threads": [
+    "instance",
+    "namespace",
+    "pod",
+    "container"
+  ],
+  "container_threads_max": [
+    "instance",
+    "namespace",
+    "pod",
+    "container"
+  ],
+  "container_ulimits_soft": [
+    "instance",
+    "namespace",
+    "pod",
+    "container"
+  ],
+  "container_spec_cpu_quota": [
+    "instance",
+    "namespace",
+    "pod",
+    "container"
+  ],
+  "container_spec_cpu_period": [
+    "instance",
+    "namespace",
+    "pod",
+    "container"
+  ],
+  "container_spec_cpu_shares": [
+    "instance",
+    "namespace",
+    "pod",
+    "container"
+  ],
+  "container_spec_memory_limit_bytes": [
+    "instance",
+    "namespace",
+    "pod",
+    "container"
+  ],
+  "container_spec_memory_reservation_limit_bytes": [
+    "instance",
+    "namespace",
+    "pod",
+    "container"
+  ],
+  "container_spec_memory_swap_limit_bytes": [
+    "instance",
+    "namespace",
+    "pod",
+    "container"
+  ],
+  "container_start_time_seconds": [
+    "instance",
+    "namespace",
+    "pod",
+    "container"
+  ],
+  "container_tasks_state": [
+    "instance",
+    "namespace",
+    "pod",
+    "container"
+  ],
+  "container_last_seen": [
+    "instance",
+    "namespace",
+    "pod",
+    "container"
+  ],
+  "container_accelerator_memory_used_bytes": [
+    "instance",
+    "namespace",
+    "pod",
+    "container"
+  ],
+  "container_accelerator_memory_total_bytes": [
+    "instance",
+    "namespace",
+    "pod",
+    "container"
+  ],
+  "container_accelerator_duty_cycle": [
+    "instance",
+    "namespace",
+    "pod",
+    "container"
+  ],
+  "kube_pod_ips": [
+    "ip",
+    "ip_family",
+    "namespace",
+    "node",
+    "pod"
+  ],
+  "kube_pod_container_status_running": [
+    "container",
+    "namespace",
+    "node",
+    "pod"
+  ],
+  "kube_pod_container_status_ready": [
+    "container",
+    "namespace",
+    "node",
+    "pod"
+  ],
+  "kube_pod_container_status_terminated": [
+    "container",
+    "namespace",
+    "node",
+    "pod"
+  ],
+  "kube_pod_container_status_waiting": [
+    "container",
+    "namespace",
+    "node",
+    "pod"
+  ],
+  "kube_pod_container_status_restarts_total": [
+    "container",
+    "namespace",
+    "node",
+    "pod"
+  ],
+  "kube_pod_spec_volumes_persistentvolumeclaims_info": [
+    "namespace",
+    "pod",
+    "persistentvolumeclaim"
+  ],
+  "kubelet_volume_stats_used_bytes": [
+    "namespace",
+    "persistentvolumeclaim"
+  ],
+  "kubelet_volume_stats_available_bytes": [
+    "namespace",
+    "persistentvolumeclaim"
+  ],
+  "kubelet_volume_stats_capacity_bytes": [
+    "namespace",
+    "persistentvolumeclaim"
+  ],
+  "kubelet_volume_stats_inodes": [
+    "namespace",
+    "persistentvolumeclaim"
+  ],
+  "kubelet_volume_stats_inodes_free": [
+    "namespace",
+    "persistentvolumeclaim"
+  ],
+  "kubelet_volume_stats_inodes_used": [
+    "namespace",
+    "persistentvolumeclaim"
+  ],
+  "istio_requests_total": [
+    "source_workload_namespace",
+    "reporter",
+    "destination_service",
+    "response_code",
+    "connection_security_policy",
+    "source_workload"
+  ],
+  "istio_request_duration_milliseconds_bucket": [
+    "source_workload_namespace",
+    "reporter",
+    "destination_service",
+    "connection_security_policy",
+    "source_workload",
+    "le"
+  ],
+  "istio_request_bytes_bucket": [
+    "source_workload_namespace",
+    "reporter",
+    "destination_service",
+    "connection_security_policy",
+    "source_workload",
+    "le"
+  ],
+  "istio_response_bytes_bucket": [
+    "source_workload_namespace",
+    "reporter",
+    "destination_service",
+    "connection_security_policy",
+    "source_workload",
+    "le"
+  ]
+}

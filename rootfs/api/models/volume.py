@@ -1,11 +1,11 @@
 import logging
-import string
 import copy
 import json
 import uuid
 import hashlib
 from django.db import models, transaction
 from django.conf import settings
+from django.template import Template, Context
 from django.contrib.auth import get_user_model
 from api.tasks import send_app_log
 from api.utils import unit_to_bytes, validate_label
@@ -44,14 +44,8 @@ class Volume(UuidAuditedModel):
             hexdigest[20:]
         ]))
 
-    @property
-    def secret_name(self):
-        return self.pv_name
-
     @transaction.atomic
     def save(self, *args, **kwargs):
-        if self.type not in settings.DRYCC_VOLUME_CLAIM_TEMPLATE:
-            raise DryccException(f'Volume type {self.type} is not supported.')
         # Attach volume, updates k8s
         self.save_to_k8s()
         # check path
@@ -112,15 +106,11 @@ class Volume(UuidAuditedModel):
             raise DryccException(msg)
 
     def save_to_k8s(self):
-        if self.type in settings.DRYCC_SECRET_TEMPLATE:
-            self._save_secret()
         if self.type in settings.DRYCC_VOLUME_TEMPLATE:
             self._save_pv()
         self._save_pvc()
 
     def delete_from_k8s(self):
-        if self.type in settings.DRYCC_SECRET_TEMPLATE:
-            self._delete_secret()
         if self.type in settings.DRYCC_VOLUME_TEMPLATE:
             self._delete_pv()
         self._delete_pvc()
@@ -138,13 +128,15 @@ class Volume(UuidAuditedModel):
     def _save_pv(self):
         kwds = copy.deepcopy(self.parameters.get(self.type, {}))
         kwds.update({
+            "type": self.type,
             "volume_claim_name": self.name,
             "namespace": self.app.id,
-            "secret_name": self.secret_name,
             "volume_handle": "%s" % uuid.uuid4(),
         })
-        t = string.Template(json.dumps(settings.DRYCC_VOLUME_TEMPLATE.get(self.type)))
-        kwargs = json.loads(t.safe_substitute(**kwds))
+        json_str = Template(settings.DRYCC_VOLUME_TEMPLATE).render(Context(kwds)).strip()
+        if not json_str:
+            return
+        kwargs = json.loads(json_str)
         try:
             self.scheduler.pv.get(self.pv_name)
             msg = "Volume {} already exists".format(self.pv_name)
@@ -170,14 +162,17 @@ class Volume(UuidAuditedModel):
             logger.exception(e)
 
     def _save_pvc(self):
-        kwds = copy.deepcopy(self.parameters)
+        kwds = copy.deepcopy(self.parameters.get(self.type, {}))
         kwds.update({
+            "type": self.type,
             "size": self._format_size(self.size),
             "volume_name": self.pv_name,
             "storage_class": settings.DRYCC_APP_STORAGE_CLASS,
         })
-        t = string.Template(json.dumps(settings.DRYCC_VOLUME_CLAIM_TEMPLATE.get(self.type)))
-        kwargs = json.loads(t.safe_substitute(**kwds))
+        json_str = Template(settings.DRYCC_VOLUME_CLAIM_TEMPLATE).render(Context(kwds)).strip()
+        if not json_str:
+            raise DryccException('Volume claim template render error, context: {}'.format(kwds))
+        kwargs = json.loads(json_str)
         try:
             self.scheduler.pvc.get(self.app.id, self.name)
             msg = "Volume claim {} already exists in this namespace".format(self.name)
@@ -197,32 +192,6 @@ class Volume(UuidAuditedModel):
             # We raise an exception when a volume doesn't exist
             self.scheduler.pvc.get(self.app.id, self.name)
             self.scheduler.pvc.delete(self.app.id, self.name)
-        except KubeException as e:
-            logger.exception(e)
-
-    def _save_secret(self):
-        kwds = copy.deepcopy(self.parameters.get(self.type, {}))
-        t = string.Template(json.dumps(settings.DRYCC_SECRET_TEMPLATE.get(self.type)))
-        kwargs = json.loads(t.safe_substitute(**kwds))
-        try:
-            self.scheduler.secret.get(self.app.id, self.secret_name)
-            msg = "Secret {} already exists".format(self.secret_name)
-            self.log(msg, logging.INFO)
-            self.scheduler.secret.patch(self.app.id, self.secret_name, **kwargs)
-        except KubeException as e:
-            logger.info(e)
-            try:
-                self.scheduler.secret.create(self.app.id, self.secret_name, **kwargs)
-            except KubeException as e:
-                msg = 'There was a problem creating the volume ' \
-                      '{} for {}'.format(self.secret_name, self.app_id)
-                raise ServiceUnavailable(msg) from e
-
-    def _delete_secret(self):
-        try:
-            # We raise an exception when a volume doesn't exist
-            self.scheduler.secret.get(self.app.id, self.secret_name)
-            self.scheduler.secret.delete(self.app.id, self.secret_name)
         except KubeException as e:
             logger.exception(e)
 

@@ -9,53 +9,47 @@ data:
     {{- if .Values.config.metrics }}
     {{- (tpl .Values.config.metrics $) | nindent 4 }}
     {{- else}}
-    {{- include "controller.config.defaultMetrics" . | fromYaml | toPrettyJson | nindent 4 }}
+    {{- .Files.Get "files/metrics.json" | nindent 4 }}
     {{- end }}
   limit-specs.json: |
     {{- if .Values.config.limitSpecs }}
     {{- (tpl .Values.config.limitSpecs $)  | nindent 4 }}
     {{- else}}
-    {{- include "controller.config.defaultLimitSpecs" . | fromYamlArray | toPrettyJson | nindent 4 }}
+    {{- .Files.Get "files/limit-specs.json" | nindent 4 }}
     {{- end }}
   limit-plans.json: |
     {{- if .Values.config.limitPlans }}
     {{- (tpl .Values.config.limitPlans $)  | nindent 4 }}
     {{- else}}
-    {{- include "controller.config.defaultLimitPlans" . | fromYamlArray | toPrettyJson | nindent 4 }}
-    {{- end }}
-  secret-template.json: |
-    {{- if .Values.config.secretTemplate }}
-    {{- (tpl .Values.config.secretTemplate $)  | nindent 4 }}
-    {{- else}}
-    {{- include "controller.config.defaultSecretTemplate" . | fromYaml | toPrettyJson | nindent 4 }}
+    {{- .Files.Get "files/limit-plans.json" | nindent 4 }}
     {{- end }}
   volume-template.json: |
     {{- if .Values.config.volumeTemplate }}
     {{- (tpl .Values.config.volumeTemplate $)  | nindent 4 }}
     {{- else}}
-    {{- include "controller.config.defaultVolumeTemplate" . | fromYaml | toPrettyJson | nindent 4 }}
+    {{- .Files.Get "files/volume-template.json" | nindent 4 }}
     {{- end }}
   reserved-name-patterns.txt: |-
     {{- if .Values.config.reservedNames }}
     {{- (tpl .Values.config.reservedNames $)  | nindent 4 }}
     {{- else}}
-    {{- include "controller.config.defaultReservedNamePatterns" . | nindent 4 }}
+    {{- .Files.Get "files/reserved-name-patterns.txt" | nindent 4 }}
     {{- end }}
   volume-claim-template.json: |
     {{- if .Values.config.volumeClaimTemplate }}
     {{- (tpl .Values.config.volumeClaimTemplate $)  | nindent 4 }}
     {{- else}}
-    {{- include "controller.config.defaultVolumeClaimTemplate" . | fromYaml | toPrettyJson | nindent 4 }}
+    {{-  .Files.Get "files/volume-claim-template.json" | nindent 4 }}
     {{- end }}
   volume-usage-template.promql: |
     {{- if .Values.config.volumeUsageTemplate }}
     {{- (tpl .Values.config.volumeUsageTemplate $)  | nindent 4 }}
     {{- else}}
-    {{- include "controller.config.defaultVolumeUsageTemplate" . | nindent 4 }}
+    {{- .Files.Get "files/volume-usage-template.promql" | nindent 4 }}
     {{- end }}
   network-usage-template.promql: |
     {{- if .Values.config.networkUsageTemplate }}
     {{- (tpl .Values.config.networkUsageTemplate $)  | nindent 4 }}
     {{- else}}
-    {{- include "controller.config.defaultNetworkUsageTemplate" . | nindent 4 }}
+    {{- .Files.Get "files/network-usage-template.promql" | nindent 4 }}
     {{- end }}

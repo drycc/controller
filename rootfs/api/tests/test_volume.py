@@ -206,7 +206,8 @@ class VolumeTest(DryccTransactionTestCase):
             {'name': 'myvolume1', 'size': '500G'}
         ]
         for _ in data:
-            self.client.post('/v2/apps/{}/volumes'.format(app_id), data=_)
+            response = self.client.post('/v2/apps/{}/volumes'.format(app_id), data=_)
+            self.assertEqual(response.status_code, 201, response.data)
 
         self.build_deploy(app_id)
         # mount

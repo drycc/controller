@@ -1,12 +1,12 @@
 import time
 import aiohttp
-from string import Template
 from typing import Iterator, AsyncGenerator
 from django.conf import settings
+from django.template import Template, Context
 
 
 query_last_metrics_promql_tpl = Template("""
-last_over_time({__name__=~"${metrics}",namespace="${namespace}"}[${duration}])
+last_over_time({__name__=~"{{metrics}}",namespace="{{namespace}}"}[{{duration}}])
 """)
 
 
@@ -25,11 +25,11 @@ async def last_metrics(namespace) -> AsyncGenerator[Iterator, str]:
     if not settings.DRYCC_METRICS_CONFIG:
         return
     url = f"{settings.DRYCC_VICTORIAMETRICS_URL}/api/v1/query"
-    promql = query_last_metrics_promql_tpl.substitute(
-        metrics='|'.join(settings.DRYCC_METRICS_CONFIG.keys()),
-        namespace=namespace,
-        duration=settings.DRYCC_METRICS_INTERVAL
-    )
+    promql = query_last_metrics_promql_tpl.render(Context({
+        "metrics": '|'.join(settings.DRYCC_METRICS_CONFIG.keys()),
+        "namespace": namespace,
+        "duration": settings.DRYCC_METRICS_INTERVAL
+    }))
     for item in await query_prom(url, {"query": promql, "start": int(time.time() - 60)}):
         yield '%s{%s} %s\n' % (
             item['metric']['__name__'],
@@ -46,17 +46,17 @@ async def query_volume_usage(namespaces: Iterator[str], start: int, stop: int
     if not settings.DRYCC_VICTORIAMETRICS_URL:
         return []
     url = f"{settings.DRYCC_VICTORIAMETRICS_URL}/api/v1/query"
-    promql = Template(settings.DRYCC_VOLUME_USAGE_TEMPLATE).substitute(
-        namespaces="|".join(namespaces)
-    )
+    promql = Template(settings.DRYCC_VOLUME_USAGE_TEMPLATE).render(Context({
+        "namespaces": "|".join(namespaces)
+    }))
     return await query_prom(url, {"query": promql, "start": start, "end": stop})
 
 
 async def query_network_usage(namespaces: Iterator[str], start: int, stop: int
                               ) -> list[tuple[dict[str, str], int]]:
     url = f"{settings.DRYCC_VICTORIAMETRICS_URL}/api/v1/query"
-    promql = Template(settings.DRYCC_NETWORK_USAGE_TEMPLATE).substitute(
-        namespaces="|".join(namespaces),
-        duration=f"{stop-start}s"
-    )
+    promql = Template(settings.DRYCC_NETWORK_USAGE_TEMPLATE).render(Context({
+        "namespaces": "|".join(namespaces),
+        "duration": f"{stop-start}s"
+    }))
     return await query_prom(url, {"query": promql, "start": start, "end": stop})

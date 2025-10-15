@@ -1,0 +1,61 @@
+{% if type == 'csi' %}
+{
+  "metadata": {
+    "annotations": {
+      "billing.drycc.cc/type": "usage"
+    }
+  },
+  "spec": {
+    "accessModes": [
+      "ReadWriteMany"
+    ],
+    "storageClassName": "{{storage_class}}",
+    "resources": {
+      "requests": {
+        "storage": "{{size}}"
+      }
+    },
+    "volumeMode": "Filesystem"
+  }
+}
+{% elif type == 'nfs' %}
+{
+  "metadata": {
+    "annotations": {
+      "billing.drycc.cc/type": "basic"
+    }
+  },
+  "spec": {
+    "accessModes": [
+      "ReadWriteMany"
+    ],
+    "storageClassName": "",
+    "resources": {
+      "requests": {
+        "storage": "{{size}}"
+      }
+    },
+    "volumeName": "{{volume_name}}"
+  }
+}
+{% elif type == 'oss' %}
+{
+  "metadata": {
+    "annotations": {
+      "billing.drycc.cc/type": "basic"
+    }
+  },
+  "spec": {
+    "accessModes": [
+      "ReadWriteMany"
+    ],
+    "storageClassName": "",
+    "resources": {
+      "requests": {
+        "storage": "{{size}}"
+      }
+    },
+    "volumeName": "{{volume_name}}"
+  }
+}
+{% endif %}

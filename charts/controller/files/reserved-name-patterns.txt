@@ -1,0 +1,12 @@
+^backup$
+^catalog$
+^cert-manager$
+^default$
+^drycc(?:-[\w-]+)?$
+^istio(?:-[\w-]+)?$
+^kube(?:-[\w-]+)?$
+^longhorn-system$
+^metallb$
+^mount-s3$
+^topolvm$
+^rook-ceph$
