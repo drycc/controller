@@ -1,7 +1,7 @@
 ARG CODENAME
 FROM registry.drycc.cc/drycc/base:${CODENAME}
 
-ENV DRYCC_UID=1001 \
+ARG DRYCC_UID=1001 \
   DRYCC_GID=1001 \
   DRYCC_HOME_DIR=/workspace \
   PYTHON_VERSION="3.13"
