@@ -107,6 +107,7 @@ class Deployment(Resource):
 
         # set the old deployment spec annotations on this deployment
         manifest['spec']['template']['metadata']['annotations'] = spec_annotations
+        manifest['spec']['template']['spec']['automountServiceAccountToken'] = False
         if annotations:
             manifest['spec']['template']['metadata']['annotations'].update(annotations)
         if "resource_version" in kwargs:
