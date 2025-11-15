@@ -2,10 +2,10 @@ ARG CODENAME
 FROM registry.drycc.cc/drycc/base:${CODENAME}
 
 ARG DRYCC_HOME_DIR=/workspace \
-  PYTHON_VERSION="3.13" \
-  VALKEY_VERSION="8.1.3" \
-  POSTGRES_VERSION="17.6" \
-  GOSU_VERSION="1.18"
+  PYTHON_VERSION="3.14" \
+  VALKEY_VERSION="9.0.0" \
+  POSTGRES_VERSION="18.1" \
+  GOSU_VERSION="1.19"
 
 COPY requirements.txt ${DRYCC_HOME_DIR}/requirements.txt
 COPY dev_requirements.txt ${DRYCC_HOME_DIR}/dev_requirements.txt
