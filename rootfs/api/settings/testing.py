@@ -1,11 +1,16 @@
 import random
 import string
 import os
+import multiprocessing
 from django.core import signals
 from api.settings.celery import app
 from api.settings.production import DATABASES
 from api.settings.production import *  # noqa
 
+# Fix Django test error.
+# https://github.com/django/django/blob/main/django/test/runner.py#L455
+# This code was removed in Django > 5.2, so it is safe to remove this when we upgrade.
+multiprocessing.set_start_method('fork')
 # Monkey patch celery
 app.conf.update(task_always_eager=True)
 signals.request_started.send = lambda sender, **named: []
