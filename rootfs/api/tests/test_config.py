@@ -1001,8 +1001,8 @@ class ConfigTest(DryccTransactionTestCase):
         self.assertEqual(
             release.config.envs("web"),
             {
-                'WEBSITE': 'www.drycc.cc', 'GROUP': 'g1', 'DEBUG': 'tr',
-                'PENV1': 'web', 'PENV2': 'web',  'TEST1': 'g1', 'TEST2': 'tr',
+                'GROUP': 'g1', 'DEBUG': 'tr', 'TEST1': 'g1',
+                'TEST2': 'tr', 'PENV1': 'web', 'PENV2': 'web'
             },
         )
 
@@ -1018,8 +1018,8 @@ class ConfigTest(DryccTransactionTestCase):
             self.assertEqual(response.status_code, 201, response.data)
         release = app.release_set.latest()
         self.assertEqual(release.failed, False)
-        self.assertEqual(release.config.values, release.previous().config.values)
-        self.assertEqual(release.config.values_refs, release.previous().config.values_refs)
+        self.assertEqual(release.config.values, [])
+        self.assertEqual(release.config.values_refs, {})
         # set empty
         new_build_body = copy.deepcopy(build_body)
         new_build_body['dryccfile']['config'] = {}
@@ -1032,5 +1032,5 @@ class ConfigTest(DryccTransactionTestCase):
             self.assertEqual(response.status_code, 201, response.data)
         release = app.release_set.latest()
         self.assertEqual(release.failed, False)
-        self.assertEqual(release.config.envs("web"), {'WEBSITE': 'www.drycc.cc'})
+        self.assertEqual(release.config.envs("web"), {})
         self.assertEqual(release.config.values_refs, {})

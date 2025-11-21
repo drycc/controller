@@ -120,32 +120,23 @@ class Build(UuidAuditedModel):
         """
         dryccfile to config
         """
-        config_values, config_values_ref, changed_fields, replace_groups = [], {}, set(), set()
+        if not self.dryccfile:
+            return self.app.release_set.filter(failed=False).latest().config
+        # create config from dryccfile
+        values, values_ref = [], {}
         for group, envs in self.dryccfile.get('config', {}).items():
             for key, value in envs.items():
-                replace_groups.add(group)
-                config_values.append({"name": key, "group": group, "value": value})
-            changed_fields.update(["values", "values_refs"])
-
-        replace_ptypes = set()
+                values.append({"name": key, "group": group, "value": value})
         for pipeline in self.dryccfile.get('pipeline', {}).values():
             if 'env' in pipeline or 'config' in pipeline:
                 for key, value in pipeline.get('env', {}).items():
-                    config_values.append({"name": key, "ptype": pipeline['ptype'], "value": value})
+                    values.append({"name": key, "ptype": pipeline['ptype'], "value": value})
                 for config_ref in pipeline.get('config', []):
-                    if pipeline['ptype'] not in config_values_ref:
-                        config_values_ref[pipeline['ptype']] = [config_ref]
+                    if pipeline['ptype'] not in values_ref:
+                        values_ref[pipeline['ptype']] = [config_ref]
                     else:
-                        config_values_ref[pipeline['ptype']].append(config_ref)
-                replace_ptypes.add(pipeline['ptype'])
-                changed_fields.update(["values", "values_refs"])
-
-        old_config = self.app.release_set.filter(failed=False).latest().config
-        if not changed_fields:
-            return old_config
+                        values_ref[pipeline['ptype']].append(config_ref)
         config = Config(
-            owner=self.owner, app=self.app, values=config_values, values_refs=config_values_ref)
-        config.merge_field("values", old_config, replace_ptypes, replace_groups)
-        config.merge_field("values_refs", old_config, replace_ptypes)
-        config.save(ignore_update_fields=changed_fields)
+            owner=self.owner, app=self.app, values=values, values_refs=values_ref)
+        config.save(ignore_update_fields=["values", "values_refs"])
         return config
