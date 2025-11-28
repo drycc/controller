@@ -1,105 +1,111 @@
 import uuid
 import logging
-import requests
+import asyncio
+import aiohttp
 from django.conf import settings
 from django.core.cache import cache
-from requests.auth import HTTPBasicAuth
+from asgiref.sync import sync_to_async
 
+from .exceptions import DryccException
 from .tasks import send_app_log
-from .utils import random_string, get_httpclient, CacheLock
+from .utils import random_string, CacheLock, get_scheduler
 
 logger = logging.getLogger(__name__)
 
 
 class FilerClient(object):
 
-    def __init__(self, app_id, volume, scheduler):
-        self.bind = ":9000"
+    def __init__(self, app_id, volume, url_path):
         self.path = "/data"
+        self.ports = (9000, 9100)
         self.app_id = app_id
         self.volume = volume
-        self.scheduler = scheduler
+        self.url_path = url_path
+        self.scheduler = get_scheduler()
 
     def log(self, message, level=logging.INFO):
         logger.log(level, "[{}]: {}".format(self.app_id, message))
-        send_app_log.delay(self.app_id, message, level)
+        send_app_log.delay(self.app_id, message, logging.INFO)
 
-    @property
-    def server(self):
+    async def bind(self):
         lock_key = f"filer:lock:{self.app_id}:{self.volume.name}"
         lock = CacheLock(lock_key)
         try:
-            lock.acquire()
-            _server = cache.get(self.cache_key, None)
-            if not _server or not self.health(_server):
-                _server = self.get_server()
-                cache.set(self.cache_key, _server, timeout=settings.DRYCC_FILER_DURATION)
+            await sync_to_async(lock.acquire)()
+            if _filer := await self.info():
+                return _filer
+            else:
+                _filer = await sync_to_async(self._filer_bind)()
+                await cache.aset(self._cache_key, _filer, timeout=settings.DRYCC_FILER_DURATION)
         finally:
-            lock.release()
-        return _server
+            await sync_to_async(lock.release)()
+        return _filer
+
+    async def info(self):
+        _filer = await cache.aget(self._cache_key, None)
+        if _filer and await self._check_health(_filer):
+            await cache.atouch(self._cache_key, timeout=settings.DRYCC_FILER_DURATION)
+            return _filer
+        return None
 
     @property
-    def cache_key(self):
+    def _cache_key(self):
         return f"filer:{self.app_id}:{self.volume.name}"
 
-    def get_server(self):
-        self.clean()  # clean old filer
-        pod_name = f"drycc-filer-{uuid.uuid4().hex}"
-        k8s_volume = {"name": self.volume.name}
+    def _filer_bind(self):
+        username, password = random_string(32), random_string(32)
+        filer = {"username": username, "password": password}
+        job_ip = self._get_job_ip(self._create_job(username, password))
+        filer.update({
+            "endpoint": f"http://{job_ip}:{self.ports[1]}",
+            "ping_url": f"http://{job_ip}:{self.ports[0]}/_/ping",
+        })
+        return filer
+
+    def _create_job(self, username, password: str) -> str:
+        job_name, k8s_volume = f"drycc-filer-{uuid.uuid4()}", {"name": self.volume.name}
         if self.volume.type == "csi":
             k8s_volume.update({"persistentVolumeClaim": {"claimName": self.volume.name}})
         else:
             k8s_volume.update(self.volume.parameters)
-        username, password = random_string(32), random_string(32)
-        self.scheduler.pod.create(self.app_id, pod_name, settings.DRYCC_FILER_IMAGE, **{
+        self.scheduler.job.create(self.app_id, job_name, settings.DRYCC_FILER_IMAGE, **{
+            "command": ["init-stack", "/usr/bin/pingguard"],
             "args": [
-                "filer",
-                "--bind", self.bind, "--path", self.path,
-                "--duration", f"{settings.DRYCC_FILER_DURATION}",
-                "--waittime", f"{settings.DRYCC_FILER_WAITTIME}",
-                "--username", f"{username}", "--password", f"{password}",
+                f"--bind=:{self.ports[0]}", f"--interval={settings.DRYCC_FILER_DURATION}s",
+                "--",
+                "rclone", "serve", "webdav", self.path, f"--addr=:{self.ports[1]}",
+                f"--user={username}", f"--pass={password}", f"--baseurl={self.url_path}",
             ],
-            "labels": {"app": self.app_id, "pod": pod_name, "volume": self.volume.name},
             "app_type": "filer", "replicas": 1, "deploy_timeout": 120, "volumes": [k8s_volume],
             "volume_mounts": [{"mountPath": self.path, "name": self.volume.name}],
             "restart_policy": "Never", "image_pull_policy": settings.DRYCC_FILER_IMAGE_PULL_POLICY,
             "pod_security_context": {"fsGroup": 1001, "runAsGroup": 1001, "runAsUser": 1001},
+            "active_deadline_seconds": 2 ** 32,
+            "ttl_seconds_after_finished": settings.DRYCC_FILER_DURATION,
         })
-        address = self.scheduler.pod.get(self.app_id, pod_name).json()["status"]["podIP"]
-        return {"address": address, "username": username, "password": password}
+        return job_name
 
-    def clean(self):
-        response = self.scheduler.pod.get(
-            self.app_id, labels={"app": self.app_id, "type": "filer"})
-        if response.status_code != 200:
-            self.log("clean up old filter errors")
-            return False
-        for item in response.json()["items"]:
-            if item['status']['phase'] in ('Succeeded', 'Failed'):
-                pod_name = item['metadata']['name']
-                self.scheduler.pod.delete(self.app_id, pod_name)
-        self.log("clean up old filter completed")
-        return True
+    def _get_job_ip(self, job_name: str) -> str:
+        state, labels = 'initializing', {'job-name': job_name}
+        for count, state in enumerate(self.scheduler.pod.watch(
+            self.app_id, labels, settings.DRYCC_PILELINE_RUN_TIMEOUT,
+            until_states=['up', 'down', 'crashed', 'error'],
+        )):
+            self.log(f"waiting for filer bind: {state} * {count}")
+        if state != 'up':
+            raise DryccException(f'filer startup failed, current status: {state}')
+        pods = self.scheduler.pod.get(self.app_id, labels=labels).json()
+        if not pods["items"]:
+            raise DryccException('filer pod not found after run completed')
+        return pods["items"][0]["status"]["podIP"]
 
-    def health(self, server):
+    async def _check_health(self, filer):
         try:
-            return self.request(
-                "OPTIONS", server, timeout=2).headers.get('server') == 'drycc-filer'
-        except requests.exceptions.Timeout:
+            async with aiohttp.ClientSession() as session:
+                async with session.get(
+                    filer["ping_url"],
+                    timeout=aiohttp.ClientTimeout(total=5),
+                ) as response:
+                    return response.status == 200
+        except (aiohttp.ClientError, asyncio.TimeoutError):
             return False
-
-    def request(self, method, server, path="/", **kwargs):
-        cache.touch(self.cache_key, timeout=settings.DRYCC_FILER_DURATION)
-        url = f"http://{server["address"]}:{self.bind.split(":")[1]}/{path}"
-        kwargs["auth"] = HTTPBasicAuth(server["username"], server["password"])
-        with get_httpclient() as session:
-            session.request(method, url, **kwargs)
-
-    def get(self, path, **kwargs):
-        return self.request("GET", self.server, path, **kwargs)
-
-    def post(self, path, **kwargs):
-        return self.request("POST", self.server, path, **kwargs)
-
-    def delete(self, path, **kwargs):
-        return self.request("DELETE", self.server, path, **kwargs)

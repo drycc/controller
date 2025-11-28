@@ -97,7 +97,7 @@ MIDDLEWARE = [
     'django.middleware.common.CommonMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
-    'api.middleware.APIVersionMiddleware',
+    'api.middleware.DjangoAPIVersionMiddleware',
 ]
 
 ROOT_URLCONF = 'drycc.urls'
@@ -178,7 +178,15 @@ REST_FRAMEWORK = {
     'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.LimitOffsetPagination',
     'PAGE_SIZE': 100,
     'TEST_REQUEST_DEFAULT_FORMAT': 'json',
-    'EXCEPTION_HANDLER': 'api.exceptions.custom_exception_handler'
+    'EXCEPTION_HANDLER': 'api.exceptions.custom_exception_handler',
+    'DEFAULT_THROTTLE_CLASSES': [
+        'rest_framework.throttling.AnonRateThrottle',
+        'rest_framework.throttling.UserRateThrottle'
+    ],
+    'DEFAULT_THROTTLE_RATES': {
+        'anon': os.environ.get('DRYCC_CONTROLLER_THROTTLE_RATES_ANON', '30/min'),
+        'user': os.environ.get('DRYCC_CONTROLLER_THROTTLE_RATES_USER', '60/min'),
+    }
 }
 
 # URLs that end with slashes are ugly
@@ -342,7 +350,6 @@ DRYCC_APPLY_TASKS = int(os.environ.get('DRYCC_APPLY_TASKS', '20'))
 DRYCC_FILER_IMAGE = os.environ.get('DRYCC_FILER_IMAGE', 'registry.drycc.cc/drycc/filer:canary')
 DRYCC_FILER_IMAGE_PULL_POLICY = os.environ.get('DRYCC_FILER_IMAGE_PULL_POLICY', 'IfNotPresent')
 DRYCC_FILER_DURATION = int(os.environ.get('DRYCC_FILER_DURATION', '3600'))
-DRYCC_FILER_WAITTIME = int(os.environ.get('DRYCC_FILER_WAITTIME', '1200'))
 
 # Define a global default on how many pods to bring up and then
 # take down sequentially during a deploy

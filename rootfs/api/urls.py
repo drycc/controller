@@ -118,15 +118,6 @@ app_urlpatterns = [
         r"^apps/(?P<id>{})/volumes/(?P<name>{})/path/?$".format(
             settings.APP_URL_REGEX, settings.NAME_REGEX),
         views.AppVolumesViewSet.as_view({'patch': 'path'})),
-    # application filer
-    re_path(
-        r"^apps/(?P<id>{})/volumes/(?P<name>{})/client/?$".format(
-            settings.APP_URL_REGEX, settings.NAME_REGEX),
-        views.AppFilerClientViewSet.as_view({'get': 'list', 'post': 'create'})),
-    re_path(
-        r"^apps/(?P<id>{})/volumes/(?P<name>{})/client/(?P<path>[\S]+)$".format(
-            settings.APP_URL_REGEX, settings.NAME_REGEX),
-        views.AppFilerClientViewSet.as_view({'get': 'retrieve', 'delete': 'destroy'})),
     # application resources
     re_path(r"^resources/services/?$", views.AppResourcesViewSet.as_view({'get': 'services'})),
     re_path(

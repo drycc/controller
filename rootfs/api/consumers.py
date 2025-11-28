@@ -2,7 +2,9 @@ import json
 import time
 import six
 import ssl
+import aiohttp
 import asyncio
+from urllib.parse import urljoin
 from django.conf import settings
 from django.core.cache import cache
 
@@ -14,38 +16,47 @@ from kubernetes.client.api import core_v1_api
 from kubernetes.stream import stream
 from kubernetes.stream.ws_client import STDOUT_CHANNEL, STDERR_CHANNEL, ERROR_CHANNEL
 
-from channels.db import database_sync_to_async
 from channels.exceptions import DenyConnection
+from channels.generic.http import AsyncHttpConsumer
 from channels.generic.websocket import AsyncWebsocketConsumer
 
 from .models.app import App
+from .models.volume import Volume
 from .permissions import has_app_permission
 
 
-class BaseAppConsumer(AsyncWebsocketConsumer):
+class AppPermChecker(object):
     timeout = 60 * 60
 
-    @database_sync_to_async
-    def has_perm(self):
+    def __init__(self, scope):
+        self.scope = scope
+
+    async def has_perm(self):
         if self.scope["user"] is None:
             return False, "user not login"
-        key = f"permission:user:{self.scope["user"].id}:app:{self.id}"
-        permission = cache.get(key)
+        app_id = self.scope["url_route"]["kwargs"]["id"]
+        key = f"permission:user:{self.scope["user"].id}:app:{app_id}"
+        permission = await cache.aget(key)
         if permission is None:
             try:
-                app = App.objects.get(id=self.id)
-                permission = has_app_permission(self.scope["user"], app, "GET")
+                app = await App.objects.aget(id=app_id)
+                permission = await sync_to_async(has_app_permission)(
+                    self.scope["user"], app, "GET")
                 if permission[0]:
-                    cache.set(key, permission, timeout=self.timeout)
+                    await cache.aset(key, permission, timeout=self.timeout)
             except App.DoesNotExist:
-                permission = (False, "user not exists")
+                permission = (False, "app not exists")
         return permission
 
+
+class BaseAppConsumer(AsyncWebsocketConsumer):
+
     async def connect(self):
-        self.id = self.scope["url_route"]["kwargs"]["id"]
-        is_ok, message = await self.has_perm()
+        app_perm_checker = AppPermChecker(self.scope)
+        is_ok, message = await app_perm_checker.has_perm()
         if is_ok:
             await self.accept()
+            self.id = self.scope["url_route"]["kwargs"]["id"]
         else:
             raise DenyConnection(message)
 
@@ -74,7 +85,7 @@ class AppPodLogsConsumer(BaseK8sConsumer):
         self.conneted = True
         self.buffer = b''
         self.delimiter = b"\r\n"
-        self.pod_id = self.scope["url_route"]["kwargs"]["pod_id"]
+        self.pod_name = self.scope["url_route"]["kwargs"]["name"]
 
     def reader(self, sock):
         self.buffer += sock.read()
@@ -98,7 +109,7 @@ class AppPodLogsConsumer(BaseK8sConsumer):
             return
         self.running = True
         data = json.loads(text_data)
-        args = (self.pod_id, self.id)
+        args = (self.pod_name, self.id)
         lines = data.get("lines", 300)
         follow = data.get("follow", False)
         previous = data.get("previous", False)
@@ -134,7 +145,7 @@ class AppPodExecConsumer(BaseK8sConsumer):
         await super().connect()
         self.stream = None
         self.conneted = True
-        self.pod_id = self.scope["url_route"]["kwargs"]["pod_id"]
+        self.pod_name = self.scope["url_route"]["kwargs"]["name"]
 
     async def send(self, data, channel=STDOUT_CHANNEL):
         channel_prefix = chr(channel)
@@ -177,7 +188,7 @@ class AppPodExecConsumer(BaseK8sConsumer):
 
     async def receive(self, text_data=None, bytes_data=None):
         if self.stream is None and text_data is not None:
-            args = (self.kubernetes.connect_get_namespaced_pod_exec, self.pod_id, self.id)
+            args = (self.kubernetes.connect_get_namespaced_pod_exec, self.pod_name, self.id)
             kwargs = json.loads(text_data)
             kwargs.update({"stderr": True, "stdout": True, "_preload_content": False})
             self.stream = await sync_to_async(stream)(*args, **kwargs)
@@ -188,3 +199,96 @@ class AppPodExecConsumer(BaseK8sConsumer):
             await sync_to_async(self.stream.write_channel)(channel, data)
         else:
             raise ValueError("This operation is not supported!")
+
+
+class FilerProxyConsumer(AsyncHttpConsumer):
+    from .middleware import ChannelOAuthMiddleware
+    chunk_size = 64 * 1024
+    middleware = ChannelOAuthMiddleware(None)
+    SKIP_REQUEST_HEADERS = {
+        'host', 'connection', 'keep-alive', 'proxy-connection', 'te', 'trailers', 'upgrade',
+    }
+    SKIP_RESPONSE_HEADERS = {
+        'connection', 'keep-alive', 'proxy-authenticate', 'proxy-authorization', 'te', 'trailers',
+        'transfer-encoding', 'upgrade',
+    }
+
+    async def handle(self, body: bytes):
+        path = self.scope["url_route"]["kwargs"]["path"]
+        client = await self._get_client(url_path=f"{self.scope["path"].removesuffix(path)}webdav/")
+        if not client:
+            await self.send_response(status=404, body=b'app or volume not found')
+            return
+        if path in ['_/ping', '_/bind']:  # need authentication
+            await self._handle_controller_request(client, path)
+            return
+        elif not path.startswith('webdav/') or (filer := await client.info()) is None:
+            await self.send_response(status=428, body=b'filer service unavailable')
+            return
+        filer_target_url = "{}?{}".format(
+            urljoin(filer["endpoint"], self.scope["path"]), self.scope.get("query_string"))
+        method = self.scope['method'].upper()
+        headers = {
+            name_bytes.decode('latin-1').lower(): value_bytes.decode('latin-1')
+            for name_bytes, value_bytes in self.scope.get('headers', [])
+            if name_bytes.decode('latin-1').lower() not in self.SKIP_REQUEST_HEADERS
+        }
+        await self._handle_proxy_request(filer_target_url, method, headers, body)
+
+    async def _get_client(self, url_path):
+        try:
+            from .filer import FilerClient
+            app = await App.objects.aget(id=self.scope["url_route"]["kwargs"]["id"])
+            volume = await Volume.objects.filter(
+                app=app, name=self.scope["url_route"]["kwargs"]["name"]).afirst()
+            if not volume:
+                return None
+            return FilerClient(app.id, volume, url_path)
+        except App.DoesNotExist:
+            return None
+
+    async def _forward_response(self, response: aiohttp.ClientResponse):
+        response_headers = [
+            [name.encode('latin-1'), value.encode('latin-1')]
+            for name, value in response.headers.items()
+            if name.lower() not in self.SKIP_RESPONSE_HEADERS
+        ]
+        await self.send_headers(status=response.status, headers=response_headers)
+        async for chunk in response.content.iter_chunked(self.chunk_size):
+            if chunk:
+                await self.send_body(chunk, more_body=True)
+        # Send final empty chunk to indicate end of body
+        await self.send_body(b'', more_body=False)
+
+    async def _handle_proxy_request(self, url, method: str, headers: dict[str, str], data: bytes):
+        async with aiohttp.ClientSession(
+            timeout=aiohttp.ClientTimeout(total=settings.DRYCC_FILER_DURATION)
+        ) as session:
+            try:
+                async with session.request(
+                    method=method, url=url, headers=headers, data=data, allow_redirects=False
+                ) as response:
+                    await self._forward_response(response)
+            except aiohttp.ClientError as e:
+                await self.send_response(502, f"proxy service unavailable: {e}".encode('utf-8'))
+            except asyncio.TimeoutError:
+                await self.send_response(504, b'proxy request to backend filer timeout')
+
+    async def _handle_controller_request(self, client, path: str):
+        await self.middleware.login(self.scope)
+        app_perm_checker = AppPermChecker(self.scope)
+        is_ok, message = await app_perm_checker.has_perm()
+        status, body = 200, b''
+        if not is_ok:
+            status, body = 403, message.encode('utf-8')
+        elif path == '_/ping':
+            if (filer := await client.info()) is not None:
+                body = b'pong'
+            else:
+                status, body = 503, b'filer service unavailable'
+        elif path == '_/bind':
+            filer = await client.bind()
+            body = json.dumps({
+                "username": filer["username"], "password": filer["password"],
+            }).encode('utf-8')
+        await self.send_response(status, body)

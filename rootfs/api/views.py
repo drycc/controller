@@ -41,15 +41,15 @@ from api.exceptions import AlreadyExists, ServiceUnavailable, DryccException
 from django.views.decorators.cache import never_cache
 from django.contrib.auth import REDIRECT_FIELD_NAME
 from django.views.decorators.csrf import csrf_exempt
-from django.http.response import FileResponse, JsonResponse, StreamingHttpResponse
+from django.http.response import JsonResponse, StreamingHttpResponse
 from channels.db import database_sync_to_async
 from social_django.utils import psa
 from social_django.views import _do_login
 from social_core.utils import setting_name
-from api import admissions, utils, filer
+from api import admissions, utils
 from api.backend import OauthCacheManager
 from api.apps_extra.social_core.actions import do_auth, do_complete
-from api.files.parsers import FilerUploadParser
+
 
 User = get_user_model()
 logger = logging.getLogger(__name__)
@@ -1000,51 +1000,6 @@ class AppVolumesViewSet(AppFilterViewSet):
         mount_app.delay(app, self.request.user, volume, path)
         serializer = self.get_serializer(volume, many=False)
         return Response(serializer.data)
-
-
-class AppFilerClientViewSet(AppFilterViewSet):
-    """RESTful views for volumes apps with collaborators."""
-    model = models.volume.Volume
-    parser_classes = [FilerUploadParser]
-
-    def get_client(self):
-        volume = get_object_or_404(
-            models.volume.Volume, app=self.get_app(), name=self.kwargs['name'])
-        return filer.FilerClient(volume.app.id, volume, volume.app.scheduler)
-
-    def list(self, request, **kwargs):
-        path = request.query_params.get('path', '')
-        client = self.get_client()
-        response = client.get(path, params={"action": "list"})
-        if response.status_code == 200:
-            results = response.json()
-            # fake out pagination for now
-            pagination = {'results': results, 'count': len(results)}
-            return Response(data=pagination)
-        return Response(status=response.status_code, data=response.text)
-
-    def retrieve(self, request, **kwargs):
-        path = self.kwargs.get('path', '')
-        client = self.get_client()
-        chunk_size = 1024 * 1024 * 2
-        response = client.get(path, stream=True, params={"action": "get"})
-        return FileResponse(
-            status=response.status_code,
-            headers=response.headers,
-            streaming_content=utils.iter_to_aiter(response.iter_content(chunk_size=chunk_size)),
-        )
-
-    def create(self, request, **kwargs):
-        client = self.get_client()
-        file = request.data['file']
-        response = client.post(file.filepath, files=request.FILES)
-        return Response(data=response.content, status=response.status_code)
-
-    def destroy(self, request, **kwargs):
-        path = self.kwargs.get('path', '')
-        client = self.get_client()
-        response = client.delete(path)
-        return Response(data=response.content, status=response.status_code)
 
 
 class AppResourcesViewSet(AppFilterViewSet):
