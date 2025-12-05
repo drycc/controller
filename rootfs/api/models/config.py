@@ -16,19 +16,18 @@ class Config(UuidAuditedModel):
     Set of configuration values applied as environment variables
     during runtime execution of the Application.
     """
-    ptype_fields = ("lifecycle_post_start", "lifecycle_pre_stop", "tags", "limits",
-                    "values_refs", "healthcheck", "termination_grace_period", "registry")
+    ptype_fields = ("lifecycle", "tags", "limits", "values_refs", "healthcheck",
+                    "termination_grace_period", "registry")
     allof_fields = ("values", ) + ptype_fields
 
     owner = models.ForeignKey(User, on_delete=models.PROTECT)
     app = models.ForeignKey('App', on_delete=models.CASCADE)
     values = models.JSONField(default=list, blank=True)
     values_refs = models.JSONField(default=dict, blank=True)
-    lifecycle_post_start = models.JSONField(default=dict, blank=True)
-    lifecycle_pre_stop = models.JSONField(default=dict, blank=True)
     tags = models.JSONField(default=dict, blank=True)
     limits = models.JSONField(default=dict, blank=True)
     registry = models.JSONField(default=dict, blank=True)
+    lifecycle = models.JSONField(default=dict, blank=True)
     healthcheck = models.JSONField(default=dict, blank=True)
     termination_grace_period = models.JSONField(default=dict, blank=True)
 

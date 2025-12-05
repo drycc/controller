@@ -1,4 +1,3 @@
-from collections import defaultdict
 from datetime import datetime, timedelta, timezone
 import operator
 import os
@@ -236,8 +235,8 @@ class Pod(Resource):
         self._set_container_default_env(data)
         # list sorted by dict key name
         data['env'].sort(key=operator.itemgetter('name'))
+        data['lifecycle'] = data.get('lifecycle', {})
         self._set_health_checks(data, env, **kwargs)
-        self._set_lifecycle_hooks(data, env, **kwargs)
 
     def _set_container_default_env(self, data):
         # set fields env
@@ -285,38 +284,6 @@ class Pod(Resource):
             # If routable, set the default probe
             container.update(
                 self._default_container_readiness_probe(env.get('PORT', DEFAULT_CONTAINER_PORT)))
-
-    @staticmethod
-    def _set_lifecycle_hooks(container, env, **kwargs):
-        app_type = kwargs.get("app_type")
-        lifecycle_post_start = kwargs.get('lifecycle_post_start', {})
-        lifecycle_post_start = lifecycle_post_start.get(app_type)
-        lifecycle_pre_stop = kwargs.get('lifecycle_pre_stop', {})
-        lifecycle_pre_stop = lifecycle_pre_stop.get(app_type)
-        if lifecycle_post_start or lifecycle_pre_stop:
-            lifecycle = defaultdict(dict)
-
-            if lifecycle_post_start:
-                lifecycle["postStart"] = {
-                        'exec': {
-                            "command": [
-                                "/bin/bash",
-                                "-c",
-                                "{0}".format(lifecycle_post_start)
-                            ]
-                        }
-                }
-            if lifecycle_pre_stop:
-                lifecycle["preStop"] = {
-                        'exec': {
-                            "command": [
-                                "/bin/bash",
-                                "-c",
-                                "{0}".format(lifecycle_pre_stop)
-                            ]
-                        }
-                }
-            container["lifecycle"] = dict(lifecycle)
 
     @staticmethod
     def _default_container_readiness_probe(port, delay=5, timeout=5, period_seconds=5,

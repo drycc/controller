@@ -1227,7 +1227,6 @@ class App(UuidAuditedModel):
         routable = True if (
             ptype == PTYPE_WEB and app_settings.routable) else False
 
-        healthcheck = config.healthcheck.get(ptype, {})
         volumes, volume_mounts = self._get_volumes_and_mounts(ptype, volumes)
         volumes.extend(limit_plan.pod_volumes)
         volume_mounts.extend(limit_plan.container_volume_mounts)
@@ -1241,11 +1240,10 @@ class App(UuidAuditedModel):
             'resources': {"limits": limit_plan.limits, "requests": limit_plan.requests},
             'build_type': release.build.type,
             'annotations': limit_plan.annotations,
-            'healthcheck': healthcheck,
+            'lifecycle': config.lifecycle.get(ptype, {}),
+            'healthcheck': config.healthcheck.get(ptype, {}),
             'runtime_class_name': limit_plan.runtime_class_name,
             'dns_policy': settings.DRYCC_APP_DNS_POLICY,
-            'lifecycle_post_start': config.lifecycle_post_start.get(ptype, {}),
-            'lifecycle_pre_stop': config.lifecycle_pre_stop.get(ptype, {}),
             'routable': routable,
             'deploy_batches': batches,
             'restart_policy': "Always",
