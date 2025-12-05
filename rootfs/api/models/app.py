@@ -1205,9 +1205,13 @@ class App(UuidAuditedModel):
             settings.KUBERNETES_DEPLOYMENTS_REVISION_HISTORY_LIMIT)
 
         # get application level pod termination grace period
-        pod_termination_grace_period_seconds = int(envs.get(
-            'KUBERNETES_POD_TERMINATION_GRACE_PERIOD_SECONDS',
-            settings.KUBERNETES_POD_TERMINATION_GRACE_PERIOD_SECONDS))
+        termination_grace_period_seconds = int(config.termination_grace_period.get(
+            ptype,
+            envs.get(
+                'KUBERNETES_POD_TERMINATION_GRACE_PERIOD_SECONDS',
+                settings.KUBERNETES_POD_TERMINATION_GRACE_PERIOD_SECONDS
+            )
+        ))
 
         # set the image pull policy that is associated with the application container
         image_pull_policy = envs.get('IMAGE_PULL_POLICY', settings.IMAGE_PULL_POLICY)
@@ -1240,16 +1244,15 @@ class App(UuidAuditedModel):
             'healthcheck': healthcheck,
             'runtime_class_name': limit_plan.runtime_class_name,
             'dns_policy': settings.DRYCC_APP_DNS_POLICY,
-            'lifecycle_post_start': config.lifecycle_post_start,
-            'lifecycle_pre_stop': config.lifecycle_pre_stop,
+            'lifecycle_post_start': config.lifecycle_post_start.get(ptype, {}),
+            'lifecycle_pre_stop': config.lifecycle_pre_stop.get(ptype, {}),
             'routable': routable,
             'deploy_batches': batches,
             'restart_policy': "Always",
             'deploy_timeout': deploy_timeout,
             'deployment_revision_history_limit': deployment_history,
             'release_summary': release.summary,
-            'pod_termination_grace_period_seconds': pod_termination_grace_period_seconds,
-            'pod_termination_grace_period_each': config.termination_grace_period,
+            'termination_grace_period_seconds': termination_grace_period_seconds,
             'image_pull_secret_name': image_pull_secret_name,
             'image_pull_policy': image_pull_policy,
             'volumes': volumes,

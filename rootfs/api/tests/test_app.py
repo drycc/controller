@@ -628,25 +628,28 @@ class AppTest(DryccTestCase):
         url = f"/v2/apps/{app.id}/build"
         response = self.client.post(url, data)
         self.assertEqual(response.status_code, 201, response.data)
-        Config.objects.create(
-            owner=self.user,
-            app=app,
-            values=[
+        # Set some app settings
+        url = f"/v2/apps/{app.id}/config"
+        body = {
+            'values': [
                 {"name": "DRYCC_DEPLOY_TIMEOUT", "value": "60", "group": "global"},
                 {"name": "DRYCC_DEPLOY_BATCHES", "value": "3", "group": "global"},
                 {
                     "name": "KUBERNETES_POD_TERMINATION_GRACE_PERIOD_SECONDS",
-                    "value": "60", "group": "global"
+                    "value": "90", "group": "global"
                 },
-            ]
-        )
+            ],
+        }
+        response = self.client.post(url, body)
+        self.assertEqual(response.status_code, 201, response.data)
+        # Gather app settings
         s = app._gather_app_settings(app.release_set.latest(),
                                      app.appsettings_set.latest(),
                                      'web',
                                      3)
-        assert isinstance(s['deploy_batches'], int)
-        assert isinstance(s['deploy_timeout'], int)
-        assert isinstance(s['pod_termination_grace_period_seconds'], int)
+        self.assertEqual(s['deploy_batches'], 3)
+        self.assertEqual(s['deploy_timeout'], 60)
+        self.assertEqual(s['termination_grace_period_seconds'], 90)
 
     def test_app_name_bad_regex(self, mock_requests):
         """

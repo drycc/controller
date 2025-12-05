@@ -25,7 +25,7 @@ class PodsTest(TestCase):
             'app_type': kwargs.get('app_type', 'web'),
             'version': kwargs.get('version', 'v99'),
             'replicas': kwargs.get('replicas', 4),
-            'pod_termination_grace_period_seconds': 2,
+            'termination_grace_period_seconds': 2,
             'image': 'quay.io/fake/image',
             'command': 'sh',
             'args': 'start',

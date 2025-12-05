@@ -169,7 +169,7 @@ class Pod(Resource):
         spec['nodeSelector'].update(kwargs.get('tags', {}))
 
         # How long until a pod is forcefully terminated. 30 is kubernetes default
-        spec['terminationGracePeriodSeconds'] = self._get_termination_grace_period(kwargs)  # noqa
+        spec['terminationGracePeriodSeconds'] = kwargs.get('termination_grace_period_seconds', 30)
         # set pod volumes
         spec['volumes'] = kwargs.get('volumes', [])
         # create the base container
@@ -257,15 +257,6 @@ class Pod(Resource):
         if os.environ.get("DRYCC_DEBUG", False):
             data["env"].append({"name": "DRYCC_DEBUG", "value": "1"})
         return data
-
-    @staticmethod
-    def _get_termination_grace_period(kwargs):
-        """ return termination grace period """
-        app_type = kwargs.get("app_type")
-        timeout_global = kwargs.get('pod_termination_grace_period_seconds', 30)
-        timeout_local = kwargs.get("pod_termination_grace_period_each", {}).get(app_type)
-
-        return timeout_global if timeout_local is None else int(timeout_local)
 
     @staticmethod
     def _get_memory(size):
