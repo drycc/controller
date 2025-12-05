@@ -1,4 +1,6 @@
 import logging
+from copy import deepcopy
+from collections import defaultdict
 from django.db import models
 from django.contrib.auth import get_user_model
 from api.exceptions import DryccException
@@ -62,6 +64,25 @@ class Build(UuidAuditedModel):
     @property
     def version(self):
         return 'git-{}'.format(self.sha) if self.source_based else 'latest'
+
+    def merge(self, config):
+        if self.dryccfile and any({"values", "values_refs"} & set(config.diff(None).keys())):
+            dryccfile = deepcopy(self.dryccfile)
+            ptype_env, group_env = defaultdict(dict), defaultdict(dict)
+            for value in config.values:
+                if "ptype" in value:
+                    ptype_env[value["ptype"]][value["name"]] = value["value"]
+                if "group" in value:
+                    group_env[value["group"]][value["name"]] = value["value"]
+            dryccfile['config'] = dict(group_env)
+            for pipeline in dryccfile['pipeline'].values():
+                pipeline['env'] = ptype_env[pipeline['ptype']]
+                pipeline['config'] = config.values_refs.get(pipeline['ptype'], [])
+            return Build.objects.create(
+                owner=config.owner, app=self.app, image=self.image, stack=self.stack, sha=self.sha,
+                procfile=self.procfile, dryccfile=dryccfile, dockerfile=self.dockerfile,
+            )
+        return self
 
     def get_image(self, ptype, default_image=None):
         pipeline = self.get_pipeline(ptype)

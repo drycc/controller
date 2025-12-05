@@ -477,8 +477,8 @@ class ConfigViewSet(ReleasableViewSet):
     def post_save(self, config):
         latest_release = models.release.Release.latest(self.get_app())
         try:
-            release = latest_release.new(
-                self.request.user, config=config, build=latest_release.build)
+            build = latest_release.build.merge(config) if latest_release.build else None
+            release = latest_release.new(self.request.user, config=config, build=build)
             if release.build and config.app.appsettings_set.latest().autodeploy:
                 release.deploy(release.ptypes, False)
         except BaseException as e:

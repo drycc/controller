@@ -1034,3 +1034,81 @@ class ConfigTest(DryccTransactionTestCase):
         self.assertEqual(release.failed, False)
         self.assertEqual(release.config.envs("web"), {})
         self.assertEqual(release.config.values_refs, {})
+
+        # test config modification creates new build with merged dryccfile
+        # First, create a build with dryccfile
+        build_body_with_dryccfile = copy.deepcopy(build_body)
+        build_body_with_dryccfile['dryccfile']['config'] = {
+            "mygroup1": {
+                "GROUP": "g1",
+                "DEBUG": "tr",
+            }
+        }
+        build_body_with_dryccfile['dryccfile']['pipeline']['web.yaml']['env'] = {
+            "PENV1": "web"
+        }
+        build_body_with_dryccfile['dryccfile']['pipeline']['web.yaml']['config'] = [
+            "mygroup1"
+        ]
+        with mock.patch('scheduler.resources.pod.Pod.watch') as mock_kube:
+            mock_kube.return_value = ['up', 'down']
+            url = f"/v2/apps/{app_id}/build"
+            response = self.client.post(url, build_body_with_dryccfile)
+            self.assertEqual(response.status_code, 201, response.data)
+
+        # Get the latest release and build
+        release = app.release_set.latest()
+        initial_build = release.build
+        self.assertIsNotNone(initial_build.dryccfile)
+
+        # Now modify config - this should trigger build.merge() and create a new build
+        config_values = [
+            {"name": "NEW_CONFIG", "value": "new_value", "group": "mygroup1"},
+            {"name": "PENV2", "value": "web2", "ptype": "web"}
+        ]
+        body = {'values': config_values}
+        url = f"/v2/apps/{app_id}/config"
+        response = self.client.post(url, body)
+        self.assertEqual(response.status_code, 201, response.data)
+
+        # Check that a new release was created
+        new_release = app.release_set.latest()
+        self.assertNotEqual(release.uuid, new_release.uuid)
+
+        # Check that a new build was created with merged dryccfile
+        new_build = new_release.build
+        self.assertIsNotNone(new_build)
+        self.assertNotEqual(initial_build.uuid, new_build.uuid)
+
+        # Verify dryccfile was merged with config values
+        self.assertIn('dryccfile', new_build.__dict__)
+        dryccfile = new_build.dryccfile
+
+        # Check config groups were merged
+        self.assertIn('config', dryccfile)
+        self.assertIn('mygroup1', dryccfile['config'])
+        self.assertEqual(dryccfile['config']['mygroup1']['GROUP'], 'g1')
+        self.assertEqual(dryccfile['config']['mygroup1']['DEBUG'], 'tr')
+        self.assertEqual(dryccfile['config']['mygroup1']['NEW_CONFIG'], 'new_value')
+
+        # Check ptype envs were merged
+        self.assertIn('pipeline', dryccfile)
+        self.assertIn('web.yaml', dryccfile['pipeline'])
+        self.assertIn('env', dryccfile['pipeline']['web.yaml'])
+        self.assertEqual(dryccfile['pipeline']['web.yaml']['env']['PENV1'], 'web')
+        self.assertEqual(dryccfile['pipeline']['web.yaml']['env']['PENV2'], 'web2')
+
+        # Check config refs
+        self.assertIn('config', dryccfile['pipeline']['web.yaml'])
+        self.assertEqual(dryccfile['pipeline']['web.yaml']['config'], ['mygroup1'])
+
+        # Verify config values are correct
+        config = new_release.config
+        expected_envs = {
+            'GROUP': 'g1',
+            'DEBUG': 'tr',
+            'NEW_CONFIG': 'new_value',
+            'PENV1': 'web',
+            'PENV2': 'web2'
+        }
+        self.assertEqual(config.envs("web"), expected_envs)
