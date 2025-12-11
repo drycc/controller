@@ -235,7 +235,7 @@ class Pod(Resource):
         self._set_container_default_env(data)
         # list sorted by dict key name
         data['env'].sort(key=operator.itemgetter('name'))
-        data['lifecycle'] = data.get('lifecycle', {})
+        data['lifecycle'] = kwargs.get('lifecycle', {})
         self._set_health_checks(data, env, **kwargs)
 
     def _set_container_default_env(self, data):
