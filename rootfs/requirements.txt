@@ -3,7 +3,7 @@ inotify==0.2.12
 backoff==2.2.1
 django==5.2.9
 channels==4.3.1
-aiohttp==3.13.2
+aiohttp==3.13.3
 django-cors-headers==4.9.0
 django-guardian==3.2.0
 djangorestframework==3.16.1
