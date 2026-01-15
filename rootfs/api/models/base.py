@@ -120,7 +120,7 @@ class Token(UuidAuditedModel):
         ) + ''.join(random.choices(string.ascii_letters, k=96))
 
     def refresh_token(self):
-        from api.backend import DryccOIDC
+        from api.apps_extra.social_core.backends import DryccOIDC
         drycc_open_connect = DryccOIDC()
         self.oauth = drycc_open_connect.refresh_token(self.oauth['refresh_token'])
         self.save()

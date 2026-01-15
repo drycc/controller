@@ -39,7 +39,7 @@ def do_auth(backend, redirect_name="next"):
         query = urlparse("?" + form_data).query
         params = parse_qs(query)
         return {key: params[key][0] for key in params}
-    from api.backend import OauthCacheManager
+    from api.apps_extra.social_core.backends import OauthCacheManager
     oauth_cache_manager = OauthCacheManager()
     oauth_cache_manager.set_state(data.get("key", ""), form2json(url).get("state"))
     return response
@@ -129,7 +129,7 @@ def do_complete(backend, login, user=None, redirect_name="next", *args, **kwargs
     if social_auth and social_auth.extra_data:
         extra_data = json.loads(social_auth.extra_data) if \
             isinstance(social_auth.extra_data, str) else social_auth.extra_data
-    from api.backend import OauthCacheManager
+    from api.apps_extra.social_core.backends import OauthCacheManager
     oauth_cache_manager = OauthCacheManager()
     oauth_cache_manager.set_token(data.get("state"), extra_data)
     return response

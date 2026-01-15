@@ -47,7 +47,7 @@ from social_django.utils import psa
 from social_django.views import _do_login
 from social_core.utils import setting_name
 from api import admissions, utils
-from api.backend import OauthCacheManager
+from api.apps_extra.social_core.backends import OauthCacheManager
 from api.apps_extra.social_core.actions import do_auth, do_complete
 
 
@@ -122,12 +122,15 @@ class AuthLoginView(GenericViewSet):
         return redirect(f"{uri[0:uri.find(self.request.path)]}/v2/login/drycc/?key={key}")
 
     def _create_interactive_response(self, username, password, key):
+        # Get token endpoint from OIDC discovery
+        token_url = oauth_cache_manager.drycc_oauth.access_token_url()
+        client_id, client_secret = oauth_cache_manager.drycc_oauth.get_key_and_secret()
         response = requests.post(
-            settings.SOCIAL_AUTH_DRYCC_ACCESS_TOKEN_URL,
+            token_url,
             data={
                 'grant_type': 'password',
-                'client_id': settings.SOCIAL_AUTH_DRYCC_KEY,
-                'client_secret': settings.SOCIAL_AUTH_DRYCC_SECRET,
+                'client_id': client_id,
+                'client_secret': client_secret,
                 'username': username,
                 'password': password,
             },

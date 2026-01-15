@@ -4,7 +4,6 @@ from django.core.cache import cache
 from django.contrib.auth import get_user_model
 from django.utils.translation import gettext_lazy
 
-from social_core.utils import cache as social_cache
 from social_core.backends.open_id_connect import OpenIdConnectAuth
 from rest_framework import exceptions
 
@@ -16,12 +15,6 @@ User = get_user_model()
 class DryccOIDC(OpenIdConnectAuth):
     """Drycc Openid Connect authentication backend"""
     name = 'drycc'
-    AUTHORIZATION_URL = settings.SOCIAL_AUTH_DRYCC_AUTHORIZATION_URL
-    ACCESS_TOKEN_URL = settings.SOCIAL_AUTH_DRYCC_ACCESS_TOKEN_URL
-    USERINFO_URL = settings.SOCIAL_AUTH_DRYCC_USERINFO_URL
-    JWKS_URI = settings.SOCIAL_AUTH_DRYCC_JWKS_URI
-    OIDC_ENDPOINT = settings.SOCIAL_AUTH_DRYCC_OIDC_ENDPOINT
-    DEFAULT_SCOPE = ['openid', 'profile', 'email']
     EXTRA_DATA = [
         ('id', 'id'),
         ('access_token', 'access_token'),
@@ -32,20 +25,10 @@ class DryccOIDC(OpenIdConnectAuth):
         ('scope', 'scope'),
     ]
 
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-
-    @social_cache(ttl=86400)
-    def oidc_config(self):
-        return self.get_json(
-            self.OIDC_ENDPOINT + '/.well-known/openid-configuration/'
-        )
-
     def get_user_data(self, access_token):
         """Loads user data from service"""
-        url = settings.SOCIAL_AUTH_DRYCC_USERINFO_URL
         response = self.get_json(
-            url,
+            self.userinfo_url(),
             headers={
                 'authorization': 'Bearer ' + access_token
             },
@@ -62,12 +45,13 @@ class DryccOIDC(OpenIdConnectAuth):
         }
 
     def refresh_token(self, refresh_token):
+        # Get token URL from OIDC discovery if not already cached
         return self.get_json(
-            settings.SOCIAL_AUTH_DRYCC_ACCESS_TOKEN_URL,
+            self.access_token_url(),
             method='POST',
             data={
                 'grant_type': 'refresh_token',
-                'client_id': settings.SOCIAL_AUTH_DRYCC_KEY,
+                'client_id': self.get_key_and_secret()[0],
                 'refresh_token': refresh_token,
             },
         )

@@ -47,7 +47,7 @@ class DryccAuthentication(authentication.BaseAuthentication):
             return None
         try:
             if token_type == 'bearer':  # drycc oauth access token
-                from api.backend import OauthCacheManager
+                from api.apps_extra.social_core.backends import OauthCacheManager
                 return OauthCacheManager().get_user(token), token
             # drycc token
             user = cache.get(token, None)
@@ -69,7 +69,7 @@ class DryccAuthentication(authentication.BaseAuthentication):
             raise exceptions.AuthenticationFailed(gettext_lazy('User inactive or deleted.'))
         if token.expires():
             try:
-                from api.backend import OauthCacheManager
+                from api.apps_extra.social_core.backends import OauthCacheManager
                 user = OauthCacheManager().get_user(token.oauth['access_token'])
                 cache.set(key, user, timeout=token.oauth['expires_in'])
                 token.refresh_token()

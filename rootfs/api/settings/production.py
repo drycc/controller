@@ -127,6 +127,7 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 AUTHENTICATION_BACKENDS = (
     "django.contrib.auth.backends.ModelBackend",
     "guardian.backends.ObjectPermissionBackend",
+    "api.apps_extra.social_core.backends.DryccOIDC",
 )
 GUARDIAN_GET_INIT_ANONYMOUS_USER = 'api.models.base.get_anonymous_user_instance'
 ANONYMOUS_USER_NAME = os.environ.get('ANONYMOUS_USER_NAME', 'AnonymousUser')
@@ -431,41 +432,19 @@ LOGIN_REDIRECT_URL = os.environ.get(
     f'{DRYCC_PASSPORT_URL}/user/login/done/',
 )
 
+# social auth settings
 SOCIAL_AUTH_DRYCC_KEY = os.environ.get(
     "DRYCC_PASSPORT_KEY",
     os.environ.get("SOCIAL_AUTH_DRYCC_KEY"),
 )
-
 SOCIAL_AUTH_DRYCC_SECRET = os.environ.get(
     'DRYCC_PASSPORT_SECRET',
     os.environ.get("SOCIAL_AUTH_DRYCC_SECRET"),
-)
-
-SOCIAL_AUTH_DRYCC_AUTHORIZATION_URL = os.environ.get(
-    'SOCIAL_AUTH_DRYCC_AUTHORIZATION_URL',
-    f'{DRYCC_PASSPORT_URL}/oauth/authorize/',
-)
-SOCIAL_AUTH_DRYCC_ACCESS_TOKEN_URL = os.environ.get(
-    'SOCIAL_AUTH_DRYCC_ACCESS_TOKEN_URL',
-    f'{DRYCC_PASSPORT_URL}/oauth/token/'
-)
-SOCIAL_AUTH_DRYCC_ACCESS_API_URL = os.environ.get(
-    'SOCIAL_AUTH_DRYCC_ACCESS_API_URL',
-    f'{DRYCC_PASSPORT_URL}'
-)
-SOCIAL_AUTH_DRYCC_USERINFO_URL = os.environ.get(
-    'SOCIAL_AUTH_DRYCC_USERINFO_URL',
-    f'{DRYCC_PASSPORT_URL}/oauth/userinfo/'
-)
-SOCIAL_AUTH_DRYCC_JWKS_URI = os.environ.get(
-    'SOCIAL_AUTH_DRYCC_JWKS_URI',
-    f'{DRYCC_PASSPORT_URL}/oauth/.well-known/jwks.json'
 )
 SOCIAL_AUTH_DRYCC_OIDC_ENDPOINT = os.environ.get(
     'SOCIAL_AUTH_DRYCC_OIDC_ENDPOINT',
     f'{DRYCC_PASSPORT_URL}/oauth'
 )
-
 SOCIAL_AUTH_JSONFIELD_ENABLED = True
 SOCIAL_AUTH_PIPELINE = (
     'social_core.pipeline.social_auth.social_details',
@@ -473,12 +452,11 @@ SOCIAL_AUTH_PIPELINE = (
     'social_core.pipeline.social_auth.social_user',
     'social_core.pipeline.user.get_username',
     'social_core.pipeline.social_auth.associate_by_email',
-    'api.pipeline.update_or_create',
+    'api.apps_extra.social_core.pipelines.update_or_create',
     'social_core.pipeline.social_auth.associate_user',
     'social_core.pipeline.social_auth.load_extra_data',
     'social_core.pipeline.user.user_details',
 )
-AUTHENTICATION_BACKENDS = ("api.backend.DryccOIDC", ) + AUTHENTICATION_BACKENDS
 DRYCC_CACHE_USER_TIME = int(os.environ.get('DRYCC_CACHE_USER_TIME', 30 * 60))
 
 # Cache Valkey Configuration
