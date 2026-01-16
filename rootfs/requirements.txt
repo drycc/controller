@@ -15,7 +15,7 @@ idna==3.11
 jsonschema==4.25.1
 morph==0.1.5
 packaging==25.0
-pyasn1==0.6.1
+pyasn1==0.6.2
 psycopg[binary]==3.2.12
 pyOpenSSL==25.3.0
 ndg-httpsclient==0.5.1
