@@ -10,3 +10,4 @@
 ^mount-s3$
 ^topolvm$
 ^rook-ceph$
+^personal$
