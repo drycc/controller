@@ -17,7 +17,7 @@ morph==0.1.5
 packaging==25.0
 pyasn1==0.6.2
 psycopg[binary]==3.2.12
-pyOpenSSL==25.3.0
+pyOpenSSL==26.0.0
 ndg-httpsclient==0.5.1
 pytz==2025.2
 requests==2.32.5
