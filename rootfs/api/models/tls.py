@@ -24,7 +24,6 @@ def default_issuer():
 
 
 class TLS(UuidAuditedModel):
-    owner = models.ForeignKey(User, on_delete=models.PROTECT)
     app = models.ForeignKey('App', on_delete=models.CASCADE)
     issuer = models.JSONField(default=default_issuer)
     https_enforced = models.BooleanField(null=True)
@@ -134,12 +133,12 @@ class TLS(UuidAuditedModel):
             if self.https_enforced is not None:
                 if previous_tls_settings.https_enforced == self.https_enforced:
                     raise AlreadyExists(
-                        "{} changed nothing".format(self.owner))
+                        "{} changed nothing".format(self.app.workspace.name))
                 self.certs_auto_enabled = previous_tls_settings.certs_auto_enabled
             elif self.certs_auto_enabled is not None:
                 if previous_tls_settings.certs_auto_enabled == self.certs_auto_enabled:
                     raise AlreadyExists(
-                        "{} changed nothing".format(self.owner))
+                        "{} changed nothing".format(self.app.workspace.name))
                 self.https_enforced = previous_tls_settings.https_enforced
             previous_tls_settings.delete()
         except TLS.DoesNotExist:

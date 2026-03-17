@@ -6,26 +6,12 @@ Django admin app configuration for Drycc API models.
 
 
 from django.contrib import admin
-from guardian.admin import GuardedModelAdmin
 
-from .models import App
 from .models import Build
 from .models import Config
 from .models import Domain
 from .models import Key
 from .models import Release
-
-
-class AppAdmin(GuardedModelAdmin):
-    """Set presentation options for :class:`~api.models.App` models
-    in the Django admin.
-    """
-    date_hierarchy = 'created'
-    list_display = ('id', 'owner')
-    list_filter = ('owner',)
-
-
-admin.site.register(App, AppAdmin)
 
 
 class BuildAdmin(admin.ModelAdmin):

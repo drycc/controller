@@ -40,18 +40,18 @@ class ManagerTest(DryccTransactionTestCase):
 
     def test_block(self, mock_requests):
         response = self.client.post(
-            '/v2/manager/{}/{}/block/'.format("users", 7),
+            '/v2/manager/{}/{}/block/'.format("apps", self.app_id),
             data={'remark': 'Arrears blockade'},
         )
         self.assertEqual(response.status_code, 201)
 
     def test_unblock(self, mock_requests):
         response = self.client.post(
-            '/v2/manager/{}/{}/block/'.format("users", 7),
+            '/v2/manager/{}/{}/block/'.format("apps", self.app_id),
             data={'remark': 'Arrears blockade'},
         )
         self.assertEqual(response.status_code, 201)
         response = self.client.delete(
-            '/v2/manager/{}/{}/unblock/'.format("users", 7),
+            '/v2/manager/{}/{}/unblock/'.format("apps", self.app_id),
         )
         self.assertEqual(response.status_code, 204)

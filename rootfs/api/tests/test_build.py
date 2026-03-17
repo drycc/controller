@@ -88,10 +88,9 @@ class BuildTest(DryccTransactionTestCase):
         response = self.client.post(url, body)
 
         for key in response.data:
-            self.assertIn(key, ['uuid', 'owner', 'created', 'updated', 'app', 'dockerfile',
+            self.assertIn(key, ['uuid', 'created', 'updated', 'app', 'dockerfile',
                                 'dryccfile', 'image', 'stack', 'procfile', 'sha'])
         expected = {
-            'owner': self.user.username,
             'app': app_id,
             'dockerfile': '',
             'image': 'autotest/example',

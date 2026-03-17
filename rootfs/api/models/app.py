@@ -10,7 +10,7 @@ import time
 import socket
 from contextlib import closing
 from urllib.parse import urljoin
-from collections import OrderedDict, namedtuple
+from collections import OrderedDict
 from datetime import datetime, timezone
 
 from docker import auth as docker_auth
@@ -38,47 +38,6 @@ from .base import UuidAuditedModel, PTYPE_WEB, PTYPE_RUN, DEFAULT_HTTP_PORT
 
 User = get_user_model()
 logger = logging.getLogger(__name__)
-AppPermission = namedtuple('AppPermission', ['shortname', 'codename', 'description'])
-VIEW_APP_PERMISSION = AppPermission("view", "view_app", "can view app")
-CHANGE_APP_PERMISSION = AppPermission("change", "change_app", "can change app")
-DELETE_APP_PERMISSION = AppPermission("delete", "delete_app", "can delete app")
-
-
-class AppPermissionRegistry(object):
-
-    def __init__(self):
-        self.tags = {}
-        self.permissions = set()
-
-    def get(self, q):
-        permissions = [
-            permission for permission in self.permissions
-            if q == permission.shortname or q == permission.codename
-        ]
-        permissions.extend([
-            permission for permission in self.permissions
-            if permission in self.tags and q in self.tags[permission]
-        ])
-        return permissions[0] if permissions else None
-
-    def register(self, permission, tags=None):
-        if tags:
-            self.tags[permission] = tags
-        self.permissions.add(permission)
-
-    @property
-    def codenames(self):
-        return [permission[1] for permission in self.permissions]
-
-    @property
-    def shortnames(self):
-        return [permission[0] for permission in self.permissions]
-
-
-app_permission_registry = AppPermissionRegistry()
-app_permission_registry.register(VIEW_APP_PERMISSION, ["GET", "HEAD", "OPTION"])
-app_permission_registry.register(CHANGE_APP_PERMISSION, ["POST", "PUT", "PATCH"])
-app_permission_registry.register(DELETE_APP_PERMISSION, ["DELETE"])
 
 
 # http://kubernetes.io/v1.1/docs/design/identifiers.html
@@ -109,9 +68,9 @@ class App(UuidAuditedModel):
     Application used to service requests on behalf of end-users
     """
 
-    owner = models.ForeignKey(User, on_delete=models.PROTECT)
     id = models.SlugField(max_length=63, unique=True, null=True,
                           validators=[validate_app_id])
+    workspace = models.ForeignKey('Workspace', on_delete=models.CASCADE)
     structure = models.JSONField(
         default=dict, blank=True, validators=[validate_app_structure])
     suspended_state = models.JSONField(default=dict, blank=True)
@@ -150,6 +109,12 @@ class App(UuidAuditedModel):
     def lock(self):
         return CacheLock(f"app:lock:{self.id}")
 
+    def _default_actor(self):
+        member = self.workspace.workspacemember_set.select_related('user').first()
+        if member:
+            return member.user
+        raise DryccException("workspace has no members")
+
     @property
     def ptypes(self):
         return list(self.structure.keys())
@@ -162,7 +127,8 @@ class App(UuidAuditedModel):
         directly reference using ID instead.
         """
         scheduler = super(App, self).scheduler
-        scheduler.metadata["annotations"]["drycc.cc/project_id"] = str(self.id)
+        scheduler.metadata["annotations"]["drycc.cc/app_id"] = str(self.id)
+        scheduler.metadata["annotations"]["drycc.cc/workspace_id"] = str(self.workspace_id)
         return scheduler
 
     def check_ptypes(self, ptypes: set):
@@ -201,7 +167,7 @@ class App(UuidAuditedModel):
             self.release_set.latest()
         except Release.DoesNotExist:
             Release.objects.create(
-                version=1, owner=self.owner, app=self,
+                version=1, app=self,
                 config=cfg, build=None
             )
 
@@ -220,11 +186,11 @@ class App(UuidAuditedModel):
             self.appsettings_set.latest()
         except AppSettings.DoesNotExist:
             AppSettings.objects.create(
-                owner=self.owner, app=self, routable=True, autodeploy=True, autorollback=True)
+                app=self, routable=True, autodeploy=True, autorollback=True)
         try:
             self.tls_set.latest()
         except TLS.DoesNotExist:
-            TLS.objects.create(owner=self.owner, app=self)
+            TLS.objects.create(app=self)
 
     def delete(self, *args, **kwargs):
         """Delete this application including all containers"""
@@ -297,7 +263,7 @@ class App(UuidAuditedModel):
                     for run in release.get_runners(ptypes):
                         self.log(f"{prefix} starts running pipeline.run {run['image']}")
                         job_name = self.run(
-                            self.owner, run['image'], command=run['command'],
+                            self._default_actor(), run['image'], command=run['command'],
                             args=run['args'], timeout=run['timeout'], expires=run['timeout'],
                             envs=self._build_env_vars(release, run['ptype']),
                         )
@@ -374,7 +340,7 @@ class App(UuidAuditedModel):
                 if ptype not in release.ptypes and self.structure.get(ptype, 0) > 0:
                     if ptypes is None or ptype in ptypes:
                         removed[ptype] = 0
-            self.scale(self.owner, removed)
+            self.scale(self._default_actor(), removed)
         self._merge_structure(release, pre_release)
         # clean k8s resources, ptype not in structure
         labels = {'heritage': 'drycc'}
@@ -732,7 +698,7 @@ class App(UuidAuditedModel):
             plan = config.limits.get(ptype)
             usage.append({
                 "app_id": str(self.uuid),
-                "owner": self.owner_id,
+                "workspace": self.workspace_id,
                 "name": plan,
                 "type": "limits",
                 "unit": "number",
@@ -936,7 +902,7 @@ class App(UuidAuditedModel):
             limits[PTYPE_WEB] = config.limits.get(PTYPE_WEB, plan.id)
             limits[PTYPE_RUN] = config.limits.get(PTYPE_RUN, plan.id)
         except Config.DoesNotExist:
-            config = Config.objects.create(owner=self.owner, app=self, limits=limits)
+            config = Config.objects.create(app=self, limits=limits)
         for ptype in self.ptypes:
             limits[ptype] = config.limits.get(ptype, plan.id)
         if limits != config.limits:
@@ -949,7 +915,7 @@ class App(UuidAuditedModel):
         try:
             service = self.service_set.filter(ptype=PTYPE_WEB).latest()
         except Service.DoesNotExist:
-            service = Service(owner=self.owner, app=self, ptype=PTYPE_WEB)
+            service = Service(app=self, ptype=PTYPE_WEB)
             service.add_port(DEFAULT_HTTP_PORT, "TCP", target_port)
             service.save()
         else:
@@ -961,7 +927,7 @@ class App(UuidAuditedModel):
             if gateway.change_default_tls():
                 gateway.save()
         except Gateway.DoesNotExist:
-            gateway = Gateway(app=self, owner=self.owner, name=self.id)
+            gateway = Gateway(app=self, name=self.id)
             added, msg = gateway.add(DEFAULT_HTTP_PORT, "HTTP")
             if not added:
                 raise DryccException(msg)
@@ -972,7 +938,7 @@ class App(UuidAuditedModel):
             if route.change_default_tls():
                 route.save()
         except Route.DoesNotExist:
-            route = Route(app=self, owner=self.owner, kind="HTTPRoute", name=self.id,
+            route = Route(app=self, kind="HTTPRoute", name=self.id,
                           rules=[{"backendRefs": [{"kind": "Service", "name": service.name,
                                                    "port": DEFAULT_HTTP_PORT, "weight": 100}]}])
             attached, msg = route.attach(gateway.name, DEFAULT_HTTP_PORT)

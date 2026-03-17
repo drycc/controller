@@ -33,6 +33,9 @@ class Key(UuidAuditedModel):
         verbose_name = 'SSH Key'
         unique_together = (('owner', 'fingerprint'))
         ordering = ['public']
+        indexes = [
+            models.Index(fields=['fingerprint']),
+        ]
 
     def __str__(self):
         return "{}...{}".format(self.public[:18], self.public[-31:])

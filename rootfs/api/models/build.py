@@ -17,7 +17,6 @@ class Build(UuidAuditedModel):
     Instance of a software build used by runtime nodes
     """
 
-    owner = models.ForeignKey(User, on_delete=models.PROTECT)
     app = models.ForeignKey('App', on_delete=models.CASCADE)
     image = models.TextField()
     stack = models.CharField(max_length=32)
@@ -79,7 +78,7 @@ class Build(UuidAuditedModel):
                 pipeline['env'] = ptype_env[pipeline['ptype']]
                 pipeline['config'] = config.values_refs.get(pipeline['ptype'], [])
             return Build.objects.create(
-                owner=config.owner, app=self.app, image=self.image, stack=self.stack, sha=self.sha,
+                app=self.app, image=self.image, stack=self.stack, sha=self.sha,
                 procfile=self.procfile, dryccfile=dryccfile, dockerfile=self.dockerfile,
             )
         return self
@@ -125,7 +124,7 @@ class Build(UuidAuditedModel):
                 if new_release.summary:
                     new_release.summary += " "
                 new_release.summary += "{} deployed {} which failed".format(
-                    self.owner, str(self.uuid)[:7])
+                    user, str(self.uuid)[:7])
                 # Get the exception that has occured
                 new_release.exception = "error: {}".format(str(e))
                 # avoid overwriting other fields
@@ -157,7 +156,6 @@ class Build(UuidAuditedModel):
                         values_ref[pipeline['ptype']] = [config_ref]
                     else:
                         values_ref[pipeline['ptype']].append(config_ref)
-        config = Config(
-            owner=self.owner, app=self.app, values=values, values_refs=values_ref)
+        config = Config(app=self.app, values=values, values_refs=values_ref)
         config.save(ignore_update_fields=["values", "values_refs"])
         return config

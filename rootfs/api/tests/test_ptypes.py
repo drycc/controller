@@ -25,11 +25,7 @@ class PtypesTest(DryccTransactionTestCase):
         self.user = User.objects.get(username='autotest')
         self.token = self.get_or_create_token(self.user)
         self.client.credentials(HTTP_AUTHORIZATION='Token ' + self.token)
-
-        url = '/v2/apps'
-        response = self.client.post(url, HTTP_AUTHORIZATION='token {}'.format(self.token))
-        self.assertEqual(response.status_code, 201, response.data)
-        self.app = App.objects.all()[0]
+        self.app = App.objects.get(id=self.create_app())
 
     def tearDown(self):
         # make sure every test has a clean slate for k8s mocking

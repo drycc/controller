@@ -1,0 +1,7 @@
+{% autoescape off %}
+Hi there,
+
+Please click on the link below to confirm joining {{ invitation.workspace.name }} workspace:
+
+{{ domain }}{% url 'workspace_invitation_detail' name=invitation.workspace.name uid=invitation.token %}
+{% endautoescape %}

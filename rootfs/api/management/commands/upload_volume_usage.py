@@ -27,7 +27,7 @@ class Command(BaseCommand):
             pvc_name = metric['persistentvolumeclaim']
             volumes.append({
                 "app_id":  str(app_map[metric['namespace']].uuid),
-                "owner": app_map[metric['namespace']].owner_id,
+                "workspace": app_map[metric['namespace']].workspace_id,
                 "type": "volume",
                 "unit": "bytes",
                 "name": metric["storageclass"],

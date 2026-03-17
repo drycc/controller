@@ -43,13 +43,11 @@ class BaseGatewayTest(DryccTransactionTestCase):
         self.assertEqual(len(response.data["results"]), 0, response.data)
         # create a release so we can scale
         app = App.objects.get(id=app_id)
-        user = User.objects.get(username='autotest')
-        build = Build.objects.create(owner=user, app=app, image="qwerty")
+        build = Build.objects.create(app=app, image="qwerty")
 
         # create an initial release
         release = Release.objects.create(
             version=2,
-            owner=user,
             app=app,
             config=app.config_set.latest(),
             build=build
@@ -152,7 +150,6 @@ class GatewayTest(BaseGatewayTest):
                 break
         expect = {
             "app": app_id,
-            "owner": "autotest",
             "name": gateway_name,
             "listeners": [
                 {
@@ -195,7 +192,7 @@ class GatewayTest(BaseGatewayTest):
         name = "tls-gateway"
         _, domain, secret_name, results = self.add_tls_listener(name, "TLS", port)
         expect = [{
-            'app': name, 'owner': 'autotest', 'name': name,
+            'app': name, 'name': name,
             'listeners': [{
                 'allowedRoutes': {'namespaces': {'from': 'All'}},
                 'name': 'tcp-443-1', 'port': 443, 'hostname': domain,
@@ -213,7 +210,6 @@ class GatewayTest(BaseGatewayTest):
         _, domain, secret_name, results = self.add_tls_listener(name, "HTTPS", port)
         expect = [{
             'app': name,
-            'owner': 'autotest',
             'name': name,
             'listeners': [{
                 'allowedRoutes': {
@@ -244,7 +240,7 @@ class GatewayTest(BaseGatewayTest):
         name = "bingo-gateway"
         _, domain, secret_name, results = self.add_tls_listener(name, "HTTP", port)
         expect = [{
-            'app': 'bingo-gateway', 'owner': 'autotest', 'name': 'bingo-gateway',
+            'app': 'bingo-gateway', 'name': 'bingo-gateway',
             'listeners': [
                 {
                     'allowedRoutes': {'namespaces': {'from': 'All'}},
@@ -280,7 +276,6 @@ class GatewayTest(BaseGatewayTest):
         _, results = self.add_listener(app_id, name, "UDP", port)
         expect = [{
             'app': 'bingo-gateway',
-            'owner': 'autotest',
             'name': 'bingo-gateway',
             'listeners': [{
                 'allowedRoutes': {
@@ -376,7 +371,6 @@ class GatewayTest(BaseGatewayTest):
         self.assertEqual(response.data["count"], 1, response.data)
         expect = [{
             'app': app_id,
-            'owner': 'autotest',
             'name': app_id,
             'listeners': [
                 {

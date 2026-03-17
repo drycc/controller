@@ -45,10 +45,9 @@ class DomainTest(DryccTestCase):
 
         for key in response.data:
             self.assertIn(
-                key, ['uuid', 'owner', 'created', 'updated', 'app', 'domain', 'ptype'])
+                key, ['uuid', 'created', 'updated', 'app', 'domain', 'ptype'])
 
         expected = {
-            'owner': self.user.username,
             'app': app_id,
             'domain': 'test-domain.example.com'
         }

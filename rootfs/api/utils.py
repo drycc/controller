@@ -240,6 +240,11 @@ def validate_json(value, schema, raise_exception=jsonschema.ValidationError):
     return value
 
 
+def get_local_host(request):
+    uri = request.build_absolute_uri()
+    return uri[0:uri.find(request.path)]
+
+
 class CacheLock(object):
 
     def __init__(self, key):

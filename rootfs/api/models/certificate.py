@@ -1,10 +1,8 @@
 import logging
-from OpenSSL import crypto
-from pyasn1.codec.der import decoder as der_decoder
-from pyasn1.type import univ, constraint
-from ndg.httpsclient.ssl_peer_verification import SUBJ_ALT_NAME_SUPPORT
-from ndg.httpsclient.subj_alt_name import SubjectAltName as BaseSubjectAltName
-from datetime import datetime
+
+from cryptography import x509
+from cryptography.hazmat.primitives import hashes, serialization
+from cryptography.x509.oid import ExtensionOID, NameOID
 from pytz import utc
 
 from django.shortcuts import get_object_or_404
@@ -22,59 +20,57 @@ User = get_user_model()
 logger = logging.getLogger(__name__)
 
 
-# Note: This is a slightly bug-fixed version of same from ndg-httpsclient.
-class SubjectAltName(BaseSubjectAltName):
-    '''ASN.1 implementation for subjectAltNames support'''
-
-    # There is no limit to how many SAN certificates a certificate may have,
-    #   however this needs to have some limit so we'll set an arbitrarily high
-    #   limit.
-    sizeSpec = univ.SequenceOf.sizeSpec + \
-        constraint.ValueSizeConstraint(1, 1024)
-
-
-# Note: This is a slightly bug-fixed version of same from ndg-httpsclient.
 def get_subj_alt_name(peer_cert):
-    # Search through extensions
-    dns_name = []
-    if not SUBJ_ALT_NAME_SUPPORT:
-        return dns_name
+    try:
+        san_extension = peer_cert.extensions.get_extension_for_oid(
+            ExtensionOID.SUBJECT_ALTERNATIVE_NAME
+        )
+    except x509.ExtensionNotFound:
+        return []
 
-    general_names = SubjectAltName()
-    for i in range(peer_cert.get_extension_count()):
-        ext = peer_cert.get_extension(i)
-        ext_name = ext.get_short_name()
-        if ext_name != b'subjectAltName':
-            continue
+    return san_extension.value.get_values_for_type(x509.DNSName)
 
-        # PyOpenSSL returns extension data in ASN.1 encoded form
-        ext_dat = ext.get_data()
-        decoded_dat = der_decoder.decode(ext_dat,
-                                         asn1Spec=general_names)
 
-        for name in decoded_dat:
-            if not isinstance(name, SubjectAltName):
-                continue
-            for entry in range(len(name)):
-                component = name.getComponentByPosition(entry)
-                if component.getName() != 'dNSName':
-                    continue
-                dns_name.append(str(component.getComponent()))
+def public_keys_match(cert_public_key, private_key):
+    def _public_key_der(key):
+        """Serialize any public key to DER SubjectPublicKeyInfo bytes."""
+        return key.public_bytes(
+            serialization.Encoding.DER,
+            serialization.PublicFormat.SubjectPublicKeyInfo,
+        )
 
-    return dns_name
+    return _public_key_der(cert_public_key) == _public_key_der(
+        private_key.public_key()
+    )
+
+
+def get_certificate_not_valid_after(certificate):
+    if hasattr(certificate, 'not_valid_after_utc'):
+        return certificate.not_valid_after_utc
+
+    return certificate.not_valid_after.replace(tzinfo=utc)
+
+
+def get_certificate_not_valid_before(certificate):
+    if hasattr(certificate, 'not_valid_before_utc'):
+        return certificate.not_valid_before_utc
+
+    return certificate.not_valid_before.replace(tzinfo=utc)
 
 
 def validate_certificate(value):
     try:
-        return crypto.load_certificate(crypto.FILETYPE_PEM, value)
-    except crypto.Error as e:
+        certificate_bytes = value.encode('utf-8') if isinstance(value, str) else value
+        return x509.load_pem_x509_certificate(certificate_bytes)
+    except (TypeError, ValueError) as e:
         raise ValidationError('Could not load certificate: {}'.format(e))
 
 
 def validate_private_key(value):
     try:
-        return crypto.load_privatekey(crypto.FILETYPE_PEM, value)
-    except crypto.Error as e:
+        private_key_bytes = value.encode('utf-8') if isinstance(value, str) else value
+        return serialization.load_pem_private_key(private_key_bytes, password=None)
+    except (TypeError, ValueError) as e:
         raise ValidationError('Could not load private key: {}'.format(e))
 
 
@@ -87,12 +83,8 @@ def validate_cert_pair(certificate, private_key):
         # The certificate and key should already have been validated
         raise SuspiciousOperation(e)
 
-    if pkey.type() == crypto.TYPE_RSA:
-        # Compare modulus n, to the factors p and q
-        priv_numbers = pkey.to_cryptography_key().private_numbers()
-        pub_modulus = cert.get_pubkey().to_cryptography_key().public_numbers().n
-        if pub_modulus != (priv_numbers.p * priv_numbers.q):
-            raise ValidationError('Certificate and private key do not match!')
+    if not public_keys_match(cert.public_key(), pkey):
+        raise ValidationError('Certificate and private key do not match!')
 
     # Return tuple if everything went ok
     return (cert, pkey)
@@ -102,7 +94,6 @@ class Certificate(AuditedModel):
     """
     Public and private key pair used to secure application traffic at the router.
     """
-    owner = models.ForeignKey(User, on_delete=models.PROTECT)
     app = models.ForeignKey('App', on_delete=models.CASCADE)
     name = models.CharField(max_length=253, validators=[validate_label])
     # there is no upper limit on the size of an x.509 certificate
@@ -144,34 +135,26 @@ class Certificate(AuditedModel):
         certificate, _ = validate_cert_pair(self.certificate, self.key)
 
         if not self.common_name:
-            self.common_name = certificate.get_subject().CN
+            common_names = certificate.subject.get_attributes_for_oid(NameOID.COMMON_NAME)
+            self.common_name = common_names[0].value if common_names else None
 
         # Grab expire date of the certificate
         if not self.expires:
-            # https://pyopenssl.readthedocs.org/en/latest/api/crypto.html#OpenSSL.crypto.X509.get_notAfter
-            # Convert bytes to string
-            timestamp = certificate.get_notAfter().decode(encoding='UTF-8')
-            # convert openssl's expiry date format to Django's DateTimeField format
-            self.expires = datetime.strptime(timestamp, '%Y%m%d%H%M%SZ').replace(tzinfo=utc)
+            self.expires = get_certificate_not_valid_after(certificate)
 
         # Grab the start date of the certificate
         if not self.starts:
-            # https://pyopenssl.readthedocs.org/en/latest/api/crypto.html#OpenSSL.crypto.X509.get_notBefore
-            # Convert bytes to string
-            timestamp = certificate.get_notBefore().decode(encoding='UTF-8')
-            # convert openssl's starts date format to Django's DateTimeField format
-            self.starts = datetime.strptime(timestamp, '%Y%m%d%H%M%SZ').replace(tzinfo=utc)
+            self.starts = get_certificate_not_valid_before(certificate)
 
         # process issuers - separate each key/value with a slash
-        issuer = certificate.get_issuer().get_components()
-        self.issuer = '/' + '/'.join('%s=%s' % (key.decode(encoding='UTF-8'), value.decode(encoding='UTF-8')) for key, value in issuer)  # noqa
+        self.issuer = certificate.issuer.rfc4514_string()
 
         # process subject - separate each key/value with a slash
-        subject = certificate.get_subject().get_components()
-        self.subject = '/' + '/'.join('%s=%s' % (key.decode(encoding='UTF-8'), value.decode(encoding='UTF-8')) for key, value in subject)  # noqa
+        self.subject = certificate.subject.rfc4514_string()
 
         # public fingerprint of certificate
-        self.fingerprint = certificate.digest('sha256').decode()
+        fingerprint = certificate.fingerprint(hashes.SHA256()).hex().upper()
+        self.fingerprint = ':'.join(fingerprint[i:i + 2] for i in range(0, len(fingerprint), 2))
 
         # SubjectAltName from the certificate - return a list
         self.san = get_subj_alt_name(certificate)

@@ -5,7 +5,6 @@ import random
 from datetime import timedelta
 from functools import partial
 from django.db import models
-from django.conf import settings
 from django.utils import timezone
 from django.contrib.auth.models import AbstractUser
 from django.utils.translation import gettext_lazy as _
@@ -33,9 +32,6 @@ DEFAULT_HTTP_PORT = 80
 DEFAULT_HTTPS_PORT = 443
 PTYPE_MIN_LENGTH = 3
 PTYPE_MAX_LENGTH = 63
-
-
-def get_anonymous_user_instance(user): return user(id=-1, username=settings.ANONYMOUS_USER_NAME)
 
 
 class AuditedModel(models.Model):
@@ -66,9 +62,8 @@ class AuditedModel(models.Model):
     def scheduler(self):
         annotations = {}
         if hasattr(self, 'app'):
-            annotations["drycc.cc/project_id"] = str(self.app.id)
-        if hasattr(self, 'owner'):
-            annotations["drycc.cc/account_id"] = str(self.owner.id)
+            annotations["drycc.cc/app_id"] = str(self.app.id)
+            annotations["drycc.cc/workspace_id"] = str(self.app.workspace_id)
         return get_scheduler(metadata={"annotations": annotations})
 
 

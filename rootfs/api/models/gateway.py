@@ -3,7 +3,6 @@ import hashlib
 import threading
 from django.db import models
 from django.conf import settings
-from django.contrib.auth import get_user_model
 from django.db.models import Q
 from django.http import Http404
 
@@ -15,7 +14,6 @@ from scheduler import KubeException
 from .base import AuditedModel, DEFAULT_HTTP_PORT, DEFAULT_HTTPS_PORT
 
 
-User = get_user_model()
 logger = logging.getLogger(__name__)
 
 TLS_PROTOCOLS = ("HTTPS", "TLS")
@@ -24,7 +22,6 @@ HOSTNAME_PROTOCOLS = TLS_PROTOCOLS + ("HTTP", )
 
 class Gateway(AuditedModel):
     app = models.ForeignKey('App', on_delete=models.CASCADE)
-    owner = models.ForeignKey(User, on_delete=models.PROTECT)
     name = models.CharField(max_length=63, db_index=True, validators=[validate_label])
     ports = models.JSONField(default=list)
 
@@ -150,7 +147,7 @@ class Gateway(AuditedModel):
     def to_usages(self, timestamp: float):
         return [{
             "app_id": str(self.app_id),
-            "owner": self.owner_id,
+            "workspace": self.app.workspace_id,
             "name": settings.DRYCC_APP_GATEWAY_CLASS,
             "type": "gateway",
             "unit": "number",
@@ -196,7 +193,6 @@ class Route(AuditedModel):
     }
 
     app = models.ForeignKey('App', on_delete=models.CASCADE)
-    owner = models.ForeignKey(User, on_delete=models.PROTECT)
     kind = models.CharField(max_length=15, choices=[
         (key, '/'.join(value)) for key, value in PROTOCOLS_CHOICES.items()])
     name = models.CharField(max_length=63, db_index=True)

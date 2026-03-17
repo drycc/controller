@@ -72,6 +72,7 @@ TEMPLATES = [
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
         'DIRS': [
             # insert your TEMPLATE_DIRS here
+            os.path.join(BASE_DIR, "templates"),
         ],
         'APP_DIRS': True,
         'OPTIONS': {
@@ -113,7 +114,6 @@ INSTALLED_APPS = (
     'django.contrib.sessions',
     # Third-party apps
     'corsheaders',
-    'guardian',
     'gunicorn',
     'rest_framework',
     'social_django',
@@ -126,11 +126,8 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 AUTHENTICATION_BACKENDS = (
     "django.contrib.auth.backends.ModelBackend",
-    "guardian.backends.ObjectPermissionBackend",
     "api.apps_extra.social_core.backends.DryccOIDC",
 )
-GUARDIAN_GET_INIT_ANONYMOUS_USER = 'api.models.base.get_anonymous_user_instance'
-ANONYMOUS_USER_NAME = os.environ.get('ANONYMOUS_USER_NAME', 'AnonymousUser')
 LOGIN_URL = '/v2/auth/login/'
 
 # Security settings
@@ -426,6 +423,10 @@ NAME_REGEX = r'[a-z0-9]+(\-[a-z0-9]+)*'
 # Oauth settings
 
 DRYCC_PASSPORT_URL = os.environ.get('DRYCC_PASSPORT_URL', 'https://127.0.0.1:8000')
+DRYCC_REGISTER_URL = os.environ.get(
+    'DRYCC_REGISTER_URL',
+    f'{DRYCC_PASSPORT_URL}/user/registration'
+)
 
 LOGIN_REDIRECT_URL = os.environ.get(
     'LOGIN_REDIRECT_URL',
@@ -458,6 +459,10 @@ SOCIAL_AUTH_PIPELINE = (
     'social_core.pipeline.user.user_details',
 )
 DRYCC_CACHE_USER_TIME = int(os.environ.get('DRYCC_CACHE_USER_TIME', 30 * 60))
+
+# Rate limit for invitation emails: max LIMIT emails per WINDOW seconds per recipient address
+DRYCC_INVITATION_EMAIL_LIMIT = int(os.environ.get('DRYCC_INVITATION_EMAIL_LIMIT', 5))
+DRYCC_INVITATION_EMAIL_TIMEOUT = int(os.environ.get('DRYCC_INVITATION_EMAIL_TIMEOUT', 3600))
 
 # Cache Valkey Configuration
 CACHES = {
