@@ -5,6 +5,7 @@ Data models for the Drycc API.
 """
 import time
 import hashlib
+
 import hmac
 import logging
 import urllib.parse
@@ -27,6 +28,7 @@ from api.models.release import Release
 from api.models.tls import TLS
 from api.models.volume import Volume
 from api.models.resource import Resource
+from api.models.workspace import WorkspaceInvitation
 
 
 User = get_user_model()
@@ -93,7 +95,7 @@ def _hook_release_created(**kwargs):
                 'release': release.version_name,
                 'release_summary': release.summary,
                 'sha': '',
-                'user': release.owner,
+                'user': release.app.workspace.name,
             }
             if release.build is not None:
                 params['sha'] = release.build.sha
@@ -167,6 +169,13 @@ def tls_changed_handle(sender, instance: TLS, created=False, update_fields=None,
                 route.save()
             else:
                 route.refresh_to_k8s()
+
+
+@receiver(post_save, sender=User)
+def user_changed_handle(sender, instance: User, created=False, update_fields=None, **kwargs):
+    if created or (update_fields is not None and "email" in update_fields):
+        for invitation in WorkspaceInvitation.objects.filter(email=instance.email, accepted=True):
+            invitation.accept()
 
 
 @receiver(post_save, sender=Gateway)

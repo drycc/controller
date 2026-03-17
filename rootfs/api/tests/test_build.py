@@ -88,10 +88,9 @@ class BuildTest(DryccTransactionTestCase):
         response = self.client.post(url, body)
 
         for key in response.data:
-            self.assertIn(key, ['uuid', 'owner', 'created', 'updated', 'app', 'dockerfile',
+            self.assertIn(key, ['uuid', 'created', 'updated', 'app', 'dockerfile',
                                 'dryccfile', 'image', 'stack', 'procfile', 'sha'])
         expected = {
-            'owner': self.user.username,
             'app': app_id,
             'dockerfile': '',
             'image': 'autotest/example',
@@ -261,7 +260,8 @@ class BuildTest(DryccTransactionTestCase):
         url = f"/v2/apps/{app_id}/pods/"
         response = self.client.get(url)
         self.assertEqual(response.status_code, 200, response.data)
-        self.assertEqual([item for item in response.data['results'] if item["type"] != "web"], [])
+        self.assertEqual(
+            [item for item in response.data['results'] if item["type"] != PTYPE_WEB], [])
 
         # look at the app structure
         url = f"/v2/apps/{app_id}"

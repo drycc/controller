@@ -421,7 +421,6 @@ class FilerProxyConsumerTest(ConsumerTestCase):
         # We'll patch the save method to prevent k8s interactions
         with patch.object(Volume, 'save_to_k8s'), patch.object(Volume, 'delete_from_k8s'):
             self.test_volume = Volume.objects.create(
-                owner=self.user,
                 app=self.app,
                 name='test-volume',
                 size='1G',

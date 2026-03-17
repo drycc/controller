@@ -24,10 +24,11 @@ class CertificateUseCase1Test(DryccTestCase):
         self.token = self.get_or_create_token(self.user)
         self.client.credentials(HTTP_AUTHORIZATION='Token ' + self.token)
 
-        self.app = App.objects.create(owner=self.user, id='test-app-use-case-1')
+        app_id = self.create_app(name='test-app-use-case-1')
+        self.app = App.objects.get(id=app_id)
         self.url = f'/v2/apps/{self.app.id}/certs'
         self.domain = Domain.objects.create(
-            owner=self.user, app=self.app, domain='foo.com', ptype=PTYPE_WEB)
+            app=self.app, domain='foo.com', ptype=PTYPE_WEB)
         self.name = 'foo-com'  # certificate name
 
         with open('{}/certs/{}.key'.format(TEST_ROOT, self.domain)) as f:
@@ -147,7 +148,6 @@ class CertificateUseCase1Test(DryccTestCase):
     def test_delete_certificate(self):
         """Destroying a certificate should generate a 204 response"""
         Certificate.objects.create(
-            owner=self.user,
             app=self.app,
             name=self.name,
             certificate=self.cert,

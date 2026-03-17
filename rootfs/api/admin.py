@@ -6,9 +6,7 @@ Django admin app configuration for Drycc API models.
 
 
 from django.contrib import admin
-from guardian.admin import GuardedModelAdmin
 
-from .models import App
 from .models import Build
 from .models import Config
 from .models import Domain
@@ -16,25 +14,13 @@ from .models import Key
 from .models import Release
 
 
-class AppAdmin(GuardedModelAdmin):
-    """Set presentation options for :class:`~api.models.App` models
-    in the Django admin.
-    """
-    date_hierarchy = 'created'
-    list_display = ('id', 'owner')
-    list_filter = ('owner',)
-
-
-admin.site.register(App, AppAdmin)
-
-
 class BuildAdmin(admin.ModelAdmin):
     """Set presentation options for :class:`~api.models.Build` models
     in the Django admin.
     """
     date_hierarchy = 'created'
-    list_display = ('created', 'owner', 'app')
-    list_filter = ('owner', 'app')
+    list_display = ('created', 'app',)
+    list_filter = ('app',)
 
 
 admin.site.register(Build, BuildAdmin)
@@ -45,8 +31,8 @@ class ConfigAdmin(admin.ModelAdmin):
     in the Django admin.
     """
     date_hierarchy = 'created'
-    list_display = ('created', 'owner', 'app')
-    list_filter = ('owner', 'app')
+    list_display = ('created', 'app',)
+    list_filter = ('app',)
 
 
 admin.site.register(Config, ConfigAdmin)
@@ -57,8 +43,8 @@ class DomainAdmin(admin.ModelAdmin):
     in the Django admin.
     """
     date_hierarchy = 'created'
-    list_display = ('owner', 'app', 'domain')
-    list_filter = ('owner', 'app')
+    list_display = ('app', 'domain')
+    list_filter = ('app',)
 
 
 admin.site.register(Domain, DomainAdmin)
@@ -81,9 +67,9 @@ class ReleaseAdmin(admin.ModelAdmin):
     in the Django admin.
     """
     date_hierarchy = 'created'
-    list_display = ('created', 'version', 'owner', 'app')
+    list_display = ('created', 'version', 'app')
     list_display_links = ('created', 'version')
-    list_filter = ('owner', 'app')
+    list_filter = ('app',)
 
 
 admin.site.register(Release, ReleaseAdmin)

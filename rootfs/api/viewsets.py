@@ -1,4 +1,5 @@
-from rest_framework import viewsets
+from django.core.exceptions import ImproperlyConfigured
+from rest_framework import viewsets, renderers
 from rest_framework.permissions import IsAuthenticated
 
 from api import permissions
@@ -17,12 +18,25 @@ class OwnerViewSet(viewsets.ModelViewSet):
         return self.model.objects.filter(owner=self.request.user)
 
     def perform_create(self, serializer):
-        obj = serializer.save(owner=self.request.user)
-        self.post_save(obj)
+        serializer.save(owner=self.request.user)
 
-    def post_save(self, obj):
-        """
-        A post_save hook for performing actions after the object has been pushed to the database.
-        Leave it up to child classes to implement.
-        """
-        pass
+
+class BaseAppViewSet(viewsets.ModelViewSet):
+    """
+    A ViewSet for the Workspace model, which filters workspaces by membership and role.
+    """
+    lookup_field = 'id'
+    permission_classes = [IsAuthenticated, permissions.IsAppUser]
+    renderer_classes = [renderers.JSONRenderer]
+
+    def get_queryset(self):
+        # Prefer direct workspace relation, then support app->workspace chain.
+        if hasattr(self.model, 'workspace'):
+            return self.model.objects.filter(
+                workspace__workspacemember__user=self.request.user).distinct()
+        elif hasattr(self.model, 'app'):
+            return self.model.objects.filter(
+                app__workspace__workspacemember__user=self.request.user).distinct()
+        raise ImproperlyConfigured(
+            f"{self.__class__.__name__} requires a model with a 'workspace' or 'app' field."
+        )

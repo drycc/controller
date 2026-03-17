@@ -124,6 +124,9 @@ class LimitPlan(AuditedModel):
     class Meta:
         get_latest_by = 'created'
         ordering = ['priority']
+        indexes = [
+            models.Index(fields=['spec', 'cpu', 'memory']),
+        ]
 
     def __str__(self):
         return self.name

@@ -61,11 +61,10 @@ class ResourceTest(DryccTransactionTestCase):
 
         for key in response.data:
             self.assertIn(key,
-                          ['uuid', 'owner', 'created', 'updated', 'app', 'plan',
+                          ['uuid', 'created', 'updated', 'app', 'plan',
                            'options', 'data', 'status', 'binding', 'name'])
 
         expected = {
-            'owner': self.user.username,
             'app': app_id,
             'name': 'mysql',
             'plan': 'mysql:5.6'

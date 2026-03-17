@@ -93,11 +93,10 @@ class VolumeTest(DryccTransactionTestCase):
 
         for key in response.data:
             self.assertIn(key,
-                          ['uuid', 'owner', 'created', 'updated', 'app', 'name',
+                          ['uuid', 'created', 'updated', 'app', 'name',
                            'size', 'path', 'type', 'parameters'])
 
         expected = {
-            'owner': self.user.username,
             'app': app_id,
             'name': 'myvolume',
             'size': '500G'
@@ -144,7 +143,6 @@ class VolumeTest(DryccTransactionTestCase):
         url = '/v2/apps/{app_id}/volumes'.format(app_id=app_id)
         response = self.client.get(url)
         expected = {
-            'owner': self.user.username,
             'app': app_id,
             'name': 'myvolume1',
             'size': '1024G'

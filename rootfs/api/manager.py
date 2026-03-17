@@ -54,28 +54,32 @@ class ManagerAPI(object):
         return self.request('delete', url, **kwargs)
 
 
-class UserAPI(ManagerAPI):
+class WorkspaceAPI(ManagerAPI):
 
-    def get_status(self, id):
+    def get_status(self, workspace_id):
         """
         {
             "is_active": False,
             "message": "The user is in arrears"
         }
         """
-        key = f"user:status:{id}"
+        key = f"workspace:status:{workspace_id}"
         status = cache.get(key)
         if not status:
-            url = f"{settings.WORKFLOW_MANAGER_URL}/users/{id}/status/"
+            url = f"{settings.WORKFLOW_MANAGER_URL}/workspaces/{workspace_id}/status/"
             try:
                 status = self.get(url=url, timeout=self.timeout).json()
             except requests.exceptions.Timeout as ex:
-                msg = f"request user {id} timeout, skipping verification."
+                msg = f"request workspace {workspace_id} timeout, skipping verification."
                 status = {"is_active": True, "message": msg}
                 logger.error(msg)
                 logger.exception(ex)
             cache.set(key, status, timeout=settings.DRYCC_CACHE_USER_TIME)
         return status
+
+
+class UserAPI(WorkspaceAPI):
+    """Backward-compatible alias for legacy call sites."""
 
 
 class UsageAPI(ManagerAPI):
@@ -85,7 +89,7 @@ class UsageAPI(ManagerAPI):
         [
             {
                 "app_id":  "test",
-                "owner": "test",
+                "workspace": "test",
                 "name": "web",
                 "type": "limits",
                 "unit": "std1.large.c1m1",

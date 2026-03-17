@@ -6,9 +6,13 @@ import unittest
 from os.path import dirname, realpath
 
 from django.test.runner import DiscoverRunner
+from django.contrib.auth import get_user_model
 from rest_framework.test import APITestCase, APITransactionTestCase
 
 from api.models.base import Token
+from api.models.workspace import Workspace, WorkspaceMember
+
+User = get_user_model()
 
 
 # Mock out router requests and add in some jitter
@@ -56,10 +60,49 @@ class SilentDjangoTestSuiteRunner(DiscoverRunner):
 
 class DryccBaseTestCase(unittest.TestCase):
 
-    def create_app(self, name=None):
-        body = {}
+    def _get_authenticated_user(self):
+        credentials = getattr(getattr(self, 'client', None), '_credentials', {})
+        auth = credentials.get('HTTP_AUTHORIZATION', '')
+        if auth.startswith('Token '):
+            token_key = auth.split(' ', 1)[1]
+            token = Token.objects.filter(key=token_key).select_related('owner').first()
+            if token is not None:
+                return token.owner
+        return getattr(self, 'user', None)
+
+    def _default_workspace_name(self):
+        user = self._get_authenticated_user()
+        if user and user.username:
+            base = ''.join(ch for ch in user.username.lower() if ch.isalnum())
+            if len(base) >= 5:
+                return base
+        return 'autotest'
+
+    def _ensure_workspace_admin(self, workspace_name):
+        user = self._get_authenticated_user()
+        if user is None:
+            user = User.objects.filter(username='autotest').first()
+        if user is None:
+            raise AssertionError('No test user available for workspace membership')
+
+        workspace, _ = Workspace.objects.get_or_create(
+            name=workspace_name,
+            defaults={'email': user.email or f'{workspace_name}@example.com'},
+        )
+        WorkspaceMember.objects.update_or_create(
+            workspace=workspace,
+            user=user,
+            defaults={'role': 'admin'},
+        )
+        return workspace.name
+
+    def create_app(self, name=None, workspace=None):
+        workspace_name = workspace or self._default_workspace_name()
+        workspace_name = self._ensure_workspace_admin(workspace_name)
+
+        body = {'workspace': workspace_name}
         if name:
-            body = {'id': name}
+            body['id'] = name
 
         response = self.client.post('/v2/apps', body)
         self.assertEqual(response.status_code, 201, response.data)

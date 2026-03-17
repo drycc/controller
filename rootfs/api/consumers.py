@@ -4,6 +4,7 @@ import six
 import ssl
 import aiohttp
 import asyncio
+from collections import namedtuple
 from urllib.parse import urljoin
 from django.conf import settings
 from django.core.cache import cache
@@ -22,11 +23,12 @@ from channels.generic.websocket import AsyncWebsocketConsumer
 
 from .models.app import App
 from .models.volume import Volume
-from .permissions import has_app_permission
+from .permissions import IsAppUser, get_app_status
 
 
 class AppPermChecker(object):
     timeout = 60 * 60
+    check_permission = IsAppUser().has_object_permission
 
     def __init__(self, scope):
         self.scope = scope
@@ -40,8 +42,11 @@ class AppPermChecker(object):
         if permission is None:
             try:
                 app = await App.objects.aget(id=app_id)
-                permission = await sync_to_async(has_app_permission)(
-                    self.scope["user"], app, "GET")
+                request = namedtuple("Request", ["user", "method"])(self.scope["user"], "GET")
+                if await sync_to_async(self.check_permission)(request, None, app):
+                    permission = await sync_to_async(get_app_status)(app)
+                else:
+                    permission = (False, "permission denied")
                 if permission[0]:
                     await cache.aset(key, permission, timeout=self.timeout)
             except App.DoesNotExist:

@@ -15,13 +15,13 @@ from django.contrib.auth import get_user_model
 from django.core.cache import cache
 from django.test.utils import override_settings
 
-from api.models.app import App, app_permission_registry
+from api.models.app import App
 from api.models.base import PTYPE_WEB
-from api.models.config import Config
+from api.models.workspace import Workspace, WorkspaceMember
 from scheduler import KubeException, KubeHTTPException
 
 from api.exceptions import DryccException
-from api.tests import adapter, DryccTestCase
+from api.tests import adapter, DryccTestCase, DryccTransactionTestCase
 import requests_mock
 
 User = get_user_model()
@@ -45,6 +45,18 @@ class AppTest(DryccTestCase):
         self.user = User.objects.get(username='autotest')
         self.token = self.get_or_create_token(self.user)
         self.client.credentials(HTTP_AUTHORIZATION='Token ' + self.token)
+        self.workspace_name = self._ensure_workspace_admin(self._default_workspace_name())
+
+        original_post = self.client.post
+
+        def _post_with_workspace(path, data=None, *args, **kwargs):
+            if path == '/v2/apps':
+                payload = {} if data is None else dict(data)
+                payload.setdefault('workspace', self.workspace_name)
+                data = payload
+            return original_post(path, data, *args, **kwargs)
+
+        self.client.post = _post_with_workspace
 
     def tearDown(self):
         # make sure every test has a clean slate for k8s mocking
@@ -66,7 +78,8 @@ class AppTest(DryccTestCase):
 
         body = {'id': 'new'}
         response = self.client.patch(url, body)
-        self.assertEqual(response.status_code, 405, response.content)
+        self.assertEqual(response.status_code, 400, response.data)
+        self.assertEqual(str(response.data['detail']), 'workspace is required')
 
         response = self.client.delete(url)
         self.assertEqual(response.status_code, 204, response.data)
@@ -90,10 +103,10 @@ class AppTest(DryccTestCase):
         body = {'id': 'app-{}'.format(random.randrange(1000, 10000))}
         response = self.client.post('/v2/apps', body)
         for key in response.data:
-            self.assertIn(key, ['uuid', 'created', 'updated', 'id', 'owner', 'structure'])
+            self.assertIn(key, ['uuid', 'created', 'updated', 'id', 'workspace', 'structure'])
         expected = {
             'id': body['id'],
-            'owner': self.user.username,
+            'workspace': self.user.username,
             'structure': {}
         }
         self.assertEqual(response.data, expected | response.data)
@@ -194,6 +207,13 @@ class AppTest(DryccTestCase):
         self.client.credentials(HTTP_AUTHORIZATION='Token ' + token)
         app_id = self.create_app()
 
+        app = App.objects.get(id=app_id)
+        WorkspaceMember.objects.get_or_create(
+            workspace=app.workspace,
+            user=self.user,
+            defaults={'role': 'admin'},
+        )
+
         # log in as admin, check to see if they have access
         self.client.credentials(HTTP_AUTHORIZATION='Token ' + self.token)
         url = '/v2/apps/{}'.format(app_id)
@@ -216,7 +236,14 @@ class AppTest(DryccTestCase):
         user = User.objects.get(username='autotest2')
         token = self.get_or_create_token(user)
         self.client.credentials(HTTP_AUTHORIZATION='Token ' + token)
-        self.create_app()
+        app_id = self.create_app()
+
+        app = App.objects.get(id=app_id)
+        WorkspaceMember.objects.get_or_create(
+            workspace=app.workspace,
+            user=self.user,
+            defaults={'role': 'viewer'},
+        )
 
         # log in as admin
         self.client.credentials(HTTP_AUTHORIZATION='Token ' + self.token)
@@ -288,7 +315,7 @@ class AppTest(DryccTestCase):
         An unauthorized user should not be able to access an app's resources.
 
         Since an unauthorized user can't access the application, these
-        tests should return a 403, but currently return a 404. FIXME!
+        tests return 404 when app is filtered out from queryset.
         """
         app_id = self.create_app()
         unauthorized_user = User.objects.get(username='autotest2')
@@ -298,14 +325,14 @@ class AppTest(DryccTestCase):
         url = '/v2/apps/{}/run'.format(app_id)
         body = {'command': 'foo'}
         response = self.client.post(url, body)
-        self.assertEqual(response.status_code, 403)
+        self.assertEqual(response.status_code, 404)
 
         url = '/v2/apps/{}'.format(app_id)
         response = self.client.get(url)
-        self.assertEqual(response.status_code, 403)
+        self.assertEqual(response.status_code, 404)
 
         response = self.client.delete(url)
-        self.assertEqual(response.status_code, 403)
+        self.assertEqual(response.status_code, 404)
 
     def test_app_info_not_showing_wrong_app(self, mock_requests):
         self.create_app()
@@ -318,70 +345,78 @@ class AppTest(DryccTestCase):
         self.client.credentials(HTTP_AUTHORIZATION='Token ' + owner_token)
 
         collaborator = User.objects.get(username='autotest3')
+        collab_token = self.get_or_create_token(collaborator)
 
-        app = App.objects.create(owner=owner)
-
-        # pretend the owner and a collaborator added some config to the app to ensure
-        # resources owned by the owner are transferred, but not resources owned by the
-        # collaborator.
-
-        config1 = Config.objects.create(
-            owner=owner, app=app, values=[{"name": "FOO", "value": "bar", "group": "global"}])
-        config2 = Config.objects.create(
-            owner=collaborator, app=app,
-            values=[{"name": "CAR", "value": "star", "group": "global"}])
-
-        # Transfer App
-        url = '/v2/apps/{}'.format(app.id)
-        new_owner = User.objects.get(username='autotest4')
-        new_owner_token = self.get_or_create_token(new_owner)
-        body = {'owner': new_owner.username}
-        response = self.client.post(url, body)
-        self.assertEqual(response.status_code, 200, response.data)
-
-        # Original user can no longer access it
-        response = self.client.get(url)
-        self.assertEqual(response.status_code, 403)
-
-        # New owner can access it
-        self.client.credentials(HTTP_AUTHORIZATION='Token ' + new_owner_token)
-        response = self.client.get(url)
-        self.assertEqual(response.status_code, 200, response.data)
-        self.assertEqual(response.data['owner'], new_owner.username)
-
-        # At this point config1.owner field is still the old owner, but the value in the database
-        # was updated to the new owner when we performed the transfer. The object's updated values
-        # needs to be reloaded from the database to get an accurate idea who owns the object.
-        # https://docs.djangoproject.com/en/dev/ref/models/instances/#django.db.models.Model.refresh_from_db
-        config1.refresh_from_db()
-        config2.refresh_from_db()
-
-        # New owner also is given ownership to all resources owned by the original user, but not
-        # resources created by other users
-        self.assertEqual(config1.owner, new_owner)
-        self.assertEqual(config2.owner, collaborator)
-
-        # Collaborators can't transfer
-        body = {
-            'username': owner.username,
-            'permissions': ','.join(app_permission_registry.shortnames),
-        }
-        response = self.client.post(f'/v2/apps/{app.id}/perms/', body)
+        # create a workspace and app under owner
+        response = self.client.post('/v2/workspaces', {
+            'name': 'wstransfer1',
+            'email': 'ws-owner@example.com',
+        })
         self.assertEqual(response.status_code, 201, response.data)
 
-        self.client.credentials(HTTP_AUTHORIZATION='Token ' + owner_token)
-        body = {'owner': self.user.username}
-        response = self.client.post(url, body)
-        self.assertEqual(response.status_code, 403)
+        response = self.client.post('/v2/apps', {
+            'id': 'app-transfer01',
+            'workspace': 'wstransfer1',
+        })
+        self.assertEqual(response.status_code, 201, response.data)
 
-        # Admins can transfer
-        self.client.credentials(HTTP_AUTHORIZATION='Token ' + self.token)
-        body = {'owner': self.user.username}
-        response = self.client.post(url, body)
-        self.assertEqual(response.status_code, 200, response.data)
+        app = App.objects.get(id='app-transfer01')
+        workspace = Workspace.objects.get(name='wstransfer1')
+        url = '/v2/apps/{}'.format(app.id)
+
+        # collaborator cannot access app before joining workspace
+        self.client.credentials(HTTP_AUTHORIZATION='Token ' + collab_token)
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, 404, response.data)
+
+        # owner adds collaborator to workspace
+        WorkspaceMember.objects.get_or_create(
+            workspace=workspace,
+            user=collaborator,
+            defaults={'role': 'member'},
+        )
+
+        # collaborator can access app after membership
         response = self.client.get(url)
         self.assertEqual(response.status_code, 200, response.data)
-        self.assertEqual(response.data['owner'], self.user.username)
+
+        # collaborator cannot manage workspace members
+        response = self.client.patch(
+            f'/v2/workspaces/{workspace.name}/members/{owner.username}',
+            {'role': 'viewer'},
+        )
+        self.assertEqual(response.status_code, 403, response.data)
+
+    def test_transfer_api_success(self, mock_requests):
+        app_id = self.create_app(name='appxferok')
+        response = self.client.post('/v2/workspaces', {
+            'name': 'wstarget',
+            'email': 'target@example.com',
+        })
+        self.assertEqual(response.status_code, 201, response.data)
+
+        response = self.client.patch(
+            f'/v2/apps/{app_id}',
+            {'workspace': 'wstarget'},
+        )
+        self.assertEqual(response.status_code, 204, response.data)
+
+        app = App.objects.get(id=app_id)
+        self.assertEqual(app.workspace.name, 'wstarget')
+
+    def test_transfer_api_requires_workspace(self, mock_requests):
+        app_id = self.create_app(name='appxferreqws')
+        response = self.client.patch(f'/v2/apps/{app_id}', {})
+        self.assertEqual(response.status_code, 400, response.data)
+        self.assertEqual(str(response.data['detail']), 'workspace is required')
+
+    def test_transfer_api_target_workspace_not_found(self, mock_requests):
+        app_id = self.create_app(name='appxfer404')
+        response = self.client.patch(
+            f'/v2/apps/{app_id}',
+            {'workspace': 'workspace-not-exists'},
+        )
+        self.assertEqual(response.status_code, 404, response.data)
 
     def test_app_exists_in_kubernetes(self, mock_requests):
         """
@@ -585,7 +620,7 @@ class AppTest(DryccTestCase):
         self.assertEqual(create, None)
 
     def test_build_env_vars(self, mock_requests):
-        app = App.objects.create(owner=self.user)
+        app = App.objects.create(workspace=Workspace.objects.get(name=self.workspace_name))
         # Make sure an exception is raised when calling without a build available
         with self.assertRaises(DryccException):
             app._build_env_vars(app.release_set.latest(), PTYPE_WEB)
@@ -622,7 +657,7 @@ class AppTest(DryccTestCase):
             })
 
     def test_gather_app_settings(self, mock_requests):
-        app = App.objects.create(owner=self.user)
+        app = App.objects.create(workspace=Workspace.objects.get(name=self.workspace_name))
         app.save()
         data = {'image': 'autotest/example', 'stack': 'container'}
         url = f"/v2/apps/{app.id}/build"
@@ -677,10 +712,386 @@ class AppTest(DryccTestCase):
         self.assertEqual(response.status_code, 200, response)
         self.assertEqual(response.data['count'], 1, response.data)
 
+    def test_app_workspace_isolation(self, mock_requests):
+        """
+        Apps in different workspaces should be isolated.
+        A user who is not a member of a workspace should not see its apps.
+        """
+        # user1 creates workspace and app
+        response = self.client.post('/v2/workspaces', {
+            'name': 'wsisolate1',
+            'email': 'isolate1@example.com',
+        })
+        self.assertEqual(response.status_code, 201, response.data)
 
-FAKE_LOG_DATA = bytes("""
-2013-08-15 12:41:25 [33454] [INFO] Starting gunicorn 17.5
-2013-08-15 12:41:25 [33454] [INFO] Listening at: http://0.0.0.0:5000 (33454)
-2013-08-15 12:41:25 [33454] [INFO] Using worker: sync
-2013-08-15 12:41:25 [33457] [INFO] Booting worker with pid 33457
-""", 'utf-8')
+        response = self.client.post('/v2/apps', {
+            'id': 'app-isolate01',
+            'workspace': 'wsisolate1',
+        })
+        self.assertEqual(response.status_code, 201, response.data)
+
+        # user2 creates a different workspace and app
+        user2 = User.objects.get(username='autotest2')
+        token2 = self.get_or_create_token(user2)
+        self.client.credentials(HTTP_AUTHORIZATION='Token ' + token2)
+
+        response = self.client.post('/v2/workspaces', {
+            'name': 'wsisolate2',
+            'email': 'isolate2@example.com',
+        })
+        self.assertEqual(response.status_code, 201, response.data)
+
+        response = self.client.post('/v2/apps', {
+            'id': 'app-isolate02',
+            'workspace': 'wsisolate2',
+        })
+        self.assertEqual(response.status_code, 201, response.data)
+
+        # user2 cannot see user1's app
+        response = self.client.get('/v2/apps/app-isolate01')
+        self.assertEqual(response.status_code, 404, response.data)
+
+        # user2 can see their own app
+        response = self.client.get('/v2/apps/app-isolate02')
+        self.assertEqual(response.status_code, 200, response.data)
+
+        # user2's app list should only contain their own app
+        response = self.client.get('/v2/apps')
+        self.assertEqual(response.status_code, 200, response.data)
+        app_ids = [app['id'] for app in response.data['results']]
+        self.assertIn('app-isolate02', app_ids)
+        self.assertNotIn('app-isolate01', app_ids)
+
+    def test_app_workspace_member_can_see_app(self, mock_requests):
+        """
+        When a user is added as a member to a workspace,
+        they should be able to see apps in that workspace.
+        """
+        # user1 creates workspace and app
+        response = self.client.post('/v2/workspaces', {
+            'name': 'wsmember1',
+            'email': 'member1@example.com',
+        })
+        self.assertEqual(response.status_code, 201, response.data)
+
+        response = self.client.post('/v2/apps', {
+            'id': 'app-member01',
+            'workspace': 'wsmember1',
+        })
+        self.assertEqual(response.status_code, 201, response.data)
+
+        # user2 cannot see the app initially
+        user2 = User.objects.get(username='autotest2')
+        token2 = self.get_or_create_token(user2)
+        self.client.credentials(HTTP_AUTHORIZATION='Token ' + token2)
+
+        response = self.client.get('/v2/apps/app-member01')
+        self.assertEqual(response.status_code, 404, response.data)
+
+        # add user2 as a viewer to the workspace
+        workspace = Workspace.objects.get(name='wsmember1')
+        WorkspaceMember.objects.create(user=user2, workspace=workspace, role='viewer')
+
+        # now user2 can see the app
+        response = self.client.get('/v2/apps/app-member01')
+        self.assertEqual(response.status_code, 200, response.data)
+
+    def test_app_response_has_workspace_not_owner(self, mock_requests):
+        """
+        App API response should contain 'workspace' field, not 'owner'.
+        """
+        app_id = self.create_app()
+
+        response = self.client.get(f'/v2/apps/{app_id}')
+        self.assertEqual(response.status_code, 200, response.data)
+        self.assertIn('workspace', response.data)
+        self.assertNotIn('owner', response.data)
+
+        # app list should also have workspace, not owner
+        response = self.client.get('/v2/apps')
+        self.assertEqual(response.status_code, 200, response.data)
+        self.assertGreater(len(response.data['results']), 0)
+        app_data = response.data['results'][0]
+        self.assertIn('workspace', app_data)
+        self.assertNotIn('owner', app_data)
+
+    def test_app_subresources_have_no_owner_field(self, mock_requests):
+        """
+        App sub-resources (build, config, release, domain, etc.) should
+        not contain an 'owner' field in their API responses since the
+        owner field has been removed from these models.
+        """
+        app_id = self.create_app()
+
+        # Create a build to generate a release
+        url = f'/v2/apps/{app_id}/build'
+        body = {'image': 'autotest/example', 'stack': 'container'}
+        response = self.client.post(url, body)
+        self.assertEqual(response.status_code, 201, response.data)
+
+        # Build should not have 'owner'
+        self.assertNotIn('owner', response.data)
+
+        # Config should not have 'owner'
+        url = f'/v2/apps/{app_id}/config'
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, 200, response.data)
+        self.assertNotIn('owner', response.data)
+
+        # Releases should not have 'owner'
+        url = f'/v2/apps/{app_id}/releases'
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, 200, response.data)
+        for release in response.data['results']:
+            self.assertNotIn('owner', release)
+
+    def test_key_and_token_still_have_owner(self, mock_requests):
+        """
+        Key and Token models should still contain 'owner' field
+        since they are user personal assets, not workspace resources.
+        """
+        # Key should have 'owner'
+        body = {'id': str(self.user), 'public': (
+            'ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQCfQkkUUoxpvcNMkvv7jqnfodgs37M2eBO'
+            'APgLK+KNBMaZaaKB4GF1QhTCMfFhoiTW3rqa0J75bHJcdkoobtTHlK8XUrFqsquWyg3XhsT'
+            'Yr/3RQQXvO86e2sF7SVDJqVtpnbQGc5SgNrHCeHJmf5HTbXSIjCO/AJSvIjnituT/SIAMGe'
+            'Bw0Nq/iSltwYAek1hiKO7wSmLcIQ8U4A00KEUtalaumf2aHOcfjgPfzlbZGP0S0cuBwSqLr'
+            '8b5XGPmkASNdUiuJY4MJOce7bFU14B7oMAy2xacODUs1momUeYtGI9T7X2WMowJaO7tP3Gl'
+            'sgBMP81VfYTfYChAyJpKp2yoP autotest@autotesting'
+        )}
+        response = self.client.post('/v2/keys', body)
+        self.assertEqual(response.status_code, 201, response.data)
+        self.assertIn('owner', response.data)
+
+        # Token should have 'owner'
+        response = self.client.get('/v2/tokens')
+        self.assertEqual(response.status_code, 200, response.data)
+        self.assertGreater(len(response.data['results']), 0)
+        self.assertIn('owner', response.data['results'][0])
+
+    def test_app_list_filters_by_workspace_membership(self, mock_requests):
+        """
+        App list API should only return apps in workspaces where the
+        authenticated user is a member.
+        """
+        # user1 creates workspace1 with app1
+        response = self.client.post('/v2/workspaces', {
+            'name': 'wslist01',
+            'email': 'wslist1@example.com',
+        })
+        self.assertEqual(response.status_code, 201, response.data)
+
+        response = self.client.post('/v2/apps', {
+            'id': 'app-list01',
+            'workspace': 'wslist01',
+        })
+        self.assertEqual(response.status_code, 201, response.data)
+
+        # user2 creates workspace2 with app2
+        user2 = User.objects.get(username='autotest2')
+        token2 = self.get_or_create_token(user2)
+        self.client.credentials(HTTP_AUTHORIZATION='Token ' + token2)
+
+        response = self.client.post('/v2/workspaces', {
+            'name': 'wslist02',
+            'email': 'wslist2@example.com',
+        })
+        self.assertEqual(response.status_code, 201, response.data)
+
+        response = self.client.post('/v2/apps', {
+            'id': 'app-list02',
+            'workspace': 'wslist02',
+        })
+        self.assertEqual(response.status_code, 201, response.data)
+
+        # user2 should only see their own app
+        response = self.client.get('/v2/apps')
+        self.assertEqual(response.status_code, 200, response.data)
+        app_ids = [app['id'] for app in response.data['results']]
+        self.assertIn('app-list02', app_ids)
+        self.assertNotIn('app-list01', app_ids)
+
+        # Switch back to user1
+        self.client.credentials(HTTP_AUTHORIZATION='Token ' + self.token)
+
+        # user1 should only see their own app
+        response = self.client.get('/v2/apps')
+        self.assertEqual(response.status_code, 200, response.data)
+        app_ids = [app['id'] for app in response.data['results']]
+        self.assertIn('app-list01', app_ids)
+        self.assertNotIn('app-list02', app_ids)
+
+    def test_app_list_filter_by_workspace_param(self, mock_requests):
+        """
+        App list API should support filtering by ?workspace=xxx query parameter.
+        """
+        # user1 creates workspace1 with app1
+        response = self.client.post('/v2/workspaces', {
+            'name': 'wsfilter01',
+            'email': 'wsfilter1@example.com',
+        })
+        self.assertEqual(response.status_code, 201, response.data)
+
+        response = self.client.post('/v2/apps', {
+            'id': 'app-filter01',
+            'workspace': 'wsfilter01',
+        })
+        self.assertEqual(response.status_code, 201, response.data)
+
+        # user1 creates workspace2 with app2
+        response = self.client.post('/v2/workspaces', {
+            'name': 'wsfilter02',
+            'email': 'wsfilter2@example.com',
+        })
+        self.assertEqual(response.status_code, 201, response.data)
+
+        response = self.client.post('/v2/apps', {
+            'id': 'app-filter02',
+            'workspace': 'wsfilter02',
+        })
+        self.assertEqual(response.status_code, 201, response.data)
+
+        # list all apps (no filter)
+        response = self.client.get('/v2/apps')
+        self.assertEqual(response.status_code, 200, response.data)
+        app_ids = [app['id'] for app in response.data['results']]
+        self.assertIn('app-filter01', app_ids)
+        self.assertIn('app-filter02', app_ids)
+
+        # filter by workspace1 - should only see app1
+        response = self.client.get('/v2/apps?workspace=wsfilter01')
+        self.assertEqual(response.status_code, 200, response.data)
+        app_ids = [app['id'] for app in response.data['results']]
+        self.assertIn('app-filter01', app_ids)
+        self.assertNotIn('app-filter02', app_ids)
+
+        # filter by workspace2 - should only see app2
+        response = self.client.get('/v2/apps?workspace=wsfilter02')
+        self.assertEqual(response.status_code, 200, response.data)
+        app_ids = [app['id'] for app in response.data['results']]
+        self.assertIn('app-filter02', app_ids)
+        self.assertNotIn('app-filter01', app_ids)
+
+        # filter by non-existent workspace - should return empty
+        response = self.client.get('/v2/apps?workspace=nonexistent')
+        self.assertEqual(response.status_code, 200, response.data)
+        self.assertEqual(len(response.data['results']), 0)
+
+    def test_app_list_search_still_works(self, mock_requests):
+        """
+        App list API should still support ?search=xxx fuzzy search
+        alongside the workspace filter.
+        """
+        # create workspace and app
+        response = self.client.post('/v2/workspaces', {
+            'name': 'wssearch01',
+            'email': 'wssearch1@example.com',
+        })
+        self.assertEqual(response.status_code, 201, response.data)
+
+        response = self.client.post('/v2/apps', {
+            'id': 'app-search01',
+            'workspace': 'wssearch01',
+        })
+        self.assertEqual(response.status_code, 201, response.data)
+
+        response = self.client.post('/v2/apps', {
+            'id': 'app-search02',
+            'workspace': 'wssearch01',
+        })
+        self.assertEqual(response.status_code, 201, response.data)
+
+        # search by prefix
+        response = self.client.get('/v2/apps?search=app-search')
+        self.assertEqual(response.status_code, 200, response.data)
+        app_ids = [app['id'] for app in response.data['results']]
+        self.assertIn('app-search01', app_ids)
+        self.assertIn('app-search02', app_ids)
+
+        # search + workspace filter combined
+        response = self.client.get('/v2/apps?workspace=wssearch01&search=app-search01')
+        self.assertEqual(response.status_code, 200, response.data)
+        app_ids = [app['id'] for app in response.data['results']]
+        self.assertIn('app-search01', app_ids)
+        self.assertNotIn('app-search02', app_ids)
+
+
+class AppWorkspaceModelTest(DryccTransactionTestCase):
+    """
+    Test App model workspace-related behavior without K8s dependency.
+
+    These tests verify the workspace-based permission model at the ORM level,
+    bypassing App.save() which requires K8s API access.
+    Uses bulk_create to insert App records directly into the database.
+    """
+
+    fixtures = ['tests.json']
+
+    def setUp(self):
+        self.user1 = User.objects.get(username='autotest')
+        self.token1 = self.get_or_create_token(self.user1)
+        self.user2 = User.objects.get(username='autotest2')
+        self.token2 = self.get_or_create_token(self.user2)
+
+    def tearDown(self):
+        cache.clear()
+
+    def test_app_model_has_workspace_no_owner(self):
+        """
+        App model should have a 'workspace' field and no 'owner' field.
+        """
+        # App has workspace field
+        self.assertTrue(hasattr(App, 'workspace'))
+        # App does NOT have owner field
+        self.assertFalse(hasattr(App, 'owner'))
+
+    def test_app_queryset_filters_by_workspace_membership(self):
+        """
+        App.objects.filter(workspace__workspacemember__user__username=...)
+        should return only apps in workspaces where the user is a member.
+        """
+        # Create workspace1 with user1 as admin
+        ws1 = Workspace.objects.create(name='wsamodel01', email='ws1@example.com')
+        WorkspaceMember.objects.create(workspace=ws1, user=self.user1, role='admin')
+
+        # Create workspace2 with user2 as admin
+        ws2 = Workspace.objects.create(name='wsamodel02', email='ws2@example.com')
+        WorkspaceMember.objects.create(workspace=ws2, user=self.user2, role='admin')
+
+        # Create apps directly in DB (bypass K8s)
+        App.objects.bulk_create([
+            App(id='app-model01', workspace=ws1),
+            App(id='app-model02', workspace=ws2),
+        ])
+
+        # user1 should only see app-model01
+        user1_apps = list(
+            App.objects.filter(
+                workspace__workspacemember__user__username=self.user1.username
+            ).values_list('id', flat=True)
+        )
+        self.assertIn('app-model01', user1_apps)
+        self.assertNotIn('app-model02', user1_apps)
+
+        # user2 should only see app-model02
+        user2_apps = list(
+            App.objects.filter(
+                workspace__workspacemember__user__username=self.user2.username
+            ).values_list('id', flat=True)
+        )
+        self.assertIn('app-model02', user2_apps)
+        self.assertNotIn('app-model01', user2_apps)
+
+    def test_key_model_still_has_owner(self):
+        """
+        Key model should still have 'owner' field since it's a user personal asset.
+        """
+        from api.models.key import Key
+        self.assertTrue(hasattr(Key, 'owner'))
+
+    def test_token_model_still_has_owner(self):
+        """
+        Token model should still have 'owner' field since it's a user personal asset.
+        """
+        from api.models.base import Token
+        self.assertTrue(hasattr(Token, 'owner'))
