@@ -19,7 +19,8 @@ class CertificateTest(DryccTestCase):
         self.user = User.objects.get(username='autotest')
         self.token = self.get_or_create_token(self.user)
         self.client.credentials(HTTP_AUTHORIZATION='Token ' + self.token)
-        self.app = App.objects.create(owner=self.user, id='test-app-use-case')
+        app_id = self.create_app(name='test-app-use-case')
+        self.app = App.objects.get(id=app_id)
         self.url = f'/v2/apps/{self.app.id}/certs'
         self.domain = 'autotest.example.com'
 
@@ -146,7 +147,6 @@ class CertificateTest(DryccTestCase):
         Certificate.objects.create(
             name='random-test-cert',
             app=self.app,
-            owner=self.user,
             common_name='autotest.example.com',
             certificate=self.cert,
             key=self.key
@@ -174,7 +174,6 @@ class CertificateTest(DryccTestCase):
 
         with self.assertRaises(SuspiciousOperation):
             Certificate.objects.create(
-                owner=self.user,
                 app=self.app,
                 name='random-test-cert',
                 certificate='i am bad data',
@@ -200,7 +199,7 @@ class CertificateTest(DryccTestCase):
 
         with self.assertRaises(SuspiciousOperation):
             Certificate.objects.create(
-                owner=self.user,
+                app=self.app,
                 name='random-test-cert',
                 certificate=self.cert,
                 key='I am Groot.'

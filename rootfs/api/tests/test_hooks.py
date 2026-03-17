@@ -8,7 +8,6 @@ from django.contrib.auth import get_user_model
 from django.core.cache import cache
 
 from api.tests import adapter, DryccTransactionTestCase
-from api.models.app import app_permission_registry
 import requests_mock
 
 User = get_user_model()
@@ -69,15 +68,6 @@ class HookTest(DryccTransactionTestCase):
 
         # Create app to use
         app_id = self.create_app()
-
-        # give user permission to app
-        body = {
-            'username': str(self.user),
-            'permissions': ','.join(app_permission_registry.shortnames),
-        }
-        url = f'/v2/apps/{app_id}/perms/'
-        response = self.client.post(url, body)
-        self.assertEqual(response.status_code, 201, response.data)
 
         # Create rsa key
         body = {'id': str(self.user), 'public': RSA_PUBKEY}

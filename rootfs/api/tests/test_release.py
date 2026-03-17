@@ -257,11 +257,10 @@ class ReleaseTest(DryccTransactionTestCase):
         url = '/v2/apps/{}/releases/v2'.format(app_id)
         response = self.client.get(url)
         for key in response.data.keys():
-            self.assertIn(key, ['uuid', 'owner', 'created', 'updated', 'app', 'build', 'config',
+            self.assertIn(key, ['uuid', 'created', 'updated', 'app', 'build', 'config',
                                 'summary', 'version', 'state', 'failed', 'conditions',
                                 'exception', 'deployed_ptypes'])
         expected = {
-            'owner': self.user.username,
             'app': app_id,
             'build': None,
             'config': uuid.UUID(config_response.data['uuid']),
@@ -735,7 +734,6 @@ class ReleaseTest(DryccTransactionTestCase):
     def test_run(self, mock_requests):
         app_id = self.create_app()
         app = App.objects.get(id=app_id)
-        user = User.objects.get(username='autotest')
         dryccfile = {
             "pipeline": {
                 "web.yaml": {
@@ -767,10 +765,10 @@ class ReleaseTest(DryccTransactionTestCase):
             },
         }
         build = Build.objects.create(
-            owner=user, app=app, image="qwerty", procfile={},
+            app=app, image="qwerty", procfile={},
             sha='african-swallow', dockerfile={}, dryccfile=dryccfile)
         release = Release.objects.create(
-            version=2, owner=user, app=app, config=app.config_set.latest(),
+            version=2, app=app, config=app.config_set.latest(),
             build=build, state="succeed")
         runners = release.get_runners(["web"])
         self.assertEqual(len(runners), 1)
@@ -786,10 +784,10 @@ class ReleaseTest(DryccTransactionTestCase):
             'image': 'registry.drycc.cc/drycc/python-dev:latest',
         }
         build = Build.objects.create(
-            owner=user, app=app, image="qwerty", procfile={},
+            app=app, image="qwerty", procfile={},
             sha='african-swallow', dockerfile={}, dryccfile=dryccfile)
         release = Release.objects.create(
-            version=3, owner=user, app=app, config=app.config_set.latest(),
+            version=3, app=app, config=app.config_set.latest(),
             build=build, state="succeed")
         runners = release.get_runners(["web"])
         self.assertEqual(len(runners), 1)

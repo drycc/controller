@@ -20,7 +20,6 @@ class Config(UuidAuditedModel):
                     "termination_grace_period", "registry")
     allof_fields = ("values", ) + ptype_fields
 
-    owner = models.ForeignKey(User, on_delete=models.PROTECT)
     app = models.ForeignKey('App', on_delete=models.CASCADE)
     values = models.JSONField(default=list, blank=True)
     values_refs = models.JSONField(default=dict, blank=True)

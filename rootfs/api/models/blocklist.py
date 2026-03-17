@@ -1,7 +1,6 @@
 import logging
 import functools
 from django.db import models
-from django.contrib.auth import get_user_model
 from scheduler import KubeHTTPException
 from api.exceptions import ServiceUnavailable
 from api.utils import apply_tasks
@@ -9,17 +8,15 @@ from .app import App
 from .base import UuidAuditedModel
 
 
-User = get_user_model()
 logger = logging.getLogger(__name__)
 
 
 class Blocklist(UuidAuditedModel):
     """
-    You can block apps or users.
-    If a user is blocked, all apps owned by the user will be stopped.
-    The apps managed by the user will not be affected.
+    You can block apps or workspaces.
+    If a workspace is blocked, all apps under that workspace will be stopped.
     """
-    type_choices = [(1, "app", ), (2, "user")]
+    type_choices = [(1, "app", ), (2, "workspace")]
     id = models.CharField(max_length=128, db_index=True)
     type = models.PositiveIntegerField(choices=type_choices)
     remark = models.TextField(blank=True, null=True, default="Blocked for unknown reason")
@@ -27,8 +24,7 @@ class Blocklist(UuidAuditedModel):
     @property
     def related_apps(self):
         if self.type == 2:
-            user = User.objects.get(id=self.id)
-            return App.objects.filter(owner=user)
+            return App.objects.filter(workspace_id=self.id)
         else:
             return App.objects.filter(id=self.id)
 
@@ -42,7 +38,7 @@ class Blocklist(UuidAuditedModel):
     @classmethod
     def get_blocklist(cls, app: App):
         return cls.objects.filter(
-            models.Q(id=app.id, type=1) | models.Q(id=app.owner_id, type=2)
+            models.Q(id=app.id, type=1) | models.Q(id=app.workspace_id, type=2)
         ).first()
 
     class Meta:

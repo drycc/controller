@@ -54,10 +54,6 @@ app.conf.update(
             'queue': 'controller.high',
             'exchange': 'controller.priority', 'routing_key': 'controller.priority.high',
         },
-        'api.tasks.downstream_model_owner': {
-            'queue': 'controller.high',
-            'exchange': 'controller.priority', 'routing_key': 'controller.priority.high',
-        },
         'api.tasks.send_app_log': {
             'queue': 'controller.middle',
             'exchange': 'controller.priority', 'routing_key': 'controller.priority.middle',

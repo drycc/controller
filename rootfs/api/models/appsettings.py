@@ -20,7 +20,6 @@ class AppSettings(UuidAuditedModel):
     Instance of Application settings used by scheduler
     """
 
-    owner = models.ForeignKey(User, on_delete=models.PROTECT)
     app = models.ForeignKey('App', on_delete=models.CASCADE)
     routable = models.BooleanField(default=None)
     autodeploy = models.BooleanField(default=None)
@@ -77,7 +76,9 @@ class AppSettings(UuidAuditedModel):
         elif new is None and isinstance(self._meta.get_field(field), models.BooleanField):
             setattr(self, field, True)
         elif old != new:
-            self.summary += ["{} changed {} from {} to {}".format(self.owner, field, old, new)]
+            self.summary += [
+                "{} changed {} from {} to {}".format(self.app.workspace.name, field, old, new)
+            ]
 
     def _update_autoscale(self, previous_settings):
         data = getattr(previous_settings, 'autoscale', {}).copy()
@@ -117,7 +118,7 @@ class AppSettings(UuidAuditedModel):
             deleted = 'deleted autoscale for process type ' + deleted if deleted else ''
             changes = ', '.join(i for i in (added, changed, deleted) if i)
             if changes:
-                self.summary += ["{} {}".format(self.owner, changes)]
+                self.summary += ["{} {}".format(self.app.workspace.name, changes)]
 
     def _update_label(self, previous_settings):
         data = getattr(previous_settings, 'label', {}).copy()
@@ -149,7 +150,7 @@ class AppSettings(UuidAuditedModel):
             if changes:
                 if self.summary:
                     self.summary += ' and '
-                self.summary += ["{} {}".format(self.owner, changes)]
+                self.summary += ["{} {}".format(self.app.workspace.name, changes)]
 
     @transaction.atomic
     def save(self, ignore_update_fields=None, *args, **kwargs):
@@ -175,7 +176,7 @@ class AppSettings(UuidAuditedModel):
 
         if not self.summary and previous_settings:
             self.delete()
-            raise AlreadyExists("{} changed nothing".format(self.owner))
+            raise AlreadyExists("{} changed nothing".format(self.app.workspace.name))
         super(AppSettings, self).save(**kwargs)
         summary = ' '.join(self.summary)
         self.log('summary of app setting changes: {}'.format(summary), logging.DEBUG)

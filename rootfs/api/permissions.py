@@ -1,10 +1,9 @@
 import base64
 from rest_framework import permissions
 from django.conf import settings
-from django.contrib.auth.models import AnonymousUser
 from api import manager
-from api.models import app
 from api.models import blocklist
+from api.models.workspace import Workspace, WorkspaceMember
 
 
 def get_app_status(app):
@@ -12,40 +11,10 @@ def get_app_status(app):
     if block:
         return False, block.remark
     if settings.WORKFLOW_MANAGER_URL:
-        status = manager.UserAPI().get_status(app.owner.pk)
+        status = manager.WorkspaceAPI().get_status(app.workspace_id)
         if not status["is_active"]:
             return False, status["message"]
     return True, None
-
-
-def has_app_permission(user, obj, method):
-    obj = getattr(obj, 'app', obj)
-    has_permission, message = False, f"{obj} object does not exist or does not have permission."
-    if user.is_superuser:
-        has_permission, message = True, None
-    elif getattr(obj, "owner", None) == user:
-        has_permission, message = True, None
-    elif user.is_staff:
-        has_permission, message = True, None
-    else:
-        permission = app.app_permission_registry.get(method)
-        if permission and user.has_perm(permission.codename, obj):
-            has_permission, message = True, None
-    if has_permission and isinstance(obj, app.App):
-        return get_app_status(obj)
-    return has_permission, message
-
-
-class IsAnonymous(permissions.BasePermission):
-    """
-    View permission to allow anonymous users.
-    """
-
-    def has_permission(self, request, view):
-        """
-        Return `True` if permission is granted, `False` otherwise.
-        """
-        return type(request.user) is AnonymousUser
 
 
 class IsOwner(permissions.BasePermission):
@@ -61,54 +30,29 @@ class IsOwner(permissions.BasePermission):
             return False
 
 
-class IsOwnerOrAdmin(permissions.BasePermission):
+class IsAppUser(permissions.BasePermission):
     """
-    Object-level permission to allow only owners of an object or administrators to access it.
-    Assumes the model instance has an `owner` attribute.
+    Object-level permission to allow only users who are owners
+    or collaborators of an app to access it.
     """
+
     def has_object_permission(self, request, view, obj):
-        if request.user.is_superuser:
+        if request.user.is_superuser or request.user.is_staff:
             return True
-        if hasattr(obj, 'owner'):
-            return obj.owner == request.user
-        else:
-            return False
-
-
-class IsObjectUser(permissions.BasePermission):
-    """
-    Object-level permission to allow owners or collaborators to access
-    an app-related model.
-    """
-    def has_object_permission(self, request, view, obj):
-        return has_app_permission(request.user, obj, request.method)[0]
-
-
-class IsAdmin(permissions.BasePermission):
-    """
-    View permission to allow only admins.
-    """
-
-    def has_permission(self, request, view):
-        """
-        Return `True` if permission is granted, `False` otherwise.
-        """
-        return request.user.is_superuser
-
-
-class IsAdminOrSafeMethod(permissions.BasePermission):
-    """
-    View permission to allow only admins to use unsafe methods
-    including POST, PUT, DELETE.
-
-    This allows
-    """
-
-    def has_permission(self, request, view):
-        """
-        Return `True` if permission is granted, `False` otherwise.
-        """
-        return request.method in permissions.SAFE_METHODS or request.user.is_superuser
+        elif getattr(obj, "user", None) == request.user:
+            return True
+        elif isinstance(obj, Workspace) or hasattr(obj, 'workspace'):
+            workspace = obj if isinstance(obj, Workspace) else obj.workspace
+            if request.method in ["GET", "HEAD", "OPTIONS"]:
+                allowed_roles = ["viewer", "member", "admin"]
+            elif request.method in ["POST", "PUT", "PATCH"]:
+                allowed_roles = ["member", "admin"]
+            else:
+                allowed_roles = ["admin"]
+            return WorkspaceMember.objects.filter(
+                workspace=workspace, user=request.user, role__in=allowed_roles,
+            ).exists()
+        return False
 
 
 class IsServiceToken(permissions.BasePermission):

@@ -102,7 +102,6 @@ class Certificate(AuditedModel):
     """
     Public and private key pair used to secure application traffic at the router.
     """
-    owner = models.ForeignKey(User, on_delete=models.PROTECT)
     app = models.ForeignKey('App', on_delete=models.CASCADE)
     name = models.CharField(max_length=253, validators=[validate_label])
     # there is no upper limit on the size of an x.509 certificate

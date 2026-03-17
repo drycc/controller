@@ -7,7 +7,6 @@ User = get_user_model()
 
 
 class Domain(AuditedModel):
-    owner = models.ForeignKey(User, on_delete=models.PROTECT)
     app = models.ForeignKey('App', on_delete=models.CASCADE)
     domain = models.TextField(
         blank=False, null=False, unique=True,

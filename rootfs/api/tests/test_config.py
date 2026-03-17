@@ -35,11 +35,8 @@ class ConfigTest(DryccTransactionTestCase):
         self.user = User.objects.get(username='autotest')
         self.token = self.get_or_create_token(self.user)
         self.client.credentials(HTTP_AUTHORIZATION='Token ' + self.token)
-
-        url = '/v2/apps'
-        response = self.client.post(url, HTTP_AUTHORIZATION='token {}'.format(self.token))
-        self.assertEqual(response.status_code, 201, response.data)
-        self.app = App.objects.all()[0]
+        app_id = self.create_app()
+        self.app = App.objects.get(id=app_id)
 
     def tearDown(self):
         # make sure every test has a clean slate for k8s mocking
@@ -366,11 +363,10 @@ class ConfigTest(DryccTransactionTestCase):
         body = {'values': [value1]}
         response = self.client.post(url, body)
         for key in response.data:
-            self.assertIn(key, ['uuid', 'owner', 'created', 'updated', 'app', 'values',
+            self.assertIn(key, ['uuid', 'created', 'updated', 'app', 'values',
                                 'values_refs', 'limits', 'tags', 'registry', 'healthcheck',
                                 'lifecycle', 'termination_grace_period'])
         expected = {
-            'owner': self.user.username,
             'app': app_id,
             'values': [value1],
             'limits': {
@@ -397,11 +393,10 @@ class ConfigTest(DryccTransactionTestCase):
         response = self.client.post(url, body)
         self.assertEqual(response.status_code, 201, response.data)
         for key in response.data:
-            self.assertIn(key, ['uuid', 'owner', 'created', 'updated', 'app', 'values', 'limits',
+            self.assertIn(key, ['uuid', 'created', 'updated', 'app', 'values', 'limits',
                                 'values_refs', 'tags', 'registry', 'healthcheck',
                                 'lifecycle', 'termination_grace_period'])
         expected = {
-            'owner': self.user.username,
             'app': app_id,
             'values': [value1],
             'limits': {
@@ -563,14 +558,6 @@ class ConfigTest(DryccTransactionTestCase):
         self.assertEqual([value1], response.data['values'])
         return response
 
-    def test_config_owner_is_requesting_user(self, mock_requests):
-        """
-        Ensure that setting the config value is owned by the requesting user
-        See https://github.com/drycc/drycc/issues/2650
-        """
-        response = self.test_admin_can_create_config_on_other_apps()
-        self.assertEqual(response.data['owner'], self.user.username)
-
     def test_unauthorized_user_cannot_modify_config(self, mock_requests):
         """
         An unauthorized user should not be able to modify other config.
@@ -685,9 +672,7 @@ class ConfigTest(DryccTransactionTestCase):
         self.assertEqual(response.status_code, 201)
         # dockerfile + procfile worflow
         app = App.objects.get(id=app_id)
-        user = User.objects.get(username='autotest')
         build = Build.objects.create(
-            owner=user,
             app=app,
             image="qwerty",
             procfile={
@@ -700,7 +685,6 @@ class ConfigTest(DryccTransactionTestCase):
         # create an initial release
         release = Release.objects.create(
             version=3,
-            owner=user,
             app=app,
             config=app.config_set.latest(),
             build=build
@@ -764,9 +748,7 @@ class ConfigTest(DryccTransactionTestCase):
         app_id = self.create_app()
         # dockerfile + procfile worflow
         app = App.objects.get(id=app_id)
-        user = User.objects.get(username='autotest')
         build = Build.objects.create(
-            owner=user,
             app=app,
             image="qwerty",
             procfile={
@@ -779,7 +761,6 @@ class ConfigTest(DryccTransactionTestCase):
         # create an initial release
         release = Release.objects.create(
             version=3,
-            owner=user,
             app=app,
             config=app.config_set.latest(),
             build=build

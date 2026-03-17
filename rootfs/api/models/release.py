@@ -32,7 +32,6 @@ class Release(UuidAuditedModel):
         ("crashed", "Release pipeline runtime crashed"),
         ("succeed", "Release pipeline runtime succeed"),
     )
-    owner = models.ForeignKey(User, on_delete=models.PROTECT)
     app = models.ForeignKey('App', on_delete=models.CASCADE)
     state = models.TextField(choices=STATE_CHOICES, default=STATE_CHOICES[0][0])
     version = models.PositiveIntegerField()
@@ -49,6 +48,9 @@ class Release(UuidAuditedModel):
         get_latest_by = 'created'
         ordering = ['-created']
         unique_together = (('app', 'version'),)
+        indexes = [
+            models.Index(fields=['app', 'failed', 'state']),
+        ]
 
     def __str__(self):
         return "{0}-{1}".format(self.app.id, self.version_name)
@@ -143,8 +145,7 @@ class Release(UuidAuditedModel):
         new_version = self.app.release_set.latest().version + 1
         # create new release and auto-increment version
         return Release.objects.create(
-            owner=user, app=self.app, config=config,
-            build=build, version=new_version, summary=summary
+            app=self.app, config=config, build=build, version=new_version, summary=summary
         )
 
     def get_port(self, ptype):
@@ -263,7 +264,7 @@ class Release(UuidAuditedModel):
                 if new_release.summary:
                     new_release.summary += " "
                 new_release.summary += "{} performed roll back to a release that failed".format(
-                    self.owner)
+                    user)
                 # Get the exception that has occured
                 new_release.exception = "error: {}".format(str(e))
                 # avoid overwriting other fields
@@ -424,12 +425,14 @@ class Release(UuidAuditedModel):
             old_config = prev_release.config if prev_release else None
             # if the build changed, log it and who pushed it
             if self.version == 1:
-                self.summary += "{} created initial release".format(self.app.owner)
+                self.summary += "{} created initial release".format(self.app.workspace.name)
             elif self.build != old_build:
                 if self.build.sha:
-                    self.summary += "{} deployed {}".format(self.build.owner, self.build.sha[:7])
+                    self.summary += "{} deployed {}".format(
+                        self.app.workspace.name, self.build.sha[:7])
                 else:
-                    self.summary += "{} deployed {}".format(self.build.owner, self.build.image)
+                    self.summary += "{} deployed {}".format(
+                        self.app.workspace.name, self.build.image)
             elif self.config != old_config:
                 for field, diff in self.config.diff(old_config).items():
                     diff_list = []
@@ -437,11 +440,13 @@ class Release(UuidAuditedModel):
                         diff_list.append(f'{diff_type} {field} {", ".join(values)}')
                     if diff_list:
                         changes = ', '.join(diff_list)
-                        self.summary += "{} {}".format(self.config.owner, changes)
+                        self.summary += "{} {}".format(self.app.workspace.name, changes)
             if not self.summary:
                 if self.version == 1:
-                    self.summary = "{} created the initial release".format(self.owner)
+                    self.summary = "{} created the initial release".format(self.app.workspace.name)
                 else:
                     # There were no changes to this release
-                    raise AlreadyExists("{} changed nothing - release stopped".format(self.owner))
+                    raise AlreadyExists(
+                        "{} changed nothing - release stopped".format(self.app.workspace.name)
+                    )
         super(Release, self).save(*args, **kwargs)

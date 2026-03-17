@@ -17,6 +17,27 @@ app_urlpatterns = [
     re_path(r'auth/login/?$', views.AuthLoginView.as_view({"post": "login"})),
     re_path(r'auth/token/?$', views.AuthTokenView.as_view({"post": "token"})),
     re_path(r'auth/token/(?P<key>[-_\w]+)/?$', views.AuthTokenView.as_view({"get": "token"})),
+    # Workspaces management URLs (keep workspaces prefix, no user prefix)
+    re_path(r'^workspaces/?$',
+            views.WorkspaceViewSet.as_view({'get': 'list', 'post': 'create'}),
+            name='workspace_list'),
+    re_path(r'^workspaces/(?P<name>[-_\w]+)/?$',
+            views.WorkspaceViewSet.as_view(
+                {'get': 'retrieve', 'patch': 'partial_update', 'delete': 'destroy'}),
+            name='workspace_detail'),
+    re_path(r'^workspaces/(?P<name>[-_\w]+)/members/?$',
+            views.WorkspaceMemberViewSet.as_view({'get': 'list'}),
+            name='workspace_member_list'),
+    re_path(r'^workspaces/(?P<name>[-_\w]+)/members/(?P<user>[-_\w]+)/?$',
+            views.WorkspaceMemberViewSet.as_view(
+                {'get': 'retrieve', 'patch': 'partial_update', 'delete': 'destroy'}),
+            name='workspace_member_detail'),
+    re_path(r'^workspaces/(?P<name>[-_\w]+)/invitations/?$',
+            views.WorkspaceInvitationViewSet.as_view({'get': 'list', 'post': 'create'}),
+            name='workspace_invitation_list'),
+    re_path(r'^workspaces/(?P<name>[-_\w]+)/invitations/(?P<uid>[-_\w]+)/?$',
+            views.WorkspaceInvitationViewSet.as_view({'get': 'retrieve', 'delete': 'destroy'}),
+            name='workspace_invitation_detail'),
     # limits
     re_path(
         r'^limits/specs/?$',
@@ -33,7 +54,7 @@ app_urlpatterns = [
         views.BuildViewSet.as_view({'get': 'retrieve', 'post': 'create'})),
     re_path(
         r"^apps/(?P<id>{})/config/?$".format(settings.APP_URL_REGEX),
-        views.ConfigViewSet.as_view({'get': 'retrieve', 'post': 'create'})),
+        views.ConfigViewSet.as_view({'get': 'retrieve', 'post': 'create', 'delete': 'destroy'})),
     re_path(
         r"^apps/(?P<id>{})/releases/v(?P<version>[0-9]+)/?$".format(settings.APP_URL_REGEX),
         views.ReleaseViewSet.as_view({'get': 'retrieve'})),
@@ -49,7 +70,7 @@ app_urlpatterns = [
     # list/delete pods
     re_path(
         r"^apps/(?P<id>{})/pods/?$".format(settings.APP_URL_REGEX),
-        views.PodViewSet.as_view({'get': 'list', 'delete': 'delete'})),
+        views.PodViewSet.as_view({'get': 'list', 'delete': 'destroy'})),
     # describe pod
     re_path(
         r"^apps/(?P<id>{})/pods/(?P<name>{})/describe/?$".format(
@@ -92,11 +113,7 @@ app_urlpatterns = [
     re_path(
         r"^apps/(?P<id>{})/services/?$".format(settings.APP_URL_REGEX),
         views.ServiceViewSet.as_view({'post': 'create_or_update',
-                                     'get': 'list', 'delete': 'delete'})),
-    # application actions
-    re_path(
-        r"^apps/(?P<id>{})/run/?$".format(settings.APP_URL_REGEX),
-        views.AppViewSet.as_view({'post': 'run'})),
+                                     'get': 'list', 'delete': 'destroy'})),
     # application settings
     re_path(
         r"^apps/(?P<id>{})/settings/?$".format(settings.APP_URL_REGEX),
@@ -143,17 +160,18 @@ app_urlpatterns = [
     re_path(
         r'^apps/(?P<id>{})/certs/(?P<name>{})/?$'.format(
             settings.APP_URL_REGEX, settings.NAME_REGEX),
-        views.CertificateViewSet.as_view({
-            'get': 'retrieve',
-            'delete': 'destroy'
-        })),
+        views.CertificateViewSet.as_view({'get': 'retrieve', 'delete': 'destroy'})),
     re_path(
         r'^apps/(?P<id>{})/certs/?$'.format(settings.APP_URL_REGEX),
         views.CertificateViewSet.as_view({'get': 'list', 'post': 'create'})),
+    # application actions
+    re_path(
+        r"^apps/(?P<id>{})/run/?$".format(settings.APP_URL_REGEX),
+        views.AppViewSet.as_view({'post': 'run'})),
     # apps base endpoint
     re_path(
         r"^apps/(?P<id>{})/?$".format(settings.APP_URL_REGEX),
-        views.AppViewSet.as_view({'get': 'retrieve', 'post': 'update', 'delete': 'destroy'})),
+        views.AppViewSet.as_view({'get': 'retrieve', 'patch': 'transfer', 'delete': 'destroy'})),
     re_path(
         r'^apps/?$',
         views.AppViewSet.as_view({'get': 'list', 'post': 'create'})),
@@ -183,18 +201,18 @@ app_urlpatterns = [
     # authn / authz
     re_path(
         r'^auth/whoami/?$',
-        views.UserManagementViewSet.as_view({'get': 'list'})),
+        views.UserManagementViewSet.as_view({'get': 'whoami'})),
     # gateways
     re_path(
         r"^apps/(?P<id>{})/gateways/?$".format(settings.APP_URL_REGEX),
         views.GatewayViewSet.as_view(
-            {'post': 'create_or_update', 'get': 'list', 'delete': 'delete'})),
+            {'post': 'create_or_update', 'get': 'list', 'delete': 'destroy'})),
     # routes
     re_path(
         r"^apps/(?P<id>{})/routes/(?P<name>{})?/?$".format(
             settings.APP_URL_REGEX, settings.NAME_REGEX),
         views.RouteViewSet.as_view(
-            {'post': 'create', 'get': 'list', 'delete': 'delete'})),
+            {'post': 'create', 'get': 'list', 'delete': 'destroy'})),
     re_path(
         r"^apps/(?P<id>{})/routes/(?P<name>{})/attach/?$".format(
             settings.APP_URL_REGEX, settings.NAME_REGEX),
@@ -207,14 +225,6 @@ app_urlpatterns = [
         r"^apps/(?P<id>{})/routes/(?P<name>{})/rules/?$".format(
             settings.APP_URL_REGEX, settings.NAME_REGEX),
         views.RouteViewSet.as_view({'get': 'get', 'put': 'set'})),
-    # users
-    re_path(r'^users/?$', views.UserView.as_view({'get': 'list'})),
-    re_path(
-        r'^users/(?P<username>[\w.@+-]+)/enable/?$',
-        views.UserView.as_view({'patch': 'enable'})),
-    re_path(
-        r'^users/(?P<username>[\w.@+-]+)/disable/?$',
-        views.UserView.as_view({'patch': 'disable'})),
     re_path(
         r'^apps/(?P<id>{})/metrics/?$'.format(settings.APP_URL_REGEX),
         views.MetricView.as_view({'get': 'metric'})),
@@ -228,13 +238,6 @@ app_urlpatterns = [
     re_path(
         r'^manager/(?P<type>[\w.@+-]+)s/(?P<id>{})/unblock/?$'.format(settings.APP_URL_REGEX),
         views.WorkflowManagerViewset.as_view({'delete': 'unblock'})),
-    # user perms
-    re_path(
-        r"^apps/(?P<id>{})/perms/?$".format(settings.APP_URL_REGEX),
-        views.AppPermViewSet.as_view({'get': 'list', 'post': 'create'})),
-    re_path(
-        r"^apps/(?P<id>{})/perms/(?P<username>[\w.@+-]+)/?$".format(settings.APP_URL_REGEX),
-        views.AppPermViewSet.as_view({'put': 'update', 'delete': 'destroy'})),
     # quickwit
     re_path(
         r'^quickwit/(?P<username>[\w.@+-]+)/(?P<path>.+)/?$', views.QuickwitProxyView.as_view()),

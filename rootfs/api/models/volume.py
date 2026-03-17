@@ -23,7 +23,6 @@ class Volume(UuidAuditedModel):
         ("nfs", "network file system"),
         ("oss", "object storage service file"),
     )
-    owner = models.ForeignKey(User, on_delete=models.PROTECT)
     app = models.ForeignKey('App', on_delete=models.CASCADE)
     name = models.CharField(max_length=63, validators=[validate_label])
     size = models.CharField(default='0G', max_length=128)
@@ -75,7 +74,7 @@ class Volume(UuidAuditedModel):
     def to_usages(self, timestamp: float):
         return [{
             "app_id": str(self.app_id),
-            "owner": self.owner_id,
+            "workspace": self.app.workspace_id,
             "name": self.type,
             "type": "volume",
             "unit": "bytes",

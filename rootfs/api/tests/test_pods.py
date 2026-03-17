@@ -265,13 +265,11 @@ class PodTest(DryccTransactionTestCase):
 
         # create a release so we can scale
         app = App.objects.get(id=app_id)
-        user = User.objects.get(username='autotest')
-        build = Build.objects.create(owner=user, app=app, image="qwerty")
+        build = Build.objects.create(app=app, image="qwerty")
 
         # create an initial release
         release = Release.objects.create(
             version=2,
-            owner=user,
             app=app,
             config=app.config_set.latest(),
             build=build
@@ -474,9 +472,7 @@ class PodTest(DryccTransactionTestCase):
     def test_scale_without_build_should_error(self, mock_requests):
         """A user should not be able to scale processes unless a build is present."""
         app_id = 'autotest'
-        url = '/v2/apps'
-        body = {'cluster': 'autotest', 'id': app_id}
-        response = self.client.post(url, body)
+        self.create_app(name=app_id)
 
         url = f'/v2/apps/{app_id}/ptypes/scale'
         body = {'web': '1'}
@@ -489,11 +485,9 @@ class PodTest(DryccTransactionTestCase):
         """Test the default command for each container workflow"""
         app_id = self.create_app()
         app = App.objects.get(id=app_id)
-        user = User.objects.get(username='autotest')
 
         # CNCF Buildpack app
         build = Build.objects.create(
-            owner=user,
             app=app,
             image="qwerty",
             procfile={
@@ -507,7 +501,6 @@ class PodTest(DryccTransactionTestCase):
         # create an initial release
         release = Release.objects.create(
             version=2,
-            owner=user,
             app=app,
             config=app.config_set.latest(),
             build=build
@@ -551,7 +544,6 @@ class PodTest(DryccTransactionTestCase):
 
         # dockerfile + procfile worflow
         build = Build.objects.create(
-            owner=self.user,
             app=app,
             image="qwerty",
             stack="heroku-18",
@@ -566,7 +558,6 @@ class PodTest(DryccTransactionTestCase):
         # create an initial release
         release = Release.objects.create(
             version=2,
-            owner=self.user,
             app=app,
             config=app.config_set.latest(),
             build=build
@@ -613,7 +604,6 @@ class PodTest(DryccTransactionTestCase):
 
         # dockerfile + procfile worflow
         build = Build.objects.create(
-            owner=self.user,
             app=app,
             image="qwerty",
             procfile={
@@ -627,7 +617,6 @@ class PodTest(DryccTransactionTestCase):
         # create an initial release
         release = Release.objects.create(
             version=2,
-            owner=self.user,
             app=app,
             config=app.config_set.latest(),
             build=build
@@ -646,11 +635,9 @@ class PodTest(DryccTransactionTestCase):
         """Test that app info doesn't show transient "run" proctypes."""
         app_id = self.create_app()
         app = App.objects.get(id=app_id)
-        user = User.objects.get(username='autotest')
 
         # dockerfile + procfile worflow
         build = Build.objects.create(
-            owner=user,
             app=app,
             image="qwerty",
             procfile={
@@ -664,7 +651,6 @@ class PodTest(DryccTransactionTestCase):
         # create an initial release
         release = Release.objects.create(
             version=2,
-            owner=user,
             app=app,
             config=app.config_set.latest(),
             build=build
