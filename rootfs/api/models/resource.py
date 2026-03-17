@@ -13,7 +13,6 @@ logger = logging.getLogger(__name__)
 
 
 class Resource(UuidAuditedModel):
-    owner = models.ForeignKey(User, on_delete=models.PROTECT)
     app = models.ForeignKey('App', on_delete=models.CASCADE)
     name = models.CharField(max_length=63, validators=[validate_label])
     plan = models.CharField(max_length=128)
@@ -210,7 +209,7 @@ class Resource(UuidAuditedModel):
     def to_usages(self, timestamp: float):
         return [{
             "app_id": str(self.app_id),
-            "owner": self.owner_id,
+            "workspace": self.app.workspace_id,
             "name": self.plan,
             "type": "resource",
             "unit": "number",

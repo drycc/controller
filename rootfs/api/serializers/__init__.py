@@ -201,27 +201,29 @@ class AdminUserSerializer(serializers.ModelSerializer):
 class AppSerializer(serializers.ModelSerializer):
     """Serialize a :class:`~api.models.app.App` model."""
 
-    owner = serializers.ReadOnlyField(source='owner.username')
+    workspace = serializers.SlugRelatedField(
+        slug_field='name',
+        queryset=models.workspace.Workspace.objects.all(),
+    )
     structure = serializers.JSONField(required=False)
 
     class Meta:
         """Metadata options for a :class:`AppSerializer`."""
         model = models.app.App
-        fields = ['uuid', 'id', 'owner', 'structure', 'created', 'updated']
+        fields = ['uuid', 'id', 'workspace', 'structure', 'created', 'updated']
 
 
 class BuildSerializer(serializers.ModelSerializer):
     """Serialize a :class:`~api.models.build.Build` model."""
 
     app = serializers.SlugRelatedField(slug_field='id', queryset=models.app.App.objects.all())
-    owner = serializers.ReadOnlyField(source='owner.username')
     procfile = serializers.JSONField(required=False)
     dryccfile = serializers.JSONField(required=False)
 
     class Meta:
         """Metadata options for a :class:`BuildSerializer`."""
         model = models.build.Build
-        fields = ['owner', 'app', 'image', 'stack', 'sha', 'procfile', 'dryccfile',
+        fields = ['app', 'image', 'stack', 'sha', 'procfile', 'dryccfile',
                   'dockerfile', 'created', 'updated', 'uuid']
 
     @staticmethod
@@ -277,7 +279,6 @@ class ConfigSerializer(serializers.ModelSerializer):
     """Serialize a :class:`~api.models.config.Config` model."""
 
     app = serializers.SlugRelatedField(slug_field='id', queryset=models.app.App.objects.all())
-    owner = serializers.ReadOnlyField(source='owner.username')
     values = JSONFieldSerializer(required=False, binary=True)
     limits = JSONFieldSerializer(required=False, binary=True)
     lifecycle = JSONFieldSerializer(convert_to_str=False, required=False, binary=True)
@@ -419,7 +420,6 @@ class ReleaseSerializer(serializers.ModelSerializer):
     """Serialize a :class:`~api.models.release.Release` model."""
 
     app = serializers.SlugRelatedField(slug_field='id', queryset=models.app.App.objects.all())
-    owner = serializers.ReadOnlyField(source='owner.username')
 
     class Meta:
         """Metadata options for a :class:`ReleaseSerializer`."""
@@ -442,12 +442,11 @@ class DomainSerializer(serializers.ModelSerializer):
     """Serialize a :class:`~api.models.domain.Domain` model."""
 
     app = serializers.SlugRelatedField(slug_field='id', queryset=models.app.App.objects.all())
-    owner = serializers.ReadOnlyField(source='owner.username')
 
     class Meta:
         """Metadata options for a :class:`DomainSerializer`."""
         model = models.domain.Domain
-        fields = ['owner', 'created', 'updated', 'app', 'domain', 'ptype']
+        fields = ['created', 'updated', 'app', 'domain', 'ptype']
         read_only_fields = ['uuid']
 
     @staticmethod
@@ -504,7 +503,6 @@ class ServiceSerializer(serializers.ModelSerializer):
     """Serialize a :class:`~api.models.service.Service` model."""
 
     app = serializers.SlugRelatedField(slug_field='id', queryset=models.app.App.objects.all())
-    owner = serializers.ReadOnlyField(source='owner.username')
     port = serializers.IntegerField(required=True)
     protocol = serializers.CharField(required=True)
     target_port = serializers.IntegerField(default=DEFAULT_CONTAINER_PORT)
@@ -513,7 +511,7 @@ class ServiceSerializer(serializers.ModelSerializer):
     class Meta:
         """Metadata options for a :class:`ServiceSerializer`."""
         model = models.service.Service
-        fields = ['owner', 'created', 'updated', 'app', 'ptype']
+        fields = ['created', 'updated', 'app', 'ptype']
         read_only_fields = ['uuid']
 
     @staticmethod
@@ -536,7 +534,6 @@ class CertificateSerializer(serializers.ModelSerializer):
     """Serialize a :class:`~api.models.certificate.Certificate` model."""
 
     app = serializers.SlugRelatedField(slug_field='id', queryset=models.app.App.objects.all())
-    owner = serializers.ReadOnlyField(source='owner.username')
     domains = serializers.ReadOnlyField()
     san = serializers.ListField(
         child=serializers.CharField(allow_blank=True, allow_null=True, required=False),
@@ -592,7 +589,6 @@ class AppSettingsSerializer(serializers.ModelSerializer):
     """Serialize a :class:`~api.models.appsettings.AppSettings` model."""
 
     app = serializers.SlugRelatedField(slug_field='id', queryset=models.app.App.objects.all())
-    owner = serializers.ReadOnlyField(source='owner.username')
     autoscale = JSONFieldSerializer(convert_to_str=False, required=False, binary=True)
     label = JSONFieldSerializer(convert_to_str=False, required=False, binary=True)
 
@@ -615,7 +611,6 @@ class TLSSerializer(serializers.ModelSerializer):
     """Serialize a :class:`~api.models.tls.TLS` model."""
 
     app = serializers.SlugRelatedField(slug_field='id', queryset=models.app.App.objects.all())
-    owner = serializers.ReadOnlyField(source='owner.username')
     events = serializers.ReadOnlyField()
 
     class Meta:
@@ -628,7 +623,6 @@ class VolumeSerializer(serializers.ModelSerializer):
     """Serialize a :class:`~api.models.volume.Volume` model."""
 
     app = serializers.SlugRelatedField(slug_field='id', queryset=models.app.App.objects.all())
-    owner = serializers.ReadOnlyField(source='owner.username')
     path = JSONFieldSerializer(required=False, binary=True)
     parameters = serializers.JSONField(required=False)
 
@@ -687,7 +681,6 @@ class VolumeSerializer(serializers.ModelSerializer):
 class ResourceSerializer(serializers.ModelSerializer):
     """Serialize a :class:`~api.models.resource.Resource` model."""
     app = serializers.SlugRelatedField(slug_field='id', queryset=models.app.App.objects.all())
-    owner = serializers.ReadOnlyField(source='owner.username')
     name = serializers.CharField(max_length=63, required=True)
     plan = serializers.CharField(max_length=128, required=True)
     data = JSONFieldSerializer(required=False, binary=True)
@@ -743,7 +736,6 @@ class MetricSerializer(serializers.Serializer):
 
 class GatewaySerializer(serializers.Serializer):
     app = serializers.SlugRelatedField(slug_field='id', queryset=models.app.App.objects.all())
-    owner = serializers.ReadOnlyField(source='owner.username')
     name = serializers.CharField(max_length=63, required=True)
     listeners = serializers.JSONField(required=False)
     addresses = serializers.JSONField(read_only=True)
@@ -767,7 +759,6 @@ class GatewaySerializer(serializers.Serializer):
 
 class RouteSerializer(serializers.ModelSerializer):
     app = serializers.SlugRelatedField(slug_field='id', queryset=models.app.App.objects.all())
-    owner = serializers.ReadOnlyField(source='owner.username')
     kind = serializers.CharField(max_length=15, required=True)
     name = serializers.CharField(max_length=63, required=True)
     rules = serializers.JSONField(required=False)
@@ -793,3 +784,43 @@ class RouteSerializer(serializers.ModelSerializer):
         else:
             schema = rules.SCHEMA
         return validate_json(value, schema, serializers.ValidationError)
+
+
+class WorkspaceSerializer(serializers.ModelSerializer):
+    """Serialize Workspace model."""
+
+    class Meta:
+        model = models.workspace.Workspace
+        fields = '__all__'
+        read_only_fields = ['id', 'created', 'updated']
+        extra_kwargs = {
+            'name': {'validators': [models.workspace.validate_workspace_name]},
+        }
+
+    def update(self, instance, validated_data):
+        # Workspace name cannot be modified; the name field is read-only after creation.
+        validated_data.pop('name', None)
+        return super().update(instance, validated_data)
+
+
+class WorkspaceMemberSerializer(serializers.ModelSerializer):
+    """Serialize WorkspaceMember model."""
+    user = serializers.ReadOnlyField(source='user.username')
+    email = serializers.ReadOnlyField(source='user.email')
+    workspace = serializers.ReadOnlyField(source='workspace.name')
+
+    class Meta:
+        model = models.workspace.WorkspaceMember
+        fields = '__all__'
+        read_only_fields = ['id', 'created', 'updated']
+
+
+class WorkspaceInvitationSerializer(serializers.ModelSerializer):
+    """Serialize WorkspaceInvitation model."""
+    inviter = serializers.ReadOnlyField(source='inviter.username')
+    workspace = serializers.ReadOnlyField(source='workspace.name')
+
+    class Meta:
+        model = models.workspace.WorkspaceInvitation
+        fields = '__all__'
+        read_only_fields = ['id', 'token', 'created']

@@ -72,6 +72,7 @@ TEMPLATES = [
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
         'DIRS': [
             # insert your TEMPLATE_DIRS here
+            os.path.join(BASE_DIR, "templates"),
         ],
         'APP_DIRS': True,
         'OPTIONS': {
@@ -113,7 +114,6 @@ INSTALLED_APPS = (
     'django.contrib.sessions',
     # Third-party apps
     'corsheaders',
-    'guardian',
     'gunicorn',
     'rest_framework',
     'social_django',
@@ -126,11 +126,8 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 AUTHENTICATION_BACKENDS = (
     "django.contrib.auth.backends.ModelBackend",
-    "guardian.backends.ObjectPermissionBackend",
     "api.apps_extra.social_core.backends.DryccOIDC",
 )
-GUARDIAN_GET_INIT_ANONYMOUS_USER = 'api.models.base.get_anonymous_user_instance'
-ANONYMOUS_USER_NAME = os.environ.get('ANONYMOUS_USER_NAME', 'AnonymousUser')
 LOGIN_URL = '/v2/auth/login/'
 
 # Security settings
@@ -416,16 +413,26 @@ if DRYCC_DATABASE_REPLICA_URL is not None:
 # Implements: 'api.routers.DefaultReplicaRouter'
 DATABASE_ROUTERS = [r for r in os.environ.get('DRYCC_DATABASE_ROUTERS', '').split(',') if r]
 
-
+# regex for validating app names, domain names, and other names that are used in routing and dns.
 APP_URL_REGEX = '[a-z0-9-]+'
-
 DOMAIN_URL_REGEX = r'\**\.?[-\._\w]+'
-
 NAME_REGEX = r'[a-z0-9]+(\-[a-z0-9]+)*'
 
-# Oauth settings
+# email settings
+EMAIL_HOST = os.environ.get('EMAIL_HOST', '')
+EMAIL_PORT = os.environ.get('EMAIL_PORT', '')
+DEFAULT_FROM_EMAIL = os.environ.get('DEFAULT_FROM_EMAIL', '')
+EMAIL_HOST_USER = os.environ.get('EMAIL_HOST_USER', '')
+EMAIL_HOST_PASSWORD = os.environ.get('EMAIL_HOST_PASSWORD', '')
+EMAIL_USE_TLS = os.environ.get('EMAIL_USE_TLS', 'false').lower() == "true"
+EMAIL_USE_SSL = os.environ.get('EMAIL_USE_SSL', 'false').lower() == "true"
 
+# Oauth settings
 DRYCC_PASSPORT_URL = os.environ.get('DRYCC_PASSPORT_URL', 'https://127.0.0.1:8000')
+DRYCC_REGISTER_URL = os.environ.get(
+    'DRYCC_REGISTER_URL',
+    f'{DRYCC_PASSPORT_URL}/user/registration'
+)
 
 LOGIN_REDIRECT_URL = os.environ.get(
     'LOGIN_REDIRECT_URL',
@@ -458,6 +465,10 @@ SOCIAL_AUTH_PIPELINE = (
     'social_core.pipeline.user.user_details',
 )
 DRYCC_CACHE_USER_TIME = int(os.environ.get('DRYCC_CACHE_USER_TIME', 30 * 60))
+
+# Rate limit for invitation emails: max LIMIT emails per WINDOW seconds per recipient address
+DRYCC_INVITATION_EMAIL_LIMIT = int(os.environ.get('DRYCC_INVITATION_EMAIL_LIMIT', 5))
+DRYCC_INVITATION_EMAIL_TIMEOUT = int(os.environ.get('DRYCC_INVITATION_EMAIL_TIMEOUT', 3600))
 
 # Cache Valkey Configuration
 CACHES = {

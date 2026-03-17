@@ -5,6 +5,12 @@ from django.core.exceptions import SuspiciousOperation
 from api.models.app import App
 from api.models.certificate import Certificate
 from api.tests import TEST_ROOT, DryccTestCase
+from cryptography import x509
+from cryptography.hazmat.primitives import hashes, serialization
+from cryptography.hazmat.primitives.asymmetric import rsa
+from cryptography.x509.oid import NameOID
+from datetime import datetime, timedelta
+from pytz import utc
 
 User = get_user_model()
 
@@ -19,7 +25,8 @@ class CertificateTest(DryccTestCase):
         self.user = User.objects.get(username='autotest')
         self.token = self.get_or_create_token(self.user)
         self.client.credentials(HTTP_AUTHORIZATION='Token ' + self.token)
-        self.app = App.objects.create(owner=self.user, id='test-app-use-case')
+        app_id = self.create_app(name='test-app-use-case')
+        self.app = App.objects.get(id=app_id)
         self.url = f'/v2/apps/{self.app.id}/certs'
         self.domain = 'autotest.example.com'
 
@@ -32,6 +39,34 @@ class CertificateTest(DryccTestCase):
     def tearDown(self):
         # make sure every test has a clean slate for k8s mocking
         cache.clear()
+
+    def _create_certificate_pem(self, common_name, san_names=None):
+        private_key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
+        subject = issuer = x509.Name([
+            x509.NameAttribute(NameOID.COUNTRY_NAME, 'US'),
+            x509.NameAttribute(NameOID.ORGANIZATION_NAME, 'Drycc'),
+            x509.NameAttribute(NameOID.COMMON_NAME, common_name),
+        ])
+        builder = x509.CertificateBuilder().subject_name(subject).issuer_name(issuer)
+        builder = builder.public_key(private_key.public_key())
+        builder = builder.serial_number(x509.random_serial_number())
+        builder = builder.not_valid_before(datetime.now(utc) - timedelta(minutes=1))
+        builder = builder.not_valid_after(datetime.now(utc) + timedelta(days=30))
+
+        if san_names:
+            builder = builder.add_extension(
+                x509.SubjectAlternativeName([x509.DNSName(name) for name in san_names]),
+                critical=False,
+            )
+
+        certificate = builder.sign(private_key=private_key, algorithm=hashes.SHA256())
+        cert_pem = certificate.public_bytes(serialization.Encoding.PEM).decode('utf-8')
+        key_pem = private_key.private_bytes(
+            encoding=serialization.Encoding.PEM,
+            format=serialization.PrivateFormat.TraditionalOpenSSL,
+            encryption_algorithm=serialization.NoEncryption(),
+        ).decode('utf-8')
+        return cert_pem, key_pem, certificate
 
     def test_create_certificate_with_domain(self):
         """Tests creating a certificate."""
@@ -146,7 +181,6 @@ class CertificateTest(DryccTestCase):
         Certificate.objects.create(
             name='random-test-cert',
             app=self.app,
-            owner=self.user,
             common_name='autotest.example.com',
             certificate=self.cert,
             key=self.key
@@ -156,7 +190,7 @@ class CertificateTest(DryccTestCase):
         self.assertEqual(response.status_code, 204, response.data)
 
     def test_create_invalid_cert(self):
-        """Upload a cert that can't be loaded by pyopenssl"""
+        """Upload a cert that can't be parsed."""
         response = self.client.post(
             self.url,
             {
@@ -166,15 +200,14 @@ class CertificateTest(DryccTestCase):
             }
         )
         self.assertEqual(response.status_code, 400, response.data)
-        # match partial since right now the rest is pyopenssl errors
+        # Match partial since parser details may vary.
         self.assertIn('Could not load certificate', response.data['certificate'][0])
 
     def test_load_invalid_cert(self):
-        """Inject a cert that can't be loaded by pyopenssl"""
+        """Inject a cert that can't be parsed."""
 
         with self.assertRaises(SuspiciousOperation):
             Certificate.objects.create(
-                owner=self.user,
                 app=self.app,
                 name='random-test-cert',
                 certificate='i am bad data',
@@ -182,7 +215,7 @@ class CertificateTest(DryccTestCase):
             )
 
     def test_create_invalid_key(self):
-        """Upload a private key that can't be loaded by pyopenssl"""
+        """Upload a private key that can't be parsed."""
         response = self.client.post(
             self.url,
             {
@@ -192,19 +225,70 @@ class CertificateTest(DryccTestCase):
             }
         )
         self.assertEqual(response.status_code, 400, response.data)
-        # match partial since right now the rest is pyopenssl errors
+        # Match partial since parser details may vary.
         self.assertIn('Could not load private key', response.data['key'][0])
 
     def test_load_invalid_key(self):
-        """Inject a private key that can't be loaded by pyopenssl"""
+        """Inject a private key that can't be parsed."""
 
         with self.assertRaises(SuspiciousOperation):
             Certificate.objects.create(
-                owner=self.user,
+                app=self.app,
                 name='random-test-cert',
                 certificate=self.cert,
                 key='I am Groot.'
             )
+
+    def test_create_certificate_with_san(self):
+        """Certificates with SAN should expose DNS names."""
+        cert, key, _ = self._create_certificate_pem(
+            'autotest.example.com',
+            san_names=['autotest.example.com', 'www.autotest.example.com'],
+        )
+
+        response = self.client.post(
+            self.url,
+            {
+                'name': 'san-test-cert',
+                'certificate': cert,
+                'key': key,
+            }
+        )
+        self.assertEqual(response.status_code, 201, response.data)
+        self.assertEqual(
+            response.data['san'],
+            ['autotest.example.com', 'www.autotest.example.com'],
+        )
+
+    def test_create_certificate_with_mismatched_key(self):
+        """Certificate and private key must match."""
+        cert, _, _ = self._create_certificate_pem('autotest.example.com')
+        _, other_key, _ = self._create_certificate_pem('other.example.com')
+
+        response = self.client.post(
+            self.url,
+            {
+                'name': 'mismatch-test-cert',
+                'certificate': cert,
+                'key': other_key,
+            }
+        )
+        self.assertEqual(response.status_code, 400, response.data)
+        self.assertIn('Certificate and private key do not match!', response.data[0])
+
+    def test_certificate_persists_subject_and_issuer(self):
+        """Persisted certificate metadata should reflect x509 subject and issuer."""
+        cert, key, parsed = self._create_certificate_pem('autotest.example.com')
+
+        certificate = Certificate.objects.create(
+            name='metadata-test-cert',
+            app=self.app,
+            certificate=cert,
+            key=key,
+        )
+
+        self.assertEqual(certificate.subject, parsed.subject.rfc4514_string())
+        self.assertEqual(certificate.issuer, parsed.issuer.rfc4514_string())
 
     def test_certs_fetch_limit(self):
         """

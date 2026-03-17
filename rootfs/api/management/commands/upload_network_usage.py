@@ -27,7 +27,7 @@ class Command(BaseCommand):
             pod_name = metric['pod']
             networks.append({
                 "app_id":  str(app_map[metric['namespace']].uuid),
-                "owner": app_map[metric['namespace']].owner_id,
+                "workspace": app_map[metric['namespace']].workspace_id,
                 "type": "network",
                 "unit": "bytes",
                 "name": metric['direction'],

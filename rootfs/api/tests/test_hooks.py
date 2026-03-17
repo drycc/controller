@@ -8,7 +8,6 @@ from django.contrib.auth import get_user_model
 from django.core.cache import cache
 
 from api.tests import adapter, DryccTransactionTestCase
-from api.models.app import app_permission_registry
 import requests_mock
 
 User = get_user_model()
@@ -69,15 +68,6 @@ class HookTest(DryccTransactionTestCase):
 
         # Create app to use
         app_id = self.create_app()
-
-        # give user permission to app
-        body = {
-            'username': str(self.user),
-            'permissions': ','.join(app_permission_registry.shortnames),
-        }
-        url = f'/v2/apps/{app_id}/perms/'
-        response = self.client.post(url, body)
-        self.assertEqual(response.status_code, 201, response.data)
 
         # Create rsa key
         body = {'id': str(self.user), 'public': RSA_PUBKEY}
@@ -161,6 +151,53 @@ class HookTest(DryccTransactionTestCase):
         url = '/v2/hooks/key/nope'
         response = self.client.get(url, HTTP_X_DRYCC_SERVICE_KEY=settings.SERVICE_KEY)
         self.assertEqual(response.status_code, 404)
+
+    def test_key_hook_anonymous_user(self, mock_requests):
+        """Test that public_key hook works with service token (anonymous user)"""
+        app_id = self.create_app()
+
+        # Create a key
+        body = {'id': str(self.user), 'public': RSA_PUBKEY}
+        response = self.client.post('/v2/keys', body)
+        self.assertEqual(response.status_code, 201, response.data)
+        fingerprint = response.data['fingerprint']
+
+        # Clear auth credentials to simulate builder calling with only service key
+        self.client.credentials()
+
+        # Fetch key info using only the service key (no user auth token)
+        url = f'/v2/hooks/key/{fingerprint}'
+        response = self.client.get(url, HTTP_X_DRYCC_SERVICE_KEY=settings.SERVICE_KEY)
+        self.assertEqual(response.status_code, 200, response.data)
+        self.assertEqual(response.data['username'], str(self.user))
+        self.assertIn(app_id, response.data['apps'])
+
+    def test_key_hook_returns_only_owner_apps(self, mock_requests):
+        """Test that public_key hook returns apps belonging to the key owner's workspaces"""
+        app_id = self.create_app()
+
+        # Create a second user with their own workspace and app
+        user2 = User.objects.get(username='autotest2')
+        token2 = self.get_or_create_token(user2)
+        self.client.credentials(HTTP_AUTHORIZATION='Token ' + token2)
+        app_id2 = self.create_app()
+
+        # Create a key for user2
+        body = {'id': str(user2), 'public': RSA_PUBKEY2}
+        response = self.client.post('/v2/keys', body)
+        self.assertEqual(response.status_code, 201, response.data)
+        fingerprint2 = response.data['fingerprint']
+
+        # Clear auth and use service key only
+        self.client.credentials()
+
+        # Fetch key info for user2 — should only see user2's apps, not user1's
+        url = f'/v2/hooks/key/{fingerprint2}'
+        response = self.client.get(url, HTTP_X_DRYCC_SERVICE_KEY=settings.SERVICE_KEY)
+        self.assertEqual(response.status_code, 200, response.data)
+        self.assertEqual(response.data['username'], str(user2))
+        self.assertIn(app_id2, response.data['apps'])
+        self.assertNotIn(app_id, response.data['apps'])
 
     def test_build_hook(self, mock_requests):
         """Test creating a Build via an API Hook"""

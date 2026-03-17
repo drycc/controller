@@ -29,7 +29,6 @@ service_ports_schema = {
 
 
 class Service(AuditedModel):
-    owner = models.ForeignKey(User, on_delete=models.PROTECT)
     app = models.ForeignKey('App', on_delete=models.CASCADE)
     ports = models.JSONField(
         default=list, validators=[partial(validate_json, schema=service_ports_schema)])

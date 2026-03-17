@@ -24,13 +24,14 @@ class CertificateUseCase2Test(DryccTestCase):
         self.token = self.get_or_create_token(self.user)
         self.client.credentials(HTTP_AUTHORIZATION='Token ' + self.token)
 
-        self.app = App.objects.create(owner=self.user, id='test-app-use-case-2')
+        app_id = self.create_app(name='test-app-use-case-2')
+        self.app = App.objects.get(id=app_id)
         self.url = f'/v2/apps/{self.app.id}/certs'
         self.domains = {
             'foo.com': Domain.objects.create(
-                owner=self.user, app=self.app, domain='foo.com', ptype=PTYPE_WEB),
+                app=self.app, domain='foo.com', ptype=PTYPE_WEB),
             'bar.com': Domain.objects.create(
-                owner=self.user, app=self.app, domain='bar.com', ptype=PTYPE_WEB),
+                app=self.app, domain='bar.com', ptype=PTYPE_WEB),
         }
 
         # only foo.com has a cert
@@ -133,7 +134,6 @@ class CertificateUseCase2Test(DryccTestCase):
             Certificate.objects.create(
                 name=certificate['name'],
                 app=self.app,
-                owner=self.user,
                 common_name=domain,
                 certificate=certificate['cert'],
                 key=certificate['key']

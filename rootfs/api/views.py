@@ -9,6 +9,7 @@ import ssl
 import time
 import zlib
 import random
+import secrets
 import aiohttp
 import requests
 import warnings
@@ -20,22 +21,20 @@ from django.core.cache import cache
 from django.http import Http404, HttpResponse
 from django.conf import settings
 from django.contrib.auth import get_user_model
-from django.shortcuts import get_object_or_404, redirect
-from guardian.shortcuts import assign_perm, get_objects_for_user, \
-    get_users_with_perms, get_user_perms, remove_perm
+from django.shortcuts import get_object_or_404, redirect, render
 from django.views.generic import View
 from django.utils.decorators import method_decorator
 from django.views.decorators.cache import cache_page
 from django.views.decorators.vary import vary_on_headers
-from rest_framework import renderers, status, filters
+from rest_framework import status, filters
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.response import Response
-from rest_framework.viewsets import GenericViewSet
-from rest_framework.exceptions import PermissionDenied
+from rest_framework.viewsets import GenericViewSet, ModelViewSet
+from rest_framework.exceptions import ValidationError, PermissionDenied
+from rest_framework.renderers import JSONRenderer, TemplateHTMLRenderer
 
 from api import monitor, models, permissions, serializers, viewsets, authentication, __version__
-from api.tasks import scale_app, restart_app, mount_app, downstream_model_owner, \
-    delete_pod, scale_resources
+from api.tasks import scale_app, restart_app, mount_app, delete_pod, scale_resources
 from api.exceptions import AlreadyExists, ServiceUnavailable, DryccException
 
 from django.views.decorators.cache import never_cache
@@ -168,14 +167,8 @@ class AuthTokenView(GenericViewSet):
 class UserManagementViewSet(GenericViewSet):
     serializer_class = serializers.UserSerializer
 
-    def get_queryset(self):
-        return User.objects.filter(pk=self.request.user.pk)
-
-    def get_object(self):
-        return self.get_queryset()[0]
-
-    def list(self, request, **kwargs):
-        user = self.get_object()
+    def whoami(self, request, **kwargs):
+        user = get_object_or_404(User, pk=self.request.user.pk)
         serializer = self.get_serializer(user, many=False)
         return Response(serializer.data)
 
@@ -253,10 +246,234 @@ class AdmissionWebhookViewSet(GenericViewSet):
         })
 
 
-class TokenViewSet(viewsets.OwnerViewSet):
+class WorkspaceViewSet(ModelViewSet):
+    """
+    ViewSet for Workspace model.
+    """
+    lookup_field = 'name'
+    serializer_class = serializers.WorkspaceSerializer
+    permission_classes = [IsAuthenticated]
 
+    def get_queryset(self):
+        return models.workspace.Workspace.objects.filter(
+            workspacemember__user=self.request.user
+        ).distinct()
+
+    def perform_create(self, serializer):
+        workspace = serializer.save()
+        models.workspace.WorkspaceMember.objects.create(
+            user=self.request.user, workspace=workspace, role='admin'
+        )
+
+    def get_object(self):
+        """Override to get workspace by name instead of pk"""
+        return get_object_or_404(self.get_queryset(), name=self.kwargs['name'])
+
+    def partial_update(self, request, *args, **kwargs):
+        """Only admins can update workspaces"""
+        workspace = self.get_object()
+        if not workspace.has_member(request.user, role='admin'):
+            return Response(
+                {"detail": "Only workspace admins can update workspaces"},
+                status=status.HTTP_403_FORBIDDEN
+            )
+        return super().partial_update(request, *args, **kwargs)
+
+    def destroy(self, request, *args, **kwargs):
+        """Only admins can delete workspaces"""
+        workspace = self.get_object()
+        if not workspace.has_member(request.user, role='admin'):
+            return Response(
+                {"detail": "Only workspace admins can delete workspaces"},
+                status=status.HTTP_403_FORBIDDEN
+            )
+        if models.workspace.WorkspaceMember.objects.filter(workspace=workspace).count() > 1:
+            return Response(
+                {"detail": "Cannot delete workspace with more than one member"},
+                status=status.HTTP_403_FORBIDDEN
+            )
+        return super().destroy(request, *args, **kwargs)
+
+
+class WorkspaceMemberViewSet(ModelViewSet):
+    """
+    ViewSet for WorkspaceMember model.
+    """
+    serializer_class = serializers.WorkspaceMemberSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        workspace = get_object_or_404(models.workspace.Workspace, name=self.kwargs['name'])
+        # Check if user has access to this workspace
+        if workspace.has_member(self.request.user):
+            return models.workspace.WorkspaceMember.objects.filter(workspace=workspace)
+        return models.workspace.WorkspaceMember.objects.none()
+
+    def get_object(self):
+        """Override to get member by username and workspace name"""
+        workspace = get_object_or_404(models.workspace.Workspace, name=self.kwargs['name'])
+        return get_object_or_404(
+            models.workspace.WorkspaceMember,
+            workspace=workspace, user__username=self.kwargs['user']
+        )
+
+    def partial_update(self, request, *args, **kwargs):
+        """Update a member. Admins can update any member (role and alerts).
+        Non-admins can only update their own alerts field."""
+        member = self.get_object()
+        is_admin = member.workspace.has_member(request.user, role='admin')
+
+        # Check if workspace has only one member
+        member_count = models.workspace.WorkspaceMember.objects.filter(
+            workspace=member.workspace
+        ).count()
+        is_only_member = member_count == 1
+
+        # Only member cannot modify role
+        if is_only_member and 'role' in request.data:
+            return Response(
+                {"detail": "Cannot modify role: workspace only has one member"},
+                status=status.HTTP_403_FORBIDDEN
+            )
+
+        # Non-admin users restrictions
+        if not is_admin:
+            # Cannot update other members
+            if request.user != member.user:
+                return Response(
+                    {"detail": "Only workspace admins can update other members"},
+                    status=status.HTTP_403_FORBIDDEN
+                )
+            # Cannot modify own role
+            if 'role' in request.data:
+                return Response(
+                    {"detail": "Cannot modify your own role"},
+                    status=status.HTTP_403_FORBIDDEN
+                )
+
+        return super().partial_update(request, *args, **kwargs)
+
+    def destroy(self, request, *args, **kwargs):
+        """Delete a member. Admins can delete any member.
+        Non-admins can only delete themselves (leave workspace)."""
+        member = self.get_object()
+        is_admin = member.workspace.has_member(request.user, role='admin')
+
+        # Check if workspace has only one member
+        member_count = models.workspace.WorkspaceMember.objects.filter(
+            workspace=member.workspace
+        ).count()
+        is_only_member = member_count == 1
+
+        # Only member cannot delete self
+        if is_only_member and request.user == member.user:
+            return Response(
+                {"detail": "Cannot delete: workspace only has one member"},
+                status=status.HTTP_403_FORBIDDEN
+            )
+
+        # Non-admin can delete self
+        if request.user == member.user:
+            return super().destroy(request, *args, **kwargs)
+
+        # Admin can delete any member
+        if is_admin:
+            return super().destroy(request, *args, **kwargs)
+
+        # Other cases forbidden
+        return Response(
+            {"detail": "Only workspace admins can remove other members"},
+            status=status.HTTP_403_FORBIDDEN
+        )
+
+
+class WorkspaceInvitationViewSet(ModelViewSet):
+    """
+    ViewSet for WorkspaceInvitation model.
+    """
+    serializer_class = serializers.WorkspaceInvitationSerializer
+
+    def get_permissions(self):
+        """
+        Allow anyone to accept an invitation.
+        Only authenticated users can create or list invitations.
+        """
+        if self.action == 'retrieve':
+            return [AllowAny()]
+        return super().get_permissions()
+
+    def get_renderers(self):
+        if self.action == 'retrieve':
+            return [JSONRenderer(), TemplateHTMLRenderer()]
+        return super().get_renderers()
+
+    def get_queryset(self):
+        workspace = get_object_or_404(models.workspace.Workspace, name=self.kwargs['name'])
+        if workspace.has_member(self.request.user):
+            return models.workspace.WorkspaceInvitation.objects.filter(
+                workspace=workspace, accepted=False)
+        return models.workspace.WorkspaceInvitation.objects.none()
+
+    def get_object(self):
+        """Override to get invitation by uid and workspace name"""
+        return get_object_or_404(
+            models.workspace.WorkspaceInvitation,
+            workspace=get_object_or_404(models.workspace.Workspace, name=self.kwargs['name']),
+            token=self.kwargs['uid'],
+            accepted=False,
+        )
+
+    def retrieve(self, request, *args, **kwargs):
+        instance = self.get_object()
+        instance.accept()
+        user_exists = User.objects.filter(email=instance.email).exists()
+        data = {
+            'workspace_name': instance.workspace.name,
+            'user_exists': user_exists,
+            'register_url': settings.DRYCC_REGISTER_URL,
+        }
+        if isinstance(request.accepted_renderer, TemplateHTMLRenderer):
+            return render(request, 'workspace/workspace_invitation_accept.html', data)
+        return Response(data)
+
+    def perform_create(self, serializer):
+        workspace = get_object_or_404(models.workspace.Workspace, name=self.kwargs['name'])
+        if not workspace.has_member(self.request.user, role='admin'):
+            raise ValidationError("Only workspace admins can create invitations")
+        email = serializer.validated_data['email']
+        user = User.objects.filter(email=email).first()
+        if user and workspace.has_member(user):
+            raise ValidationError("User is already a member of the workspace")
+        invitation = models.workspace.WorkspaceInvitation.objects.filter(
+            email=email, workspace=workspace, accepted=False
+        ).first()
+        if not invitation:
+            models.workspace.WorkspaceInvitation.objects.filter(
+                email=email, workspace=workspace, accepted=True
+            ).delete()
+            invitation = serializer.save(
+                token=secrets.token_hex(64), inviter=self.request.user, workspace=workspace)
+        if settings.EMAIL_HOST:
+            invitation.send_email(self.request)
+        else:
+            invitation.accept()
+
+    def destroy(self, request, *args, **kwargs):
+        """Only admins can revoke invitations"""
+        invitation = self.get_object()
+        if not invitation.workspace.has_member(request.user, role='admin'):
+            return Response(
+                {"detail": "Only workspace admins can revoke invitations"},
+                status=status.HTTP_403_FORBIDDEN
+            )
+        return super().destroy(request, *args, **kwargs)
+
+
+class TokenViewSet(viewsets.OwnerViewSet):
+    """
+    A viewset for interacting with Token objects.
+    """
     serializer_class = serializers.TokenSerializer
-    permission_classes = [IsAuthenticated, permissions.IsOwner]
 
     def get_queryset(self):
         return models.base.Token.objects.filter(owner=self.request.user)
@@ -268,19 +485,7 @@ class TokenViewSet(viewsets.OwnerViewSet):
         return response
 
 
-class BaseDryccViewSet(viewsets.OwnerViewSet):
-    """
-    A generic ViewSet for objects related to Drycc.
-
-    To use it, at minimum you'll need to provide the `serializer_class` attribute and
-    the `model` attribute shortcut.
-    """
-    lookup_field = 'id'
-    permission_classes = [IsAuthenticated, permissions.IsObjectUser]
-    renderer_classes = [renderers.JSONRenderer]
-
-
-class AppFilterViewSet(BaseDryccViewSet):
+class AppFilterViewSet(viewsets.BaseAppViewSet):
     """A viewset for objects which are attached to an application."""
 
     def get_app(self):
@@ -314,32 +519,26 @@ class ReleasableViewSet(AppFilterViewSet):
         return getattr(release, self.model.__name__.lower())
 
 
-class AppViewSet(BaseDryccViewSet):
+class AppViewSet(viewsets.BaseAppViewSet):
     """A viewset for interacting with App objects."""
     model = models.app.App
     filter_backends = [filters.SearchFilter]
     search_fields = ['^id', ]
     serializer_class = serializers.AppSerializer
 
-    def get_queryset(self, *args, **kwargs):
-        return self.model.objects.all(*args, **kwargs)
-
     def list(self, request, *args, **kwargs):
-        """
-        HACK: Instead of filtering by the queryset, we limit the queryset to list only the apps
-        which are owned by the user as well as any apps they have been given permission to
-        interact with.
-        """
-        queryset = super().get_queryset(**kwargs) | \
-            get_objects_for_user(
-                self.request.user, f'api.{models.app.VIEW_APP_PERMISSION.codename}')
-        instance = self.filter_queryset(queryset)
-        page = self.paginate_queryset(instance)
+        queryset = self.filter_queryset(self.get_queryset())
+        workspace = request.query_params.get('workspace')
+        if workspace:
+            workspace = get_object_or_404(models.workspace.Workspace, name=workspace)
+            if not workspace.has_member(request.user):
+                raise PermissionDenied(f"You are not a member of workspace '{workspace.name}'")
+            queryset = queryset.filter(workspace__name=workspace)
+        page = self.paginate_queryset(queryset)
         if page is not None:
             serializer = self.get_serializer(page, many=True)
             return self.get_paginated_response(serializer.data)
-
-        serializer = self.get_serializer(instance, many=True)
+        serializer = self.get_serializer(queryset, many=True)
         return Response(serializer.data)
 
     def run(self, request, **kwargs):
@@ -363,23 +562,21 @@ class AppViewSet(BaseDryccViewSet):
                 timeout=timeout, expires=expires)
         return Response(status=status.HTTP_204_NO_CONTENT)
 
-    @transaction.atomic
-    def create(self, request, *args, **kwargs):
-        return super().create(request, *args, **kwargs)
+    def perform_create(self, serializer):
+        workspace = serializer.validated_data['workspace']
+        self.check_object_permissions(self.request, workspace)
+        serializer.save()
 
-    @transaction.atomic
-    def update(self, request, **kwargs):
+    def transfer(self, request, **kwargs):
         app = self.get_object()
-        old_owner = app.owner
-
-        if request.data.get('owner'):
-            if self.request.user != app.owner and not self.request.user.is_superuser:
-                return Response(status=status.HTTP_403_FORBIDDEN)
-            new_owner = get_object_or_404(User, username=request.data['owner'])
-            # ensure all downstream objects that are owned by this user and are part of this app
-            # is also updated
-            downstream_model_owner.delay(app, old_owner, new_owner)
-        return Response(status=status.HTTP_200_OK)
+        if not app.workspace.has_member(request.user, role='admin'):
+            raise PermissionDenied("you must be an admin of the current workspace")
+        workspace = request.data.get('workspace', '')
+        if not workspace:
+            raise ValidationError("workspace is required")
+        app.workspace = get_object_or_404(models.workspace.Workspace, name=workspace)
+        app.save()
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
     @transaction.atomic
     def destroy(self, request, *args, **kwargs):
@@ -391,16 +588,16 @@ class BuildViewSet(ReleasableViewSet):
     model = models.build.Build
     serializer_class = serializers.BuildSerializer
 
-    def post_save(self, build):
+    def perform_create(self, serializer):
+        build = serializer.save()
         for ptype in build.ptypes:
             image = build.get_image(ptype)
             if is_loopback(image):
                 raise DryccException("image must not use the loopback address")
         build.create_release(self.request.user)
-        super().post_save(build)
 
 
-class LimitSpecViewSet(BaseDryccViewSet):
+class LimitSpecViewSet(ModelViewSet):
     """A viewset for interacting with Limit objects."""
     model = models.limit.LimitSpec
     serializer_class = serializers.LimitSpecSerializer
@@ -414,7 +611,7 @@ class LimitSpecViewSet(BaseDryccViewSet):
         return self.model.objects.filter(q)
 
 
-class LimitPlanViewSet(BaseDryccViewSet):
+class LimitPlanViewSet(ModelViewSet):
     """A viewset for interacting with Limit objects."""
     model = models.limit.LimitPlan
     serializer_class = serializers.LimitPlanSerializer
@@ -445,7 +642,7 @@ class ConfigViewSet(ReleasableViewSet):
         if self.request.query_params.get('merge', 'true').lower() == 'true':
             return super().create(request, **kwargs)
         values = self.get_serializer().validate_values(request.data.get('values'))
-        config = self.model(app=self.get_app(), owner=self.request.user, values=values)
+        config = self.model(app=self.get_app(), values=values)
         old_config = config.previous()
         if old_config and old_config.values:
             replace_ptypes = {v['ptype'] for v in config.values if 'ptype' in v}
@@ -457,13 +654,19 @@ class ConfigViewSet(ReleasableViewSet):
         headers = self.get_success_headers(data)
         return Response(data, status=status.HTTP_201_CREATED, headers=headers)
 
-    def delete(self, request, **kwargs):
-        values_refs = self.get_serializer().validate_values_refs(request.data.get('values_refs'))
+    def perform_create(self, serializer):
+        config = serializer.save()
+        self.post_save(config)
+
+    def destroy(self, request, **kwargs):
+        values_refs = self.get_serializer().validate_values_refs(
+            request.data.get('values_refs', {}))
         if not values_refs or not values_refs.values():
             raise DryccException("ptype or groups is required")
 
-        config = self.model(app=self.get_app(), owner=self.request.user, values_refs={})
-        old_values_refs = config.previous().values_refs.copy()
+        config = self.model(app=self.get_app(), values_refs={})
+        previous = config.previous()
+        old_values_refs = previous.values_refs.copy() if previous else {}
         for ptype, old_groups in old_values_refs.items():
             groups_to_delete = values_refs.get(ptype, [])
             for group in old_groups:
@@ -473,7 +676,6 @@ class ConfigViewSet(ReleasableViewSet):
                     elif group not in config.values_refs[ptype]:
                         config.values_refs[ptype].append(group)
         config.save(ignore_update_fields=["values_refs"])
-
         self.post_save(config)
         return Response(status=status.HTTP_200_OK)
 
@@ -511,7 +713,7 @@ class PodViewSet(AppFilterViewSet):
         pagination = {'results': data, 'count': len(data)}
         return Response(pagination, status=status.HTTP_200_OK)
 
-    def delete(self, request, **kwargs):
+    def destroy(self, request, **kwargs):
         pod_names = request.data.get("pod_ids")
         pod_names = pod_names.split(",")
         for pod_name in set(pod_names):
@@ -640,13 +842,13 @@ class ServiceViewSet(AppFilterViewSet):
                     return Response(status=status.HTTP_400_BAD_REQUEST, data={"detail": "port is occupied"})  # noqa
             http_status = status.HTTP_204_NO_CONTENT
         else:
-            service = self.model(owner=app.owner, app=app, ptype=ptype)
+            service = self.model(app=app, ptype=ptype)
             http_status = status.HTTP_201_CREATED
         service.add_port(port, protocol, target_port)
         service.save()
         return Response(status=http_status)
 
-    def delete(self, request, **kwargs):
+    def destroy(self, request, **kwargs):
         port = self.get_serializer().validate_port(request.data.get('port'))
         protocol = self.get_serializer().validate_protocol(request.data.get('protocol'))
         ptype = self.get_serializer().validate_ptype(
@@ -691,10 +893,10 @@ class CertificateViewSet(AppFilterViewSet):
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 
-class KeyViewSet(BaseDryccViewSet):
+class KeyViewSet(viewsets.OwnerViewSet):
     """A viewset for interacting with Key objects."""
+    lookup_field = 'id'
     model = models.key.Key
-    permission_classes = [IsAuthenticated, permissions.IsOwner]
     serializer_class = serializers.KeySerializer
 
 
@@ -758,7 +960,7 @@ class TLSViewSet(AppFilterViewSet):
         return Response({'results': results, 'count': len(results)})
 
 
-class BaseHookViewSet(BaseDryccViewSet):
+class BaseHookViewSet(viewsets.BaseAppViewSet):
     permission_classes = [permissions.IsServiceToken]
 
 
@@ -770,31 +972,22 @@ class KeyHookViewSet(BaseHookViewSet):
     def public_key(self, request, *args, **kwargs):
         fingerprint = kwargs['fingerprint'].strip()
         key = get_object_or_404(models.key.Key, fingerprint=fingerprint)
-
-        queryset = models.app.App.objects.all() | \
-            get_objects_for_user(
-                self.request.user, f'api.{models.app.VIEW_APP_PERMISSION.codename}')
-        items = self.filter_queryset(queryset)
-
-        apps = []
-        for item in items:
-            apps.append(item.id)
-
+        queryset = models.app.App.objects.filter(
+            workspace__workspacemember__user=key.owner
+        ).distinct()
         data = {
             'username': key.owner.username,
-            'apps': apps
+            'apps': [item.id for item in self.filter_queryset(queryset)],
         }
 
         return Response(data, status=status.HTTP_200_OK)
 
     def app(self, request, *args, **kwargs):
         app = get_object_or_404(models.app.App, id=kwargs['id'])
-        usernames = [u.id for u in get_users_with_perms(app)
-                     if u.has_perm(f"api.{models.app.VIEW_APP_PERMISSION.codename}", app)]
-
+        usernames = app.workspace.workspacemember_set.values_list('user__username', flat=True)
         data = {}
         result = models.key.Key.objects \
-                       .filter(owner__in=usernames) \
+                       .filter(owner__username__in=usernames) \
                        .values('owner__username', 'public', 'fingerprint') \
                        .order_by('created')
         for info in result:
@@ -813,9 +1006,8 @@ class KeyHookViewSet(BaseHookViewSet):
         app = get_object_or_404(models.app.App, id=kwargs['id'])
         request.user = get_object_or_404(User, username=kwargs['username'])
         # check the user is authorized for this app
-        has_permission, message = permissions.has_app_permission(request.user, app, request.method)
-        if not has_permission:
-            return Response(message, status=status.HTTP_403_FORBIDDEN)
+        if not permissions.IsAppUser().has_object_permission(request, self, app):
+            return Response(status=status.HTTP_403_FORBIDDEN)
 
         data = {request.user.username: []}
         keys = models.key.Key.objects \
@@ -843,11 +1035,9 @@ class BuildHookViewSet(BaseHookViewSet):
         app = get_object_or_404(models.app.App, id=request.data['receive_repo'])
         self.user = request.user = get_object_or_404(User, username=request.data['receive_user'])
         # check the user is authorized for this app
-        has_permission, message = permissions.has_app_permission(self.user, app, request.method)
-        if not has_permission:
-            return Response(message, status=status.HTTP_403_FORBIDDEN)
+        if not permissions.IsAppUser().has_object_permission(request, self, app):
+            return Response(status=status.HTTP_403_FORBIDDEN)
         request.data['app'] = app
-        request.data['owner'] = self.user
         super().create(request, *args, **kwargs)
         # return the application databag
         response = {
@@ -857,7 +1047,8 @@ class BuildHookViewSet(BaseHookViewSet):
         }
         return Response(response, status=status.HTTP_200_OK)
 
-    def post_save(self, build):
+    def perform_create(self, serializer):
+        build = serializer.save()
         build.create_release(self.user)
 
 
@@ -870,88 +1061,11 @@ class ConfigHookViewSet(BaseHookViewSet):
         app = get_object_or_404(models.app.App, id=request.data['receive_repo'])
         request.user = get_object_or_404(User, username=request.data['receive_user'])
         # check the user is authorized for this app
-        has_permission, message = permissions.has_app_permission(request.user, app, request.method)
-        if not has_permission:
-            return Response(message, status=status.HTTP_403_FORBIDDEN)
+        if not permissions.IsAppUser().has_object_permission(request, self, app):
+            return Response(status=status.HTTP_403_FORBIDDEN)
         config = models.release.Release.latest(app).config
         serializer = self.get_serializer(config)
         return Response(serializer.data, status=status.HTTP_200_OK)
-
-
-class AppPermViewSet(AppFilterViewSet):
-    """RESTful views for sharing apps with collaborators."""
-
-    def get_app(self, request):
-        app = get_object_or_404(models.app.App, id=self.kwargs['id'])
-        if not permissions.IsOwnerOrAdmin().has_object_permission(request, self, app):
-            raise PermissionDenied()
-        return app
-
-    def list(self, request, **kwargs):
-        app = self.get_app(request)
-        results = [
-            {
-                "app": app.id,
-                "username": user.username,
-                "permissions": [
-                    models.app.app_permission_registry.get(codename).shortname
-                    for codename in get_user_perms(user, app)
-                ],
-            }
-            for user in get_users_with_perms(app)
-        ]
-        # fake out pagination for now
-        pagination = {'results': results, 'count': len(results)}
-        return Response(data=pagination)
-
-    def create(self, request, **kwargs):
-        app = self.get_app(request)
-        username = request.data.get('username')
-        shortnames = set([perm for perm in request.data.get("permissions", "").split(",") if perm])
-        all_shortnames = models.app.app_permission_registry.shortnames
-        if not shortnames or not shortnames.issubset(all_shortnames):
-            msg = "The permissions field is required and has a value range of: {}".format(
-                ",".join(all_shortnames)
-            )
-            return Response(status=status.HTTP_400_BAD_REQUEST, data=msg)
-        user = get_object_or_404(User, username=username)
-        for shortname in shortnames:
-            permission = models.app.app_permission_registry.get(shortname)
-            if permission:
-                assign_perm(permission.codename, user, app)
-        app.log("User {} was granted access to {}".format(user, app))
-        return Response(status=status.HTTP_201_CREATED)
-
-    def update(self, request, **kwargs):
-        app = self.get_app(request)
-        user = get_object_or_404(User, username=kwargs['username'])
-        shortnames = set([perm for perm in request.data.get("permissions", "").split(",") if perm])
-        all_shortnames = models.app.app_permission_registry.shortnames
-        if not shortnames or not shortnames.issubset(all_shortnames):
-            msg = "The permissions field is required and has a value range of: {}".format(
-                ",".join(all_shortnames)
-            )
-            return Response(status=status.HTTP_400_BAD_REQUEST, data=msg)
-        for shortname in shortnames.symmetric_difference([
-                models.app.app_permission_registry.get(codename).shortname
-                for codename in get_user_perms(user, app)]):
-            permission = models.app.app_permission_registry.get(shortname)
-            if permission:
-                if shortname in shortnames:
-                    assign_perm(permission.codename, user, app)
-                else:
-                    remove_perm(permission.codename, user, app)
-        app.log("User {} was revoked access to {}".format(user, app))
-        return Response(status=status.HTTP_204_NO_CONTENT)
-
-    def destroy(self, request, **kwargs):
-        app = self.get_app(request)
-        username = kwargs['username']
-        user = get_object_or_404(User, username=username)
-        for codename in get_user_perms(user, app):
-            remove_perm(codename, user, app)
-        app.log("User {} was revoked access to {}".format(user, app))
-        return Response(status=status.HTTP_204_NO_CONTENT)
 
 
 class AppVolumesViewSet(AppFilterViewSet):
@@ -1101,14 +1215,14 @@ class GatewayViewSet(AppFilterViewSet):
         protocol = self.get_serializer().validate_protocol(request.data['protocol'])
         gateway = app.gateway_set.filter(name=name).first()
         if not gateway:
-            gateway = self.model(app=app, owner=app.owner, name=name)
+            gateway = self.model(app=app, name=name)
         added, msg = gateway.add(port, protocol)
         if not added:
             return Response(status=status.HTTP_400_BAD_REQUEST, data=msg)
         gateway.save()
         return Response(status=status.HTTP_201_CREATED)
 
-    def delete(self, request, **kwargs):
+    def destroy(self, request, **kwargs):
         app = self.get_app()
         port = self.get_serializer().validate_port(request.data.get('port'))
         protocol = self.get_serializer().validate_protocol(request.data['protocol'])
@@ -1171,40 +1285,14 @@ class RouteViewSet(AppFilterViewSet):
         route.save()
         return Response(status=status.HTTP_204_NO_CONTENT)
 
-    def delete(self, request, *args, **kwargs):
+    def destroy(self, request, *args, **kwargs):
         app = self.get_app()
         route = get_object_or_404(self.model, app=app, name=kwargs['name'])
         route.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 
-class UserView(BaseDryccViewSet):
-    """A Viewset for interacting with User objects."""
-    model = User
-    serializer_class = serializers.UserSerializer
-    permission_classes = [permissions.IsAdmin]
-
-    def get_queryset(self):
-        return self.model.objects.exclude(username='AnonymousUser')
-
-    def enable(self, request, **kwargs):
-        if request.user.username == kwargs['username']:
-            return Response(status=status.HTTP_423_LOCKED)
-        user = get_object_or_404(self.model, username=kwargs['username'])
-        user.is_active = True
-        user.save(update_fields=['is_active', ])
-        return Response(status=status.HTTP_204_NO_CONTENT)
-
-    def disable(self, request, **kwargs):
-        if request.user.username == kwargs['username']:
-            return Response(status=status.HTTP_423_LOCKED)
-        user = get_object_or_404(self.model, username=kwargs['username'])
-        user.is_active = False
-        user.save(update_fields=['is_active', ])
-        return Response(status=status.HTTP_204_NO_CONTENT)
-
-
-class MetricView(BaseDryccViewSet):
+class MetricView(viewsets.BaseAppViewSet):
     """Getting monitoring indicators from monitor database"""
 
     def _get_app(self):
@@ -1229,7 +1317,7 @@ class MetricsProxyView(View):
         re.compile(r'^(?:# (?:HELP|TYPE) )([a-zA-Z_][a-zA-Z0-9_:.-]*)').match)
     match_data = staticmethod(
         re.compile(r'^([a-zA-Z_][a-zA-Z0-9_:]*)(?:\{([^}]*)\})?\s+(\S+)').match)
-    default_cache_value = (-1, -1)
+    default_cache_value = (None, -1)
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -1254,17 +1342,17 @@ class MetricsProxyView(View):
         app_id = labels.get("namespace", labels.get(settings.DRYCC_METRICS_CONFIG[name][0]))
         if not app_id:
             return None
-        account_id, timeout = self.cache.get(app_id, self.default_cache_value)
-        if (account_id < 0 and timeout < 0) or time.time() > timeout:
+        workspace_id, timeout = self.cache.get(app_id, self.default_cache_value)
+        if workspace_id is None or time.time() > timeout:
             if app := await models.app.App.objects.filter(id=app_id).afirst():
-                account_id = app.owner_id
+                workspace_id = app.workspace_id
             else:
-                account_id = -1
-            self.cache[app_id] = (account_id, time.time() + random.randint(600, 1200))
-        if account_id < 0:
+                workspace_id = None
+            self.cache[app_id] = (workspace_id, time.time() + random.randint(600, 1200))
+        if workspace_id is None:
             return None
         project_id = zlib.crc32(app_id.encode("utf-8"))
-        labels.update({'vm_account_id': account_id, 'vm_project_id': project_id})
+        labels.update({'vm_account_id': workspace_id, 'vm_project_id': project_id})
         return "%s{%s} %s\n" % (name, ",".join([f'{k}="{v}"' for k, v in labels.items()]), value)
 
     async def get(self, request):
@@ -1305,21 +1393,30 @@ class BaseUserProxyView(View):
     authentication = authentication.DryccAuthentication()
     authentication.ignore_authentication_failed = True
 
-    async def authenticate(self, request, username):
+    async def authenticate(self, request, workspace):
         """
-        Authenticate the user based on the provided request and username.
-        Returns the user ID on success; returns None and an error message on failure.
+        Authenticate the request and verify workspace membership.
+        Returns the workspace ID on success; returns None and an error message on failure.
         """
         if self.permission.has_permission(request, None):
-            if username != "drycc":
+            if workspace != "drycc":
                 return None, {'error': 'Access denied', "status_code": 403}
             return 0, None
         auth = await database_sync_to_async(self.authentication.authenticate)(request)
         if not auth or len(auth) != 2:
             return None, {'error': 'Unauthorized', "status_code": 401}
-        if auth[0].username != username:
+        # Verify the authenticated user is a member of the specified workspace
+        member = await database_sync_to_async(
+            models.workspace.WorkspaceMember.objects.filter
+        )(workspace__name=workspace, user=auth[0])
+        is_member = await database_sync_to_async(member.exists)()
+        if not is_member:
             return None, {'error': 'Access denied', "status_code": 403}
-        return auth[0].id, None
+        workspace_obj = await database_sync_to_async(
+            models.workspace.Workspace.objects.filter
+        )(name=workspace)
+        workspace_obj = await database_sync_to_async(workspace_obj.first)()
+        return workspace_obj.id if workspace_obj else None, None
 
 
 @method_decorator(csrf_exempt, name='dispatch')
@@ -1330,11 +1427,11 @@ class QuickwitProxyView(BaseUserProxyView):
     field_caps_url_match = re.compile(
         r"_elastic/(?P<index>[a-zA-Z*][\w.*-，]{0,})/_field_caps/?$").match
 
-    async def proxy(self, request, username, path):
-        user_id, message = await self.authenticate(request, username)
-        if user_id is None and message is not None:
+    async def proxy(self, request, workspace, path):
+        workspace_id, message = await self.authenticate(request, workspace)
+        if workspace_id is None and message is not None:
             return JsonResponse(message, status=message["status_code"])
-        kwargs = {"request": request, "username": username}
+        kwargs = {"request": request, "workspace": workspace}
         if self.index_url_match(path):
             func, kwargs["index"] = self.index, request.GET.get("index_id_patterns", "*")
         elif match := self.search_url_match(path):
@@ -1347,9 +1444,9 @@ class QuickwitProxyView(BaseUserProxyView):
             return JsonResponse({'error': 'Not Found'}, status=404)
         return await func(**kwargs)
 
-    async def index(self, request, username, index):
+    async def index(self, request, workspace, index):
         base_url = settings.QUICKWIT_SEARCHER_URL
-        index = await self.get_app_indexes(username, index)
+        index = await self.get_app_indexes(workspace, index)
         url, params = urljoin(base_url, "/api/v1/indexes"), dict(request.GET)
         params["index_id_patterns"] = index
         try:
@@ -1360,9 +1457,9 @@ class QuickwitProxyView(BaseUserProxyView):
             data, status = {'error': f'quickwit connection failed: {str(e)}'}, 502
         return JsonResponse(data, status=status, safe=False)
 
-    async def query(self, request, username, index):
+    async def query(self, request, workspace, index):
         base_url = settings.QUICKWIT_SEARCHER_URL
-        index = await self.get_app_indexes(username, index)
+        index = await self.get_app_indexes(workspace, index)
         url, params = urljoin(base_url, f"/api/v1/{index}/search"), dict(request.GET)
         try:
             async with aiohttp.ClientSession() as session:
@@ -1372,14 +1469,14 @@ class QuickwitProxyView(BaseUserProxyView):
             data, status = {'error': f'quickwit connection failed: {str(e)}'}, 502
         return JsonResponse(data, status=status)
 
-    async def msearch(self, request, username):
+    async def msearch(self, request, workspace):
         base_url = settings.QUICKWIT_SEARCHER_URL
         json_lines = request.body.decode('utf-8').strip().split('\n')
         for i, json_line in enumerate(json_lines):
             if i % 2 == 0:
                 request_header = json.loads(json_line)
                 request_header['index'] = ",".join(
-                    [await self.get_app_indexes(username, i) for i in request_header['index']]
+                    [await self.get_app_indexes(workspace, i) for i in request_header['index']]
                 ).split(",")
                 json_lines[i] = json.dumps(request_header)
         url, params = urljoin(
@@ -1394,9 +1491,9 @@ class QuickwitProxyView(BaseUserProxyView):
             data, status = {'error': f'quickwit connection failed: {str(e)}'}, 502
         return JsonResponse(data, status=status)
 
-    async def field_caps(self, request, username, index):
+    async def field_caps(self, request, workspace, index):
         base_url = settings.QUICKWIT_SEARCHER_URL
-        index = await self.get_app_indexes(username, index)
+        index = await self.get_app_indexes(workspace, index)
         url, params = urljoin(
             base_url, f"/api/v1/_elastic/{index}/_field_caps"), dict(request.GET)
         try:
@@ -1407,8 +1504,8 @@ class QuickwitProxyView(BaseUserProxyView):
             data, status = {'error': f'quickwit connection failed: {str(e)}'}, 502
         return JsonResponse(data, status=status)
 
-    async def get_app_indexes(self, username, index):
-        if username == "drycc":
+    async def get_app_indexes(self, workspace, index):
+        if workspace == "drycc":
             return index
         if "," in index:
             match = re.compile("|".join([f"^{i}$" for i in index.split(",")])).match
@@ -1419,7 +1516,8 @@ class QuickwitProxyView(BaseUserProxyView):
             app_ids = self.app_ids
         else:
             app_ids = [
-                app.id async for app in models.app.App.objects.filter(owner__username=username)]
+                app.id async for app in models.app.App.objects.filter(
+                    workspace__name=workspace).distinct()]
             setattr(self, "app_ids", app_ids)
         for app_id in app_ids:
             app_index = f"{log_index_prefix}{app_id}"
@@ -1432,12 +1530,12 @@ class QuickwitProxyView(BaseUserProxyView):
 
 @method_decorator(csrf_exempt, name='dispatch')
 class PrometheusProxyView(BaseUserProxyView):
-    async def proxy(self, request, username, path):
-        user_id, message = await self.authenticate(request, username)
-        if user_id is None and message is not None:
+    async def proxy(self, request, workspace, path):
+        workspace_id, message = await self.authenticate(request, workspace)
+        if workspace_id is None and message is not None:
             return JsonResponse(message, status=message["status_code"])
         data = dict(request.GET) if request.method == "GET" else dict(request.POST)
-        data['extra_filters[]'] = '{vm_account_id="%s"}' % user_id
+        data['extra_filters[]'] = '{vm_account_id="%s"}' % workspace_id
         try:
             async with aiohttp.ClientSession() as session:
                 async with session.post(
