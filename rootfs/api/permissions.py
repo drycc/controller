@@ -1,9 +1,12 @@
-import base64
-from rest_framework import permissions
+import logging
 from django.conf import settings
-from api import manager
+from rest_framework import permissions
+
+from api import clients
 from api.models import blocklist
 from api.models.workspace import Workspace, WorkspaceMember
+
+logger = logging.getLogger(__name__)
 
 
 def get_app_status(app):
@@ -11,7 +14,7 @@ def get_app_status(app):
     if block:
         return False, block.remark
     if settings.WORKFLOW_MANAGER_URL:
-        status = manager.WorkspaceAPI().get_status(app.workspace_id)
+        status = clients.WorkspaceAPI().get_status(app.workspace_id)
         if not status["is_active"]:
             return False, status["message"]
     return True, None
@@ -41,8 +44,9 @@ class IsAppUser(permissions.BasePermission):
             return True
         elif getattr(obj, "user", None) == request.user:
             return True
-        elif isinstance(obj, Workspace) or hasattr(obj, 'workspace'):
-            workspace = obj if isinstance(obj, Workspace) else obj.workspace
+        elif isinstance(obj, Workspace) or hasattr(obj, 'workspace') or hasattr(obj, 'app'):
+            workspace = obj if isinstance(obj, Workspace) else getattr(
+                obj, "workspace", None) or getattr(getattr(obj, 'app', None), 'workspace', None)
             if request.method in ["GET", "HEAD", "OPTIONS"]:
                 allowed_roles = ["viewer", "member", "admin"]
             elif request.method in ["POST", "PUT", "PATCH"]:
@@ -55,34 +59,23 @@ class IsAppUser(permissions.BasePermission):
         return False
 
 
-class IsServiceToken(permissions.BasePermission):
+class HasOAuthScope(permissions.BasePermission):
     """
-    The service token is used for internal communication between Drycc components,
-    such as the builder and Quickwit.
+    Object-level permission to allow only requests with specific OAuth scopes.
+    The required scopes are defined on the view as `required_oauth_scopes = ['scope1', 'scope2']`
     """
+    client = clients.PassportAPI()
 
     def has_permission(self, request, view):
-        """
-        Return `True` if permission is granted, `False` otherwise.
-        """
-        auth_header = request.META.get('HTTP_X_DRYCC_SERVICE_KEY')
-        if not auth_header:
+        required_oauth_scopes = getattr(view, 'required_oauth_scopes', [])
+        if not required_oauth_scopes:
+            return True
+
+        auth_header = request.META.get('HTTP_AUTHORIZATION', '')
+        parts = auth_header.split()
+        if len(parts) == 2 and parts[0].lower() == 'bearer':
+            token = parts[1]
+        else:
             return False
-        return auth_header == settings.SERVICE_KEY
-
-
-class IsWorkflowManager(permissions.BasePermission):
-    """
-    View permission to allow workflow manager to perform actions
-    with a special HTTP header
-    """
-
-    def has_permission(self, request, view):
-        if request.META.get("HTTP_AUTHORIZATION"):
-            token = request.META.get(
-                "HTTP_AUTHORIZATION").split(" ")[1].encode("utf8")
-            access_key, secret_key = base64.b85decode(token).decode("utf8").split(":")
-            if settings.WORKFLOW_MANAGER_ACCESS_KEY == access_key:
-                if settings.WORKFLOW_MANAGER_SECRET_KEY == secret_key:
-                    return True
-        return False
+        scopes = self.client.get_scopes(token)
+        return set(required_oauth_scopes).issubset(scopes)

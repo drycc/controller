@@ -58,6 +58,10 @@ app.conf.update(
             'queue': 'controller.middle',
             'exchange': 'controller.priority', 'routing_key': 'controller.priority.middle',
         },
+        'api.tasks.dispatch_alert_message': {
+            'queue': 'controller.middle',
+            'exchange': 'controller.priority', 'routing_key': 'controller.priority.middle',
+        },
     },
     task_queues=(
         Queue(

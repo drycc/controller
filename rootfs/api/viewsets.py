@@ -1,8 +1,31 @@
+import asyncio
+from channels.db import database_sync_to_async
+
+from django.http import JsonResponse
 from django.core.exceptions import ImproperlyConfigured
+from django.views.generic import View
 from rest_framework import viewsets, renderers
 from rest_framework.permissions import IsAuthenticated
 
 from api import permissions
+from api.models.app import App
+
+
+class BaseServiceView(View):
+    """
+    Base view for proxying service endpoints.
+    Enforces OAuth scopes on every dispatch.
+    """
+    required_oauth_scopes = []
+
+    async def dispatch(self, request, *args, **kwargs):
+        has_permission = database_sync_to_async(permissions.HasOAuthScope().has_permission)
+        if not await has_permission(request, self):
+            return JsonResponse({'error': 'Unauthorized'}, status=401)
+        response = super().dispatch(request, *args, **kwargs)
+        if asyncio.iscoroutine(response):
+            return await response
+        return response
 
 
 class OwnerViewSet(viewsets.ModelViewSet):
@@ -40,3 +63,11 @@ class BaseAppViewSet(viewsets.ModelViewSet):
         raise ImproperlyConfigured(
             f"{self.__class__.__name__} requires a model with a 'workspace' or 'app' field."
         )
+
+    def check_object_permissions(self, request, obj):
+        if isinstance(obj, App) or hasattr(obj, 'app'):
+            app = obj if isinstance(obj, App) else obj.app
+            ok, message = permissions.get_app_status(app)
+            if not ok:
+                raise permissions.PermissionDenied(message)
+        super().check_object_permissions(request, obj)

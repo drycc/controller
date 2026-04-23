@@ -178,6 +178,9 @@ app_urlpatterns = [
     re_path(
         r'^hooks/config/?$',
         views.ConfigHookViewSet.as_view({'post': 'create'})),
+    re_path(
+        r'^alerts/?$',
+        views.AlertsHookViewSet.as_view({'post': 'create'})),
     # authn / authz
     re_path(
         r'^auth/whoami/?$',
@@ -213,11 +216,11 @@ app_urlpatterns = [
             settings.APP_URL_REGEX),
         views.MetricView.as_view({'get': 'status'})),
     re_path(
-        r'^manager/(?P<type>[\w.@+-]+)s/(?P<id>{})/block/?$'.format(settings.APP_URL_REGEX),
-        views.WorkflowManagerViewset.as_view({'post': 'block'})),
+        r'^blocklists/?$',
+        views.BlocklistViewset.as_view({'post': 'create'})),
     re_path(
-        r'^manager/(?P<type>[\w.@+-]+)s/(?P<id>{})/unblock/?$'.format(settings.APP_URL_REGEX),
-        views.WorkflowManagerViewset.as_view({'delete': 'unblock'})),
+        r'^blocklists/(?P<type>[a-z]+)/(?P<id>[-_\w]+)/?$',
+        views.BlocklistViewset.as_view({'get': 'retrieve', 'delete': 'destroy'})),
     # quickwit
     re_path(
         r'^quickwit/(?P<workspace>[-\w]+)/(?P<path>.+)/?$', views.QuickwitProxyView.as_view()),

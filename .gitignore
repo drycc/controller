@@ -14,6 +14,7 @@ develop-eggs
 .venv
 lib
 lib64
+.sisyphus
 
 # Drycc' config file
 controller/drycc/local_settings.py

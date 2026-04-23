@@ -4,8 +4,6 @@ metadata:
   name: drycc-controller-job-upgrade
   annotations:
     component.drycc.cc/version: {{ .Values.imageTag }}
-    helm.sh/hook: post-install,post-upgrade,post-rollback
-    helm.sh/hook-delete-policy: before-hook-creation,hook-succeeded
 spec:
   template:
     spec:

@@ -15,7 +15,7 @@ import requests
 import warnings
 
 from urllib.parse import urljoin
-from django.db import transaction
+from django.db import transaction, connection, Error
 from django.db.models import Q
 from django.core.cache import cache
 from django.http import Http404, HttpResponse
@@ -26,6 +26,7 @@ from django.views.generic import View
 from django.utils.decorators import method_decorator
 from django.views.decorators.cache import cache_page
 from django.views.decorators.vary import vary_on_headers
+from channels.db import database_sync_to_async
 from rest_framework import status, filters
 from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated, AllowAny
@@ -35,14 +36,15 @@ from rest_framework.exceptions import ValidationError, PermissionDenied
 from rest_framework.renderers import JSONRenderer, TemplateHTMLRenderer
 
 from api import monitor, models, permissions, serializers, viewsets, authentication, __version__
-from api.tasks import scale_app, restart_app, mount_app, delete_pod, scale_resources
+from api.tasks import (
+    scale_app, restart_app, mount_app, delete_pod, scale_resources, dispatch_alert_message
+)
 from api.exceptions import AlreadyExists, ServiceUnavailable, DryccException
 
 from django.views.decorators.cache import never_cache
 from django.contrib.auth import REDIRECT_FIELD_NAME
 from django.views.decorators.csrf import csrf_exempt
 from django.http.response import JsonResponse, StreamingHttpResponse
-from channels.db import database_sync_to_async
 from social_django.utils import psa
 from social_django.views import _do_login
 from social_core.utils import setting_name
@@ -59,18 +61,22 @@ NAMESPACE = getattr(settings, setting_name('URL_NAMESPACE'), None) or 'social'
 
 
 class ReadinessCheckView(View):
-    """
-    Simple readiness check view to determine DB connection / query.
-    """
+    """Simple readiness check view to determine DB connection and Migrations."""
+    migrations_completed = False
 
     def get(self, request):
         try:
-            import django.db
-            with django.db.connection.cursor() as c:
+            with connection.cursor() as c:
                 c.execute("SELECT 0")
-        except django.db.Error as e:
-            raise ServiceUnavailable("Database health check failed") from e
-
+            if not ReadinessCheckView.migrations_completed:
+                from django.db.migrations.executor import MigrationExecutor
+                executor = MigrationExecutor(connection)
+                targets = executor.loader.graph.leaf_nodes()
+                if executor.migration_plan(targets):
+                    raise ServiceUnavailable("Migrations are not yet applied")
+                ReadinessCheckView.migrations_completed = True
+        except Error as e:
+            raise ServiceUnavailable(f"Database health check failed: {e}") from e
         return HttpResponse("OK")
     head = get
 
@@ -136,7 +142,13 @@ class AuthLoginView(GenericViewSet):
             },
         )
         if response.status_code != 200:
-            raise DryccException(response.content)
+            content_type = response.headers.get('Content-Type', '')
+            if 'application/json' in content_type:
+                try:
+                    return JsonResponse(response.json(), status=response.status_code)
+                except ValueError:
+                    pass
+            raise DryccException(response.text or "Authentication failed")
         state = uuid.uuid4().hex
         oauth_cache_manager.set_state(key, state)
         oauth_cache_manager.set_token(state, response.json())
@@ -174,45 +186,34 @@ class UserManagementViewSet(GenericViewSet):
         return Response(serializer.data)
 
 
-class WorkflowManagerViewset(GenericViewSet):
-    permission_classes = (permissions.IsWorkflowManager, )
-    authentication_classes = (authentication.AnonymousAuthentication, )
+class BlocklistViewset(ModelViewSet):
+    permission_classes = (permissions.HasOAuthScope, )
+    required_oauth_scopes = ['controller:blocklist']
+    # Not using AnonymousAuthentication because we need DryccAuthentication for oauth
+    serializer_class = serializers.BlocklistSerializer
 
-    def block(self, request,  **kwargs):
-        try:
-            blocklist, created = models.blocklist.Blocklist.objects.get_or_create(
-                id=kwargs['id'],
-                type=models.blocklist.Blocklist.get_type(kwargs["type"]),
-                defaults={"remark": request.data.get("remark")}
-            )
-            for app in blocklist.related_apps:
-                if created:
-                    app.suspended_state = blocklist.suspended_state(app)
-                    app.save()
-                # scale to 0
-                scale_resources.delay(blocklist, app, app.suspended_state, "block")
-            return HttpResponse(status=201)
-        except ValueError as e:
-            logger.info(e)
-            raise DryccException("Unsupported block type: %s" % kwargs["type"])
+    def get_object(self):
+        return get_object_or_404(
+            models.blocklist.Blocklist,
+            id=self.kwargs.get('id'),
+            type=models.blocklist.Blocklist.get_type(self.kwargs.get('type'))
+        )
 
-    def unblock(self, request,  **kwargs):
-        try:
-            blocklists = models.blocklist.Blocklist.objects.filter(
-                id=kwargs['id'],
-                type=models.blocklist.Blocklist.get_type(kwargs["type"])
-            )
-            for blocklist in blocklists:
-                for app in blocklist.related_apps:
-                    # scale to up
-                    scale_resources.delay(blocklist, app, app.suspended_state, "unblock")
-                    app.suspended_state = {}
-                    app.save()
-                blocklist.delete()
-            return HttpResponse(status=204)
-        except ValueError as e:
-            logger.info(e)
-            raise DryccException("Unsupported block type: %s" % kwargs["type"])
+    def perform_create(self, serializer):
+        # We need to trigger the scale_resources.delay
+        blocklist = serializer.save()
+        for app in blocklist.related_apps:
+            app.suspended_state = blocklist.suspended_state(app)
+            app.save()
+            scale_resources.delay(blocklist, app, app.suspended_state, "block")
+
+    def perform_destroy(self, instance):
+        for app in instance.related_apps:
+            # scale to up
+            scale_resources.delay(instance, app, app.suspended_state, "unblock")
+            app.suspended_state = {}
+            app.save()
+        instance.delete()
 
 
 class AdmissionWebhookViewSet(GenericViewSet):
@@ -941,11 +942,13 @@ class TLSViewSet(AppFilterViewSet):
         return Response({'results': results, 'count': len(results)})
 
 
-class BaseHookViewSet(viewsets.BaseAppViewSet):
-    permission_classes = [permissions.IsServiceToken]
+class BaseServiceViewSet(viewsets.BaseAppViewSet):
+    authentication_classes = (authentication.AnonymousAuthentication, )
+    permission_classes = [permissions.HasOAuthScope]
+    required_oauth_scopes = ['controller:hook']
 
 
-class KeyHookViewSet(BaseHookViewSet):
+class KeyHookViewSet(BaseServiceViewSet):
     """API hook to create new :class:`~api.models.Push`"""
     model = models.key.Key
     serializer_class = serializers.KeySerializer
@@ -1007,7 +1010,7 @@ class KeyHookViewSet(BaseHookViewSet):
         return Response(data, status=status.HTTP_200_OK)
 
 
-class BuildHookViewSet(BaseHookViewSet):
+class BuildHookViewSet(BaseServiceViewSet):
     """API hook to create new :class:`~api.models.build.Build`"""
     model = models.build.Build
     serializer_class = serializers.BuildSerializer
@@ -1033,7 +1036,7 @@ class BuildHookViewSet(BaseHookViewSet):
         build.create_release(self.user)
 
 
-class ConfigHookViewSet(BaseHookViewSet):
+class ConfigHookViewSet(BaseServiceViewSet):
     """API hook to grab latest :class:`~api.models.config.Config`"""
     model = models.config.Config
     serializer_class = serializers.ConfigSerializer
@@ -1047,6 +1050,34 @@ class ConfigHookViewSet(BaseHookViewSet):
         config = models.release.Release.latest(app).config
         serializer = self.get_serializer(config)
         return Response(serializer.data, status=status.HTTP_200_OK)
+
+
+class AlertsHookViewSet(BaseServiceViewSet):
+    """API hook to ingest alert events and dispatch passport messages."""
+    required_oauth_scopes = ['controller:alerts']
+
+    def create(self, request, *args, **kwargs):
+        payload = request.data or {}
+        workspace = payload.pop('workspace', '')
+        if not workspace:
+            return Response({"detail": "workspace is required"},
+                            status=status.HTTP_400_BAD_REQUEST)
+        usernames = self._collect_usernames(workspace)
+        if usernames:
+            for alert in payload.get("alerts") or []:
+                dispatch_alert_message.delay(usernames, alert)
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+    @staticmethod
+    def _collect_usernames(workspace):
+        if workspace == "drycc":
+            qs = User.objects.filter(Q(is_staff=True) | Q(is_superuser=True))
+        else:
+            qs = User.objects.filter(
+                workspacemember__workspace__name=workspace,
+                workspacemember__alerts=True,
+            )
+        return list(qs.values_list("username", flat=True).distinct())
 
 
 class AppVolumesViewSet(AppFilterViewSet):
@@ -1279,20 +1310,15 @@ class RouteRulesViewSet(AppFilterViewSet):
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 
-class MetricView(viewsets.BaseAppViewSet):
+class MetricView(AppFilterViewSet):
     """Getting monitoring indicators from monitor database"""
-
-    def _get_app(self):
-        app = get_object_or_404(models.app.App, id=self.kwargs['id'])
-        self.check_object_permissions(self.request, app)
-        return app
 
     @method_decorator(cache_page(settings.DRYCC_METRICS_EXPIRY))
     @method_decorator(vary_on_headers("Authorization"))
     def metric(self, request, **kwargs):
         warnings.warn(
             'this interface will be removed in the next version.', PendingDeprecationWarning)
-        app_id = self._get_app().id
+        app_id = self.get_app().id
         return StreamingHttpResponse(
             streaming_content=monitor.last_metrics(app_id)
         )
@@ -1374,40 +1400,10 @@ class MetricsProxyView(View):
 
 
 @method_decorator(csrf_exempt, name='dispatch')
-class BaseUserProxyView(View):
+class QuickwitProxyView(viewsets.BaseServiceView):
     timeout = aiohttp.ClientTimeout(total=30, connect=10, sock_read=15)
-    permission = permissions.IsServiceToken()
-    authentication = authentication.DryccAuthentication()
-    authentication.ignore_authentication_failed = True
+    required_oauth_scopes = ['controller:logs']
 
-    async def authenticate(self, request, workspace):
-        """
-        Authenticate the request and verify workspace membership.
-        Returns the workspace ID on success; returns None and an error message on failure.
-        """
-        if self.permission.has_permission(request, None):
-            if workspace != "drycc":
-                return None, {'error': 'Access denied', "status_code": 403}
-            return 0, None
-        auth = await database_sync_to_async(self.authentication.authenticate)(request)
-        if not auth or len(auth) != 2:
-            return None, {'error': 'Unauthorized', "status_code": 401}
-        # Verify the authenticated user is a member of the specified workspace
-        member = await database_sync_to_async(
-            models.workspace.WorkspaceMember.objects.filter
-        )(workspace__name=workspace, user=auth[0])
-        is_member = await database_sync_to_async(member.exists)()
-        if not is_member:
-            return None, {'error': 'Access denied', "status_code": 403}
-        workspace_obj = await database_sync_to_async(
-            models.workspace.Workspace.objects.filter
-        )(name=workspace)
-        workspace_obj = await database_sync_to_async(workspace_obj.first)()
-        return workspace_obj.id if workspace_obj else None, None
-
-
-@method_decorator(csrf_exempt, name='dispatch')
-class QuickwitProxyView(BaseUserProxyView):
     index_url_match = re.compile(r"^indexes/?$").match
     search_url_match = re.compile(r"^(?P<index>[a-zA-Z*][\w.*-，]{0,})/search/?$").match
     msearch_url_match = re.compile(r"^_elastic/_msearch/?$").match
@@ -1415,9 +1411,6 @@ class QuickwitProxyView(BaseUserProxyView):
         r"_elastic/(?P<index>[a-zA-Z*][\w.*-，]{0,})/_field_caps/?$").match
 
     async def proxy(self, request, workspace, path):
-        workspace_id, message = await self.authenticate(request, workspace)
-        if workspace_id is None and message is not None:
-            return JsonResponse(message, status=message["status_code"])
         kwargs = {"request": request, "workspace": workspace}
         if self.index_url_match(path):
             func, kwargs["index"] = self.index, request.GET.get("index_id_patterns", "*")
@@ -1516,12 +1509,18 @@ class QuickwitProxyView(BaseUserProxyView):
 
 
 @method_decorator(csrf_exempt, name='dispatch')
-class PrometheusProxyView(BaseUserProxyView):
+class PrometheusProxyView(viewsets.BaseServiceView):
+    timeout = aiohttp.ClientTimeout(total=30, connect=10, sock_read=15)
+    required_oauth_scopes = ['controller:metrics']
+
     async def proxy(self, request, workspace, path):
-        workspace_id, message = await self.authenticate(request, workspace)
-        if workspace_id is None and message is not None:
-            return JsonResponse(message, status=message["status_code"])
         data = dict(request.GET) if request.method == "GET" else dict(request.POST)
+        if workspace == "drycc":
+            workspace_id = 0
+        else:
+            workspace = await database_sync_to_async(get_object_or_404)(
+                models.workspace.Workspace, name=workspace)
+            workspace_id = workspace.id
         data['extra_filters[]'] = '{vm_account_id="%s"}' % workspace_id
         try:
             async with aiohttp.ClientSession() as session:

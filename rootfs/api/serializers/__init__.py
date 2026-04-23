@@ -824,3 +824,9 @@ class WorkspaceInvitationSerializer(serializers.ModelSerializer):
         model = models.workspace.WorkspaceInvitation
         fields = '__all__'
         read_only_fields = ['id', 'token', 'created']
+
+
+class BlocklistSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = models.blocklist.Blocklist
+        fields = '__all__'

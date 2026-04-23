@@ -49,11 +49,6 @@ env:
     secretKeyRef:
       name: controller-creds
       key: django-secret-key
-- name: DRYCC_SERVICE_KEY
-  valueFrom:
-    secretKeyRef:
-      name: controller-creds
-      key: service-key
 {{- if (.Values.valkeyUrl) }}
 - name: DRYCC_VALKEY_URL
   valueFrom:
@@ -99,12 +94,6 @@ env:
   value: "postgres://$(DRYCC_PG_USER):$(DRYCC_PG_PASSWORD)@drycc-database-replica:5432/controller"
 {{- end }}
 {{- if (.Values.workflowManagerUrl) }}
-- name: WORKFLOW_MANAGER_URL
-  value: "{{ .Values.workflowManagerUrl }}"
-- name: WORKFLOW_MANAGER_ACCESS_KEY
-  value: "{{ .Values.workflowManagerAccessKey }}"
-- name: WORKFLOW_MANAGER_SECRET_KEY
-  value: "{{ .Values.workflowManagerSecretKey }}"
 {{- end }}
 - name: POD_IP
   valueFrom:
@@ -129,7 +118,7 @@ env:
   value: "http://drycc-victoriametrics-vmselect:8481/select/multitenant/prometheus"
 {{- end }}
 {{- if .Values.passport.enabled }}
-- name: "DRYCC_PASSPORT_URL"
+- name: DRYCC_PASSPORT_URL
 {{- if .Values.global.certManagerEnabled }}
   value: https://drycc-passport.{{ .Values.global.platformDomain }}
 {{- else }}
@@ -145,7 +134,12 @@ env:
     secretKeyRef:
       name: passport-creds
       key: drycc-passport-controller-secret
-{{- else }}
+- name: DRYCC_PASSPORT_SCOPES
+  valueFrom:
+    secretKeyRef:
+      name: passport-creds
+      key: drycc-passport-controller-scopes
+{{- else if .Values.passportUrl }}
 - name: DRYCC_PASSPORT_URL
   valueFrom:
     secretKeyRef:
@@ -161,6 +155,11 @@ env:
     secretKeyRef:
       name: controller-creds
       key: passport-secret
+- name: DRYCC_PASSPORT_SCOPES
+  valueFrom:
+    secretKeyRef:
+      name: controller-creds
+      key: passport-scopes
 {{- end }}
 - name: QUICKWIT_INDEXER_URL
   value: http://drycc-quickwit-indexer:7280

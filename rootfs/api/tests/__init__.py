@@ -3,6 +3,7 @@ import random
 import requests_mock
 import time
 import unittest
+from unittest import mock
 from os.path import dirname, realpath
 
 from django.test.runner import DiscoverRunner
@@ -38,10 +39,27 @@ def fake_responses(request, context):
     return response['text']
 
 
+def mock_get_token_scopes(self, token):
+    return {"controller:hook", "controller:blocklist", "controller:logs", "controller:metrics",
+            "controller:alerts"}
+
+
+patcher = mock.patch('api.clients.PassportAPI.get_scopes', mock_get_token_scopes)
+patcher.start()
+
 adapter = requests_mock.Adapter()
 adapter.register_uri('GET', '/', text=fake_responses)
 adapter.register_uri('GET', '/health', text=fake_responses)
 adapter.register_uri('GET', '/healthz', text=fake_responses)
+adapter.register_uri(
+    'POST',
+    requests_mock.ANY,
+    json={
+        "active": True,
+        "scope": "controller:hook controller:metrics controller:logs controller:blocklist"
+                 " passport:message"
+    }
+)
 
 # Root of the test directory (for files and such)
 TEST_ROOT = dirname(realpath(__file__))

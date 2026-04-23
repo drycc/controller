@@ -328,7 +328,6 @@ if os.path.exists(DRYCC_NETWORK_USAGE_TEMPLATE_PATH):
 SECRET_KEY = os.environ.get('DRYCC_SECRET_KEY', randstr(64))
 
 # Drycc service key
-SERVICE_KEY = os.environ.get('DRYCC_SERVICE_KEY', randstr(64))
 
 # Drycc cert key
 CERT_KEY_PATH = os.environ.get('DRYCC_CERT_KEY_PATH', '/etc/controller/cert/key')
@@ -442,11 +441,11 @@ LOGIN_REDIRECT_URL = os.environ.get(
 # social auth settings
 SOCIAL_AUTH_DRYCC_KEY = os.environ.get(
     "DRYCC_PASSPORT_KEY",
-    os.environ.get("SOCIAL_AUTH_DRYCC_KEY"),
+    os.environ.get("SOCIAL_AUTH_DRYCC_KEY", ""),
 )
 SOCIAL_AUTH_DRYCC_SECRET = os.environ.get(
     'DRYCC_PASSPORT_SECRET',
-    os.environ.get("SOCIAL_AUTH_DRYCC_SECRET"),
+    os.environ.get("SOCIAL_AUTH_DRYCC_SECRET", ""),
 )
 SOCIAL_AUTH_DRYCC_OIDC_ENDPOINT = os.environ.get(
     'SOCIAL_AUTH_DRYCC_OIDC_ENDPOINT',
@@ -465,6 +464,10 @@ SOCIAL_AUTH_PIPELINE = (
     'social_core.pipeline.user.user_details',
 )
 DRYCC_CACHE_USER_TIME = int(os.environ.get('DRYCC_CACHE_USER_TIME', 30 * 60))
+
+# OIDC scopes to request from the provider.
+# The provider must be configured to allow these scopes for the Grafana client.
+DRYCC_PASSPORT_SCOPES = os.environ.get('DRYCC_PASSPORT_SCOPES', '')
 
 # Rate limit for invitation emails: max LIMIT emails per WINDOW seconds per recipient address
 DRYCC_INVITATION_EMAIL_LIMIT = int(os.environ.get('DRYCC_INVITATION_EMAIL_LIMIT', 5))
@@ -485,5 +488,3 @@ QUICKWIT_LOG_INDEX_PREFIX = os.environ.get('QUICKWIT_LOG_INDEX_PREFIX', None)
 
 # Workflow-manager Configuration Options
 WORKFLOW_MANAGER_URL = os.environ.get('WORKFLOW_MANAGER_URL', None)
-WORKFLOW_MANAGER_ACCESS_KEY = os.environ.get('WORKFLOW_MANAGER_ACCESS_KEY', None)
-WORKFLOW_MANAGER_SECRET_KEY = os.environ.get('WORKFLOW_MANAGER_SECRET_KEY', None)
