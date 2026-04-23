@@ -8,7 +8,22 @@ from social_core.utils import setting_name
 from api import views
 
 
-router = DefaultRouter(trailing_slash=False)
+class OptionalSlashRouter(DefaultRouter):
+    """Router that accepts both trailing-slash and no-trailing-slash URLs."""
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.trailing_slash = '/?'
+
+
+router = OptionalSlashRouter()
+router.register(r'workspaces', views.WorkspaceViewSet, basename='workspace')
+router.register(r'apps', views.AppViewSet, basename='app')
+router.register(r'keys', views.KeyViewSet, basename='key')
+router.register(r'tokens', views.TokenViewSet, basename='token')
+router.register(r'limits/specs', views.LimitSpecViewSet, basename='limitspec')
+router.register(r'limits/plans', views.LimitPlanViewSet, basename='limitplan')
+
 extra = getattr(settings, setting_name('TRAILING_SLASH'), True) and '/' or ''
 
 # Add the generated REST URLs and login/logout endpoint
@@ -17,14 +32,7 @@ app_urlpatterns = [
     re_path(r'auth/login/?$', views.AuthLoginView.as_view({"post": "login"})),
     re_path(r'auth/token/?$', views.AuthTokenView.as_view({"post": "token"})),
     re_path(r'auth/token/(?P<key>[-_\w]+)/?$', views.AuthTokenView.as_view({"get": "token"})),
-    # Workspaces management URLs (keep workspaces prefix, no user prefix)
-    re_path(r'^workspaces/?$',
-            views.WorkspaceViewSet.as_view({'get': 'list', 'post': 'create'}),
-            name='workspace_list'),
-    re_path(r'^workspaces/(?P<name>[-_\w]+)/?$',
-            views.WorkspaceViewSet.as_view(
-                {'get': 'retrieve', 'patch': 'partial_update', 'delete': 'destroy'}),
-            name='workspace_detail'),
+    # Workspace sub-resources (members, invitations)
     re_path(r'^workspaces/(?P<name>[-_\w]+)/members/?$',
             views.WorkspaceMemberViewSet.as_view({'get': 'list'}),
             name='workspace_member_list'),
@@ -38,16 +46,6 @@ app_urlpatterns = [
     re_path(r'^workspaces/(?P<name>[-_\w]+)/invitations/(?P<uid>[-_\w]+)/?$',
             views.WorkspaceInvitationViewSet.as_view({'get': 'retrieve', 'delete': 'destroy'}),
             name='workspace_invitation_detail'),
-    # limits
-    re_path(
-        r'^limits/specs/?$',
-        views.LimitSpecViewSet.as_view({'get': 'list'})),
-    re_path(
-        r'^limits/plans/?$',
-        views.LimitPlanViewSet.as_view({'get': 'list'})),
-    re_path(
-        r'^limits/plans/(?P<id>[-.\w]+)/?$',
-        views.LimitPlanViewSet.as_view({'get': 'retrieve'})),
     # application release components
     re_path(
         r"^apps/(?P<id>{})/build/?$".format(settings.APP_URL_REGEX),
@@ -112,7 +110,7 @@ app_urlpatterns = [
     # application services
     re_path(
         r"^apps/(?P<id>{})/services/?$".format(settings.APP_URL_REGEX),
-        views.ServiceViewSet.as_view({'post': 'create_or_update',
+        views.ServiceViewSet.as_view({'post': 'upsert',
                                      'get': 'list', 'delete': 'destroy'})),
     # application settings
     re_path(
@@ -164,24 +162,6 @@ app_urlpatterns = [
     re_path(
         r'^apps/(?P<id>{})/certs/?$'.format(settings.APP_URL_REGEX),
         views.CertificateViewSet.as_view({'get': 'list', 'post': 'create'})),
-    # application actions
-    re_path(
-        r"^apps/(?P<id>{})/run/?$".format(settings.APP_URL_REGEX),
-        views.AppViewSet.as_view({'post': 'run'})),
-    # apps base endpoint
-    re_path(
-        r"^apps/(?P<id>{})/?$".format(settings.APP_URL_REGEX),
-        views.AppViewSet.as_view({'get': 'retrieve', 'patch': 'transfer', 'delete': 'destroy'})),
-    re_path(
-        r'^apps/?$',
-        views.AppViewSet.as_view({'get': 'list', 'post': 'create'})),
-    # key
-    re_path(
-        r'^keys/(?P<id>.+)/?$',
-        views.KeyViewSet.as_view({'get': 'retrieve', 'delete': 'destroy'})),
-    re_path(
-        r'^keys/?$',
-        views.KeyViewSet.as_view({'get': 'list', 'post': 'create'})),
     # hooks
     re_path(
         r'^hooks/keys/(?P<id>{})/(?P<username>[\w.@+-]+)/?$'.format(settings.APP_URL_REGEX),
@@ -206,7 +186,7 @@ app_urlpatterns = [
     re_path(
         r"^apps/(?P<id>{})/gateways/?$".format(settings.APP_URL_REGEX),
         views.GatewayViewSet.as_view(
-            {'post': 'create_or_update', 'get': 'list', 'delete': 'destroy'})),
+            {'post': 'upsert', 'get': 'list', 'delete': 'destroy'})),
     # routes
     re_path(
         r"^apps/(?P<id>{})/routes/(?P<name>{})?/?$".format(
@@ -224,7 +204,7 @@ app_urlpatterns = [
     re_path(
         r"^apps/(?P<id>{})/routes/(?P<name>{})/rules/?$".format(
             settings.APP_URL_REGEX, settings.NAME_REGEX),
-        views.RouteViewSet.as_view({'get': 'get', 'put': 'set'})),
+        views.RouteRulesViewSet.as_view({'get': 'retrieve', 'put': 'update'})),
     re_path(
         r'^apps/(?P<id>{})/metrics/?$'.format(settings.APP_URL_REGEX),
         views.MetricView.as_view({'get': 'metric'})),
@@ -245,11 +225,6 @@ app_urlpatterns = [
     re_path(
         r'^prometheus/(?P<workspace>[-\w]+)/(?P<path>.+)/?$',
         views.PrometheusProxyView.as_view()),
-    # tokens
-    re_path(r'^tokens/?$', views.TokenViewSet.as_view({'get': 'list'})),
-    re_path(
-        r"^tokens/(?P<pk>[-_\w]+)/?$",
-        views.TokenViewSet.as_view({'get': 'retrieve', 'delete': 'destroy'})),
 ]
 
 metric_urlpatterns = [

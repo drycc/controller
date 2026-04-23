@@ -27,9 +27,10 @@ from django.utils.decorators import method_decorator
 from django.views.decorators.cache import cache_page
 from django.views.decorators.vary import vary_on_headers
 from rest_framework import status, filters
+from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.response import Response
-from rest_framework.viewsets import GenericViewSet, ModelViewSet
+from rest_framework.viewsets import GenericViewSet, ModelViewSet, ReadOnlyModelViewSet
 from rest_framework.exceptions import ValidationError, PermissionDenied
 from rest_framework.renderers import JSONRenderer, TemplateHTMLRenderer
 
@@ -251,8 +252,13 @@ class WorkspaceViewSet(ModelViewSet):
     ViewSet for Workspace model.
     """
     lookup_field = 'name'
+    lookup_value_regex = r'[-_\w]+'
     serializer_class = serializers.WorkspaceSerializer
     permission_classes = [IsAuthenticated]
+
+    def _require_admin(self, workspace, message):
+        if not workspace.has_member(self.request.user, role='admin'):
+            raise PermissionDenied(message)
 
     def get_queryset(self):
         return models.workspace.Workspace.objects.filter(
@@ -269,29 +275,18 @@ class WorkspaceViewSet(ModelViewSet):
         """Override to get workspace by name instead of pk"""
         return get_object_or_404(self.get_queryset(), name=self.kwargs['name'])
 
-    def partial_update(self, request, *args, **kwargs):
+    def update(self, request, *args, **kwargs):
         """Only admins can update workspaces"""
         workspace = self.get_object()
-        if not workspace.has_member(request.user, role='admin'):
-            return Response(
-                {"detail": "Only workspace admins can update workspaces"},
-                status=status.HTTP_403_FORBIDDEN
-            )
-        return super().partial_update(request, *args, **kwargs)
+        self._require_admin(workspace, "Only workspace admins can update workspaces")
+        return super().update(request, *args, **kwargs)
 
     def destroy(self, request, *args, **kwargs):
         """Only admins can delete workspaces"""
         workspace = self.get_object()
-        if not workspace.has_member(request.user, role='admin'):
-            return Response(
-                {"detail": "Only workspace admins can delete workspaces"},
-                status=status.HTTP_403_FORBIDDEN
-            )
+        self._require_admin(workspace, "Only workspace admins can delete workspaces")
         if models.workspace.WorkspaceMember.objects.filter(workspace=workspace).count() > 1:
-            return Response(
-                {"detail": "Cannot delete workspace with more than one member"},
-                status=status.HTTP_403_FORBIDDEN
-            )
+            raise PermissionDenied("Cannot delete workspace with more than one member")
         return super().destroy(request, *args, **kwargs)
 
 
@@ -317,60 +312,44 @@ class WorkspaceMemberViewSet(ModelViewSet):
             workspace=workspace, user__username=self.kwargs['user']
         )
 
-    def partial_update(self, request, *args, **kwargs):
+    @staticmethod
+    def _only_member_workspace(member):
+        return models.workspace.WorkspaceMember.objects.filter(
+            workspace=member.workspace
+        ).count() == 1
+
+    def update(self, request, *args, **kwargs):
         """Update a member. Admins can update any member (role and alerts).
         Non-admins can only update their own alerts field."""
         member = self.get_object()
         is_admin = member.workspace.has_member(request.user, role='admin')
-
-        # Check if workspace has only one member
-        member_count = models.workspace.WorkspaceMember.objects.filter(
-            workspace=member.workspace
-        ).count()
-        is_only_member = member_count == 1
+        is_only_member = self._only_member_workspace(member)
 
         # Only member cannot modify role
         if is_only_member and 'role' in request.data:
-            return Response(
-                {"detail": "Cannot modify role: workspace only has one member"},
-                status=status.HTTP_403_FORBIDDEN
-            )
+            raise PermissionDenied("Cannot modify role: workspace only has one member")
 
         # Non-admin users restrictions
         if not is_admin:
             # Cannot update other members
             if request.user != member.user:
-                return Response(
-                    {"detail": "Only workspace admins can update other members"},
-                    status=status.HTTP_403_FORBIDDEN
-                )
+                raise PermissionDenied("Only workspace admins can update other members")
             # Cannot modify own role
             if 'role' in request.data:
-                return Response(
-                    {"detail": "Cannot modify your own role"},
-                    status=status.HTTP_403_FORBIDDEN
-                )
+                raise PermissionDenied("Cannot modify your own role")
 
-        return super().partial_update(request, *args, **kwargs)
+        return super().update(request, *args, **kwargs)
 
     def destroy(self, request, *args, **kwargs):
         """Delete a member. Admins can delete any member.
         Non-admins can only delete themselves (leave workspace)."""
         member = self.get_object()
         is_admin = member.workspace.has_member(request.user, role='admin')
-
-        # Check if workspace has only one member
-        member_count = models.workspace.WorkspaceMember.objects.filter(
-            workspace=member.workspace
-        ).count()
-        is_only_member = member_count == 1
+        is_only_member = self._only_member_workspace(member)
 
         # Only member cannot delete self
         if is_only_member and request.user == member.user:
-            return Response(
-                {"detail": "Cannot delete: workspace only has one member"},
-                status=status.HTTP_403_FORBIDDEN
-            )
+            raise PermissionDenied("Cannot delete: workspace only has one member")
 
         # Non-admin can delete self
         if request.user == member.user:
@@ -381,10 +360,7 @@ class WorkspaceMemberViewSet(ModelViewSet):
             return super().destroy(request, *args, **kwargs)
 
         # Other cases forbidden
-        return Response(
-            {"detail": "Only workspace admins can remove other members"},
-            status=status.HTTP_403_FORBIDDEN
-        )
+        raise PermissionDenied("Only workspace admins can remove other members")
 
 
 class WorkspaceInvitationViewSet(ModelViewSet):
@@ -439,7 +415,7 @@ class WorkspaceInvitationViewSet(ModelViewSet):
     def perform_create(self, serializer):
         workspace = get_object_or_404(models.workspace.Workspace, name=self.kwargs['name'])
         if not workspace.has_member(self.request.user, role='admin'):
-            raise ValidationError("Only workspace admins can create invitations")
+            raise PermissionDenied("Only workspace admins can create invitations")
         email = serializer.validated_data['email']
         user = User.objects.filter(email=email).first()
         if user and workspace.has_member(user):
@@ -462,10 +438,7 @@ class WorkspaceInvitationViewSet(ModelViewSet):
         """Only admins can revoke invitations"""
         invitation = self.get_object()
         if not invitation.workspace.has_member(request.user, role='admin'):
-            return Response(
-                {"detail": "Only workspace admins can revoke invitations"},
-                status=status.HTTP_403_FORBIDDEN
-            )
+            raise PermissionDenied("Only workspace admins can revoke invitations")
         return super().destroy(request, *args, **kwargs)
 
 
@@ -473,6 +446,8 @@ class TokenViewSet(viewsets.OwnerViewSet):
     """
     A viewset for interacting with Token objects.
     """
+    http_method_names = ['get', 'delete', 'head', 'options']
+    lookup_value_regex = r'[-_\w]+'
     serializer_class = serializers.TokenSerializer
 
     def get_queryset(self):
@@ -522,6 +497,7 @@ class ReleasableViewSet(AppFilterViewSet):
 class AppViewSet(viewsets.BaseAppViewSet):
     """A viewset for interacting with App objects."""
     model = models.app.App
+    lookup_value_regex = settings.APP_URL_REGEX
     filter_backends = [filters.SearchFilter]
     search_fields = ['^id', ]
     serializer_class = serializers.AppSerializer
@@ -541,6 +517,7 @@ class AppViewSet(viewsets.BaseAppViewSet):
         serializer = self.get_serializer(queryset, many=True)
         return Response(serializer.data)
 
+    @action(detail=True, methods=['post'])
     def run(self, request, **kwargs):
         app = self.get_object()
         ptype = request.data.get('ptype', 'run')
@@ -567,7 +544,7 @@ class AppViewSet(viewsets.BaseAppViewSet):
         self.check_object_permissions(self.request, workspace)
         serializer.save()
 
-    def transfer(self, request, **kwargs):
+    def update(self, request, *args, **kwargs):
         app = self.get_object()
         if not app.workspace.has_member(request.user, role='admin'):
             raise PermissionDenied("you must be an admin of the current workspace")
@@ -597,7 +574,7 @@ class BuildViewSet(ReleasableViewSet):
         build.create_release(self.request.user)
 
 
-class LimitSpecViewSet(ModelViewSet):
+class LimitSpecViewSet(ReadOnlyModelViewSet):
     """A viewset for interacting with Limit objects."""
     model = models.limit.LimitSpec
     serializer_class = serializers.LimitSpecSerializer
@@ -611,8 +588,10 @@ class LimitSpecViewSet(ModelViewSet):
         return self.model.objects.filter(q)
 
 
-class LimitPlanViewSet(ModelViewSet):
+class LimitPlanViewSet(ReadOnlyModelViewSet):
     """A viewset for interacting with Limit objects."""
+    lookup_field = 'id'
+    lookup_value_regex = r'[-.\w]+'
     model = models.limit.LimitPlan
     serializer_class = serializers.LimitPlanSerializer
 
@@ -828,7 +807,7 @@ class ServiceViewSet(AppFilterViewSet):
         data = [obj.as_dict() for obj in services]
         return Response({"services": data}, status=status.HTTP_200_OK)
 
-    def create_or_update(self, request, **kwargs):
+    def upsert(self, request, **kwargs):
         app = self.get_app()
         port = self.get_serializer().validate_port(request.data.get('port'))
         protocol = self.get_serializer().validate_protocol(request.data.get('protocol'))
@@ -895,7 +874,9 @@ class CertificateViewSet(AppFilterViewSet):
 
 class KeyViewSet(viewsets.OwnerViewSet):
     """A viewset for interacting with Key objects."""
+    http_method_names = ['get', 'post', 'delete', 'head', 'options']
     lookup_field = 'id'
+    lookup_value_regex = r'.+'
     model = models.key.Key
     serializer_class = serializers.KeySerializer
 
@@ -1208,7 +1189,7 @@ class GatewayViewSet(AppFilterViewSet):
     search_fields = ['^id', ]
     serializer_class = serializers.GatewaySerializer
 
-    def create_or_update(self, request, *args, **kwargs):
+    def upsert(self, request, *args, **kwargs):
         app = self.get_app()
         name = request.data['name']
         port = self.get_serializer().validate_port(request.data['port'])
@@ -1244,25 +1225,6 @@ class RouteViewSet(AppFilterViewSet):
     search_fields = ['^id', ]
     serializer_class = serializers.RouteSerializer
 
-    def get(self, request, *args, **kwargs):
-        app = self.get_app()
-        route = get_object_or_404(app.route_set, name=kwargs['name'])
-        return Response(route.rules, status=status.HTTP_200_OK)
-
-    def set(self, request, *args, **kwargs):
-        app = self.get_app()
-        route = get_object_or_404(self.model, app=app, name=kwargs['name'])
-        rules = request.data
-        if isinstance(rules, str):
-            rules = json.loads(rules)
-        rules = self.get_serializer(route, many=False).validate_rules(rules)
-        ok, msg = route.check_rules(rules)
-        if not ok:
-            return Response(status=status.HTTP_400_BAD_REQUEST, data=msg)
-        route.rules = rules
-        route.save()
-        return Response(status=status.HTTP_204_NO_CONTENT)
-
     def attach(self, request, *args, **kwargs):
         app = self.get_app()
         port = serializers.validate_port(request.data.get('port'))
@@ -1289,6 +1251,31 @@ class RouteViewSet(AppFilterViewSet):
         app = self.get_app()
         route = get_object_or_404(self.model, app=app, name=kwargs['name'])
         route.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class RouteRulesViewSet(AppFilterViewSet):
+    """A viewset for interacting with Route rules."""
+    model = models.gateway.Route
+    serializer_class = serializers.RouteSerializer
+
+    def retrieve(self, request, *args, **kwargs):
+        app = self.get_app()
+        route = get_object_or_404(app.route_set, name=kwargs['name'])
+        return Response(route.rules, status=status.HTTP_200_OK)
+
+    def update(self, request, *args, **kwargs):
+        app = self.get_app()
+        route = get_object_or_404(self.model, app=app, name=kwargs['name'])
+        rules = request.data
+        if isinstance(rules, str):
+            rules = json.loads(rules)
+        rules = self.get_serializer(route, many=False).validate_rules(rules)
+        ok, msg = route.check_rules(rules)
+        if not ok:
+            return Response(status=status.HTTP_400_BAD_REQUEST, data=msg)
+        route.rules = rules
+        route.save()
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 

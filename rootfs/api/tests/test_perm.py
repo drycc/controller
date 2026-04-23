@@ -166,7 +166,7 @@ class TestWorkspacePerm(DryccTestCase):
             f'/v2/apps/{app_id}',
             {'workspace': 'testws08'},
         )
-        self.assertEqual(response.status_code, 400, response.data)
+        self.assertEqual(response.status_code, 403, response.data)
         self.assertEqual(
             str(response.data['detail']),
             'you must be an admin of the current workspace',
