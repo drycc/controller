@@ -40,7 +40,7 @@ def fake_responses(request, context):
 
 
 def mock_get_token_scopes(self, token):
-    return {"controller:hook", "controller:blocklist", "controller:logs", "controller:metrics",
+    return {"controller:hook", "controller:logs", "controller:metrics",
             "controller:alerts"}
 
 
@@ -56,7 +56,7 @@ adapter.register_uri(
     requests_mock.ANY,
     json={
         "active": True,
-        "scope": "controller:hook controller:metrics controller:logs controller:blocklist"
+        "scope": "controller:hook controller:metrics controller:logs"
                  " passport:message"
     }
 )

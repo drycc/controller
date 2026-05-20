@@ -142,7 +142,8 @@ post_delete.connect(_log_instance_removed, sender=Resource, dispatch_uid='api.mo
 @receiver(post_save, sender=App)
 def app_changed_handle(sender, instance: App, created=False, update_fields=None, **kwargs):
     # measure limits to workflow manager
-    if settings.WORKFLOW_MANAGER_URL and not created and (
+    from api.clients import ManagerAPI
+    if ManagerAPI().enabled and (
             update_fields is not None and "structure" in update_fields):
         timestamp = time.time()
         send_usage.apply_async(
@@ -228,7 +229,8 @@ def appsettings_changed_handle(
 @receiver(post_save, sender=Config)
 def config_changed_handle(sender, instance: Config, created=False, update_fields=None, **kwargs):
     # measure limits to workflow manager
-    if settings.WORKFLOW_MANAGER_URL and (
+    from api.clients import ManagerAPI
+    if ManagerAPI().enabled and (
             created or (update_fields is not None and "limits" in update_fields)):
         timestamp = time.time()
         send_usage.apply_async(
@@ -239,7 +241,8 @@ def config_changed_handle(sender, instance: Config, created=False, update_fields
 @receiver(post_save, sender=Volume)
 def volume_changed_handle(sender, instance: Volume, created=False, update_fields=None, **kwargs):
     # measure volumes to workflow manager
-    if settings.WORKFLOW_MANAGER_URL and created:
+    from api.clients import ManagerAPI
+    if ManagerAPI().enabled and created:
         timestamp = time.time()
         send_usage.apply_async(
             args=[instance.to_usage(timestamp), ],
@@ -250,7 +253,8 @@ def volume_changed_handle(sender, instance: Volume, created=False, update_fields
 def resource_changed_handle(
         sender, instance: Resource, created=False, update_fields=None, **kwargs):
     # measure resources to workflow manager
-    if settings.WORKFLOW_MANAGER_URL and (
+    from api.clients import ManagerAPI
+    if ManagerAPI().enabled and (
         created or (
             update_fields is not None and (
                 "plan" in update_fields

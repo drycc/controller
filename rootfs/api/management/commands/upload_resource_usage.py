@@ -4,9 +4,9 @@ import random
 from datetime import timedelta
 from django.utils import timezone
 from django.core.management.base import BaseCommand
-from django.conf import settings
 from api.models.resource import Resource
 from api.tasks import send_usage
+from api.clients import ManagerAPI
 
 logger = logging.getLogger(__name__)
 
@@ -15,7 +15,7 @@ class Command(BaseCommand):
     """Management command for push data to manager"""
 
     def handle(self, *args, **options):
-        if settings.WORKFLOW_MANAGER_URL:
+        if ManagerAPI().enabled:
             now = timezone.now()
             start_time, timestamp, task_id = now, int(now.timestamp()), uuid.uuid4().hex
             logger.info(f"pushing {task_id} resources to workflow_manager when {now}")

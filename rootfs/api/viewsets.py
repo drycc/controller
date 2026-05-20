@@ -7,7 +7,7 @@ from django.views.generic import View
 from rest_framework import viewsets, renderers
 from rest_framework.permissions import IsAuthenticated
 
-from api import permissions
+from api import clients, permissions
 from api.models.app import App
 
 
@@ -48,6 +48,7 @@ class BaseAppViewSet(viewsets.ModelViewSet):
     """
     A ViewSet for the Workspace model, which filters workspaces by membership and role.
     """
+    manager_api = clients.ManagerAPI()
     lookup_field = 'id'
     permission_classes = [IsAuthenticated, permissions.IsAppUser]
     renderer_classes = [renderers.JSONRenderer]
@@ -67,7 +68,7 @@ class BaseAppViewSet(viewsets.ModelViewSet):
     def check_object_permissions(self, request, obj):
         if isinstance(obj, App) or hasattr(obj, 'app'):
             app = obj if isinstance(obj, App) else obj.app
-            ok, message = permissions.get_app_status(app)
+            ok, message = self.manager_api.get_app_status(app.id)
             if not ok:
                 raise permissions.PermissionDenied(message)
         super().check_object_permissions(request, obj)

@@ -487,4 +487,5 @@ QUICKWIT_SEARCHER_URL = os.environ.get('QUICKWIT_SEARCHER_URL', None)
 QUICKWIT_LOG_INDEX_PREFIX = os.environ.get('QUICKWIT_LOG_INDEX_PREFIX', None)
 
 # Workflow-manager Configuration Options
+# for example https://manager.drycc.cc/v1/clusters/{cluster_id}
 WORKFLOW_MANAGER_URL = os.environ.get('WORKFLOW_MANAGER_URL', None)

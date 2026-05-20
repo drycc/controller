@@ -21,13 +21,15 @@ from channels.exceptions import DenyConnection
 from channels.generic.http import AsyncHttpConsumer
 from channels.generic.websocket import AsyncWebsocketConsumer
 
+from .clients import ManagerAPI
 from .models.app import App
 from .models.volume import Volume
-from .permissions import IsAppUser, get_app_status
+from .permissions import IsAppUser
 
 
 class AppPermChecker(object):
     timeout = 60 * 60
+    manager_api = ManagerAPI()
     check_permission = IsAppUser().has_object_permission
 
     def __init__(self, scope):
@@ -44,7 +46,7 @@ class AppPermChecker(object):
                 app = await App.objects.aget(id=app_id)
                 request = namedtuple("Request", ["user", "method"])(self.scope["user"], "GET")
                 if await sync_to_async(self.check_permission)(request, None, app):
-                    permission = await sync_to_async(get_app_status)(app)
+                    permission = await sync_to_async(self.manager_api.get_app_status)(app_id)
                 else:
                     permission = (False, "permission denied")
                 if permission[0]:

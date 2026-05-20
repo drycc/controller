@@ -21,7 +21,7 @@ def send_usage(usage: List[Dict[str, str]]):
     task_id = uuid.uuid4().hex
     signals.request_started.send(sender=task_id)
     try:
-        clients.UsageAPI().post(usage)
+        clients.ManagerAPI().send_usage(usage)
     except Exception as e:
         signals.got_request_exception.send(sender=task_id)
         raise e
@@ -141,24 +141,6 @@ def mount_app(app, user, volume, path):
 @shared_task(
     autoretry_for=(ServiceUnavailable, ),
     retry_kwargs={'max_retries': 3}
-)
-def scale_resources(blocklist, app, suspended_state, scale_type):
-    task_id = uuid.uuid4().hex
-    signals.request_started.send(sender=task_id)
-    try:
-        blocklist.scale_resources(app, suspended_state, scale_type)
-    except Exception as e:
-        signals.got_request_exception.send(sender=task_id)
-        raise e
-    else:
-        signals.request_finished.send(sender=task_id)
-
-
-@shared_task(
-    autoretry_for=(Exception, ),
-    retry_backoff=4,
-    retry_jitter=True,
-    retry_kwargs={'max_retries': 5}
 )
 def dispatch_alert_message(usernames: List[str], message: Dict):
     task_id = uuid.uuid4().hex

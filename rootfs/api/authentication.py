@@ -5,6 +5,7 @@ from django.utils.translation import gettext_lazy
 from rest_framework import authentication
 from rest_framework.authentication import get_authorization_header
 from rest_framework import exceptions
+from api.clients import ManagerAPI
 
 logger = logging.getLogger(__name__)
 
@@ -21,7 +22,7 @@ class AnonymousAuthentication(authentication.BaseAuthentication):
 class DryccAuthentication(authentication.BaseAuthentication):
 
     keywords = ('token', 'bearer')
-    ignore_authentication_failed = False
+    manager_api = ManagerAPI()
 
     def parse_header(self, request):
         try:
@@ -42,22 +43,21 @@ class DryccAuthentication(authentication.BaseAuthentication):
             raise exceptions.AuthenticationFailed(msg)
 
     def authenticate(self, request):
-        token_type, token = self.parse_header(request)
+        user, (token_type, token) = None, self.parse_header(request)
         if token_type is None or token is None:
             return None
-        try:
-            if token_type == 'bearer':  # drycc oauth access token
-                from api.apps_extra.social_core.backends import OauthCacheManager
-                return OauthCacheManager().get_user(token), token
-            # drycc token
+        if token_type == 'bearer':  # drycc oauth access token
+            from api.apps_extra.social_core.backends import OauthCacheManager
+            user = OauthCacheManager().get_user(token)
+        elif token_type == 'token':  # drycc token
             user = cache.get(token, None)
             if not user:
-                return self.authenticate_credentials(token)
-            return user, token
-        except exceptions.AuthenticationFailed as e:
-            if not self.ignore_authentication_failed:
-                raise e
-        return None
+                user, token = self.authenticate_credentials(token)
+        if user:
+            is_active, message = self.manager_api.get_user_status(user.id)
+            if not is_active:
+                raise exceptions.AuthenticationFailed(message)
+        return user, token if user else None
 
     def authenticate_credentials(self, key):
         from api.models.base import Token

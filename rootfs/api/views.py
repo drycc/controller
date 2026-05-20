@@ -37,7 +37,7 @@ from rest_framework.renderers import JSONRenderer, TemplateHTMLRenderer
 
 from api import monitor, models, permissions, serializers, viewsets, authentication, __version__
 from api.tasks import (
-    scale_app, restart_app, mount_app, delete_pod, scale_resources, dispatch_alert_message
+    scale_app, restart_app, mount_app, delete_pod, dispatch_alert_message
 )
 from api.exceptions import AlreadyExists, ServiceUnavailable, DryccException
 
@@ -184,36 +184,6 @@ class UserManagementViewSet(GenericViewSet):
         user = get_object_or_404(User, pk=self.request.user.pk)
         serializer = self.get_serializer(user, many=False)
         return Response(serializer.data)
-
-
-class BlocklistViewset(ModelViewSet):
-    permission_classes = (permissions.HasOAuthScope, )
-    required_oauth_scopes = ['controller:blocklist']
-    # Not using AnonymousAuthentication because we need DryccAuthentication for oauth
-    serializer_class = serializers.BlocklistSerializer
-
-    def get_object(self):
-        return get_object_or_404(
-            models.blocklist.Blocklist,
-            id=self.kwargs.get('id'),
-            type=models.blocklist.Blocklist.get_type(self.kwargs.get('type'))
-        )
-
-    def perform_create(self, serializer):
-        # We need to trigger the scale_resources.delay
-        blocklist = serializer.save()
-        for app in blocklist.related_apps:
-            app.suspended_state = blocklist.suspended_state(app)
-            app.save()
-            scale_resources.delay(blocklist, app, app.suspended_state, "block")
-
-    def perform_destroy(self, instance):
-        for app in instance.related_apps:
-            # scale to up
-            scale_resources.delay(instance, app, app.suspended_state, "unblock")
-            app.suspended_state = {}
-            app.save()
-        instance.delete()
 
 
 class AdmissionWebhookViewSet(GenericViewSet):

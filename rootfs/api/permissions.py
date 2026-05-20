@@ -1,23 +1,10 @@
 import logging
-from django.conf import settings
 from rest_framework import permissions
 
 from api import clients
-from api.models import blocklist
 from api.models.workspace import Workspace, WorkspaceMember
 
 logger = logging.getLogger(__name__)
-
-
-def get_app_status(app):
-    block = blocklist.Blocklist.get_blocklist(app)
-    if block:
-        return False, block.remark
-    if settings.WORKFLOW_MANAGER_URL:
-        status = clients.WorkspaceAPI().get_status(app.workspace_id)
-        if not status["is_active"]:
-            return False, status["message"]
-    return True, None
 
 
 class IsOwner(permissions.BasePermission):

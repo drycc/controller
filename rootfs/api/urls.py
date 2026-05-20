@@ -215,12 +215,6 @@ app_urlpatterns = [
         r'^apps/(?P<id>{})/metrics/(?P<ptype>[a-z0-9]+(\-[a-z0-9]+)*)/status/?$'.format(
             settings.APP_URL_REGEX),
         views.MetricView.as_view({'get': 'status'})),
-    re_path(
-        r'^blocklists/?$',
-        views.BlocklistViewset.as_view({'post': 'create'})),
-    re_path(
-        r'^blocklists/(?P<type>[a-z]+)/(?P<id>[-_\w]+)/?$',
-        views.BlocklistViewset.as_view({'get': 'retrieve', 'delete': 'destroy'})),
     # quickwit
     re_path(
         r'^quickwit/(?P<workspace>[-\w]+)/(?P<path>.+)/?$', views.QuickwitProxyView.as_view()),
