@@ -206,7 +206,7 @@ class Resource(UuidAuditedModel):
             self.save()
         return self.status == self.binding == "Ready"
 
-    def to_usages(self, timestamp: float):
+    def to_usage(self, timestamp: float):
         return [{
             "app_id": str(self.app_id),
             "workspace": self.app.workspace_id,

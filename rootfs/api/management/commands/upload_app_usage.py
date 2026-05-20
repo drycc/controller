@@ -21,7 +21,7 @@ class Command(BaseCommand):
             logger.info(f"pushing {task_id} resources to workflow_manager when {now}")
             app_list = []
             for app in App.objects.all():
-                app_list.extend(app.to_usages(timestamp))
+                app_list.extend(app.to_usage(timestamp))
                 if len(app_list) % 1000 == 0:
                     logger.info(f"bulk sent: {len(app_list)}")
                     send_usage.apply_async(

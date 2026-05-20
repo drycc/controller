@@ -21,7 +21,7 @@ class Command(BaseCommand):
             logger.info(f"pushing {task_id} resources to workflow_manager when {now}")
             resource_list = []
             for resource in Resource.objects.filter(status="Ready"):
-                resource_list.extend(resource.to_usages(timestamp))
+                resource_list.extend(resource.to_usage(timestamp))
                 if len(resource_list) % 1000 == 0:
                     logger.info(f"bulk sent: {len(resource_list)}")
                     send_usage.apply_async(

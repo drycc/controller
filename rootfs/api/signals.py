@@ -146,7 +146,7 @@ def app_changed_handle(sender, instance: App, created=False, update_fields=None,
             update_fields is not None and "structure" in update_fields):
         timestamp = time.time()
         send_usage.apply_async(
-            args=[instance.to_usages(timestamp), ],
+            args=[instance.to_usage(timestamp), ],
         )
 
 
@@ -232,7 +232,7 @@ def config_changed_handle(sender, instance: Config, created=False, update_fields
             created or (update_fields is not None and "limits" in update_fields)):
         timestamp = time.time()
         send_usage.apply_async(
-            args=[instance.app.to_usages(timestamp), ],
+            args=[instance.app.to_usage(timestamp), ],
         )
 
 
@@ -242,7 +242,7 @@ def volume_changed_handle(sender, instance: Volume, created=False, update_fields
     if settings.WORKFLOW_MANAGER_URL and created:
         timestamp = time.time()
         send_usage.apply_async(
-            args=[instance.to_usages(timestamp), ],
+            args=[instance.to_usage(timestamp), ],
         )
 
 
@@ -257,5 +257,5 @@ def resource_changed_handle(
             ))):
         timestamp = time.time()
         send_usage.apply_async(
-            args=[instance.to_usages(timestamp), ],
+            args=[instance.to_usage(timestamp), ],
         )

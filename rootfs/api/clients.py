@@ -85,7 +85,7 @@ class UserAPI(WorkspaceAPI):
 
 class UsageAPI(ManagerAPI):
 
-    def post(self, usages: List[Dict[str, str]]):
+    def post(self, usage: List[Dict[str, str]]):
         """
         [
             {
@@ -99,8 +99,8 @@ class UsageAPI(ManagerAPI):
             }
         ]
         """
-        url = "%s/usages/" % settings.WORKFLOW_MANAGER_URL
-        return super().post(url=url, json=usages)
+        url = "%s/usage/" % settings.WORKFLOW_MANAGER_URL
+        return super().post(url=url, json=usage)
 
 
 class PassportAPI(object):

@@ -691,7 +691,7 @@ class App(UuidAuditedModel):
         else:
             self.scheduler.secret.update(self.id, secret_name, secrets_env, labels=labels)
 
-    def to_usages(self, timestamp: float):
+    def to_usage(self, timestamp: float):
         usage = []
         config = self.config_set.latest()
         for ptype, scale in self.structure.items():

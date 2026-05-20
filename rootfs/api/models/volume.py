@@ -71,7 +71,7 @@ class Volume(UuidAuditedModel):
         send_app_log.delay(self.app.id, message, level)
         logger.log(level, "[{}]: {}".format(self.app.id, message))
 
-    def to_usages(self, timestamp: float):
+    def to_usage(self, timestamp: float):
         return [{
             "app_id": str(self.app_id),
             "workspace": self.app.workspace_id,

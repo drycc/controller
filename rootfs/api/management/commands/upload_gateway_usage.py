@@ -21,7 +21,7 @@ class Command(BaseCommand):
             logger.info(f"pushing {task_id} gateways to workflow_manager when {now}")
             gateway_list = []
             for gateway in Gateway.objects.all():
-                gateway_list.extend(gateway.to_usages(timestamp))
+                gateway_list.extend(gateway.to_usage(timestamp))
                 if len(gateway_list) % 1000 == 0:
                     logger.info(f"bulk sent: {len(gateway_list)}")
                     send_usage.apply_async(
