@@ -3,6 +3,7 @@ import operator
 import os
 import time
 import math
+import copy
 
 from scheduler.exceptions import KubeException, KubeHTTPException
 from scheduler.resources import Resource
@@ -130,12 +131,13 @@ class Pod(Resource):
         }
 
     def manifest(self, namespace, name, image, **kwargs):
-        app_type = kwargs.get('app_type')
+        version, app_type = kwargs.get('version'), kwargs.get('app_type')
 
         # labels that represent the pod(s)
-        default_labels = {'app': namespace, 'version': kwargs.get('version'), 'heritage': 'drycc'}
-        labels = kwargs.get('labels', default_labels)
-        labels.update({'type': app_type})
+        labels = copy.deepcopy(kwargs.get('labels', {}))
+        labels.update(
+            {'app': namespace, 'type': app_type, 'version': version, 'heritage': 'drycc'}
+        )
 
         # create base pod structure
         manifest = {

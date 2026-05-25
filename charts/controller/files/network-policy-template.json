@@ -1,0 +1,48 @@
+{
+    "spec": {
+        "podSelector": {},
+        "policyTypes": [
+            "Ingress"
+        ],
+        "ingress": [
+            {
+                "from": [
+                    {
+                        "namespaceSelector": {
+                            "matchLabels": {
+                                "drycc.cc/workspace_id": "{{workspace_id}}"
+                            }
+                        }
+                    }
+                ]
+            },
+            {
+                "from": [
+                    {
+                        "ipBlock": {
+                            "cidr": "0.0.0.0/0",
+                            "except": [
+                                "10.0.0.0/8",
+                                "172.16.0.0/12",
+                                "192.168.0.0/16"
+                            ]
+                        }
+                    }
+                ]
+            },
+            {
+                "from": [
+                    {
+                        "ipBlock": {
+                            "cidr": "::/0",
+                            "except": [
+                                "fc00::/7",
+                                "fe80::/10"
+                            ]
+                        }
+                    }
+                ]
+            }
+        ]
+    }
+}

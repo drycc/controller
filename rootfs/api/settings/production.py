@@ -308,6 +308,14 @@ if os.path.exists(DRYCC_VOLUME_CLAIM_TEMPLATE_PATH):
     with open(DRYCC_VOLUME_CLAIM_TEMPLATE_PATH) as fd:
         DRYCC_VOLUME_CLAIM_TEMPLATE = fd.read()
 
+# drycc network policy template
+DRYCC_NETWORK_POLICY_TEMPLATE = {}
+DRYCC_NETWORK_POLICY_TEMPLATE_PATH = os.environ.get(
+    'DRYCC_NETWORK_POLICY_TEMPLATE_PATH', '/etc/controller/network-policy-template.json')
+if os.path.exists(DRYCC_NETWORK_POLICY_TEMPLATE_PATH):
+    with open(DRYCC_NETWORK_POLICY_TEMPLATE_PATH) as fd:
+        DRYCC_NETWORK_POLICY_TEMPLATE = fd.read()
+
 # drycc volume usage template
 DRYCC_VOLUME_USAGE_TEMPLATE = ""
 DRYCC_VOLUME_USAGE_TEMPLATE_PATH = os.environ.get(

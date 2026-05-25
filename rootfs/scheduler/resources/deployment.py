@@ -1,5 +1,6 @@
 import json
 import time
+import copy
 import logging
 from datetime import datetime, timedelta, timezone
 from scheduler.resources import Resource
@@ -32,16 +33,14 @@ class Deployment(Resource):
         return response
 
     def manifest(self, namespace, name, image, command, args, spec_annotations, **kwargs):
+        app_type = kwargs.get('app_type')
         replicas = kwargs.get('replicas', 0)
         batches = kwargs.get('deploy_batches', None)
         tags = kwargs.get('tags', {})
         annotations = kwargs.get('annotations', {})
 
-        labels = {
-            'app': namespace,
-            'type': kwargs.get('app_type'),
-            'heritage': 'drycc',
-        }
+        labels = copy.deepcopy(kwargs.get('labels', {}))
+        labels.update({'app': namespace, 'type': app_type, 'heritage': 'drycc'})
 
         manifest = {
             'kind': 'Deployment',

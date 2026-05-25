@@ -16,6 +16,7 @@ from datetime import datetime, timezone
 from docker import auth as docker_auth
 from django.conf import settings
 from django.db import models
+from django.template import Template, Context
 from django.db.models import F, Func, Value, JSONField
 from django.contrib.auth import get_user_model
 from rest_framework.exceptions import ValidationError
@@ -181,6 +182,7 @@ class App(UuidAuditedModel):
                 self.scheduler.ns.create(namespace)
             except KubeException as e:
                 raise ServiceUnavailable('Could not create the Namespace in Kubernetes') from e
+        self._create_network_policy()
         try:
             self.appsettings_set.latest()
         except AppSettings.DoesNotExist:
@@ -945,6 +947,27 @@ class App(UuidAuditedModel):
                 raise DryccException(msg)
             route.save()
 
+    def _create_network_policy(self):
+        if not settings.DRYCC_NETWORK_POLICY_TEMPLATE:
+            return
+        name = namespace = self.id
+        json_str = Template(settings.DRYCC_NETWORK_POLICY_TEMPLATE).render(
+            Context({"workspace_id": str(self.workspace_id)})).strip()
+        kwargs = json.loads(json_str) if json_str else {}
+        try:
+            self.scheduler.networkpolicy.get(namespace, name)
+            self.scheduler.networkpolicy.patch(namespace, name, **kwargs)
+        except KubeHTTPException as e:
+            if e.response.status_code == 404:
+                try:
+                    self.scheduler.networkpolicy.create(namespace, name, **kwargs)
+                except KubeException as ex:
+                    raise ServiceUnavailable(
+                        'Could not create the NetworkPolicy in Kubernetes') from ex
+            else:
+                raise ServiceUnavailable(
+                    'Could not get the NetworkPolicy in Kubernetes') from e
+
     def _verify_http_health(self, service, **kwargs):
         """
         Verify an application is healthy via the svc.
@@ -1083,6 +1106,7 @@ class App(UuidAuditedModel):
         # mix in default environment information drycc may require
         default_env = {
             'DRYCC_APP': self.id,
+            'DRYCC_WORKSPACE': self.workspace_id,
             'WORKFLOW_RELEASE': release.version_name,
             'WORKFLOW_RELEASE_SUMMARY': release.summary,
             'WORKFLOW_RELEASE_CREATED_AT': str(release.created.strftime(

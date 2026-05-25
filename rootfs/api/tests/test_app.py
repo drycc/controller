@@ -62,6 +62,20 @@ class AppTest(DryccTestCase):
         # make sure every test has a clean slate for k8s mocking
         cache.clear()
 
+    def test_app_network_policy(self, mock_requests):
+        """
+        Test that a network policy is created when an app is created.
+        """
+        with self.settings(DRYCC_NETWORK_POLICY_TEMPLATE='{"spec": {"podSelector": {}}}'):
+            app_id = self.create_app()
+            app = App.objects.get(id=app_id)
+
+            try:
+                response = app.scheduler.networkpolicy.get(app.id, app.id).json()
+                self.assertEqual(response['metadata']['name'], app.id)
+            except Exception as e:
+                self.fail(f"Network policy not created: {e}")
+
     def test_app(self, mock_requests):
         """
         Test that a user can create, read, update and delete an application
@@ -674,6 +688,7 @@ class AppTest(DryccTestCase):
             app._build_env_vars(app.release_set.latest(), PTYPE_WEB),
             {
                 'DRYCC_APP': app.id,
+                'DRYCC_WORKSPACE': app.workspace_id,
                 'WORKFLOW_RELEASE': 'v2',
                 'PORT': 5000,
                 'SOURCE_VERSION': '',
@@ -689,6 +704,7 @@ class AppTest(DryccTestCase):
             app._build_env_vars(app.release_set.latest(), PTYPE_WEB),
             {
                 'DRYCC_APP': app.id,
+                'DRYCC_WORKSPACE': app.workspace_id,
                 'WORKFLOW_RELEASE': 'v3',
                 'PORT': 5000,
                 'SOURCE_VERSION': 'abc1234',

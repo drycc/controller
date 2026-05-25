@@ -41,6 +41,12 @@ data:
     {{- else}}
     {{-  .Files.Get "files/volume-claim-template.json" | nindent 4 }}
     {{- end }}
+  network-policy-template.json: |
+    {{- if .Values.config.networkPolicyTemplate }}
+    {{- (tpl .Values.config.networkPolicyTemplate $)  | nindent 4 }}
+    {{- else}}
+    {{- .Files.Get "files/network-policy-template.json" | nindent 4 }}
+    {{- end }}
   volume-usage-template.promql: |
     {{- if .Values.config.volumeUsageTemplate }}
     {{- (tpl .Values.config.volumeUsageTemplate $)  | nindent 4 }}

@@ -83,7 +83,7 @@ resources = [
     'namespaces', 'nodes', 'pods', 'replicationcontrollers',
     'secrets', 'services', 'events', 'deployments', 'replicasets',
     'horizontalpodautoscalers', 'scale', 'resourcequotas', 'ingresses',
-    'persistentvolumeclaims', 'serviceinstances', 'servicebindings',
+    'persistentvolumeclaims', 'serviceinstances', 'servicebindings', 'networkpolicies',
     'limitranges', 'gateways', 'httproutes', 'tcproutes', 'udproutes',
     'issuers', 'certificates', 'certificaterequests', 'jobs', 'clusterserviceclasses',
     'statefulsets', 'daemonsets',
