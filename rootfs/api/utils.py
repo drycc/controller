@@ -206,6 +206,27 @@ def apply_tasks(tasks):
     executor.shutdown(wait=True)
 
 
+def get_next_uid(model, uid_field='uid'):
+    cache_key = f"model:uid:{model.__name__}:{uid_field}"
+    try:
+        return cache.incr(cache_key)
+    except ValueError:
+        lock_key = f"{cache_key}:lock"
+        lock = CacheLock(lock_key)
+        try:
+            if not lock.acquire():
+                raise RuntimeError(f"Failed to acquire uid lock for {model.__name__}")
+            try:
+                return cache.incr(cache_key)
+            except ValueError:
+                last = model.objects.order_by(f'-{uid_field}').first()
+                next_uid = (getattr(last, uid_field) + 1) if last else 1
+                cache.set(cache_key, next_uid, timeout=None)
+                return next_uid
+        finally:
+            lock.release()
+
+
 def unit_to_bytes(size):
     """
     size: str
@@ -282,8 +303,9 @@ class DeployLock(CacheLock):
         return locked_ptypes
 
     def acquire(self, ptypes, force=False):
+        acquired = super(DeployLock, self).acquire()
         try:
-            if super(DeployLock, self).acquire():
+            if acquired:
                 value = cache.get(self.ptypes_key, [])
                 if not force and len(self.locked(ptypes)) > 0:
                     return False
@@ -292,21 +314,25 @@ class DeployLock(CacheLock):
                 cache.set(self.ptypes_key, value, timeout=3600)
                 return True
         finally:
-            super(DeployLock, self).release()
+            if acquired:
+                super(DeployLock, self).release()
         return False
 
     def release(self, ptypes):
+        # Best-effort acquire of the short lock to serialize the ptypes RMW;
+        # cleanup MUST run unconditionally so a stuck inner lock can never
+        # leave ptypes recorded forever (which would deadlock future deploys).
+        acquired = super(DeployLock, self).acquire()
         try:
-            if super(DeployLock, self).acquire():
-                value = cache.get(self.ptypes_key, [])
-                if value is None:
-                    return
+            value = cache.get(self.ptypes_key, [])
+            if value:
                 for ptype in ptypes:
                     if ptype in value:
                         value.remove(ptype)
                 cache.set(self.ptypes_key, value)
         finally:
-            super(DeployLock, self).release()
+            if acquired:
+                super(DeployLock, self).release()
 
 
 class SyncIterToAsyncIter(object):

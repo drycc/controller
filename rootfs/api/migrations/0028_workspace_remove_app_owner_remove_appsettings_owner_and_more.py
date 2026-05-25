@@ -2,6 +2,7 @@
 
 import api.models.workspace
 import django.db.models.deletion
+import uuid
 from django.conf import settings
 from django.db import migrations, models
 
@@ -16,12 +17,16 @@ class Migration(migrations.Migration):
         migrations.CreateModel(
             name='Workspace',
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('name', models.SlugField(max_length=150, unique=True, validators=[api.models.workspace.validate_workspace_name], verbose_name='workspace name')),
-                ('email', models.EmailField(max_length=254, verbose_name='email address')),
                 ('created', models.DateTimeField(auto_now_add=True)),
                 ('updated', models.DateTimeField(auto_now=True)),
+                ('uuid', models.UUIDField(auto_created=True, default=uuid.uuid4, editable=False, primary_key=True, serialize=False, unique=True, verbose_name='UUID')),
+                ('id', models.SlugField(max_length=150, unique=True, validators=[api.models.workspace.validate_workspace_id], verbose_name='workspace name')),
+                ('email', models.EmailField(max_length=254, verbose_name='email address')),
+                ('uid', models.PositiveIntegerField(unique=True)),
             ],
+            options={
+                'abstract': False,
+            },
         ),
         migrations.RemoveField(
             model_name='app',

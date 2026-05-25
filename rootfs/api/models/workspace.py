@@ -10,13 +10,14 @@ from django.core.cache import cache
 from django.template.loader import render_to_string
 
 from rest_framework.exceptions import ValidationError
-from api.utils import validate_reserved_names, get_local_host
+from api.utils import validate_reserved_names, get_local_host, get_next_uid
+from api.models.base import UuidAuditedModel
 
 User = get_user_model()
 logger = logging.getLogger(__name__)
 
 
-def validate_workspace_name(value):
+def validate_workspace_id(value):
     """
     Check that the value follows the kubernetes name constraints
     """
@@ -27,16 +28,15 @@ def validate_workspace_name(value):
     validate_reserved_names(value)
 
 
-class Workspace(models.Model):
-    name = models.SlugField(
+class Workspace(UuidAuditedModel):
+    id = models.SlugField(
         _("workspace name"),
         max_length=150,
         unique=True,
-        validators=[validate_workspace_name],
+        validators=[validate_workspace_id],
     )
+    uid = models.PositiveIntegerField(unique=True, editable=False)
     email = models.EmailField(_("email address"))
-    created = models.DateTimeField(auto_now_add=True)
-    updated = models.DateTimeField(auto_now=True)
 
     def has_member(self, user, role=None):
         kwargs = {'user': user, 'workspace': self}
@@ -44,8 +44,13 @@ class Workspace(models.Model):
             kwargs['role'] = role
         return WorkspaceMember.objects.filter(**kwargs).exists()
 
+    def save(self, *args, **kwargs):
+        if not self.uid:
+            self.uid = get_next_uid(Workspace)
+        super().save(*args, **kwargs)
+
     def __str__(self):
-        return self.name
+        return self.id
 
 
 class WorkspaceMember(models.Model):
@@ -63,7 +68,7 @@ class WorkspaceMember(models.Model):
     workspace = models.ForeignKey(Workspace, on_delete=models.CASCADE)
 
     def __str__(self):
-        return f"{self.user.username} - {self.workspace.name} ({self.role})"
+        return f"{self.user.username} - {self.workspace.id} ({self.role})"
 
     class Meta:
         unique_together = ('user', 'workspace')
@@ -97,7 +102,7 @@ class WorkspaceInvitation(models.Model):
         if count > settings.DRYCC_INVITATION_EMAIL_LIMIT:
             raise ValidationError("Too many invitation emails, please try again later")
         domain = get_local_host(request)
-        mail_subject = f'We Invite You to Join the {self.workspace.name} Workspace.'
+        mail_subject = f'We Invite You to Join the {self.workspace.id} Workspace.'
         message = render_to_string(
             'workspace/workspace_invitation.html',
             {'domain': domain, 'invitation': self}
@@ -105,4 +110,4 @@ class WorkspaceInvitation(models.Model):
         send_mail(mail_subject, message, None, [self.email], fail_silently=True)
 
     def __str__(self):
-        return f"Invitation for {self.email} to join {self.workspace.name}"
+        return f"Invitation for {self.email} to join {self.workspace.id}"

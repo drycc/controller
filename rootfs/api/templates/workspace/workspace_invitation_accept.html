@@ -93,10 +93,10 @@
             </div>
             {% if user_exists %}
             <h1 class="title">Invitation Accepted</h1>
-            <p class="subtitle">You have been added to workspace <strong>{{ workspace_name }}</strong>.</p>
+            <p class="subtitle">You have been added to workspace <strong>{{ workspace_id }}</strong>.</p>
             <p class="detail">Use the Drycc CLI to log in: <code>drycc login</code></p>
             {% else %}
-            <h1 class="title">You're Invited to <strong>{{ workspace_name }}</strong></h1>
+            <h1 class="title">You're Invited to <strong>{{ workspace_id }}</strong></h1>
             <p class="subtitle">You need an account to join this workspace.</p>
             <p class="detail">First, <a href="{{ register_url }}">sign up on Drycc Passport</a>.</p>
             <p class="detail">Then use the Drycc CLI to log in: <code>drycc login</code></p>

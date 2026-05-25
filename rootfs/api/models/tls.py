@@ -133,12 +133,12 @@ class TLS(UuidAuditedModel):
             if self.https_enforced is not None:
                 if previous_tls_settings.https_enforced == self.https_enforced:
                     raise AlreadyExists(
-                        "{} changed nothing".format(self.app.workspace.name))
+                        "{} changed nothing".format(self.app.workspace.id))
                 self.certs_auto_enabled = previous_tls_settings.certs_auto_enabled
             elif self.certs_auto_enabled is not None:
                 if previous_tls_settings.certs_auto_enabled == self.certs_auto_enabled:
                     raise AlreadyExists(
-                        "{} changed nothing".format(self.app.workspace.name))
+                        "{} changed nothing".format(self.app.workspace.id))
                 self.https_enforced = previous_tls_settings.https_enforced
             previous_tls_settings.delete()
         except TLS.DoesNotExist:

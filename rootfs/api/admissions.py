@@ -27,30 +27,28 @@ class JobsStatusHandler(BaseHandler):
 
     def handle(self, request: Request) -> bool:
         app_id = request["object"]["metadata"]["namespace"]
-        app = models.app.App.objects.filter(id=app_id).first()
         ptype = request["object"]["metadata"].get("labels", {}).get("type", "")
-        if app and ptype:
-            lock = app.lock()
-            try:
-                lock.acquire()
-                status = request["object"]["status"]
-                replicas = request["object"]["spec"].get("replicas", 0)
-                if "active" in status:
-                    replicas += 1
-                elif "succeeded" in status or "failed" in status:
-                    replicas -= 1
-                replicas = 0 if replicas < 0 else replicas
-                if app.structure.get(ptype, 0) != replicas:
-                    models.app.App.objects.filter(id=app.id).update(
-                        structure=Func(
-                            F("structure"),
-                            Value([ptype]),
-                            Value(replicas, JSONField()),
-                            function="jsonb_set",
-                        )
-                    )
-            finally:
-                lock.release()
+        if not ptype:
+            return True
+        status = request["object"]["status"]
+        replicas = request["object"]["spec"].get("replicas", 0)
+        if "active" in status:
+            replicas += 1
+        elif "succeeded" in status or "failed" in status:
+            replicas -= 1
+        replicas = 0 if replicas < 0 else replicas
+        # jsonb_set on a single row is atomic at the PostgreSQL level; no lock
+        # is needed because `replicas` is computed from the request payload
+        # alone (not read-modify-write of app.structure). Filter touches 0 rows
+        # if the app no longer exists, which is safe.
+        models.app.App.objects.filter(id=app_id).update(
+            structure=Func(
+                F("structure"),
+                Value([ptype]),
+                Value(replicas, JSONField()),
+                function="jsonb_set",
+            )
+        )
         return True
 
 
@@ -68,28 +66,25 @@ class DeploymentsScaleHandler(BaseHandler):
 
     def handle(self, request: Request) -> bool:
         app_id = request["object"]["metadata"]["namespace"]
-        app = models.app.App.objects.filter(id=app_id).first()
         ptype = None
         for item in request["object"]["status"]["selector"].split(","):
             key, value = item.split("=")
             if key == "type":
                 ptype = value
-        if app and ptype:
-            lock = app.lock()
-            try:
-                lock.acquire()
-                replicas = request["object"]["spec"].get("replicas", 0)
-                if app.structure.get(ptype, 0) != replicas:
-                    models.app.App.objects.filter(id=app.id).update(
-                        structure=Func(
-                            F("structure"),
-                            Value([ptype]),
-                            Value(replicas, JSONField()),
-                            function="jsonb_set",
-                        )
-                    )
-            finally:
-                lock.release()
+        if not ptype:
+            return True
+        replicas = request["object"]["spec"].get("replicas", 0)
+        # jsonb_set is an atomic single-row UPDATE in PostgreSQL; no lock is
+        # needed because `replicas` comes straight from the request payload.
+        # Filter touches 0 rows if the app no longer exists, which is safe.
+        models.app.App.objects.filter(id=app_id).update(
+            structure=Func(
+                F("structure"),
+                Value([ptype]),
+                Value(replicas, JSONField()),
+                function="jsonb_set",
+            )
+        )
         return True
 
 

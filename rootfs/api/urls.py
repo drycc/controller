@@ -33,17 +33,17 @@ app_urlpatterns = [
     re_path(r'auth/token/?$', views.AuthTokenView.as_view({"post": "token"})),
     re_path(r'auth/token/(?P<key>[-_\w]+)/?$', views.AuthTokenView.as_view({"get": "token"})),
     # Workspace sub-resources (members, invitations)
-    re_path(r'^workspaces/(?P<name>[-_\w]+)/members/?$',
+    re_path(r'^workspaces/(?P<id>[-_\w]+)/members/?$',
             views.WorkspaceMemberViewSet.as_view({'get': 'list'}),
             name='workspace_member_list'),
-    re_path(r'^workspaces/(?P<name>[-_\w]+)/members/(?P<user>[-_\w]+)/?$',
+    re_path(r'^workspaces/(?P<id>[-_\w]+)/members/(?P<user>[-_\w]+)/?$',
             views.WorkspaceMemberViewSet.as_view(
                 {'get': 'retrieve', 'patch': 'partial_update', 'delete': 'destroy'}),
             name='workspace_member_detail'),
-    re_path(r'^workspaces/(?P<name>[-_\w]+)/invitations/?$',
+    re_path(r'^workspaces/(?P<id>[-_\w]+)/invitations/?$',
             views.WorkspaceInvitationViewSet.as_view({'get': 'list', 'post': 'create'}),
             name='workspace_invitation_list'),
-    re_path(r'^workspaces/(?P<name>[-_\w]+)/invitations/(?P<uid>[-_\w]+)/?$',
+    re_path(r'^workspaces/(?P<id>[-_\w]+)/invitations/(?P<uid>[-_\w]+)/?$',
             views.WorkspaceInvitationViewSet.as_view({'get': 'retrieve', 'delete': 'destroy'}),
             name='workspace_invitation_detail'),
     # application release components

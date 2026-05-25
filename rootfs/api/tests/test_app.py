@@ -45,14 +45,14 @@ class AppTest(DryccTestCase):
         self.user = User.objects.get(username='autotest')
         self.token = self.get_or_create_token(self.user)
         self.client.credentials(HTTP_AUTHORIZATION='Token ' + self.token)
-        self.workspace_name = self._ensure_workspace_admin(self._default_workspace_name())
+        self.workspace_id = self._ensure_workspace_admin(self._default_workspace_id())
 
         original_post = self.client.post
 
         def _post_with_workspace(path, data=None, *args, **kwargs):
             if path == '/v2/apps':
                 payload = {} if data is None else dict(data)
-                payload.setdefault('workspace', self.workspace_name)
+                payload.setdefault('workspace', self.workspace_id)
                 data = payload
             return original_post(path, data, *args, **kwargs)
 
@@ -117,7 +117,9 @@ class AppTest(DryccTestCase):
         body = {'id': 'app-{}'.format(random.randrange(1000, 10000))}
         response = self.client.post('/v2/apps', body)
         for key in response.data:
-            self.assertIn(key, ['uuid', 'created', 'updated', 'id', 'workspace', 'structure'])
+            self.assertIn(
+                key, ['uuid', 'uid', 'created', 'updated', 'id', 'workspace', 'structure']
+            )
         expected = {
             'id': body['id'],
             'workspace': self.user.username,
@@ -363,7 +365,7 @@ class AppTest(DryccTestCase):
 
         # create a workspace and app under owner
         response = self.client.post('/v2/workspaces', {
-            'name': 'wstransfer1',
+            'id': 'wstransfer1',
             'email': 'ws-owner@example.com',
         })
         self.assertEqual(response.status_code, 201, response.data)
@@ -375,7 +377,7 @@ class AppTest(DryccTestCase):
         self.assertEqual(response.status_code, 201, response.data)
 
         app = App.objects.get(id='app-transfer01')
-        workspace = Workspace.objects.get(name='wstransfer1')
+        workspace = Workspace.objects.get(id='wstransfer1')
         url = '/v2/apps/{}'.format(app.id)
 
         # collaborator cannot access app before joining workspace
@@ -396,7 +398,7 @@ class AppTest(DryccTestCase):
 
         # collaborator cannot manage workspace members
         response = self.client.patch(
-            f'/v2/workspaces/{workspace.name}/members/{owner.username}',
+            f'/v2/workspaces/{workspace.id}/members/{owner.username}',
             {'role': 'viewer'},
         )
         self.assertEqual(response.status_code, 403, response.data)
@@ -404,7 +406,7 @@ class AppTest(DryccTestCase):
     def test_transfer_api_success(self, mock_requests):
         app_id = self.create_app(name='appxferok')
         response = self.client.post('/v2/workspaces', {
-            'name': 'wstarget',
+            'id': 'wstarget',
             'email': 'target@example.com',
         })
         self.assertEqual(response.status_code, 201, response.data)
@@ -416,7 +418,7 @@ class AppTest(DryccTestCase):
         self.assertEqual(response.status_code, 204, response.data)
 
         app = App.objects.get(id=app_id)
-        self.assertEqual(app.workspace.name, 'wstarget')
+        self.assertEqual(app.workspace.id, 'wstarget')
 
     def test_transfer_api_requires_workspace(self, mock_requests):
         app_id = self.create_app(name='appxferreqws')
@@ -432,7 +434,7 @@ class AppTest(DryccTestCase):
         self.client.credentials(HTTP_AUTHORIZATION='Token ' + owner_token)
 
         response = self.client.post('/v2/workspaces', {
-            'name': 'wsxferadmin',
+            'id': 'wsxferadmin',
             'email': 'xferadmin@example.com',
         })
         self.assertEqual(response.status_code, 201, response.data)
@@ -445,7 +447,7 @@ class AppTest(DryccTestCase):
 
         # add a non-admin member to the workspace
         member = User.objects.get(username='autotest3')
-        workspace = Workspace.objects.get(name='wsxferadmin')
+        workspace = Workspace.objects.get(id='wsxferadmin')
         WorkspaceMember.objects.create(user=member, workspace=workspace, role='member')
 
         # create a target workspace for the member
@@ -453,7 +455,7 @@ class AppTest(DryccTestCase):
         self.client.credentials(HTTP_AUTHORIZATION='Token ' + member_token)
 
         response = self.client.post('/v2/workspaces', {
-            'name': 'wsxfertarget',
+            'id': 'wsxfertarget',
             'email': 'xfertarget@example.com',
         })
         self.assertEqual(response.status_code, 201, response.data)
@@ -675,7 +677,7 @@ class AppTest(DryccTestCase):
         self.assertEqual(create, None)
 
     def test_build_env_vars(self, mock_requests):
-        app = App.objects.create(workspace=Workspace.objects.get(name=self.workspace_name))
+        app = App.objects.create(workspace=Workspace.objects.get(id=self.workspace_id))
         # Make sure an exception is raised when calling without a build available
         with self.assertRaises(DryccException):
             app._build_env_vars(app.release_set.latest(), PTYPE_WEB)
@@ -714,7 +716,7 @@ class AppTest(DryccTestCase):
             })
 
     def test_gather_app_settings(self, mock_requests):
-        app = App.objects.create(workspace=Workspace.objects.get(name=self.workspace_name))
+        app = App.objects.create(workspace=Workspace.objects.get(id=self.workspace_id))
         app.save()
         data = {'image': 'autotest/example', 'stack': 'container'}
         url = f"/v2/apps/{app.id}/build"
@@ -776,7 +778,7 @@ class AppTest(DryccTestCase):
         """
         # user1 creates workspace and app
         response = self.client.post('/v2/workspaces', {
-            'name': 'wsisolate1',
+            'id': 'wsisolate1',
             'email': 'isolate1@example.com',
         })
         self.assertEqual(response.status_code, 201, response.data)
@@ -793,7 +795,7 @@ class AppTest(DryccTestCase):
         self.client.credentials(HTTP_AUTHORIZATION='Token ' + token2)
 
         response = self.client.post('/v2/workspaces', {
-            'name': 'wsisolate2',
+            'id': 'wsisolate2',
             'email': 'isolate2@example.com',
         })
         self.assertEqual(response.status_code, 201, response.data)
@@ -826,7 +828,7 @@ class AppTest(DryccTestCase):
         """
         # user1 creates workspace and app
         response = self.client.post('/v2/workspaces', {
-            'name': 'wsmember1',
+            'id': 'wsmember1',
             'email': 'member1@example.com',
         })
         self.assertEqual(response.status_code, 201, response.data)
@@ -846,7 +848,7 @@ class AppTest(DryccTestCase):
         self.assertEqual(response.status_code, 404, response.data)
 
         # add user2 as a viewer to the workspace
-        workspace = Workspace.objects.get(name='wsmember1')
+        workspace = Workspace.objects.get(id='wsmember1')
         WorkspaceMember.objects.create(user=user2, workspace=workspace, role='viewer')
 
         # now user2 can see the app
@@ -933,7 +935,7 @@ class AppTest(DryccTestCase):
         """
         # user1 creates workspace1 with app1
         response = self.client.post('/v2/workspaces', {
-            'name': 'wslist01',
+            'id': 'wslist01',
             'email': 'wslist1@example.com',
         })
         self.assertEqual(response.status_code, 201, response.data)
@@ -950,7 +952,7 @@ class AppTest(DryccTestCase):
         self.client.credentials(HTTP_AUTHORIZATION='Token ' + token2)
 
         response = self.client.post('/v2/workspaces', {
-            'name': 'wslist02',
+            'id': 'wslist02',
             'email': 'wslist2@example.com',
         })
         self.assertEqual(response.status_code, 201, response.data)
@@ -984,7 +986,7 @@ class AppTest(DryccTestCase):
         """
         # user1 creates workspace1 with app1
         response = self.client.post('/v2/workspaces', {
-            'name': 'wsfilter01',
+            'id': 'wsfilter01',
             'email': 'wsfilter1@example.com',
         })
         self.assertEqual(response.status_code, 201, response.data)
@@ -997,7 +999,7 @@ class AppTest(DryccTestCase):
 
         # user1 creates workspace2 with app2
         response = self.client.post('/v2/workspaces', {
-            'name': 'wsfilter02',
+            'id': 'wsfilter02',
             'email': 'wsfilter2@example.com',
         })
         self.assertEqual(response.status_code, 201, response.data)
@@ -1040,7 +1042,7 @@ class AppTest(DryccTestCase):
         """
         # user1 creates workspace with app
         response = self.client.post('/v2/workspaces', {
-            'name': 'wsnotmember01',
+            'id': 'wsnotmember01',
             'email': 'notmember1@example.com',
         })
         self.assertEqual(response.status_code, 201, response.data)
@@ -1057,7 +1059,7 @@ class AppTest(DryccTestCase):
         self.client.credentials(HTTP_AUTHORIZATION='Token ' + token2)
 
         response = self.client.post('/v2/workspaces', {
-            'name': 'wsnotmember02',
+            'id': 'wsnotmember02',
             'email': 'notmember2@example.com',
         })
         self.assertEqual(response.status_code, 201, response.data)
@@ -1081,7 +1083,7 @@ class AppTest(DryccTestCase):
         """
         # user1 creates workspace and app
         response = self.client.post('/v2/workspaces', {
-            'name': 'wsretrieve01',
+            'id': 'wsretrieve01',
             'email': 'retrieve1@example.com',
         })
         self.assertEqual(response.status_code, 201, response.data)
@@ -1105,7 +1107,7 @@ class AppTest(DryccTestCase):
         """
         # create workspace and app
         response = self.client.post('/v2/workspaces', {
-            'name': 'wssearch01',
+            'id': 'wssearch01',
             'email': 'wssearch1@example.com',
         })
         self.assertEqual(response.status_code, 201, response.data)
@@ -1172,18 +1174,16 @@ class AppWorkspaceModelTest(DryccTransactionTestCase):
         should return only apps in workspaces where the user is a member.
         """
         # Create workspace1 with user1 as admin
-        ws1 = Workspace.objects.create(name='wsamodel01', email='ws1@example.com')
+        ws1 = Workspace.objects.create(id='wsamodel01', email='ws1@example.com')
         WorkspaceMember.objects.create(workspace=ws1, user=self.user1, role='admin')
 
         # Create workspace2 with user2 as admin
-        ws2 = Workspace.objects.create(name='wsamodel02', email='ws2@example.com')
+        ws2 = Workspace.objects.create(id='wsamodel02', email='ws2@example.com')
         WorkspaceMember.objects.create(workspace=ws2, user=self.user2, role='admin')
 
         # Create apps directly in DB (bypass K8s)
-        App.objects.bulk_create([
-            App(id='app-model01', workspace=ws1),
-            App(id='app-model02', workspace=ws2),
-        ])
+        App(id='app-model01', workspace=ws1).save()
+        App(id='app-model02', workspace=ws2).save()
 
         # user1 should only see app-model01
         user1_apps = list(

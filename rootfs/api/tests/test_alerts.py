@@ -38,9 +38,9 @@ class AlertsHookTest(DryccTestCase):
         return {"workspace": workspace, "alerts": alerts or []}
 
     @staticmethod
-    def _make_workspace(name, members):
+    def _make_workspace(id, members):
         ws, _ = Workspace.objects.get_or_create(
-            name=name, defaults={'email': f'{name}@example.com'},
+            id=id, defaults={'email': f'{id}@example.com'},
         )
         for user, alerts in members:
             WorkspaceMember.objects.update_or_create(

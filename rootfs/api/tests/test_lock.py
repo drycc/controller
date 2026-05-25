@@ -41,3 +41,19 @@ class TestLock(DryccTestCase):
         lock2.release(["web", "bing", "task"])
         self.assertEqual(lock1.acquire(["web"], True), True)
         lock1.release(["web", "bing", "task"])
+
+    def test_deploy_lock_release_clears_ptypes_when_inner_lock_busy(self):
+        """DeployLock.release must clear ptypes even when the inner CacheLock
+        acquisition fails, to prevent a permanent deploy deadlock."""
+        from unittest.mock import patch
+        from django.core.cache import cache
+        app_id = f"test_release_busy_{int(time.time())}"
+        lock = DeployLock(app_id)
+        # Seed some ptypes as if they were recorded by acquire().
+        cache.set(lock.ptypes_key, ["web", "worker"], timeout=3600)
+        # Simulate the inner CacheLock being held by another owner.
+        with patch.object(CacheLock, "acquire", return_value=False):
+            lock.release(["web", "worker"])
+        # ptypes must be cleared regardless of inner lock failure.
+        remaining = cache.get(lock.ptypes_key, [])
+        self.assertEqual(remaining, [])

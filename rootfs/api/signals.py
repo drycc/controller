@@ -95,7 +95,7 @@ def _hook_release_created(**kwargs):
                 'release': release.version_name,
                 'release_summary': release.summary,
                 'sha': '',
-                'user': release.app.workspace.name,
+                'user': release.app.workspace.id,
             }
             if release.build is not None:
                 params['sha'] = release.build.sha

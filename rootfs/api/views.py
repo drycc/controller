@@ -3,16 +3,17 @@ RESTful view classes for presenting Drycc API objects.
 """
 import re
 import uuid
+import asyncio
 import logging
 import json
 import ssl
 import time
-import zlib
 import random
 import secrets
 import aiohttp
 import requests
 import warnings
+from collections import namedtuple
 
 from urllib.parse import urljoin
 from django.db import transaction, connection, Error
@@ -222,7 +223,7 @@ class WorkspaceViewSet(ModelViewSet):
     """
     ViewSet for Workspace model.
     """
-    lookup_field = 'name'
+    lookup_field = 'id'
     lookup_value_regex = r'[-_\w]+'
     serializer_class = serializers.WorkspaceSerializer
     permission_classes = [IsAuthenticated]
@@ -243,8 +244,8 @@ class WorkspaceViewSet(ModelViewSet):
         )
 
     def get_object(self):
-        """Override to get workspace by name instead of pk"""
-        return get_object_or_404(self.get_queryset(), name=self.kwargs['name'])
+        """Override to get workspace by id instead of pk"""
+        return get_object_or_404(self.get_queryset(), id=self.kwargs['id'])
 
     def update(self, request, *args, **kwargs):
         """Only admins can update workspaces"""
@@ -269,15 +270,15 @@ class WorkspaceMemberViewSet(ModelViewSet):
     permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
-        workspace = get_object_or_404(models.workspace.Workspace, name=self.kwargs['name'])
+        workspace = get_object_or_404(models.workspace.Workspace, id=self.kwargs['id'])
         # Check if user has access to this workspace
         if workspace.has_member(self.request.user):
             return models.workspace.WorkspaceMember.objects.filter(workspace=workspace)
         return models.workspace.WorkspaceMember.objects.none()
 
     def get_object(self):
-        """Override to get member by username and workspace name"""
-        workspace = get_object_or_404(models.workspace.Workspace, name=self.kwargs['name'])
+        """Override to get member by username and workspace id"""
+        workspace = get_object_or_404(models.workspace.Workspace, id=self.kwargs['id'])
         return get_object_or_404(
             models.workspace.WorkspaceMember,
             workspace=workspace, user__username=self.kwargs['user']
@@ -355,17 +356,17 @@ class WorkspaceInvitationViewSet(ModelViewSet):
         return super().get_renderers()
 
     def get_queryset(self):
-        workspace = get_object_or_404(models.workspace.Workspace, name=self.kwargs['name'])
+        workspace = get_object_or_404(models.workspace.Workspace, id=self.kwargs['id'])
         if workspace.has_member(self.request.user):
             return models.workspace.WorkspaceInvitation.objects.filter(
                 workspace=workspace, accepted=False)
         return models.workspace.WorkspaceInvitation.objects.none()
 
     def get_object(self):
-        """Override to get invitation by uid and workspace name"""
+        """Override to get invitation by uid and workspace id"""
         return get_object_or_404(
             models.workspace.WorkspaceInvitation,
-            workspace=get_object_or_404(models.workspace.Workspace, name=self.kwargs['name']),
+            workspace=get_object_or_404(models.workspace.Workspace, id=self.kwargs['id']),
             token=self.kwargs['uid'],
             accepted=False,
         )
@@ -375,7 +376,7 @@ class WorkspaceInvitationViewSet(ModelViewSet):
         instance.accept()
         user_exists = User.objects.filter(email=instance.email).exists()
         data = {
-            'workspace_name': instance.workspace.name,
+            'workspace_id': instance.workspace.id,
             'user_exists': user_exists,
             'register_url': settings.DRYCC_REGISTER_URL,
         }
@@ -384,7 +385,7 @@ class WorkspaceInvitationViewSet(ModelViewSet):
         return Response(data)
 
     def perform_create(self, serializer):
-        workspace = get_object_or_404(models.workspace.Workspace, name=self.kwargs['name'])
+        workspace = get_object_or_404(models.workspace.Workspace, id=self.kwargs['id'])
         if not workspace.has_member(self.request.user, role='admin'):
             raise PermissionDenied("Only workspace admins can create invitations")
         email = serializer.validated_data['email']
@@ -477,10 +478,10 @@ class AppViewSet(viewsets.BaseAppViewSet):
         queryset = self.filter_queryset(self.get_queryset())
         workspace = request.query_params.get('workspace')
         if workspace:
-            workspace = get_object_or_404(models.workspace.Workspace, name=workspace)
-            if not workspace.has_member(request.user):
-                raise PermissionDenied(f"You are not a member of workspace '{workspace.name}'")
-            queryset = queryset.filter(workspace__name=workspace)
+            workspace_obj = get_object_or_404(models.workspace.Workspace, id=workspace)
+            if not workspace_obj.has_member(request.user):
+                raise PermissionDenied(f"You are not a member of workspace '{workspace_obj.id}'")
+            queryset = queryset.filter(workspace=workspace_obj)
         page = self.paginate_queryset(queryset)
         if page is not None:
             serializer = self.get_serializer(page, many=True)
@@ -522,7 +523,7 @@ class AppViewSet(viewsets.BaseAppViewSet):
         workspace = request.data.get('workspace', '')
         if not workspace:
             raise ValidationError("workspace is required")
-        app.workspace = get_object_or_404(models.workspace.Workspace, name=workspace)
+        app.workspace = get_object_or_404(models.workspace.Workspace, id=workspace)
         app.save()
         return Response(status=status.HTTP_204_NO_CONTENT)
 
@@ -1044,7 +1045,7 @@ class AlertsHookViewSet(BaseServiceViewSet):
             qs = User.objects.filter(Q(is_staff=True) | Q(is_superuser=True))
         else:
             qs = User.objects.filter(
-                workspacemember__workspace__name=workspace,
+                workspacemember__workspace__id=workspace,
                 workspacemember__alerts=True,
             )
         return list(qs.values_list("username", flat=True).distinct())
@@ -1296,10 +1297,13 @@ class MetricView(AppFilterViewSet):
 
 class MetricsProxyView(View):
     cache = {}
+    cache_lock = asyncio.Lock()
     match_meta = staticmethod(
         re.compile(r'^(?:# (?:HELP|TYPE) )([a-zA-Z_][a-zA-Z0-9_:.-]*)').match)
     match_data = staticmethod(
         re.compile(r'^([a-zA-Z_][a-zA-Z0-9_:]*)(?:\{([^}]*)\})?\s+(\S+)').match)
+
+    vm_tenant_cls = namedtuple('VMTenant', ['account_id', 'project_id'])
     default_cache_value = (None, -1)
 
     def __init__(self, *args, **kwargs):
@@ -1325,17 +1329,20 @@ class MetricsProxyView(View):
         app_id = labels.get("namespace", labels.get(settings.DRYCC_METRICS_CONFIG[name][0]))
         if not app_id:
             return None
-        workspace_id, timeout = self.cache.get(app_id, self.default_cache_value)
-        if workspace_id is None or time.time() > timeout:
-            if app := await models.app.App.objects.filter(id=app_id).afirst():
-                workspace_id = app.workspace_id
-            else:
-                workspace_id = None
-            self.cache[app_id] = (workspace_id, time.time() + random.randint(600, 1200))
-        if workspace_id is None:
+        async with self.cache_lock:
+            tenant, timeout = self.cache.get(app_id, self.default_cache_value)
+            if tenant is None or time.time() > timeout:
+                app = await models.app.App.objects.select_related(
+                    'workspace').filter(id=app_id).afirst()
+                if app:
+                    tenant = self.vm_tenant_cls(app.workspace.uid, app.uid)
+                else:
+                    tenant = None
+                self.cache[app_id] = (
+                    tenant, time.time() + random.randint(600, 1200))
+        if tenant is None:
             return None
-        project_id = zlib.crc32(app_id.encode("utf-8"))
-        labels.update({'vm_account_id': workspace_id, 'vm_project_id': project_id})
+        labels.update({'vm_account_id': tenant.account_id, 'vm_project_id': tenant.project_id})
         return "%s{%s} %s\n" % (name, ",".join([f'{k}="{v}"' for k, v in labels.items()]), value)
 
     async def get(self, request):
@@ -1460,15 +1467,16 @@ class QuickwitProxyView(viewsets.BaseServiceView):
         if "," in index:
             match = re.compile("|".join([f"^{i}$" for i in index.split(",")])).match
         else:
-            match = re.compile(index).match
-        app_indexes, log_index_prefix = [], settings.QUICKWIT_LOG_INDEX_PREFIX
-        if hasattr(self, "app_ids"):
-            app_ids = self.app_ids
-        else:
+            match = re.compile(f"^{index}$").match
+        log_index_prefix = settings.QUICKWIT_LOG_INDEX_PREFIX
+        cache_key = f"quickwit:app_ids:{workspace}"
+        app_ids = await cache.aget(cache_key)
+        if app_ids is None:
             app_ids = [
                 app.id async for app in models.app.App.objects.filter(
-                    workspace__name=workspace).distinct()]
-            setattr(self, "app_ids", app_ids)
+                    workspace__id=workspace).only('id').distinct()]
+            await cache.aset(cache_key, app_ids, timeout=300)
+        app_indexes = []
         for app_id in app_ids:
             app_index = f"{log_index_prefix}{app_id}"
             if match(app_index):
@@ -1486,12 +1494,12 @@ class PrometheusProxyView(viewsets.BaseServiceView):
     async def proxy(self, request, workspace, path):
         data = dict(request.GET) if request.method == "GET" else dict(request.POST)
         if workspace == "drycc":
-            workspace_id = 0
+            workspace_uid = 0
         else:
-            workspace = await database_sync_to_async(get_object_or_404)(
-                models.workspace.Workspace, name=workspace)
-            workspace_id = workspace.id
-        data['extra_filters[]'] = '{vm_account_id="%s"}' % workspace_id
+            workspace_obj = await database_sync_to_async(get_object_or_404)(
+                models.workspace.Workspace, id=workspace)
+            workspace_uid = workspace_obj.uid
+        data['extra_filters[]'] = '{vm_account_id="%s"}' % workspace_uid
         try:
             async with aiohttp.ClientSession() as session:
                 async with session.post(

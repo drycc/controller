@@ -88,7 +88,7 @@ class DryccBaseTestCase(unittest.TestCase):
                 return token.owner
         return getattr(self, 'user', None)
 
-    def _default_workspace_name(self):
+    def _default_workspace_id(self):
         user = self._get_authenticated_user()
         if user and user.username:
             base = ''.join(ch for ch in user.username.lower() if ch.isalnum())
@@ -96,7 +96,7 @@ class DryccBaseTestCase(unittest.TestCase):
                 return base
         return 'autotest'
 
-    def _ensure_workspace_admin(self, workspace_name):
+    def _ensure_workspace_admin(self, workspace_id):
         user = self._get_authenticated_user()
         if user is None:
             user = User.objects.filter(username='autotest').first()
@@ -104,21 +104,21 @@ class DryccBaseTestCase(unittest.TestCase):
             raise AssertionError('No test user available for workspace membership')
 
         workspace, _ = Workspace.objects.get_or_create(
-            name=workspace_name,
-            defaults={'email': user.email or f'{workspace_name}@example.com'},
+            id=workspace_id,
+            defaults={'email': user.email or f'{workspace_id}@example.com'},
         )
         WorkspaceMember.objects.update_or_create(
             workspace=workspace,
             user=user,
             defaults={'role': 'admin'},
         )
-        return workspace.name
+        return workspace.id
 
     def create_app(self, name=None, workspace=None):
-        workspace_name = workspace or self._default_workspace_name()
-        workspace_name = self._ensure_workspace_admin(workspace_name)
+        workspace_id = workspace or self._default_workspace_id()
+        workspace_id = self._ensure_workspace_admin(workspace_id)
 
-        body = {'workspace': workspace_name}
+        body = {'workspace': workspace_id}
         if name:
             body['id'] = name
 

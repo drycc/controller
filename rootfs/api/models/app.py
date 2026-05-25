@@ -22,7 +22,7 @@ from django.contrib.auth import get_user_model
 from rest_framework.exceptions import ValidationError
 
 from api.tasks import send_app_log
-from api.utils import get_httpclient, dict_diff
+from api.utils import get_httpclient, dict_diff, get_next_uid
 from api.exceptions import AlreadyExists, DryccException, ServiceUnavailable
 from api.utils import (
     CacheLock, DeployLock, generate_app_name, apply_tasks, validate_reserved_names)
@@ -71,6 +71,7 @@ class App(UuidAuditedModel):
 
     id = models.SlugField(max_length=63, unique=True, null=True,
                           validators=[validate_app_id])
+    uid = models.PositiveIntegerField(unique=True, editable=False)
     workspace = models.ForeignKey('Workspace', on_delete=models.CASCADE)
     structure = models.JSONField(
         default=dict, blank=True, validators=[validate_app_structure])
@@ -99,6 +100,8 @@ class App(UuidAuditedModel):
             except KubeHTTPException:
                 pass
 
+        if not self.uid:
+            self.uid = get_next_uid(App)
         application = super(App, self).save(**kwargs)
 
         # create all the required resources
@@ -1062,8 +1065,11 @@ class App(UuidAuditedModel):
     def _merge_structure(self, release, prev_release):
         """Scale to default structure based on release type"""
         lock = self.lock()
+        if not lock.acquire():
+            raise ServiceUnavailable(
+                f'could not acquire app lock for {self.id}'
+            )
         try:
-            lock.acquire()
             self.refresh_from_db()
             default_structure = {}
             for ptype in release.ptypes:

@@ -25,7 +25,7 @@ class TestWorkspacePerm(DryccTestCase):
     @tag('auth')
     def _create_workspace_and_app(self, ws_name='testws01', app_id='testapp01'):
         response = self.client.post('/v2/workspaces', {
-            'name': ws_name,
+            'id': ws_name,
             'email': 'ws@example.com',
         })
         self.assertEqual(response.status_code, 201, response.data)
@@ -48,7 +48,7 @@ class TestWorkspacePerm(DryccTestCase):
 
         # add user2 into workspace, then user2 can access app
         self.client.credentials(HTTP_AUTHORIZATION='Token ' + self.token)
-        workspace = WorkspaceMember.objects.get(user=self.user, workspace__name=ws_name).workspace
+        workspace = WorkspaceMember.objects.get(user=self.user, workspace__id=ws_name).workspace
         WorkspaceMember.objects.get_or_create(
             user=self.user2,
             workspace=workspace,
@@ -63,7 +63,7 @@ class TestWorkspacePerm(DryccTestCase):
     def test_non_admin_cannot_manage_workspace_members(self):
         ws_name, _ = self._create_workspace_and_app(ws_name='testws02', app_id='testapp02')
 
-        workspace = WorkspaceMember.objects.get(user=self.user, workspace__name=ws_name).workspace
+        workspace = WorkspaceMember.objects.get(user=self.user, workspace__id=ws_name).workspace
         WorkspaceMember.objects.get_or_create(
             user=self.user2,
             workspace=workspace,
@@ -81,7 +81,7 @@ class TestWorkspacePerm(DryccTestCase):
     def test_admin_can_manage_workspace_members(self):
         ws_name, _ = self._create_workspace_and_app(ws_name='testws03', app_id='testapp03')
 
-        workspace = WorkspaceMember.objects.get(user=self.user, workspace__name=ws_name).workspace
+        workspace = WorkspaceMember.objects.get(user=self.user, workspace__id=ws_name).workspace
         WorkspaceMember.objects.get_or_create(
             user=self.user2,
             workspace=workspace,
@@ -110,7 +110,7 @@ class TestWorkspacePerm(DryccTestCase):
     @tag('auth')
     def test_workspace_member_can_run_but_without_build_gets_business_error(self):
         ws_name, app_id = self._create_workspace_and_app(ws_name='testws05', app_id='testapp05')
-        workspace = WorkspaceMember.objects.get(user=self.user, workspace__name=ws_name).workspace
+        workspace = WorkspaceMember.objects.get(user=self.user, workspace__id=ws_name).workspace
         WorkspaceMember.objects.get_or_create(
             user=self.user2,
             workspace=workspace,
@@ -131,7 +131,7 @@ class TestWorkspacePerm(DryccTestCase):
     @tag('auth')
     def test_non_admin_cannot_update_workspace(self):
         ws_name, _ = self._create_workspace_and_app(ws_name='testws06', app_id='testapp06')
-        workspace = WorkspaceMember.objects.get(user=self.user, workspace__name=ws_name).workspace
+        workspace = WorkspaceMember.objects.get(user=self.user, workspace__id=ws_name).workspace
         WorkspaceMember.objects.get_or_create(
             user=self.user2,
             workspace=workspace,
@@ -149,12 +149,12 @@ class TestWorkspacePerm(DryccTestCase):
     def test_non_admin_cannot_transfer_app(self):
         ws_name, app_id = self._create_workspace_and_app(ws_name='testws07', app_id='testapp07')
         response = self.client.post('/v2/workspaces', {
-            'name': 'testws08',
+            'id': 'testws08',
             'email': 'ws2@example.com',
         })
         self.assertEqual(response.status_code, 201, response.data)
 
-        workspace = WorkspaceMember.objects.get(user=self.user, workspace__name=ws_name).workspace
+        workspace = WorkspaceMember.objects.get(user=self.user, workspace__id=ws_name).workspace
         WorkspaceMember.objects.get_or_create(
             user=self.user2,
             workspace=workspace,
@@ -176,7 +176,7 @@ class TestWorkspacePerm(DryccTestCase):
     def test_admin_can_transfer_app(self):
         _, app_id = self._create_workspace_and_app(ws_name='testws09', app_id='testapp09')
         response = self.client.post('/v2/workspaces', {
-            'name': 'testws10',
+            'id': 'testws10',
             'email': 'ws10@example.com',
         })
         self.assertEqual(response.status_code, 201, response.data)
@@ -188,4 +188,4 @@ class TestWorkspacePerm(DryccTestCase):
         self.assertEqual(response.status_code, 204, response.data)
 
         app = App.objects.get(id=app_id)
-        self.assertEqual(app.workspace.name, 'testws10')
+        self.assertEqual(app.workspace.id, 'testws10')

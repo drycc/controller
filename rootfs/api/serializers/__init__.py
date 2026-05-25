@@ -202,7 +202,7 @@ class AppSerializer(serializers.ModelSerializer):
     """Serialize a :class:`~api.models.app.App` model."""
 
     workspace = serializers.SlugRelatedField(
-        slug_field='name',
+        slug_field='id',
         queryset=models.workspace.Workspace.objects.all(),
     )
     structure = serializers.JSONField(required=False)
@@ -210,7 +210,8 @@ class AppSerializer(serializers.ModelSerializer):
     class Meta:
         """Metadata options for a :class:`AppSerializer`."""
         model = models.app.App
-        fields = ['uuid', 'id', 'workspace', 'structure', 'created', 'updated']
+        fields = ['uuid', 'id', 'uid', 'workspace', 'structure', 'created', 'updated']
+        read_only_fields = ['uuid', 'uid', 'created', 'updated']
 
 
 class BuildSerializer(serializers.ModelSerializer):
@@ -792,14 +793,14 @@ class WorkspaceSerializer(serializers.ModelSerializer):
     class Meta:
         model = models.workspace.Workspace
         fields = '__all__'
-        read_only_fields = ['id', 'created', 'updated']
+        read_only_fields = ['uuid', 'uid', 'created', 'updated']
         extra_kwargs = {
-            'name': {'validators': [models.workspace.validate_workspace_name]},
+            'id': {'validators': [models.workspace.validate_workspace_id]},
         }
 
     def update(self, instance, validated_data):
-        # Workspace name cannot be modified; the name field is read-only after creation.
-        validated_data.pop('name', None)
+        # Workspace id cannot be modified; the id field is read-only after creation.
+        validated_data.pop('id', None)
         return super().update(instance, validated_data)
 
 
@@ -807,7 +808,7 @@ class WorkspaceMemberSerializer(serializers.ModelSerializer):
     """Serialize WorkspaceMember model."""
     user = serializers.ReadOnlyField(source='user.username')
     email = serializers.ReadOnlyField(source='user.email')
-    workspace = serializers.ReadOnlyField(source='workspace.name')
+    workspace = serializers.ReadOnlyField(source='workspace.id')
 
     class Meta:
         model = models.workspace.WorkspaceMember
@@ -818,7 +819,7 @@ class WorkspaceMemberSerializer(serializers.ModelSerializer):
 class WorkspaceInvitationSerializer(serializers.ModelSerializer):
     """Serialize WorkspaceInvitation model."""
     inviter = serializers.ReadOnlyField(source='inviter.username')
-    workspace = serializers.ReadOnlyField(source='workspace.name')
+    workspace = serializers.ReadOnlyField(source='workspace.id')
 
     class Meta:
         model = models.workspace.WorkspaceInvitation

@@ -63,7 +63,7 @@ class AuditedModel(models.Model):
         labels = annotations = {}
         if hasattr(self, 'app'):
             labels["drycc.cc/app_id"] = str(self.app.id)
-            labels["drycc.cc/workspace_id"] = str(self.app.workspace_id)
+            labels["drycc.cc/workspace_id"] = str(self.app.workspace.id)
         return get_scheduler(metadata={"labels": labels, "annotations": annotations})
 
 
