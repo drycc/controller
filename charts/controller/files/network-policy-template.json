@@ -1,6 +1,13 @@
 {
     "spec": {
-        "podSelector": {},
+        "podSelector": {
+            "matchExpressions": [
+                {
+                    "key": "drycc.cc/workspace",
+                    "operator": "Exists"
+                }
+            ]
+        },
         "policyTypes": [
             "Ingress"
         ],
@@ -10,7 +17,7 @@
                     {
                         "namespaceSelector": {
                             "matchLabels": {
-                                "drycc.cc/workspace_id": "{{workspace_id}}"
+                                "drycc.cc/workspace": "{{workspace}}"
                             }
                         }
                     }

@@ -3,12 +3,43 @@ Unit tests for the Drycc scheduler module.
 
 Run the tests with './manage.py test scheduler'
 """
+from django.conf import settings
+
+from scheduler import mock as scheduler_mock
 from scheduler import KubeHTTPException
 from scheduler.tests import TestCase
+from scheduler.tests.utils import generate_random_name
 
 
 class NamespacesTest(TestCase):
     """Tests scheduler namespace calls"""
+
+    def test_create_namespace_with_metadata_injection(self):
+        namespace = generate_random_name()
+        scheduler = scheduler_mock.MockSchedulerClient(
+            settings.SCHEDULER_URL,
+            metadata={
+                'labels': {
+                    'drycc.cc/app': 'test-app',
+                    'drycc.cc/workspace': 'test-workspace',
+                },
+                'annotations': {
+                    'app.kubernetes.io/managed-by': 'drycc',
+                    'drycc.cc/app': 'test-app',
+                }
+            }
+        )
+
+        response = scheduler.ns.create(namespace)
+        data = response.json()
+
+        self.assertEqual(response.status_code, 201, data)
+        self.assertEqual(data['metadata']['labels']['heritage'], 'drycc')
+        self.assertEqual(data['metadata']['labels']['drycc.cc/app'], 'test-app')
+        self.assertEqual(data['metadata']['labels']['drycc.cc/workspace'], 'test-workspace')
+        self.assertEqual(
+            data['metadata']['annotations']['app.kubernetes.io/managed-by'], 'drycc')
+        self.assertEqual(data['metadata']['annotations']['drycc.cc/app'], 'test-app')
 
     def test_create_namespace(self):
         # subclassed function does all the checking

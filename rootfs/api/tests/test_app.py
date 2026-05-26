@@ -658,7 +658,20 @@ class AppTest(DryccTestCase):
         auth = bytes('{}:{}'.format("test", "test"), 'UTF-8')
         encAuth = base64.b64encode(auth).decode(encoding='UTF-8')
         image = "test.com/test/test"
-        docker_config, name, create = App()._get_private_registry_config("web", image, registry.get("web", {}))  # noqa
+        scheduler = mock.Mock()
+        scheduler.secret.get.return_value.json.return_value = {
+            'data': {
+                'registry-host': '',
+                'registry-username': 'test',
+                'registry-password': 'test',
+            }
+        }
+        with mock.patch.object(
+            App, 'scheduler', new_callable=mock.PropertyMock
+        ) as scheduler_property:
+            scheduler_property.return_value = scheduler
+            docker_config, name, create = App()._get_private_registry_config(
+                "web", image, registry.get("web", {}))  # noqa
         dockerConfig = json.loads(docker_config)
         expected = {"https://index.docker.io/v1/": {
             "auth": encAuth

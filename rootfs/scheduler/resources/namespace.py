@@ -1,5 +1,6 @@
 from scheduler.exceptions import KubeHTTPException
 from scheduler.resources import Resource
+import copy
 
 
 class Namespace(Resource):
@@ -26,16 +27,18 @@ class Namespace(Resource):
 
         return response
 
-    def create(self, namespace):
+    def create(self, namespace, **kwargs):
+        # labels that represent the namespace
+        labels = copy.deepcopy(kwargs.get('labels', {}))
+        labels.update({'heritage': 'drycc'})
+
         url = self.api("/namespaces")
         data = {
             "kind": "Namespace",
             "apiVersion": self.api_version,
             "metadata": {
                 "name": namespace,
-                "labels": {
-                    'heritage': 'drycc'
-                }
+                "labels": labels,
             }
         }
 

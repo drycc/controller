@@ -60,11 +60,13 @@ class AuditedModel(models.Model):
 
     @property
     def scheduler(self):
-        labels = annotations = {}
-        if hasattr(self, 'app'):
-            labels["drycc.cc/app_id"] = str(self.app.id)
-            labels["drycc.cc/workspace_id"] = str(self.app.workspace.id)
-        return get_scheduler(metadata={"labels": labels, "annotations": annotations})
+        from api.models.app import App
+        labels = {}
+        if hasattr(self, 'app') or isinstance(self, App):
+            app = getattr(self, 'app', self)
+            labels["drycc.cc/app"] = app.id
+            labels["drycc.cc/workspace"] = app.workspace.id
+        return get_scheduler(metadata={"labels": labels, "annotations": dict(labels)})
 
 
 class UuidAuditedModel(AuditedModel):

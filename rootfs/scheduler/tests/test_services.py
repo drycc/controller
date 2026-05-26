@@ -3,6 +3,9 @@ Unit tests for the Drycc scheduler module.
 
 Run the tests with './manage.py test scheduler'
 """
+from django.conf import settings
+
+from scheduler import mock as scheduler_mock
 from scheduler import KubeHTTPException
 from scheduler.tests import TestCase
 from scheduler.tests.utils import generate_random_name
@@ -10,6 +13,39 @@ from scheduler.tests.utils import generate_random_name
 
 class ServicesTest(TestCase):
     """Tests scheduler service calls"""
+
+    def test_create_service_with_metadata_injection(self):
+        name = generate_random_name()
+        scheduler = scheduler_mock.MockSchedulerClient(
+            settings.SCHEDULER_URL,
+            metadata={
+                'labels': {
+                    'drycc.cc/app': 'test-app',
+                    'drycc.cc/workspace': 'test-workspace',
+                },
+                'annotations': {
+                    'app.kubernetes.io/managed-by': 'drycc',
+                    'drycc.cc/workspace': 'test-workspace',
+                }
+            }
+        )
+
+        response = scheduler.svc.create(self.namespace, name, ports=[{
+            'port': 5000,
+            'protocol': 'TCP',
+            'targetPort': 5000,
+        }])
+        data = response.json()
+
+        self.assertEqual(response.status_code, 201, data)
+        self.assertEqual(data['metadata']['labels']['app'], self.namespace)
+        self.assertEqual(data['metadata']['labels']['heritage'], 'drycc')
+        self.assertEqual(data['metadata']['labels']['drycc.cc/app'], 'test-app')
+        self.assertEqual(data['metadata']['labels']['drycc.cc/workspace'], 'test-workspace')
+        self.assertEqual(
+            data['metadata']['annotations']['app.kubernetes.io/managed-by'], 'drycc')
+        self.assertEqual(
+            data['metadata']['annotations']['drycc.cc/workspace'], 'test-workspace')
 
     def create(self, port=5000, protocol="TCP", target_port=5000):
         """

@@ -122,18 +122,6 @@ class App(UuidAuditedModel):
     def ptypes(self):
         return list(self.structure.keys())
 
-    @property
-    def scheduler(self):
-        """
-        Override @Base.AuditedModel.scheduler;
-        since the app itself doesn't have an app object context,
-        directly reference using ID instead.
-        """
-        scheduler = super(App, self).scheduler
-        scheduler.metadata["annotations"]["drycc.cc/app_id"] = str(self.id)
-        scheduler.metadata["annotations"]["drycc.cc/workspace_id"] = str(self.workspace_id)
-        return scheduler
-
     def check_ptypes(self, ptypes: set):
         """
         check available procfile types
@@ -955,7 +943,7 @@ class App(UuidAuditedModel):
             return
         name = namespace = self.id
         json_str = Template(settings.DRYCC_NETWORK_POLICY_TEMPLATE).render(
-            Context({"workspace_id": str(self.workspace_id)})).strip()
+            Context({"workspace": str(self.workspace.id)})).strip()
         kwargs = json.loads(json_str) if json_str else {}
         try:
             self.scheduler.networkpolicy.get(namespace, name)

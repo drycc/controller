@@ -45,10 +45,12 @@ class KubeHTTPClient(object):
         self.url = url
         self.k8s_api_verify_tls = k8s_api_verify_tls
         self.session = get_k8s_session(self.k8s_api_verify_tls)
-        self.metadata = metadata
+        self.metadata = {} if metadata is None else metadata
 
         # map the various k8s Resources to an internal property
         from scheduler.resources import Resource  # lazy load
+        if not isinstance(self, Resource):
+            KubeHTTPClient.resource_mapping = OrderedDict()
         for res in Resource:
             name = str(res.__name__).lower()  # singular
             component = name + 's'  # make plural
@@ -58,7 +60,8 @@ class KubeHTTPClient(object):
 
             # get past recursion problems in case of self reference
             self.resource_mapping[component] = ''
-            self.resource_mapping[component] = res(self.url, self.k8s_api_verify_tls)
+            self.resource_mapping[component] = res(
+                self.url, self.k8s_api_verify_tls, metadata=self.metadata)
             # map singular Resource name to the plural one
             self.resource_mapping[name] = component
             if res.short_name is not None:
@@ -185,45 +188,45 @@ class KubeHTTPClient(object):
 
         return response
 
-    def http_post(self, path, data=None, json=None, **kwargs):
+    def http_post(self, path, json=None, **kwargs):
         """
         Make a POST request to the k8s server.
         """
         try:
             url = urljoin(self.url, path)
-            if self.metadata is not None and "metadata" in data:
-                data["metadata"] = utils.dict_merge(data["metadata"], self.metadata)
-            response = self.session.post(url, data=data, json=json, **kwargs)
+            if json is not None and "metadata" in json:
+                json["metadata"] = utils.dict_merge(json["metadata"], self.metadata)
+            response = self.session.post(url, json=json, **kwargs)
         except requests.exceptions.ConnectionError as err:
             # reraise as KubeException, but log stacktrace.
             message = "There was a problem posting data to " \
                       "the Kubernetes API server. URL: {}, " \
-                      "data: {}, json: {}".format(url, data, json)
+                      "json: {}".format(url, json)
             logger.error(message)
             raise KubeException(message) from err
 
         return response
 
-    def http_put(self, path, data=None, **kwargs):
+    def http_put(self, path, json=None, **kwargs):
         """
         Make a PUT request to the k8s server.
         """
         try:
             url = urljoin(self.url, path)
-            if self.metadata is not None and "metadata" in data:
-                data["metadata"] = utils.dict_merge(data["metadata"], self.metadata)
-            response = self.session.put(url, data=data, **kwargs)
+            if json is not None and "metadata" in json:
+                json["metadata"] = utils.dict_merge(json["metadata"], self.metadata)
+            response = self.session.put(url, json=json, **kwargs)
         except requests.exceptions.ConnectionError as err:
             # reraise as KubeException, but log stacktrace.
             message = "There was a problem putting data to " \
                       "the Kubernetes API server. URL: {}, " \
-                      "data: {}".format(url, data)
+                      "json: {}".format(url, json)
             logger.error(message)
             raise KubeException(message) from err
 
         return response
 
-    def http_patch(self, path, data=None, **kwargs):
+    def http_patch(self, path, json=None, **kwargs):
         """
         Make a PATCH request to the k8s server.
         """
@@ -234,14 +237,14 @@ class KubeHTTPClient(object):
             # application/merge-patch+json,
             # application/apply-patch+yaml
             # self.session.headers["Content-Type"] = "application/json-patch+json"
-            if self.metadata is not None and "metadata" in data:
-                data["metadata"] = utils.dict_merge(data["metadata"], self.metadata)
-            response = self.session.patch(url, data=data, **kwargs)
+            if json is not None and "metadata" in json:
+                json["metadata"] = utils.dict_merge(json["metadata"], self.metadata)
+            response = self.session.patch(url, json=json, **kwargs)
         except requests.exceptions.ConnectionError as err:
             # reraise as KubeException, but log stacktrace.
             message = "There was a problem patching data to " \
                       "the Kubernetes API server. URL: {}, " \
-                      "data: {}".format(url, data)
+                      "json: {}".format(url, json)
             logger.error(message)
             raise KubeException(message) from err
 

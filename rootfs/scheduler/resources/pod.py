@@ -9,6 +9,8 @@ from scheduler.exceptions import KubeException, KubeHTTPException
 from scheduler.resources import Resource
 from scheduler.states import PodState
 
+from api import utils
+
 DEFAULT_CONTAINER_PORT = 5000
 
 
@@ -192,7 +194,7 @@ class Pod(Resource):
             spec['imagePullSecrets'] = [{'name': kwargs.get('image_pull_secret_name')}]
 
         spec['containers'] = [container]
-
+        manifest["metadata"] = utils.dict_merge(manifest["metadata"], self.metadata)
         return manifest
 
     def _set_container(self, namespace, container_name, data, **kwargs):
