@@ -84,7 +84,7 @@ resources = [
     'secrets', 'services', 'events', 'deployments', 'replicasets',
     'horizontalpodautoscalers', 'scale', 'resourcequotas', 'ingresses',
     'persistentvolumeclaims', 'serviceinstances', 'servicebindings', 'networkpolicies',
-    'limitranges', 'gateways', 'httproutes', 'tcproutes', 'udproutes',
+    'limitranges', 'gateways', 'httproutes', 'tcproutes', 'udproutes', 'listenersets',
     'issuers', 'certificates', 'certificaterequests', 'jobs', 'clusterserviceclasses',
     'statefulsets', 'daemonsets',
 ]
@@ -726,6 +726,13 @@ def post(request, context):
                 "value": "172.22.108.207"
             }],
         }
+    if resource_type in ["listenersets"]:
+        data['status'] = {
+            "conditions": [
+                {"type": "Accepted", "status": "True"},
+                {"type": "Programmed", "status": "True"},
+            ],
+        }
     # Handle RC / RS / Deployments
     if resource_type in ['replicationcontrollers', 'replicasets', 'deployments']:
         data['status'] = {
@@ -937,6 +944,9 @@ def patch(request, context):  # noqa: C901
             manage_replicasets(data, url)
     elif resource_type in ['gateways']:
         data['status'] = item['status']
+        cache.set(url, data, None)
+    elif resource_type in ['listenersets']:
+        data['status'] = item.get('status', {})
         cache.set(url, data, None)
     elif resource_type in ['daemonsets', 'statefulsets']:
         # item data merge-patch

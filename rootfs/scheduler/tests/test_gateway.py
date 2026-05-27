@@ -66,6 +66,75 @@ class GatewayTest(TestCase):
         self.assertEqual(response.status_code, 404)
 
 
+class ListenerSetTest(TestCase):
+
+    def create_listener_set(self, namespace="test-ls", name="test-ls"):
+        self.scheduler.ns.create(namespace)
+        listener = {
+            "name": "example-com",
+            "hostname": "example.com",
+            "port": 443,
+            "protocol": "HTTPS",
+            "allowedRoutes": {"namespaces": {"from": "All"}},
+        }
+        parent_ref = {
+            "group": "gateway.networking.k8s.io",
+            "kind": "Gateway",
+            "name": "test-gateway",
+        }
+        return self.scheduler.listenersets.create(
+            namespace,
+            name,
+            parent_ref=parent_ref,
+            listeners=[listener],
+        )
+
+    def test_create_listener_set(self):
+        response = self.create_listener_set()
+        body = response.json()
+        self.assertEqual(body["spec"]["listeners"][0]["hostname"], "example.com")
+        self.assertEqual(body["spec"]["parentRef"]["name"], "test-gateway")
+
+    def test_get_listener_set(self):
+        self.create_listener_set()
+        response = self.scheduler.listenersets.get("test-ls", "test-ls")
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["metadata"]["name"], "test-ls")
+
+    def test_patch_listener_set(self):
+        self.create_listener_set()
+        new_listeners = [
+            {
+                "name": "other-com",
+                "hostname": "other.com",
+                "port": 443,
+                "protocol": "HTTPS",
+                "allowedRoutes": {"namespaces": {"from": "All"}},
+            }
+        ]
+        parent_ref = {
+            "group": "gateway.networking.k8s.io",
+            "kind": "Gateway",
+            "name": "test-gateway",
+        }
+        response = self.scheduler.listenersets.patch(
+            "test-ls",
+            "test-ls",
+            version=1,
+            parent_ref=parent_ref,
+            listeners=new_listeners,
+        )
+        self.assertEqual(
+            response.json()["spec"]["listeners"][0]["hostname"], "other.com")
+
+    def test_delete_listener_set(self):
+        self.create_listener_set()
+        self.scheduler.listenersets.delete("test-ls", "test-ls")
+        response = self.scheduler.listenersets.get(
+            "test-ls", "test-ls", ignore_exception=True)
+        self.assertEqual(response.status_code, 404)
+
+
 class HTTPRouteTest(TestCase):
     """Tests scheduler gateway calls"""
 

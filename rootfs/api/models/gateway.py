@@ -3,7 +3,6 @@ import hashlib
 import threading
 from django.db import models
 from django.conf import settings
-from django.db.models import Q
 from django.http import Http404
 
 from api.tasks import send_app_log
@@ -55,6 +54,10 @@ class Gateway(AuditedModel):
         return True, ""
 
     @property
+    def labels(self):
+        return {"drycc.cc/gateway": self.name}
+
+    @property
     def addresses(self):
         data = self.scheduler.gateways.get(self.app.id, self.name, ignore_exception=True)
         if data.status_code != 200:
@@ -64,37 +67,26 @@ class Gateway(AuditedModel):
 
     @property
     def listeners(self):
-        auto_tls = self.app.tls_set.latest().certs_auto_enabled
         listeners = []
-        domains = list(self.app.domain_set.all())
         for item in self.ports:
             port, protocol = item["port"], item["protocol"]
-            if item["protocol"] in HOSTNAME_PROTOCOLS:
-                for domain in domains:
-                    listener = {
-                        "allowedRoutes": {"namespaces": {"from": "All"}},
-                        "name": self._get_listener_name(port, protocol, domains.index(domain) + 1),
-                        "port": port,
-                        "hostname": domain.domain,
-                        "protocol": protocol,
-                    }
-                    secret_name = f"{self.app.id}-auto-tls" if auto_tls else (
-                        domain.certificate.certname if domain.certificate else None)
-                    if secret_name and protocol in TLS_PROTOCOLS:
-                        listener["tls"] = {
-                            "certificateRefs": [{"kind": "Secret", "name": secret_name}]}
-                    listeners.append(listener)
-            if protocol not in TLS_PROTOCOLS:
-                listeners.append({
-                    "allowedRoutes": {"namespaces": {"from": "All"}},
-                    "name": self._get_listener_name(port, protocol, 0),
-                    "port": port,
-                    "protocol": protocol,
-                })
+            listener = {
+                "name": f"{protocol.lower()}-{port}",
+                "port": port,
+                "protocol": protocol,
+                "allowedRoutes": {"namespaces": {"from": "All"}},
+            }
+            if protocol == "TLS":
+                listener["tls"] = {"mode": "Passthrough"}
+            listeners.append(listener)
         return listeners
 
     def refresh_to_k8s(self):
-        kwargs = {"listeners": self.listeners, "gateway_class": settings.DRYCC_APP_GATEWAY_CLASS}
+        kwargs = {
+            "listeners": self.listeners,
+            "allowed_listeners": {"namespaces": {"from": "Same"}},
+            "gateway_class": settings.DRYCC_APP_GATEWAY_CLASS
+        }
         if self.app.tls_set.latest().certs_auto_enabled:
             kwargs["annotations"] = {"cert-manager.io/issuer": self.app.id}
         try:
@@ -104,7 +96,10 @@ class Gateway(AuditedModel):
                     kwargs["version"] = data["metadata"]["resourceVersion"]
                     response = self.scheduler.gateways.patch(self.app.id, self.name, **kwargs)
                     if response.status_code == 409:
-                        raise ServiceUnavailable(f'Kubernetes gateway could not be patched: {response.status_code} {response.reason}, please retry')  # noqa 
+                        raise ServiceUnavailable(
+                            f'Kubernetes gateway could not be patched: '
+                            f'{response.status_code} {response.reason}'
+                        )
                 else:
                     logger.debug("delete k8s resource when listeners are empty")
                     self.scheduler.gateways.delete(
@@ -118,6 +113,10 @@ class Gateway(AuditedModel):
                     logger.debug("skip creating k8s resource when listeners are empty")
         except KubeException as e:
             raise ServiceUnavailable('Kubernetes gateway could not be created') from e
+        for item in self.ports:
+            if item["protocol"] in HOSTNAME_PROTOCOLS:
+                self._refresh_listener_set(item["protocol"], item["port"])
+        self._cleanup_unused_listener_sets()
 
     def change_default_tls(self):
         if self.name != self.app.id:
@@ -135,6 +134,9 @@ class Gateway(AuditedModel):
         self.refresh_to_k8s()
 
     def delete(self, *args, **kwargs):
+        self.ports = []
+        self._cleanup_unused_listener_sets()
+
         try:
             self.scheduler.gateways.delete(self.app.id, self.name, ignore_exception=False)
         except KubeException:
@@ -167,14 +169,97 @@ class Gateway(AuditedModel):
                     return False
         return True
 
-    def _get_listener_name(self, port, protocol, index):
-        if protocol in ("TCP", "TLS", "HTTP"):
-            protocol = "TCP"
-        elif protocol in ("HTTPS", ):
-            protocol = "MIX"
-        else:
-            protocol = "UDP"
-        return "-".join([protocol, str(port), str(index)]).lower()
+    def _listener_set_name(self, protocol, port):
+        return f"{self.name}-{protocol.lower()}-{port}"
+
+    def _listener_entry_name(self, domain_str):
+        return domain_str.replace(".", "-")
+
+    def _cleanup_unused_listener_sets(self):
+        expected = {
+            self._listener_set_name(item["protocol"], item["port"])
+            for item in self.ports
+            if item["protocol"] in HOSTNAME_PROTOCOLS
+        }
+        try:
+            response = self.scheduler.listenersets.get(self.app.id, labels=self.labels)
+            for listener_set in response.json().get("items", []):
+                listener_set_name = listener_set["metadata"]["name"]
+                if listener_set_name not in expected:
+                    self.scheduler.listenersets.delete(self.app.id, listener_set_name)
+        except KubeException:
+            self.log('Failed to list ListenerSets for cleanup', level=logging.WARN)
+
+    def _refresh_listener_set(self, protocol, port):
+        listener_set_name = self._listener_set_name(protocol, port)
+        listeners = self._build_listener_set_listeners(protocol, port)
+        if not listeners:
+            self.scheduler.listenersets.delete(self.app.id, listener_set_name)
+            return
+        kwargs = {
+            "listeners": listeners,
+            "labels": self.labels,
+            "parent_ref": {
+                "group": "gateway.networking.k8s.io",
+                "kind": "Gateway",
+                "name": self.name,
+            },
+        }
+
+        auto_tls = self.app.tls_set.latest().certs_auto_enabled
+        if auto_tls and protocol in TLS_PROTOCOLS:
+            kwargs["annotations"] = {"cert-manager.io/issuer": self.app.id}
+        try:
+            try:
+                data = self.scheduler.listenersets.get(self.app.id, listener_set_name).json()
+                kwargs["version"] = data["metadata"]["resourceVersion"]
+                response = self.scheduler.listenersets.patch(
+                    self.app.id, listener_set_name, **kwargs
+                )
+                if response.status_code == 409:
+                    self.log(
+                        f'ListenerSet {listener_set_name} conflict during patch, please retry',
+                        level=logging.WARN,
+                    )
+            except KubeException:
+                if "version" in kwargs:
+                    kwargs.pop("version")
+                self.scheduler.listenersets.create(self.app.id, listener_set_name, **kwargs)
+        except KubeException as e:
+            raise ServiceUnavailable(
+                f'ListenerSet {listener_set_name} could not be created/updated') from e
+
+    def _build_listener_set_listeners(self, protocol, port):
+        auto_tls = self.app.tls_set.latest().certs_auto_enabled
+        listeners = []
+        for domain in self.app.domain_set.all():
+            listener = {
+                "name": self._listener_entry_name(domain.domain),
+                "port": port,
+                "protocol": protocol,
+                "hostname": domain.domain,
+                "allowedRoutes": {"namespaces": {"from": "All"}},
+            }
+            if protocol in TLS_PROTOCOLS:
+                secret_name = (
+                    f"{self.app.id}-auto-tls" if auto_tls
+                    else (domain.certificate.certname if domain.certificate else None)
+                )
+                if protocol == "TLS":
+                    if secret_name:
+                        listener["tls"] = {
+                            "mode": "Terminate",
+                            "certificateRefs": [{"kind": "Secret", "name": secret_name}],
+                        }
+                    else:
+                        listener["tls"] = {"mode": "Passthrough"}
+                elif secret_name:
+                    listener["tls"] = {
+                        "mode": "Terminate",
+                        "certificateRefs": [{"kind": "Secret", "name": secret_name}],
+                    }
+            listeners.append(listener)
+        return listeners
 
     class Meta:
         get_latest_by = 'created'
@@ -219,11 +304,6 @@ class Route(AuditedModel):
         return self.PROTOCOLS_CHOICES[self.kind]
 
     @property
-    def hostnames(self):
-        return [domain.domain for domain in self.app.domain_set.filter(
-                ptype__in=[s.ptype for s in self.services])]
-
-    @property
     def cleaned_rules(self):
         services, rules = self.services, []
         for rule in self.rules:
@@ -237,15 +317,6 @@ class Route(AuditedModel):
                 rule['backendRefs'] = backend_refs
                 rules.append(rule)
         return rules
-
-    @property
-    def tls_force_hostnames(self):
-        tls = self.app.tls_set.latest()
-        q = Q(ptype__in=[s.ptype for s in self.services])
-        if not tls.certs_auto_enabled:
-            q &= Q(certificate__isnull=False)
-        domains = self.app.domain_set.filter(q)
-        return [domain.domain for domain in domains]
 
     def check_rules(self, rules):
         for rule in rules:
@@ -280,8 +351,7 @@ class Route(AuditedModel):
         if self.routable:
             parent_refs, http_parent_refs = self._get_all_parent_refs()
             tls = self.app.tls_set.latest()
-            # requestRedirect only when has tls or certs
-            if tls.https_enforced and self.kind == "HTTPRoute" and self.tls_force_hostnames:
+            if tls.https_enforced and self.kind == "HTTPRoute" and http_parent_refs:
                 self._https_enforced_to_k8s(http_parent_refs)
             elif self.kind == "HTTPRoute":
                 parent_refs.extend(http_parent_refs)
@@ -373,7 +443,6 @@ class Route(AuditedModel):
     def _refresh_to_k8s(self, rules, parent_refs):
         manifest = {
             "rules": rules,
-            "hostnames": self.hostnames,
             "parent_refs": parent_refs,
         }
         try:
@@ -398,7 +467,6 @@ class Route(AuditedModel):
                     }
                 }]
             }],
-            "hostnames": self.tls_force_hostnames,
             "parent_refs": parent_refs,
         }
         try:
@@ -416,30 +484,46 @@ class Route(AuditedModel):
                 f'Kubernetes {self.kind.lower()} could not be created') from e
 
     def _get_all_parent_refs(self):
-        gateways = {}
-        for gateway in self.app.gateway_set.filter(
-                name__in=[item["name"] for item in self.parent_refs]):
-            gateways[gateway.name] = gateway
-        hostnames, parent_refs, http_parent_refs = self.hostnames, [], []
+        gateways = {
+            gateway.name: gateway
+            for gateway in self.app.gateway_set.filter(
+                name__in=[item["name"] for item in self.parent_refs])
+        }
+        domains = list(self.app.domain_set.filter(ptype__in=[s.ptype for s in self.services]))
+        parent_refs, http_parent_refs = [], []
         for item in self.parent_refs:
-            gateway_name, port = item["name"], item["port"]
+            gateway_name, gateway_port = item["name"], item["port"]
             if gateway_name not in gateways:
                 continue
             gateway = gateways[gateway_name]
-            for listener in gateway.listeners:
-                hostname = listener.get('hostname', None)
-                if listener["port"] == port and listener["protocol"] in self.protocols and (
-                        hostname is None or hostname in hostnames):
-                    parent_ref = {
+            for port_info in gateway.ports:
+                port, protocol = port_info["port"], port_info["protocol"]
+                if port != gateway_port or self.kind.split("Route")[0] not in protocol:
+                    continue
+                if protocol in HOSTNAME_PROTOCOLS and domains:
+                    listener_set_name = gateway._listener_set_name(protocol, port)
+                    for domain in domains:
+                        ref = {
+                            "group": "gateway.networking.k8s.io",
+                            "kind": "ListenerSet",
+                            "name": listener_set_name,
+                            "sectionName": gateway._listener_entry_name(domain.domain),
+                        }
+                        if protocol == "HTTP" and port == DEFAULT_HTTP_PORT:
+                            http_parent_refs.append(ref)
+                        else:
+                            parent_refs.append(ref)
+                else:
+                    ref = {
                         "group": "gateway.networking.k8s.io",
                         "kind": "Gateway",
                         "name": gateway_name,
-                        "sectionName": listener["name"],
+                        "sectionName": f"{protocol.lower()}-{port}",
                     }
-                    if listener["protocol"] == "HTTP" and listener["port"] == DEFAULT_HTTP_PORT:
-                        http_parent_refs.append(parent_ref)
+                    if protocol == "HTTP" and port == DEFAULT_HTTP_PORT:
+                        http_parent_refs.append(ref)
                     else:
-                        parent_refs.append(parent_ref)
+                        parent_refs.append(ref)
         return parent_refs, http_parent_refs
 
     class Meta:
