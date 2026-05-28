@@ -4,6 +4,7 @@ import string
 import random
 from django.contrib.auth import get_user_model
 from django.core.cache import cache
+from jsonschema.exceptions import ValidationError
 
 from api.models.app import App
 from api.models.base import PTYPE_WEB
@@ -65,7 +66,8 @@ class BaseGatewayTest(DryccTransactionTestCase):
     def create_gateway(self, app_id, name, port, protocol):
         response = self.client.post(
             '/v2/apps/{}/gateways/'.format(app_id),
-            {'name': name, 'port': port, 'protocol': protocol}
+            {'app': app_id, 'name': name, 'ports': [{'port': port, 'protocol': protocol}]},
+            format='json'
         )
         self.assertEqual(response.status_code, 201)
 
@@ -133,249 +135,182 @@ class GatewayTest(BaseGatewayTest):
         response = self.client.get('/v2/apps/{}/gateways/'.format(app_id))
         self.assertEqual(response.data["count"], 1, response.data)
 
-    def test_add_listener(self):
+    def test_add_gateway_port(self):
         app_id = self.create_app()
         gateway_name = 'bing-gateway'
         self.create_gateway(app_id, gateway_name, 8000, "HTTP")
-        response = self.client.post(
-            '/v2/apps/{}/gateways/'.format(app_id),
-            {'name': gateway_name, 'port': 443, 'protocol': "HTTP"}
+        response = self.client.put(
+            '/v2/apps/{}/gateways/{}/'.format(app_id, gateway_name),
+            {'app': app_id, 'name': gateway_name, 'ports': [
+                {'port': 8000, 'protocol': "HTTP"},
+                {'port': 443, 'protocol': "HTTP"},
+            ]},
+            format='json'
         )
-        self.assertEqual(response.status_code, 201)
+        self.assertEqual(response.status_code, 200)
         response = self.client.get('/v2/apps/{}/gateways/'.format(app_id))
         actual = None
         for result in response.data["results"]:
             if result["name"] == gateway_name:
                 actual = json.loads(json.dumps(result))
                 break
-        expect = {
-            "app": app_id,
-            "name": gateway_name,
-            "listeners": [
-                {
-                    "name": "http-8000",
-                    "port": 8000,
-                    "protocol": "HTTP",
-                    "allowedRoutes": {"namespaces": {"from": "All"}}
-                },
-                {
-                    "name": "http-443",
-                    "port": 443,
-                    "protocol": "HTTP",
-                    "allowedRoutes": {"namespaces": {"from": "All"}}
-                }
-            ],
-            "addresses": [{
-                "type": "IPAddress",
-                "value": "172.22.108.207"
-            }]
-        }
-        self.assertEqual(expect, actual)
+        self.assertEqual(actual["app"], app_id)
+        self.assertEqual(actual["name"], gateway_name)
+        self.assertEqual(actual["ports"], [
+            {"port": 8000, "protocol": "HTTP"},
+            {"port": 443, "protocol": "HTTP"},
+        ])
+        self.assertEqual(actual["addresses"], [{
+            "type": "IPAddress",
+            "value": "172.22.108.207"
+        }])
 
-    def add_listener(self, app_id, name, protocol, port):
+    def add_gateway_port(self, app_id, name, protocol, port):
+        # get existing gateway ports, then append the new one
+        response = self.client.get('/v2/apps/{}/gateways/'.format(app_id))
+        existing_ports = []
+        for gw in response.data.get("results", []):
+            if gw["name"] == name:
+                existing_ports = [
+                    {"port": p["port"], "protocol": p["protocol"]}
+                    for p in gw.get("ports", [])
+                ]
+                break
+        ports = existing_ports + [{"port": port, "protocol": protocol}]
         response = self.client.post(
             '/v2/apps/{}/gateways/'.format(app_id),
-            {'name': name, 'port': port, 'protocol': protocol}
+            {'app': app_id, 'name': name, 'ports': ports},
+            format='json'
         )
         self.assertEqual(response.status_code, 201)
         response = self.client.get('/v2/apps/{}/gateways/'.format(app_id))
         return app_id, response.data["results"]
 
-    def add_tls_listener(self, name, protocol, port):
+    def add_tls_gateway_port(self, name, protocol, port):
         app_id = self.create_app(name)
         domain, secret_name = self.create_tls_domain(app_id)
-        app_id, results = self.add_listener(app_id, name, protocol, port)
+        app_id, results = self.add_gateway_port(app_id, name, protocol, port)
         return app_id, domain, secret_name, results
 
-    def test_add_tls_listener(self):
+    def test_add_gateway_tls_port(self):
         port = 443
         name = "tls-gateway"
-        _, _, _, results = self.add_tls_listener(name, "TLS", port)
-        expect = [{
-            'app': name, 'name': name,
-            'listeners': [{
-                'allowedRoutes': {'namespaces': {'from': 'All'}},
-                'name': 'tls-443', 'port': 443,
-                'protocol': 'TLS',
-                'tls': {'mode': 'Passthrough'}
-            }],
-            'addresses': [{'type': 'IPAddress', 'value': '172.22.108.207'}]
-        }]
-        self.assertEqual(results, expect)
+        _, _, _, results = self.add_tls_gateway_port(name, "TLS", port)
+        self.assertEqual(results[0]['app'], name)
+        self.assertEqual(results[0]['name'], name)
+        self.assertEqual(results[0]['ports'], [{'port': 443, 'protocol': 'TLS'}])
+        self.assertEqual(
+            results[0]['addresses'], [{'type': 'IPAddress', 'value': '172.22.108.207'}])
 
-    def test_add_https_listener(self):
+    def test_add_gateway_https_port(self):
         port = 443
         name = "bingo-gateway"
-        _, _, _, results = self.add_tls_listener(name, "HTTPS", port)
-        expect = [{
-            'app': name,
-            'name': name,
-            'listeners': [{
-                'allowedRoutes': {
-                    'namespaces': {
-                        'from': 'All'
-                    }
-                },
-                'name': 'https-%s' % port,
-                'port': port,
-                'protocol': 'HTTPS',
-            }],
-            'addresses': [{
-                'type': 'IPAddress',
-                'value': '172.22.108.207'
-            }]
-        }]
-        self.assertEqual(results, expect)
+        _, _, _, results = self.add_tls_gateway_port(name, "HTTPS", port)
+        self.assertEqual(results[0]['app'], name)
+        self.assertEqual(results[0]['name'], name)
+        self.assertEqual(results[0]['ports'], [{'port': port, 'protocol': 'HTTPS'}])
+        self.assertEqual(
+            results[0]['addresses'], [{'type': 'IPAddress', 'value': '172.22.108.207'}])
 
-    def test_add_http_listener(self):
+    def test_add_gateway_http_port(self):
         port = 80
         name = "bingo-gateway"
-        _, _, _, results = self.add_tls_listener(name, "HTTP", port)
-        expect = [{
-            'app': 'bingo-gateway', 'name': 'bingo-gateway',
-            'listeners': [
-                {
-                    'allowedRoutes': {'namespaces': {'from': 'All'}},
-                    'name': 'http-80',
-                    'port': 80,
-                    'protocol': 'HTTP'
-                },
-                {
-                    'allowedRoutes': {'namespaces': {'from': 'All'}},
-                    'name': 'https-443',
-                    'port': 443,
-                    'protocol': 'HTTPS',
-                }
-            ],
-            'addresses': [{'type': 'IPAddress', 'value': '172.22.108.207'}]
-        }]
-        self.assertEqual(results, expect)
+        _, _, _, results = self.add_tls_gateway_port(name, "HTTP", port)
+        self.assertEqual(results[0]['app'], 'bingo-gateway')
+        self.assertEqual(results[0]['name'], 'bingo-gateway')
+        self.assertEqual(results[0]['ports'], [
+            {'port': 80, 'protocol': 'HTTP'},
+            {'port': 443, 'protocol': 'HTTPS'},
+        ])
+        self.assertEqual(
+            results[0]['addresses'], [{'type': 'IPAddress', 'value': '172.22.108.207'}])
 
-    def test_add_udp_listener(self):
+    def test_add_gateway_udp_port(self):
         port = 999
         name = "bingo-gateway"
         app_id = self.create_app(name)
-        _, results = self.add_listener(app_id, name, "UDP", port)
-        expect = [{
-            'app': 'bingo-gateway',
-            'name': 'bingo-gateway',
-            'listeners': [{
-                'allowedRoutes': {
-                    'namespaces': {
-                        'from': 'All'
-                    }
-                },
-                'name': 'udp-999',
-                'port': 999,
-                'protocol': 'UDP'
-            }],
-            'addresses': [{
-                'type': 'IPAddress',
-                'value': '172.22.108.207'
-            }]
-        }]
-        self.assertEqual(results, expect)
+        _, results = self.add_gateway_port(app_id, name, "UDP", port)
+        self.assertEqual(results[0]['app'], 'bingo-gateway')
+        self.assertEqual(results[0]['name'], 'bingo-gateway')
+        self.assertEqual(results[0]['ports'], [{'port': 999, 'protocol': 'UDP'}])
+        self.assertEqual(
+            results[0]['addresses'], [{'type': 'IPAddress', 'value': '172.22.108.207'}])
 
-    def test_remove_domain(self):
-        app_id, domain, _, _ = self.add_tls_listener("bingo-gateway", "HTTPS", 443)
+    def test_remove_domain_cleans_gateway_ports(self):
+        app_id, domain, _, _ = self.add_tls_gateway_port("bingo-gateway", "HTTPS", 443)
         url = '/v2/apps/{app_id}/domains/{domain}'.format(domain=domain,
                                                           app_id=app_id)
         response = self.client.delete(url)
         self.assertEqual(response.status_code, 204)
 
         response = self.client.get('/v2/apps/{}/gateways/'.format(app_id))
-        self.assertEqual(response.data["results"][0]["listeners"], [])
+        self.assertEqual(response.data["results"][0]["ports"], [])
 
-    def test_remove_tls(self):
-        app_id, domain, secret_name, _ = self.add_tls_listener("bingo-gateway", "HTTPS", 443)
+    def test_remove_certificate_cleans_gateway_ports(self):
+        app_id, domain, secret_name, _ = self.add_tls_gateway_port("bingo-gateway", "HTTPS", 443)
         response = self.client.get('/v2/apps/{}/gateways/'.format(app_id))
-        self.assertEqual(len(response.data["results"][0]["listeners"]), 1)
+        self.assertEqual(len(response.data["results"][0]["ports"]), 1)
         response = self.client.delete(
             '{}/{}/domain/{}/'.format(f'/v2/apps/{app_id}/certs', secret_name, domain)
         )
         self.assertEqual(response.status_code, 204)
         response = self.client.get('/v2/apps/{}/gateways/'.format(app_id))
-        self.assertEqual(response.data["results"][0]["listeners"], [])
+        self.assertEqual(response.data["results"][0]["ports"], [])
         return app_id
 
-    def test_certs_auto_enabled(self):
-        app_id = self.test_remove_tls()
+    def test_enable_auto_certs_restores_gateway_https_port(self):
+        app_id = self.test_remove_certificate_cleans_gateway_ports()
         data = {'certs_auto_enabled': True}
         response = self.client.post(
             '/v2/apps/{}/tls'.format(app_id),
             data)
         self.assertEqual(response.status_code, 201, response.data)
         response = self.client.get('/v2/apps/{}/gateways/'.format(app_id))
-        self.assertEqual(len(response.data["results"][0]["listeners"]), 1)
+        self.assertEqual(len(response.data["results"][0]["ports"]), 1)
 
-    def test_remove_listener(self):
+    def test_remove_gateway_port(self):
         app_id = self.create_app()
         self.create_gateway(app_id, 'bing-gateway', 8000, "HTTP")
         response = self.client.get('/v2/apps/{}/gateways/'.format(app_id))
         self.assertEqual(response.data["count"], 1, response.data)
         # delete
         response = self.client.delete(
-            '/v2/apps/{}/gateways/'.format(app_id),
-            {'name': 'bing-gateway', 'port': 8000, 'protocol': "HTTP"}
+            '/v2/apps/{}/gateways/{}/'.format(app_id, 'bing-gateway')
         )
         self.assertEqual(response.status_code, 204)
         response = self.client.get('/v2/apps/{}/gateways/'.format(app_id))
         self.assertEqual(response.data["count"], 0, response.data)
 
-    def test_change_tls(self):
+    def test_gateway_tls_changes_default_ports(self):
         app_id = self.create_app_with_domain_and_deploy()
         response = self.client.get('/v2/apps/{}/gateways/'.format(app_id))
         expect = [{
-            "allowedRoutes": {
-                "namespaces": {
-                    "from": "All"
-                }
-            },
-            "name": "http-80",
             "port": 80,
             "protocol": "HTTP"
         }]
         self.assertEqual(response.data["count"], 1, response.data)
-        self.assertEqual(response.data["results"][0]["listeners"], expect, response.data)
+        self.assertEqual(response.data["results"][0]["ports"], expect, response.data)
 
         self.change_certs_auto(app_id, True)
         response = self.client.get('/v2/apps/{}/gateways/'.format(app_id))
         self.assertEqual(response.data["count"], 1, response.data)
-        expect = [{
-            'app': app_id,
-            'name': app_id,
-            'listeners': [
-                {
-                    'allowedRoutes': {'namespaces': {'from': 'All'}},
-                    'name': 'http-80',
-                    'port': 80,
-                    'protocol': 'HTTP'
-                },
-                {
-                    'allowedRoutes': {'namespaces': {'from': 'All'}},
-                    'name': 'https-443',
-                    'port': 443,
-                    'protocol': 'HTTPS',
-                }
-            ],
-            'addresses': [{'type': 'IPAddress', 'value': '172.22.108.207'}]
-        }]
-        self.assertEqual(response.data["results"], expect, response.data)
+        gw = response.data["results"][0]
+        self.assertEqual(gw['app'], app_id)
+        self.assertEqual(gw['name'], app_id)
+        self.assertEqual(gw['ports'], [
+            {'port': 80, 'protocol': 'HTTP'},
+            {'port': 443, 'protocol': 'HTTPS'},
+        ])
+        self.assertEqual(gw['addresses'], [{'type': 'IPAddress', 'value': '172.22.108.207'}])
 
         self.change_certs_auto(app_id, False)
         response = self.client.get('/v2/apps/{}/gateways/'.format(app_id))
         expect = [{
-            "allowedRoutes": {
-                "namespaces": {
-                    "from": "All"
-                }
-            },
-            "name": "http-80",
             "port": 80,
             "protocol": "HTTP"
         }]
         self.assertEqual(response.data["count"], 1, response.data)
-        self.assertEqual(response.json()["results"][0]["listeners"], expect, response.data)
+        self.assertEqual(response.json()["results"][0]["ports"], expect, response.data)
 
 
 class RouteTest(BaseGatewayTest):
@@ -398,6 +333,7 @@ class RouteTest(BaseGatewayTest):
         response = self.client.post(
             '/v2/apps/{}/routes/'.format(app_id),
             {
+                "app": app_id,
                 "kind": kind,
                 "name": route_name,
                 "rules": [{
@@ -408,6 +344,7 @@ class RouteTest(BaseGatewayTest):
                         "weight": 100,
                     }],
                 }],
+                "parent_refs": [],
             }
         )
         self.assertEqual(response.status_code, 201, response.data)
@@ -416,7 +353,7 @@ class RouteTest(BaseGatewayTest):
     def test_create_route(self):
         app_id = self.create_app()
         self.create_route(app_id)
-        # create route error
+        # create route error - missing required fields
         response = self.client.post(
             '/v2/apps/{}/routes/'.format(app_id),
             {
@@ -426,7 +363,7 @@ class RouteTest(BaseGatewayTest):
                 "name": "test-route-1",
             }
         )
-        self.assertEqual(response.status_code, 404)
+        self.assertEqual(response.status_code, 400)
         response = self.client.get('/v2/apps/{}/routes/'.format(app_id))
         self.assertEqual(response.data["count"], 1)
         self.assertEqual(len(response.data["results"][0]["rules"]), 1)
@@ -467,118 +404,230 @@ class RouteTest(BaseGatewayTest):
         )
         self.assertEqual(response.status_code, 400)
 
-    def test_route_attach(self):
+    def test_route_upsert_parent_refs(self):
         app_id = self.create_app()
         ptype, port, route_name = self.create_route(app_id)
         gateway_name_1 = 'bing-gateway-1'
         self.create_gateway(app_id, gateway_name_1, 5000, "HTTP")
-        self.client.patch(
-            '/v2/apps/{}/routes/{}/attach/'.format(app_id, route_name),
+        response = self.client.put(
+            '/v2/apps/{}/routes/{}/'.format(app_id, route_name),
             {
-                "gateway": gateway_name_1,
-                "port": port
-            }
+                "app": app_id,
+                "name": route_name,
+                "kind": "HTTPRoute",
+                "rules": [{
+                    "backendRefs": [{
+                        "kind": "Service",
+                        "name": f"{app_id}-{ptype}",
+                        "port": port,
+                        "weight": 100,
+                    }],
+                }],
+                "parent_refs": [{
+                    "name": gateway_name_1,
+                    "port": port,
+                }],
+            },
+            format='json'
         )
+        self.assertEqual(response.status_code, 200, response.data)
         response = self.client.get('/v2/apps/{}/routes/'.format(app_id))
         self.assertEqual(len(response.data["results"][0]["parent_refs"]), 1)
         gateway_name_2 = 'bing-gateway-2'
         self.create_gateway(app_id, gateway_name_2, 5000, "HTTP")
-        self.client.patch(
-            '/v2/apps/{}/routes/{}/attach/'.format(app_id, route_name),
+        response = self.client.put(
+            '/v2/apps/{}/routes/{}/'.format(app_id, route_name),
             {
-                "gateway": gateway_name_2,
-                "port": port
-            }
+                "app": app_id,
+                "name": route_name,
+                "kind": "HTTPRoute",
+                "rules": [{
+                    "backendRefs": [{
+                        "kind": "Service",
+                        "name": f"{app_id}-{ptype}",
+                        "port": port,
+                        "weight": 100,
+                    }],
+                }],
+                "parent_refs": [
+                    {
+                        "name": gateway_name_1,
+                        "port": port,
+                    },
+                    {
+                        "name": gateway_name_2,
+                        "port": port,
+                    },
+                ],
+            },
+            format='json'
         )
+        self.assertEqual(response.status_code, 200, response.data)
         response = self.client.get('/v2/apps/{}/routes/'.format(app_id))
         self.assertEqual(len(response.data["results"][0]["parent_refs"]), 2)
         return ptype, app_id, gateway_name_1, gateway_name_2, port, route_name
 
-    def test_route_check_parent_ok(self):
+    def test_route_upsert_accepts_valid_parent_refs(self):
         app_id = self.create_app()
         _, port, route_name = self.create_route(app_id, "myroute1", "test")
         gateway_name_1 = 'bing-gateway-1'
         self.create_gateway(app_id, gateway_name_1, 5000, "HTTP")
-        response = self.client.patch(
-            '/v2/apps/{}/routes/{}/attach/'.format(app_id, route_name),
+        response = self.client.put(
+            '/v2/apps/{}/routes/{}/'.format(app_id, route_name),
             {
-                "gateway": gateway_name_1,
-                "port": port
-            }
+                "app": app_id,
+                "name": route_name,
+                "kind": "HTTPRoute",
+                "rules": [{
+                    "backendRefs": [{
+                        "kind": "Service",
+                        "name": f"{app_id}-test",
+                        "port": port,
+                        "weight": 100,
+                    }],
+                }],
+                "parent_refs": [{
+                    "name": gateway_name_1,
+                    "port": port,
+                }],
+            },
+            format='json'
         )
-        self.assertEqual(response.status_code, 204, response.data)
+        self.assertEqual(response.status_code, 200, response.data)
         response = self.client.get('/v2/apps/{}/routes/'.format(app_id))
         self.assertEqual(len(response.data["results"][0]["parent_refs"]), 1)
         # create other route
         _, port, route_name = self.create_route(app_id, "myroute2", "mytest")
-        response = self.client.patch(
-            '/v2/apps/{}/routes/{}/attach/'.format(app_id, route_name),
+        response = self.client.put(
+            '/v2/apps/{}/routes/{}/'.format(app_id, route_name),
             {
-                "gateway": gateway_name_1,
-                "port": port
-            }
+                "app": app_id,
+                "name": route_name,
+                "kind": "HTTPRoute",
+                "rules": [{
+                    "backendRefs": [{
+                        "kind": "Service",
+                        "name": f"{app_id}-mytest",
+                        "port": port,
+                        "weight": 100,
+                    }],
+                }],
+                "parent_refs": [{
+                    "name": gateway_name_1,
+                    "port": port,
+                }],
+            },
+            format='json'
         )
-        self.assertEqual(response.status_code, 204)
+        self.assertEqual(response.status_code, 200, response.data)
 
-    def test_route_check_parent_err(self):
+    def test_route_upsert_rejects_conflicting_parent_refs(self):
         app_id = self.create_app()
         _, port, route_name = self.create_route(app_id, "myroute1", "test", "TCPRoute")
         gateway_name_1 = 'bing-gateway-1'
         self.create_gateway(app_id, gateway_name_1, 5000, "TCP")
-        self.client.patch(
-            '/v2/apps/{}/routes/{}/attach/'.format(app_id, route_name),
+        response = self.client.put(
+            '/v2/apps/{}/routes/{}/'.format(app_id, route_name),
             {
-                "gateway": gateway_name_1,
-                "port": port
-            }
+                "app": app_id,
+                "name": route_name,
+                "kind": "TCPRoute",
+                "rules": [{
+                    "backendRefs": [{
+                        "kind": "Service",
+                        "name": f"{app_id}-test",
+                        "port": port,
+                        "weight": 100,
+                    }],
+                }],
+                "parent_refs": [{
+                    "name": gateway_name_1,
+                    "port": port,
+                }],
+            },
+            format='json'
         )
+        self.assertEqual(response.status_code, 200, response.data)
         response = self.client.get('/v2/apps/{}/routes/'.format(app_id))
         self.assertEqual(len(response.data["results"][0]["parent_refs"]), 1)
         # create other route
         _, port, route_name = self.create_route(app_id, "myroute2", "mytest", "TCPRoute")
-        response = self.client.patch(
-            '/v2/apps/{}/routes/{}/attach/'.format(app_id, route_name),
+        response = self.client.put(
+            '/v2/apps/{}/routes/{}/'.format(app_id, route_name),
             {
-                "gateway": gateway_name_1,
-                "port": port
-            }
+                "app": app_id,
+                "name": route_name,
+                "kind": "TCPRoute",
+                "rules": [{
+                    "backendRefs": [{
+                        "kind": "Service",
+                        "name": f"{app_id}-mytest",
+                        "port": port,
+                        "weight": 100,
+                    }],
+                }],
+                "parent_refs": [{
+                    "name": gateway_name_1,
+                    "port": port,
+                }],
+            },
+            format='json'
         )
         self.assertEqual(response.status_code, 400)
-        self.assertEqual(response.data['detail'], 'this listener has already been referenced')
+        self.assertEqual(
+            response.data['non_field_errors'][0], 'this listener has already been referenced')
 
-    def test_route_detach(self):
-        _, app_id, gateway_name_1, gateway_name_2, port, route_name = self.test_route_attach()
-        self.client.patch(
-            '/v2/apps/{}/routes/{}/detach/'.format(app_id, route_name),
+    def test_route_upsert_remove_parent_refs(self):
+        ptype, app_id, _, gateway_name_2, port, route_name = self.test_route_upsert_parent_refs()
+        response = self.client.put(
+            '/v2/apps/{}/routes/{}/'.format(app_id, route_name),
             {
-                "gateway": gateway_name_1,
-                "port": port
-            }
+                "app": app_id,
+                "name": route_name,
+                "kind": "HTTPRoute",
+                "rules": [{
+                    "backendRefs": [{
+                        "kind": "Service",
+                        "name": f"{app_id}-{ptype}",
+                        "port": port,
+                        "weight": 100,
+                    }],
+                }],
+                "parent_refs": [{
+                    "name": gateway_name_2,
+                    "port": port,
+                }],
+            },
+            format='json'
         )
+        self.assertEqual(response.status_code, 200, response.data)
         response = self.client.get('/v2/apps/{}/routes/'.format(app_id))
         self.assertEqual(len(response.data["results"][0]["parent_refs"]), 1)
 
-        self.client.patch(
-            '/v2/apps/{}/routes/{}/detach/'.format(app_id, route_name),
+        response = self.client.put(
+            '/v2/apps/{}/routes/{}/'.format(app_id, route_name),
             {
-                "gateway": gateway_name_2,
-                "port": port
-            }
+                "app": app_id,
+                "name": route_name,
+                "kind": "HTTPRoute",
+                "rules": [{
+                    "backendRefs": [{
+                        "kind": "Service",
+                        "name": f"{app_id}-{ptype}",
+                        "port": port,
+                        "weight": 100,
+                    }],
+                }],
+                "parent_refs": [],
+            },
+            format='json'
         )
+        self.assertEqual(response.status_code, 200, response.data)
         response = self.client.get('/v2/apps/{}/routes/'.format(app_id))
         self.assertEqual(len(response.data["results"][0]["parent_refs"]), 0)
 
-        response = self.client.patch(
-            '/v2/apps/{}/routes/{}/detach/'.format(app_id, route_name),
-            {
-                "gateway": gateway_name_2,
-                "port": port
-            }
-        )
-        self.assertEqual(response.status_code, 400)
-
     def test_app_settings_change_routable(self):
-        _, app_id, _, _, _, route_name = self.test_route_attach()
+        _, app_id, _, _, _, route_name = self.test_route_upsert_parent_refs()
         # Set routable to false
         response = self.client.post(
             f'/v2/apps/{app_id}/settings',
@@ -608,11 +657,11 @@ class RouteTest(BaseGatewayTest):
         response = self.client.get('/v2/apps/{}/routes/'.format(app_id))
         self.assertEqual(len(response.data["results"]), 0)
 
-    def test_rule_get(self):
+    def test_route_rules_get_returns_backendRefs_for_api(self):
         app_id = self.create_app()
         ptype, _, route_name = self.create_route(app_id)
         response = self.client.get(
-            '/v2/apps/{}/routes/{}/rules/'.format(app_id, route_name),
+            '/v2/apps/{}/routes/{}/'.format(app_id, route_name),
         )
         expect = [{
             'backendRefs': [{
@@ -622,9 +671,9 @@ class RouteTest(BaseGatewayTest):
                 'weight': 100
             }]
         }]
-        self.assertEqual(response.data, expect)
+        self.assertEqual(response.data["rules"], expect)
 
-    def test_schemas(self):
+    def test_route_rule_schemas(self):
         for rule in os.listdir("{}/rules/".format(TEST_ROOT)):
             with open("{}/rules/{}".format(TEST_ROOT, rule)) as f:
                 data = f.read()
@@ -633,7 +682,7 @@ class RouteTest(BaseGatewayTest):
                 except Exception as e:
                     raise self.failureException("validate %s rule error: %s" % (rule, str(e)))
 
-    def test_rule_set(self):
+    def test_route_rules_set_accepts_backendRefs_for_storage(self):
         app_id = self.create_app()
         ptype, _, route_name = self.create_route(app_id)
         expect = [{
@@ -645,15 +694,22 @@ class RouteTest(BaseGatewayTest):
             }]
         }]
         response = self.client.put(
-            '/v2/apps/{}/routes/{}/rules/'.format(app_id, route_name),
-            json.dumps(expect),
-            content_type="application/json",
+            '/v2/apps/{}/routes/{}/'.format(app_id, route_name),
+            {
+                "app": app_id,
+                "name": route_name,
+                "kind": "HTTPRoute",
+                "rules": expect,
+                "parent_refs": [],
+            },
+            format='json',
         )
+        self.assertEqual(response.status_code, 200)
         response = self.client.get(
-            '/v2/apps/{}/routes/{}/rules/'.format(app_id, route_name),
+            '/v2/apps/{}/routes/{}/'.format(app_id, route_name),
         )
-        self.assertEqual(json.dumps(response.data), json.dumps(expect))
-        expect = [{
+        self.assertEqual(response.data["rules"], expect)
+        expect_invalid = [{
             "backendRefs": [{
                 "kind": "Service",
                 "name": "%s-%s-noexits" % (app_id, ptype),
@@ -662,13 +718,59 @@ class RouteTest(BaseGatewayTest):
             }]
         }]
         response = self.client.put(
-            '/v2/apps/{}/routes/{}/rules/'.format(app_id, route_name),
-            json.dumps(expect),
-            content_type="application/json",
+            '/v2/apps/{}/routes/{}/'.format(app_id, route_name),
+            {
+                "app": app_id,
+                "name": route_name,
+                "kind": "HTTPRoute",
+                "rules": expect_invalid,
+                "parent_refs": [],
+            },
+            format='json',
         )
         self.assertEqual(response.status_code, 400)
 
-    def test_change_tls(self):
+    def test_route_serializer_accepts_backendRefs_input(self):
+        app_id = self.create_app()
+        ptype, port, route_name = self.create_route(app_id)
+        gateway_name = 'bing-gateway-1'
+        self.create_gateway(app_id, gateway_name, port, "HTTP")
+        response = self.client.put(
+            '/v2/apps/{}/routes/{}/'.format(app_id, route_name),
+            {
+                "app": app_id,
+                "name": route_name,
+                "kind": "HTTPRoute",
+                "rules": [{
+                    "backendRefs": [{
+                        "kind": "Service",
+                        "name": f"{app_id}-{ptype}",
+                        "port": port,
+                        "weight": 10,
+                    }],
+                }],
+                "parent_refs": [{
+                    "name": gateway_name,
+                    "port": port,
+                }],
+            },
+            format='json'
+        )
+        self.assertEqual(response.status_code, 200, response.data)
+        self.assertEqual(
+            response.data["rules"],
+            [{
+                "backendRefs": [{
+                    "kind": "Service",
+                    "name": f"{app_id}-{ptype}",
+                    "port": port,
+                    "weight": 10,
+                }],
+            }],
+            response.data,
+        )
+
+    def test_route_tls_changes_default_parent_refs(self):
         app_id = self.create_app_with_domain_and_deploy()
         response = self.client.get('/v2/apps/{}/routes/'.format(app_id))
         self.assertEqual(len(response.data["results"]), 1, response.data)
@@ -701,7 +803,7 @@ class RouteTest(BaseGatewayTest):
         self.assertEqual(len(response.data["results"]), 1, response.data)
         self.assertEqual(response.data["results"][0]["parent_refs"], expect, response.data)
 
-    def test_route_parent_refs(self):
+    def test_route_parent_refs_with_listener_sets(self):
         app_id = self.create_app_with_domain_and_deploy()
         response = self.client.get('/v2/apps/{}/routes/'.format(app_id))
         self.assertEqual(len(response.data["results"]), 1, response.data)
@@ -746,6 +848,7 @@ class RouteTest(BaseGatewayTest):
         response = self.client.post(
             '/v2/apps/{}/routes/'.format(app_id),
             {
+                "app": app_id,
                 "kind": kind,
                 "name": route_name,
                 "rules": [{
@@ -756,17 +859,33 @@ class RouteTest(BaseGatewayTest):
                         "weight": 100,
                     }],
                 }],
-            }
+                "parent_refs": [],
+            },
+            format='json'
         )
         self.assertEqual(response.status_code, 201, response.data)
-        self.client.patch(
-            '/v2/apps/{}/routes/{}/attach/'.format(app_id, route_name),
+        response = self.client.put(
+            '/v2/apps/{}/routes/{}/'.format(app_id, route_name),
             {
-                "gateway": app_id,
-                "port": 443
-            }
+                "app": app_id,
+                "name": route_name,
+                "kind": kind,
+                "rules": [{
+                    "backendRefs": [{
+                        "kind": "Service",
+                        "name": f"{app_id}-{ptype}",
+                        "port": 9999,
+                        "weight": 100,
+                    }],
+                }],
+                "parent_refs": [{
+                    "name": app_id,
+                    "port": 443,
+                }],
+            },
+            format='json'
         )
-        self.assertEqual(response.status_code, 201, response.data)
+        self.assertEqual(response.status_code, 200, response.data)
         route = Route.objects.get(name=route_name)
         response = route.scheduler.httproutes.get(app_id, route_name)
         self.assertEqual(response.status_code, 200, response.json())
@@ -863,6 +982,7 @@ class RouteTest(BaseGatewayTest):
         response = self.client.post(
             '/v2/apps/{}/routes/'.format(app_id),
             {
+                "app": app_id,
                 "kind": "TCPRoute",
                 "name": route_name,
                 "rules": [{
@@ -873,14 +993,30 @@ class RouteTest(BaseGatewayTest):
                         "weight": 100,
                     }],
                 }],
-            }
+                "parent_refs": [],
+            },
+            format='json'
         )
         self.assertEqual(response.status_code, 201, response.data)
-        response = self.client.patch(
-            '/v2/apps/{}/routes/{}/attach/'.format(app_id, route_name),
-            {"gateway": gateway_name, "port": port}
+        response = self.client.put(
+            '/v2/apps/{}/routes/{}/'.format(app_id, route_name),
+            {
+                "app": app_id,
+                "name": route_name,
+                "kind": "TCPRoute",
+                "rules": [{
+                    "backendRefs": [{
+                        "kind": "Service",
+                        "name": f"{app_id}-task",
+                        "port": port,
+                        "weight": 100,
+                    }],
+                }],
+                "parent_refs": [{"name": gateway_name, "port": port}],
+            },
+            format='json'
         )
-        self.assertEqual(response.status_code, 204, response.data)
+        self.assertEqual(response.status_code, 200, response.data)
         route = Route.objects.get(app__id=app_id, name=route_name)
         parent_refs, http_parent_refs = route._get_all_parent_refs()
         self.assertEqual(http_parent_refs, [])
@@ -889,3 +1025,47 @@ class RouteTest(BaseGatewayTest):
         self.assertEqual(ref["kind"], "Gateway")
         self.assertEqual(ref["name"], gateway_name)
         self.assertEqual(ref["sectionName"], f"tcp-{port}")
+
+
+class GatewayRouteModelValidationTest(BaseGatewayTest):
+
+    def test_gateway_model_ports_schema_validation(self):
+        app_id = self.create_app()
+        app = App.objects.get(id=app_id)
+        gateway = Gateway(
+            app=app,
+            name='schema-gateway',
+            ports=[{"port": 80}],
+        )
+        with self.assertRaises(ValidationError):
+            gateway.full_clean()
+
+    def test_route_model_rules_schema_validation(self):
+        app_id = self.create_app()
+        response = self.client.post(
+            '/v2/apps/{}/routes/'.format(app_id),
+            {
+                "app": app_id,
+                "kind": "HTTPRoute",
+                "name": "schema-route",
+                "rules": [{"backendRefs": [{"name": 123, "port": 80}]}],
+                "parent_refs": [],
+            },
+            format='json'
+        )
+        self.assertEqual(response.status_code, 400)
+
+    def test_route_model_parent_refs_schema_validation(self):
+        app_id = self.create_app()
+        response = self.client.post(
+            '/v2/apps/{}/routes/'.format(app_id),
+            {
+                "app": app_id,
+                "kind": "HTTPRoute",
+                "name": "schema-route",
+                "rules": [{"backendRefs": [{"name": "svc", "port": 80}]}],
+                "parent_refs": [{"name": "gw"}],
+            },
+            format='json'
+        )
+        self.assertEqual(response.status_code, 400)

@@ -3,10 +3,10 @@ import hashlib
 import threading
 from django.db import models
 from django.conf import settings
-from django.http import Http404
+from django.core.exceptions import ValidationError
 
 from api.tasks import send_app_log
-from api.utils import validate_label
+from api.utils import validate_json, validate_label
 from api.exceptions import ServiceUnavailable
 from scheduler import KubeException
 
@@ -19,10 +19,25 @@ TLS_PROTOCOLS = ("HTTPS", "TLS")
 HOSTNAME_PROTOCOLS = TLS_PROTOCOLS + ("HTTP", )
 
 
+class LazySchemaValidator:
+    """Defers schema import until validation time to avoid circular imports."""
+
+    def __init__(self, module_path, attr_name):
+        self.module_path = module_path
+        self.attr_name = attr_name
+
+    def __call__(self, value):
+        mod = __import__(self.module_path, fromlist=[self.attr_name])
+        validate_json(value, schema=getattr(mod, self.attr_name))
+
+
 class Gateway(AuditedModel):
     app = models.ForeignKey('App', on_delete=models.CASCADE)
     name = models.CharField(max_length=63, db_index=True, validators=[validate_label])
-    ports = models.JSONField(default=list)
+    ports = models.JSONField(
+        default=list,
+        validators=[LazySchemaValidator("api.serializers.schemas.gateway", "SCHEMA")],
+    )
 
     def log(self, message, level=logging.INFO):
         """Logs a message in the context of this service.
@@ -281,9 +296,15 @@ class Route(AuditedModel):
     kind = models.CharField(max_length=15, choices=[
         (key, '/'.join(value)) for key, value in PROTOCOLS_CHOICES.items()])
     name = models.CharField(max_length=63, db_index=True)
-    rules = models.JSONField(default=list)
+    rules = models.JSONField(
+        default=list,
+        validators=[LazySchemaValidator("api.serializers.schemas.rules", "SCHEMA")],
+    )
     routable = models.BooleanField(default=True)
-    parent_refs = models.JSONField(default=list)
+    parent_refs = models.JSONField(
+        default=list,
+        validators=[LazySchemaValidator("api.serializers.schemas.route", "PARENT_REFS_SCHEMA")],
+    )
 
     @property
     def services(self):
@@ -317,23 +338,6 @@ class Route(AuditedModel):
                 rule['backendRefs'] = backend_refs
                 rules.append(rule)
         return rules
-
-    def check_rules(self, rules):
-        for rule in rules:
-            for backend_ref in rule["backendRefs"]:
-                kind = backend_ref.get("kind", "Service")
-                if kind != "Service":
-                    return False, {"detail": "BackendRef only supports service kind"}
-                has_service = False
-                for service in self.services:
-                    ports = [item["port"] for item in service.ports]
-                    if backend_ref["port"] in ports and backend_ref["name"] == service.name:
-                        has_service = True
-                        break
-                if not has_service:
-                    msg = f"service {backend_ref['name']}:{backend_ref['port']} does not exist"
-                    return False, {"detail": msg}
-        return True, ""
 
     def log(self, message, level=logging.INFO):
         """Logs a message in the context of this service.
@@ -395,12 +399,11 @@ class Route(AuditedModel):
 
     def save(self, *args, **kwargs):
         self.change_default_tls()
-        cleaned_rules = self.cleaned_rules
-        if not cleaned_rules:
+        if not self.cleaned_rules:
             msg = f"route {self.name} no available backend"
             self.log(msg, level=logging.ERROR)
-            raise Http404(msg)
-        self.rules = cleaned_rules
+            raise ValidationError(msg)
+        self.rules = self.cleaned_rules
         super().save(*args, **kwargs)
         self.refresh_to_k8s()
 

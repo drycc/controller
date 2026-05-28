@@ -1,3 +1,4 @@
+from django.core.exceptions import ValidationError
 from django.http import Http404
 import logging
 from rest_framework.exceptions import APIException, status
@@ -36,20 +37,25 @@ def custom_exception_handler(exc, context):
     if isinstance(exc, Http404):
         set_rollback()
         return Response(str(exc), status=status.HTTP_404_NOT_FOUND)
+    # Convert Django ValidationError to DRF 400 response
+    if isinstance(exc, ValidationError):
+        set_rollback()
+        if hasattr(exc, 'message_dict'):
+            return Response(exc.message_dict, status=status.HTTP_400_BAD_REQUEST)
+        elif hasattr(exc, 'messages'):
+            return Response({'non_field_errors': exc.messages}, status=status.HTTP_400_BAD_REQUEST)
+        return Response({'non_field_errors': [str(exc)]}, status=status.HTTP_400_BAD_REQUEST)
     # Call REST framework's default exception handler after specific 404 handling,
     # to get the standard error response.
     response = exception_handler(exc, context)
-    # No response means DRF couldn't handle it
-    # Output a generic 500 in a JSON format
+    # No response means DRF couldn't handle it, output a generic 500 in a JSON format
     if response is None:
         import traceback
         traceback.print_exc()
         logging.exception('Uncaught Exception', exc_info=exc)
         set_rollback()
         return Response({'detail': 'Server Error'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-
     # log a few different types of exception instead of using APIException
     if isinstance(exc, (DryccException, ServiceUnavailable, HealthcheckException)):
         logging.exception(exc.__cause__, exc_info=exc)
-
     return response

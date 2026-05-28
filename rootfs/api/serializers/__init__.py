@@ -26,6 +26,8 @@ from .schemas.volumes import SCHEMA as VOLUMES_SCHEMA
 from .schemas.autoscale import SCHEMA as AUTOSCALE_SCHEMA
 from .schemas.healthcheck import SCHEMA as HEALTHCHECK_SCHEMA
 from .schemas.dryccfile import (SCHEMA as DRYCCFILE_SCHEMA, PROCTYPE_REGEX, CONFIGKEY_REGEX)
+from .schemas.gateway import PORT_SCHEMA as GATEWAY_PORT_SCHEMA
+from .schemas.route import PARENT_REF_SCHEMA as ROUTE_PARENT_REF_SCHEMA
 
 
 User = get_user_model()
@@ -36,7 +38,7 @@ SERVICE_PROTOCOL_MISMATCH_MSG = (
 GATEWAY_PROTOCOL_MATCH = re.compile(r'^(HTTP|HTTPS|TCP|TLS|UDP)$')
 GATEWAY_PROTOCOL_MISMATCH_MSG = (
     "the gateway protocol only supports: %s" % GATEWAY_PROTOCOL_MATCH.pattern)
-ROUTE_PROTOCOL_MATCH = re.compile(r'^(HTTPRoute|TCPRoute|UDPRoute|TLSRoute)$')
+ROUTE_PROTOCOL_MATCH = re.compile(r'^(HTTPRoute|TCPRoute|UDPRoute|GRPCRoute|TLSRoute)$')
 ROUTE_PROTOCOL_MISMATCH_MSG = (
     "the route kind only supports: %s" % ROUTE_PROTOCOL_MATCH.pattern)
 PROCTYPE_MATCH = re.compile(PROCTYPE_REGEX)
@@ -735,16 +737,15 @@ class MetricSerializer(serializers.Serializer):
         return attrs
 
 
-class GatewaySerializer(serializers.Serializer):
+class GatewaySerializer(serializers.ModelSerializer):
     app = serializers.SlugRelatedField(slug_field='id', queryset=models.app.App.objects.all())
     name = serializers.CharField(max_length=63, required=True)
-    listeners = serializers.JSONField(required=False)
+    ports = serializers.JSONField(required=True)
     addresses = serializers.JSONField(read_only=True)
 
-    def to_representation(self, instance):
-        representation = super().to_representation(instance)
-        representation['addresses'] = instance.addresses
-        return representation
+    class Meta:
+        model = models.gateway.Gateway
+        fields = '__all__'
 
     validate_name = staticmethod(validate_name)
 
@@ -757,13 +758,35 @@ class GatewaySerializer(serializers.Serializer):
     validate_port = staticmethod(validate_port)
     validate_ptype = staticmethod(validate_ptype)
 
+    @staticmethod
+    def validate_ports(value):
+        if not isinstance(value, list):
+            raise serializers.ValidationError("ports must be a list")
+        for item in value:
+            validate_json(item, GATEWAY_PORT_SCHEMA, serializers.ValidationError)
+        return value
+
+    def validate(self, attrs):
+        attrs = super().validate(attrs)
+        gateway = self.instance or models.gateway.Gateway(**attrs)
+        new_ports = []
+        for item in attrs.get("ports", gateway.ports):
+            port, protocol = item["port"], item["protocol"]
+            gateway.ports = new_ports
+            if not gateway._check_port(port, protocol):
+                raise serializers.ValidationError({"detail": "port is occupied"})
+            new_ports.append({"port": port, "protocol": protocol})
+        attrs["ports"] = new_ports
+        return attrs
+
 
 class RouteSerializer(serializers.ModelSerializer):
     app = serializers.SlugRelatedField(slug_field='id', queryset=models.app.App.objects.all())
     kind = serializers.CharField(max_length=15, required=True)
     name = serializers.CharField(max_length=63, required=True)
-    rules = serializers.JSONField(required=False)
-    parent_refs = serializers.JSONField(required=False)
+    rules = serializers.JSONField(required=True)
+    routable = serializers.BooleanField(read_only=True)
+    parent_refs = serializers.JSONField(required=True)
 
     class Meta:
         """Metadata options for a :class:`RouteSerializer`."""
@@ -778,13 +801,34 @@ class RouteSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError(ROUTE_PROTOCOL_MISMATCH_MSG)
         return value
 
-    def validate_rules(self, value):
-        kind = getattr(self, "initial_data", {}).get("kind", None)
+    def validate_rules(self, value, kind=None):
+        if kind is None:
+            kind = getattr(self, "initial_data", {}).get("kind", None)
         if kind:
-            schema = getattr(rules, f"{kind.replace("Route", "")}_RULES_SCHEMA", "SCHEMA")
+            schema = getattr(rules, f"{kind.replace('Route', '')}_RULES_SCHEMA", rules.SCHEMA)
         else:
             schema = rules.SCHEMA
         return validate_json(value, schema, serializers.ValidationError)
+
+    @staticmethod
+    def validate_parent_refs(value):
+        if not isinstance(value, list):
+            raise serializers.ValidationError("parent_refs must be a list")
+        for item in value:
+            validate_json(item, ROUTE_PARENT_REF_SCHEMA, serializers.ValidationError)
+        return value
+
+    def validate(self, attrs):
+        attrs = super().validate(attrs)
+        self.validate_rules(attrs.get("rules"), kind=attrs.get("kind"))
+        route = self.instance or models.gateway.Route(**attrs)
+        if self.instance and self.instance.kind != attrs.get("kind"):
+            raise serializers.ValidationError({"detail": "route kind cannot be changed"})
+        for parent_ref in attrs.get("parent_refs", route.parent_refs):
+            ok, msg = route._check_parent(parent_ref["name"], parent_ref["port"])
+            if not ok:
+                raise serializers.ValidationError(msg)
+        return attrs
 
 
 class WorkspaceSerializer(serializers.ModelSerializer):

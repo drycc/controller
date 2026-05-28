@@ -188,26 +188,21 @@ app_urlpatterns = [
     # gateways
     re_path(
         r"^apps/(?P<id>{})/gateways/?$".format(settings.APP_URL_REGEX),
+        views.GatewayViewSet.as_view({'get': 'list', 'post': 'create'})),
+    re_path(
+        r"^apps/(?P<id>{})/gateways/(?P<name>{})/?$".format(
+            settings.APP_URL_REGEX, settings.NAME_REGEX),
         views.GatewayViewSet.as_view(
-            {'post': 'upsert', 'get': 'list', 'delete': 'destroy'})),
+            {'get': 'retrieve', 'put': 'upsert', 'delete': 'destroy'})),
     # routes
     re_path(
-        r"^apps/(?P<id>{})/routes/(?P<name>{})?/?$".format(
+        r"^apps/(?P<id>{})/routes/?$".format(settings.APP_URL_REGEX),
+        views.RouteViewSet.as_view({'get': 'list', 'post': 'create'})),
+    re_path(
+        r"^apps/(?P<id>{})/routes/(?P<name>{})/?$".format(
             settings.APP_URL_REGEX, settings.NAME_REGEX),
         views.RouteViewSet.as_view(
-            {'post': 'create', 'get': 'list', 'delete': 'destroy'})),
-    re_path(
-        r"^apps/(?P<id>{})/routes/(?P<name>{})/attach/?$".format(
-            settings.APP_URL_REGEX, settings.NAME_REGEX),
-        views.RouteViewSet.as_view({'patch': 'attach'})),
-    re_path(
-        r"^apps/(?P<id>{})/routes/(?P<name>{})/detach/?$".format(
-            settings.APP_URL_REGEX, settings.NAME_REGEX),
-        views.RouteViewSet.as_view({'patch': 'detach'})),
-    re_path(
-        r"^apps/(?P<id>{})/routes/(?P<name>{})/rules/?$".format(
-            settings.APP_URL_REGEX, settings.NAME_REGEX),
-        views.RouteRulesViewSet.as_view({'get': 'retrieve', 'put': 'update'})),
+            {'get': 'retrieve', 'put': 'upsert', 'delete': 'destroy'})),
     re_path(
         r'^apps/(?P<id>{})/metrics/?$'.format(settings.APP_URL_REGEX),
         views.MetricView.as_view({'get': 'metric'})),

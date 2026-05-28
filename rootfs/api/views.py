@@ -37,9 +37,8 @@ from rest_framework.exceptions import ValidationError, PermissionDenied
 from rest_framework.renderers import JSONRenderer, TemplateHTMLRenderer
 
 from api import monitor, models, permissions, serializers, viewsets, authentication, __version__
-from api.tasks import (
-    scale_app, restart_app, mount_app, delete_pod, dispatch_alert_message
-)
+from api.tasks import scale_app, delete_pod, restart_app, mount_app, dispatch_alert_message
+
 from api.exceptions import AlreadyExists, ServiceUnavailable, DryccException
 
 from django.views.decorators.cache import never_cache
@@ -730,8 +729,9 @@ class EventViewSet(AppFilterViewSet):
         if not any([ptype, pod_name]):
             data = []
         else:
-            ref_kind, ref_name = ("Pod", pod_name) if pod_name else \
-                ("Deployment", ptype)
+            ref_kind, ref_name = "Deployment", f"{self.get_app().id}-{ptype}"
+            if pod_name:
+                ref_kind, ref_name = "Pod", pod_name
             events = self.get_app().list_events(ref_kind, ref_name)
             data = self.get_serializer(events, many=True).data
         # fake out pagination for now
@@ -1191,33 +1191,29 @@ class GatewayViewSet(AppFilterViewSet):
     search_fields = ['^id', ]
     serializer_class = serializers.GatewaySerializer
 
-    def upsert(self, request, *args, **kwargs):
-        app = self.get_app()
-        name = request.data['name']
-        port = self.get_serializer().validate_port(request.data['port'])
-        protocol = self.get_serializer().validate_protocol(request.data['protocol'])
-        gateway = app.gateway_set.filter(name=name).first()
-        if not gateway:
-            gateway = self.model(app=app, name=name)
-        added, msg = gateway.add(port, protocol)
-        if not added:
-            return Response(status=status.HTTP_400_BAD_REQUEST, data=msg)
-        gateway.save()
-        return Response(status=status.HTTP_201_CREATED)
+    def get_object(self):
+        return get_object_or_404(self.get_app().gateway_set, name=self.kwargs["name"])
 
-    def destroy(self, request, **kwargs):
-        app = self.get_app()
-        port = self.get_serializer().validate_port(request.data.get('port'))
-        protocol = self.get_serializer().validate_protocol(request.data['protocol'])
-        gateway = get_object_or_404(app.gateway_set, name=request.data.get("name"))
-        ok, msg = gateway.remove(port, protocol)
-        if not ok:
-            return Response(status=status.HTTP_400_BAD_REQUEST, data=msg)
-        if len(gateway.listeners) == 0:
-            gateway.delete()
-        else:
-            gateway.save()
-        return Response(status=status.HTTP_204_NO_CONTENT)
+    def create(self, request, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        gateway = serializer.save(app=self.get_app())
+        gateway.save()
+        return Response(self.get_serializer(gateway).data, status=status.HTTP_201_CREATED)
+
+    def upsert(self, request, **kwargs):
+        name = kwargs["name"]
+        gateway = self.get_app().gateway_set.filter(name=name).first()
+        serializer = self.get_serializer(instance=gateway, data=request.data)
+        serializer.is_valid(raise_exception=True)
+        if not serializer.validated_data["ports"]:
+            if gateway.pk:
+                gateway.delete()
+            return Response(status=status.HTTP_204_NO_CONTENT)
+
+        gateway = serializer.save(app=self.get_app(), name=name)
+        gateway.save()
+        return Response(self.get_serializer(gateway).data, status=status.HTTP_200_OK)
 
 
 class RouteViewSet(AppFilterViewSet):
@@ -1227,58 +1223,25 @@ class RouteViewSet(AppFilterViewSet):
     search_fields = ['^id', ]
     serializer_class = serializers.RouteSerializer
 
-    def attach(self, request, *args, **kwargs):
-        app = self.get_app()
-        port = serializers.validate_port(request.data.get('port'))
-        gateway_name = request.data['gateway']
-        route = get_object_or_404(self.model, app=app, name=kwargs['name'])
-        attached, msg = route.attach(gateway_name, port)
-        if not attached:
-            return Response(status=status.HTTP_400_BAD_REQUEST, data=msg)
+    def get_object(self):
+        return get_object_or_404(self.get_app().route_set, name=self.kwargs["name"])
+
+    def create(self, request, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        route = serializer.save(app=self.get_app())
         route.save()
-        return Response(status=status.HTTP_204_NO_CONTENT)
+        return Response(self.get_serializer(route).data, status=status.HTTP_201_CREATED)
 
-    def detach(self, request, *args, **kwargs):
-        app = self.get_app()
-        port = serializers.validate_port(request.data.get('port'))
-        gateway_name = request.data['gateway']
-        route = get_object_or_404(self.model, app=app, name=kwargs['name'])
-        detached, msg = route.detach(gateway_name, port)
-        if not detached:
-            return Response(status=status.HTTP_400_BAD_REQUEST, data=msg)
+    @transaction.atomic
+    def upsert(self, request, **kwargs):
+        name = kwargs["name"]
+        route = self.get_app().route_set.filter(name=name).first()
+        serializer = self.get_serializer(instance=route, data=request.data)
+        serializer.is_valid(raise_exception=True)
+        route = serializer.save(app=self.get_app(), name=name)
         route.save()
-        return Response(status=status.HTTP_204_NO_CONTENT)
-
-    def destroy(self, request, *args, **kwargs):
-        app = self.get_app()
-        route = get_object_or_404(self.model, app=app, name=kwargs['name'])
-        route.delete()
-        return Response(status=status.HTTP_204_NO_CONTENT)
-
-
-class RouteRulesViewSet(AppFilterViewSet):
-    """A viewset for interacting with Route rules."""
-    model = models.gateway.Route
-    serializer_class = serializers.RouteSerializer
-
-    def retrieve(self, request, *args, **kwargs):
-        app = self.get_app()
-        route = get_object_or_404(app.route_set, name=kwargs['name'])
-        return Response(route.rules, status=status.HTTP_200_OK)
-
-    def update(self, request, *args, **kwargs):
-        app = self.get_app()
-        route = get_object_or_404(self.model, app=app, name=kwargs['name'])
-        rules = request.data
-        if isinstance(rules, str):
-            rules = json.loads(rules)
-        rules = self.get_serializer(route, many=False).validate_rules(rules)
-        ok, msg = route.check_rules(rules)
-        if not ok:
-            return Response(status=status.HTTP_400_BAD_REQUEST, data=msg)
-        route.rules = rules
-        route.save()
-        return Response(status=status.HTTP_204_NO_CONTENT)
+        return Response(self.get_serializer(route).data, status=status.HTTP_200_OK)
 
 
 class MetricView(AppFilterViewSet):
