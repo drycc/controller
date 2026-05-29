@@ -16,7 +16,6 @@ from rest_framework import serializers
 
 from api import models
 from api.utils import validate_json, validate_reserved_names
-from api.exceptions import DryccException
 from api.models.volume import Volume
 from api.models.base import PTYPE_MIN_LENGTH, PTYPE_MAX_LENGTH
 from scheduler.resources.pod import DEFAULT_CONTAINER_PORT
@@ -679,33 +678,6 @@ class VolumeSerializer(serializers.ModelSerializer):
     @staticmethod
     def validate_parameters(data):
         return validate_json(data, VOLUMES_SCHEMA, serializers.ValidationError)
-
-
-class ResourceSerializer(serializers.ModelSerializer):
-    """Serialize a :class:`~api.models.resource.Resource` model."""
-    app = serializers.SlugRelatedField(slug_field='id', queryset=models.app.App.objects.all())
-    name = serializers.CharField(max_length=63, required=True)
-    plan = serializers.CharField(max_length=128, required=True)
-    data = JSONFieldSerializer(required=False, binary=True)
-    options = JSONFieldSerializer(required=False, binary=True)
-
-    class Meta:
-        """Metadata options for a :class:`ResourceSerializer`."""
-        model = models.resource.Resource
-        fields = '__all__'
-
-    def update(self, instance, validated_data):
-        if instance.plan.split(':')[0] != validated_data.get('plan', '').split(':')[0]:  # noqa
-            raise DryccException("the resource instance cann't changed")
-        if instance.status == "Provisioning":
-            raise DryccException("this resource instance is in progress")
-        instance.plan = validated_data.get('plan')
-        instance.options.update(validated_data.get('options', {}))
-        instance.attach_update()
-        instance.save()
-        return instance
-
-    validate_name = staticmethod(validate_name)
 
 
 class MetricSerializer(serializers.Serializer):

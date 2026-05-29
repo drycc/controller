@@ -191,8 +191,6 @@ class AdmissionWebhookViewSet(GenericViewSet):
     admission_classes = (
         admissions.JobsStatusHandler,
         admissions.DeploymentsScaleHandler,
-        admissions.ServiceInstancesStatusHandler,
-        admissions.ServicebindingsStatusHandler,
     )
     permission_classes = (AllowAny, )
 
@@ -1100,88 +1098,6 @@ class AppVolumesViewSet(AppFilterViewSet):
         mount_app.delay(app, self.request.user, volume, path)
         serializer = self.get_serializer(volume, many=False)
         return Response(serializer.data)
-
-
-class AppResourcesViewSet(AppFilterViewSet):
-    """RESTful views for resources apps with collaborators."""
-    model = models.resource.Resource
-    serializer_class = serializers.ResourceSerializer
-
-    def services(self, request, *args, **kwargs):
-        results = self.model.services()
-        # fake out pagination for now
-        pagination = {'results': results, 'count': len(results)}
-        return Response(data=cache.get_or_set(
-            "resources:services", pagination
-        ))
-
-    def plans(self, request, *args, **kwargs):
-        serviceclass_name = kwargs["id"]
-        results = self.model.plans(serviceclass_name)
-        # fake out pagination for now
-        pagination = {'results': results, 'count': len(results)}
-        return Response(data=cache.get_or_set(
-            "resources:services:%s:plan" % serviceclass_name, pagination
-        ))
-
-
-class AppSingleResourceViewSet(AppFilterViewSet):
-    """RESTful views for resource apps with collaborators."""
-    model = models.resource.Resource
-    serializer_class = serializers.ResourceSerializer
-
-    def get_object(self):
-        return get_object_or_404(models.resource.Resource,
-                                 app__id=self.kwargs['id'],
-                                 name=self.kwargs['name'])
-
-    def retrieve(self, request, *args, **kwargs):
-        resource = self.get_object()
-        resource.retrieve(request)
-        response =  super().retrieve(request, *args, **kwargs)  # noqa
-        response.data["message"] = resource.message
-        return response
-
-    def destroy(self, request, *args, **kwargs):
-        resource = self.get_object()
-        resource.delete()
-        return Response(status=status.HTTP_204_NO_CONTENT)
-
-    def update(self, request, *args, **kwargs):
-        resource = self.get_object()
-        resource = serializers.ResourceSerializer(data=request.data,
-                                                  instance=resource,
-                                                  partial=True)
-        if resource.is_valid():
-            resource.save()
-        return Response(resource.data)
-
-
-class AppResourceBindingViewSet(AppFilterViewSet):
-    model = models.resource.Resource
-    serializer_class = serializers.ResourceSerializer
-
-    def get_object(self):
-        return get_object_or_404(models.resource.Resource,
-                                 app__id=self.kwargs['id'],
-                                 name=self.kwargs['name'])
-
-    def binding(self, request, *args, **kwargs):
-        resource = self.get_object()
-        # {"bind_action":bind/unbind}
-        bind_action = self.request.data.get('bind_action', '').lower()
-        if bind_action == 'bind':
-            resource.bind()
-            serializer = self.get_serializer(resource, many=False)
-            logger.info("resoruce bind response data: {}".format(serializer))
-            return Response(serializer.data)
-        elif bind_action == 'unbind':
-            resource.unbind()
-            serializer = self.get_serializer(resource, many=False)
-            logger.info("resoruce unbind response data: {}".format(serializer))
-            return Response(serializer.data)
-        else:
-            return Response("unknown action", status=status.HTTP_404_NOT_FOUND)
 
 
 class GatewayViewSet(AppFilterViewSet):
