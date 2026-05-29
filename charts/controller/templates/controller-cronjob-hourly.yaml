@@ -91,24 +91,6 @@ spec:
               mountPath: /etc/controller
           - image: {{.Values.imageRegistry}}/{{.Values.imageOrg}}/controller:{{.Values.imageTag}}
             imagePullPolicy: {{.Values.pull_policy}}
-            name: drycc-controller-upload-resources-usage
-            {{- if .Values.diagnosticMode.enabled }}
-            command: {{- include "common.tplvalues.render" (dict "value" .Values.diagnosticMode.command "context" $) | nindent 14 }}
-            args: {{- include "common.tplvalues.render" (dict "value" .Values.diagnosticMode.args "context" $) | nindent 14 }}
-            {{- else }}
-            args:
-            - /bin/bash
-            - -c
-            - python -u /workspace/manage.py upload_resource_usage
-            {{- end }}
-            {{- include "controller.envs" . | indent 12 }}
-            {{- include "controller-job.envs" . | indent 12 }}
-            volumeMounts:
-            - name: controller-config
-              readOnly: false
-              mountPath: /etc/controller
-          - image: {{.Values.imageRegistry}}/{{.Values.imageOrg}}/controller:{{.Values.imageTag}}
-            imagePullPolicy: {{.Values.pull_policy}}
             name: drycc-controller-upload-volume-usage
             {{- if .Values.diagnosticMode.enabled }}
             command: {{- include "common.tplvalues.render" (dict "value" .Values.diagnosticMode.command "context" $) | nindent 14 }}

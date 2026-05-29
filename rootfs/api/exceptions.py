@@ -50,8 +50,6 @@ def custom_exception_handler(exc, context):
     response = exception_handler(exc, context)
     # No response means DRF couldn't handle it, output a generic 500 in a JSON format
     if response is None:
-        import traceback
-        traceback.print_exc()
         logging.exception('Uncaught Exception', exc_info=exc)
         set_rollback()
         return Response({'detail': 'Server Error'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

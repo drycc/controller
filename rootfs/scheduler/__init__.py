@@ -1,11 +1,14 @@
-from collections import OrderedDict
-from datetime import datetime, timezone
+
+import re
 import logging
-from packaging.version import Version, parse
+import urllib3
 import requests
 import requests.exceptions
+
+from collections import OrderedDict
+from datetime import datetime, timezone
+from packaging.version import Version, parse
 from requests_toolbelt import user_agent
-import re
 from urllib.parse import urljoin
 
 from api import utils, __version__ as drycc_version
@@ -20,7 +23,7 @@ def get_k8s_session(k8s_api_verify_tls):
     global session
     if session is None:
         with open('/var/run/secrets/kubernetes.io/serviceaccount/token') as token_file:
-            token = token_file.read()
+            token = token_file.read().strip("\r\n\t")
         session = requests.Session()
         session.headers = {
             'Authorization': 'Bearer ' + token,
@@ -31,6 +34,7 @@ def get_k8s_session(k8s_api_verify_tls):
             session.verify = '/var/run/secrets/kubernetes.io/serviceaccount/ca.crt'
         else:
             session.verify = False
+            urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
     return session
 
 

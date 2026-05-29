@@ -27,7 +27,6 @@ from api.models.domain import Domain
 from api.models.release import Release
 from api.models.tls import TLS
 from api.models.volume import Volume
-from api.models.resource import Resource
 from api.models.workspace import WorkspaceInvitation
 
 
@@ -136,7 +135,6 @@ post_delete.connect(_log_instance_removed, sender=Certificate, dispatch_uid='api
 post_delete.connect(_log_instance_removed, sender=Domain, dispatch_uid='api.models.log')
 post_delete.connect(_log_instance_removed, sender=TLS, dispatch_uid='api.models.log')
 post_delete.connect(_log_instance_removed, sender=Volume, dispatch_uid='api.models.log')
-post_delete.connect(_log_instance_removed, sender=Resource, dispatch_uid='api.models.log')
 
 
 @receiver(post_save, sender=App)
@@ -243,22 +241,6 @@ def volume_changed_handle(sender, instance: Volume, created=False, update_fields
     # measure volumes to workflow manager
     from api.clients import ManagerAPI
     if ManagerAPI().enabled and created:
-        timestamp = time.time()
-        send_usage.apply_async(
-            args=[instance.to_usage(timestamp), ],
-        )
-
-
-@receiver(post_save, sender=Resource)
-def resource_changed_handle(
-        sender, instance: Resource, created=False, update_fields=None, **kwargs):
-    # measure resources to workflow manager
-    from api.clients import ManagerAPI
-    if ManagerAPI().enabled and (
-        created or (
-            update_fields is not None and (
-                "plan" in update_fields
-            ))):
         timestamp = time.time()
         send_usage.apply_async(
             args=[instance.to_usage(timestamp), ],
