@@ -4,8 +4,8 @@ apiVersion: v2
 appVersion: 1.0.0
 dependencies:
   - name: common
-    repository: oci://registry.drycc.cc/charts
-    version: ~1.1.5
+    repository: oci://registry.drycc.cc/drycc/charts
+    version: ~1.1.6
 description: Drycc Workflow Controller (API).
 maintainers:
   - name: Drycc Team
