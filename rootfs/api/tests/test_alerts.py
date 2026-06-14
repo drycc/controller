@@ -26,7 +26,7 @@ class AlertsHookTest(DryccTestCase):
         self.token = self.get_or_create_token(self.user)
         self.client.credentials(HTTP_AUTHORIZATION='Bearer mock_oauth_token')
 
-        self.delay_patcher = mock.patch('api.views.dispatch_alert_message.delay')
+        self.delay_patcher = mock.patch('api.tasks.dispatch_alert_message.delay')
         self.mock_delay = self.delay_patcher.start()
 
     def tearDown(self):

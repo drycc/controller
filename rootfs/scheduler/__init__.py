@@ -16,25 +16,23 @@ from scheduler.exceptions import KubeException, KubeHTTPException
 
 
 logger = logging.getLogger(__name__)
-session = None
 
 
-def get_k8s_session(k8s_api_verify_tls):
-    global session
-    if session is None:
-        with open('/var/run/secrets/kubernetes.io/serviceaccount/token') as token_file:
-            token = token_file.read().strip("\r\n\t")
-        session = requests.Session()
-        session.headers = {
-            'Authorization': 'Bearer ' + token,
-            'Content-Type': 'application/json',
-            'User-Agent': user_agent('Drycc Controller', drycc_version)
-        }
-        if k8s_api_verify_tls:
-            session.verify = '/var/run/secrets/kubernetes.io/serviceaccount/ca.crt'
-        else:
-            session.verify = False
-            urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+def _create_k8s_session(k8s_api_verify_tls):
+    """Create a new requests.Session configured for the Kubernetes API."""
+    with open('/var/run/secrets/kubernetes.io/serviceaccount/token') as token_file:
+        token = token_file.read().strip("\r\n\t")
+    session = requests.Session()
+    session.headers = {
+        'Authorization': 'Bearer ' + token,
+        'Content-Type': 'application/json',
+        'User-Agent': user_agent('Drycc Controller', drycc_version)
+    }
+    if k8s_api_verify_tls:
+        session.verify = '/var/run/secrets/kubernetes.io/serviceaccount/ca.crt'
+    else:
+        session.verify = False
+        urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
     return session
 
 
@@ -48,13 +46,12 @@ class KubeHTTPClient(object):
     def __init__(self, url, k8s_api_verify_tls=True, metadata=None):
         self.url = url
         self.k8s_api_verify_tls = k8s_api_verify_tls
-        self.session = get_k8s_session(self.k8s_api_verify_tls)
+        self._session = None
         self.metadata = {} if metadata is None else metadata
 
         # map the various k8s Resources to an internal property
         from scheduler.resources import Resource  # lazy load
-        if not isinstance(self, Resource):
-            KubeHTTPClient.resource_mapping = OrderedDict()
+        KubeHTTPClient.resource_mapping = OrderedDict()
         for res in Resource:
             name = str(res.__name__).lower()  # singular
             component = name + 's'  # make plural
@@ -64,14 +61,20 @@ class KubeHTTPClient(object):
 
             # get past recursion problems in case of self reference
             self.resource_mapping[component] = ''
-            self.resource_mapping[component] = res(
-                self.url, self.k8s_api_verify_tls, metadata=self.metadata)
+            self.resource_mapping[component] = res(self)
             # map singular Resource name to the plural one
             self.resource_mapping[name] = component
             if res.short_name is not None:
                 # map short name to long name so a resource can be named rs
                 # but have the main object live at replicasets
                 self.resource_mapping[str(res.short_name).lower()] = component
+
+    @property
+    def session(self):
+        """Lazy-create the Kubernetes API session on first access."""
+        if self._session is None:
+            self._session = _create_k8s_session(self.k8s_api_verify_tls)
+        return self._session
 
     def api(self, tmpl, *args):
         """Return a fully-qualified Kubernetes API URL from a string template with args."""
@@ -159,194 +162,60 @@ class KubeHTTPClient(object):
         utils.send_app_log(namespace, message, level)
         logger.log(level, "[{}]: {}".format(namespace, message))
 
-    def http_head(self, path, **kwargs):
-        """
-        Make a HEAD request to the k8s server.
-        """
+    def _request(self, method, path, **kwargs):
+        """Execute an HTTP request to the Kubernetes API server."""
+        url = urljoin(self.url, path)
+        method_fn = getattr(self.session, method.lower())
         try:
-
-            url = urljoin(self.url, path)
-            response = self.session.head(url, **kwargs)
+            return method_fn(url, **kwargs)
         except requests.exceptions.ConnectionError as err:
-            # reraise as KubeException, but log stacktrace.
-            message = "There was a problem retrieving headers from " \
-                "the Kubernetes API server. URL: {}".format(url)
-            logger.error(message)
-            raise KubeException(message) from err
+            raise KubeException(
+                "There was a problem communicating with the Kubernetes API server. "
+                "URL: {}, method: {}".format(url, method)
+            ) from err
 
-        return response
+    def http_head(self, path, **kwargs):
+        """Make a HEAD request to the k8s server."""
+        return self._request('HEAD', path, **kwargs)
 
     def http_get(self, path, params=None, **kwargs):
-        """
-        Make a GET request to the k8s server.
-        """
-        try:
-            url = urljoin(self.url, path)
-            response = self.session.get(url, params=params, **kwargs)
-        except requests.exceptions.ConnectionError as err:
-            # reraise as KubeException, but log stacktrace.
-            message = "There was a problem retrieving data from " \
-                      "the Kubernetes API server. URL: {}, params: {}".format(url, params)
-            logger.error(message)
-            raise KubeException(message) from err
+        """Make a GET request to the k8s server."""
+        return self._request('GET', path, params=params, **kwargs)
 
-        return response
+    def _merge_metadata(self, json_body):
+        """Merge instance metadata into the JSON body (mutates json_body in place)."""
+        if json_body is not None and "metadata" in json_body and self.metadata:
+            json_body["metadata"] = utils.dict_merge(json_body["metadata"], self.metadata)
+        return json_body
 
     def http_post(self, path, json=None, **kwargs):
-        """
-        Make a POST request to the k8s server.
-        """
-        try:
-            url = urljoin(self.url, path)
-            if json is not None and "metadata" in json:
-                json["metadata"] = utils.dict_merge(json["metadata"], self.metadata)
-            response = self.session.post(url, json=json, **kwargs)
-        except requests.exceptions.ConnectionError as err:
-            # reraise as KubeException, but log stacktrace.
-            message = "There was a problem posting data to " \
-                      "the Kubernetes API server. URL: {}, " \
-                      "json: {}".format(url, json)
-            logger.error(message)
-            raise KubeException(message) from err
-
-        return response
+        """Make a POST request to the k8s server."""
+        self._merge_metadata(json)
+        return self._request('POST', path, json=json, **kwargs)
 
     def http_put(self, path, json=None, **kwargs):
-        """
-        Make a PUT request to the k8s server.
-        """
-        try:
-            url = urljoin(self.url, path)
-            if json is not None and "metadata" in json:
-                json["metadata"] = utils.dict_merge(json["metadata"], self.metadata)
-            response = self.session.put(url, json=json, **kwargs)
-        except requests.exceptions.ConnectionError as err:
-            # reraise as KubeException, but log stacktrace.
-            message = "There was a problem putting data to " \
-                      "the Kubernetes API server. URL: {}, " \
-                      "json: {}".format(url, json)
-            logger.error(message)
-            raise KubeException(message) from err
-
-        return response
+        """Make a PUT request to the k8s server."""
+        self._merge_metadata(json)
+        return self._request('PUT', path, json=json, **kwargs)
 
     def http_patch(self, path, json=None, **kwargs):
-        """
-        Make a PATCH request to the k8s server.
-        """
-        try:
-            url = urljoin(self.url, path)
-            # accepted media types include:
-            # application/json-patch+json,
-            # application/merge-patch+json,
-            # application/apply-patch+yaml
-            # self.session.headers["Content-Type"] = "application/json-patch+json"
-            if json is not None and "metadata" in json:
-                json["metadata"] = utils.dict_merge(json["metadata"], self.metadata)
-            response = self.session.patch(url, json=json, **kwargs)
-        except requests.exceptions.ConnectionError as err:
-            # reraise as KubeException, but log stacktrace.
-            message = "There was a problem patching data to " \
-                      "the Kubernetes API server. URL: {}, " \
-                      "json: {}".format(url, json)
-            logger.error(message)
-            raise KubeException(message) from err
-
-        return response
+        """Make a PATCH request to the k8s server."""
+        self._merge_metadata(json)
+        return self._request('PATCH', path, json=json, **kwargs)
 
     def http_delete(self, path, **kwargs):
-        """
-        Make a DELETE request to the k8s server.
-        """
-        try:
-            url = urljoin(self.url, path)
-            response = self.session.delete(url, **kwargs)
-        except requests.exceptions.ConnectionError as err:
-            # reraise as KubeException, but log stacktrace.
-            message = "There was a problem deleting data from " \
-                      "the Kubernetes API server. URL: {}".format(url)
-            logger.error(message)
-            raise KubeException(message) from err
-
-        return response
+        """Make a DELETE request to the k8s server."""
+        return self._request('DELETE', path, **kwargs)
 
     def deploy(self, namespace, name, image, command, args, **kwargs):
-        """Deploy Deployment depending on what's requested"""
-        app_type = kwargs.get('app_type')
-        version = kwargs.get('version')
-        spec_annotations = {}
-
-        # If an RC already exists then stop processing of the deploy
-        try:
-            # construct old school RC name
-            rc_name = '{}-{}-{}'.format(namespace, version, app_type)
-            self.rc.get(namespace, rc_name)
-            self.log(namespace, 'RC {} already exists. Stopping deploy'.format(rc_name))
-            return
-        except KubeHTTPException:
-            # if RC doesn't exist then let the app continue
-            pass
-
-        # create a deployment if missing, otherwise update to trigger a release
-        try:
-            # labels that represent the pod(s)
-            labels = {
-                'app': namespace,
-                'version': version,
-                'type': app_type,
-                'heritage': 'drycc',
-            }
-            # this depends on the deployment object having the latest information
-            deployment = self.deployment.get(namespace, name).json()
-            # a hack to persist the spec annotations on the deployment object to next release
-            # instantiate spec_annotations and set to blank to avoid errors
-            if 'annotations' in deployment['spec']['template']['metadata'].keys():
-                old_spec_annotations = deployment['spec']['template']['metadata']['annotations']
-                spec_annotations = old_spec_annotations
-            if deployment['spec']['template']['metadata']['labels'] == labels:
-                self.log(namespace, 'Deployment {} with release {} already exists. Stopping deploy'.format(name, version))  # noqa
-                return
-        except KubeException:
-            # create the initial deployment object (and the first revision)
-            self.deployment.create(
-                namespace, name, image, command, args, spec_annotations, **kwargs
-            )
-        else:
-            try:
-                # kick off a new revision of the deployment
-                self.deployment.update(
-                    namespace, name, image, command, args, spec_annotations, **kwargs
-                )
-            except KubeException as e:
-                raise KubeException(
-                    'There was a problem while deploying {} of {}-{}. '
-                    "Additional information:\n{}".format(version, namespace, app_type, str(e))
-                ) from e
+        """Deploy Deployment depending on what's requested.
+        Delegates to the Deployment resource."""
+        return self.deployment.deploy_release(namespace, name, image, command, args, **kwargs)
 
     def scale(self, namespace, name, image, command, args, **kwargs):
-        """Scale Deployment"""
-        try:
-            self.deployment.get(namespace, name)
-        except KubeHTTPException as e:
-            if e.response.status_code == 404:
-                # create missing deployment - deleted if it fails
-                try:
-                    spec_annotations = {}
-                    self.deployment.create(
-                        namespace, name, image, command, args, spec_annotations, **kwargs
-                    )
-                except KubeException:
-                    # see if the deployment got created
-                    try:
-                        self.deployment.get(namespace, name)
-                    except KubeHTTPException as e:
-                        if e.response.status_code != 404:
-                            self.deployment.delete(namespace, name)
-
-                    raise
-
-        # let the scale failure bubble up
-        self.deployment.scale(namespace, name, **kwargs)
+        """Scale Deployment.
+        Delegates to the Deployment resource."""
+        return self.deployment.scale_with_fallback(namespace, name, image, command, args, **kwargs)
 
 
 SchedulerClient = KubeHTTPClient

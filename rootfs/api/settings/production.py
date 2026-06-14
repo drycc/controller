@@ -335,8 +335,6 @@ if os.path.exists(DRYCC_NETWORK_USAGE_TEMPLATE_PATH):
 # Django secret key
 SECRET_KEY = os.environ.get('DRYCC_SECRET_KEY', randstr(64))
 
-# Drycc service key
-
 # Drycc cert key
 CERT_KEY_PATH = os.environ.get('DRYCC_CERT_KEY_PATH', '/etc/controller/cert/key')
 if os.path.exists(CERT_KEY_PATH):

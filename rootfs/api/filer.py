@@ -68,7 +68,8 @@ class FilerClient(object):
             k8s_volume.update({"persistentVolumeClaim": {"claimName": self.volume.name}})
         else:
             k8s_volume.update(self.volume.parameters)
-        self.scheduler.job.create(self.app_id, job_name, settings.DRYCC_FILER_IMAGE, **{
+        self.scheduler.job.create(self.app_id, job_name, **{
+            "image": settings.DRYCC_FILER_IMAGE,
             "command": ["init-stack", "/usr/bin/pingguard"],
             "args": [
                 f"--bind=:{self.ports[0]}", f"--interval={settings.DRYCC_FILER_DURATION}s",

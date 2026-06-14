@@ -32,7 +32,11 @@ class Deployment(Resource):
 
         return response
 
-    def manifest(self, namespace, name, image, command, args, spec_annotations, **kwargs):
+    def manifest(self, namespace, name, **kwargs):
+        image = kwargs.get('image')
+        command = kwargs.get('command')
+        args = kwargs.get('args')
+        spec_annotations = kwargs.get('spec_annotations', {})
         app_type = kwargs.get('app_type')
         replicas = kwargs.get('replicas', 0)
         batches = kwargs.get('deploy_batches', None)
@@ -60,51 +64,32 @@ class Deployment(Resource):
             }
         }
 
-        # Add in Rollback (if asked for)
-        rollback = kwargs.get('rollback', False)
-        if rollback:
-            # http://kubernetes.io/docs/user-guide/deployments/#rollback-to
-            if rollback is True:
-                # rollback to the latest known working revision
-                revision = 0
-            elif isinstance(rollback, int) or isinstance(rollback, str):
-                # rollback to a particular revision
-                revision = rollback
-
-            # This gets cleared from the template after a rollback is done
-            manifest['spec']['rollbackTo'] = {'revision': str(revision)}
-
         # Add deployment strategy
-        # see if application or global deploy batches are defined
         maxSurge = self._get_deploy_steps(batches, tags)
-        # if replicas are higher than maxSurge then the old deployment is never scaled down
-        # maxSurge can't be 0 when maxUnavailable is 0 and the other way around
         if replicas > 0 and replicas < maxSurge:
             maxSurge = replicas
 
-        # http://kubernetes.io/docs/user-guide/deployments/#strategy
         manifest['spec']['strategy'] = {
             'rollingUpdate': {
                 'maxSurge': maxSurge,
-                # This is never updated
                 'maxUnavailable': 0
             },
-            # RollingUpdate or Recreate
             'type': 'RollingUpdate',
         }
 
-        # Add in how many deployment revisions to keep
         if kwargs.get('deployment_revision_history_limit', None) is not None:
-            manifest['spec']['revisionHistoryLimit'] = int(kwargs.get('deployment_revision_history_limit'))  # noqa
+            manifest['spec']['revisionHistoryLimit'] = int(
+                kwargs.get('deployment_revision_history_limit')
+            )
 
-        # tell pod how to execute the process
-        kwargs['command'] = command
-        kwargs['args'] = args
+        # pass image/command/args to pod manifest
+        pod_image = kwargs.get('image', image)
+        pod_kwargs = {k: v for k, v in kwargs.items() if k not in ('image', 'command', 'args')}
+        pod_kwargs['command'] = kwargs.get('command', command)
+        pod_kwargs['args'] = kwargs.get('args', args)
 
-        # pod manifest spec
-        manifest['spec']['template'] = self.pod.manifest(namespace, name, image, **kwargs)
+        manifest['spec']['template'] = self.pod.manifest(namespace, name, pod_image, **pod_kwargs)
 
-        # set the old deployment spec annotations on this deployment
         manifest['spec']['template']['metadata']['annotations'] = spec_annotations
         manifest['spec']['template']['spec']['automountServiceAccountToken'] = False
         if annotations:
@@ -114,17 +99,15 @@ class Deployment(Resource):
 
         return manifest
 
-    def create(self, namespace, name, image, command, args,
-               spec_annotations, ignore_exception=False, **kwargs):
-        manifest = self.manifest(namespace, name, image,
-                                 command, args, spec_annotations, **kwargs)
+    def create(self, namespace, name, **kwargs):
+        manifest = self.manifest(namespace, name, **kwargs)
 
         url = self.api("/namespaces/{}/deployments", namespace)
         response = self.http_post(url, json=manifest)
         if self.unhealthy(response.status_code):
             self.log(
                 namespace, 'template: {}'.format(json.dumps(manifest, indent=4)), logging.DEBUG)
-            if not ignore_exception:
+            if not kwargs.get('ignore_exception', False):
                 raise KubeHTTPException(
                     response,
                     'create Deployment "{}" in Namespace "{}"', name, namespace
@@ -134,27 +117,23 @@ class Deployment(Resource):
             self.wait_until_ready(namespace, name, **kwargs)
         return response
 
-    def update(self, namespace, name, image, command, args,
-               spec_annotations, ignore_exception=False, **kwargs):
-        manifest = self.manifest(namespace, name, image,
-                                 command, args, spec_annotations, **kwargs)
+    def update(self, namespace, name, **kwargs):
+        manifest = self.manifest(namespace, name, **kwargs)
 
         url = self.api("/namespaces/{}/deployments/{}", namespace, name)
         response = self.http_put(url, json=manifest)
         if self.unhealthy(response.status_code):
             self.log(
                 namespace, 'template: {}'.format(json.dumps(manifest, indent=4)), logging.DEBUG)
-            if not ignore_exception:
+            if not kwargs.get('ignore_exception', False):
                 raise KubeHTTPException(response, 'update Deployment "{}"', name)
         else:
             self.wait_until_updated(namespace, name)
             self.wait_until_ready(namespace, name, **kwargs)
         return response
 
-    def patch(self, namespace, name, image, command, args,
-              spec_annotations, ignore_exception=False, **kwargs):
-        manifest = self.manifest(namespace, name, image,
-                                 command, args, spec_annotations, **kwargs)
+    def patch(self, namespace, name, **kwargs):
+        manifest = self.manifest(namespace, name, **kwargs)
 
         url = self.api("/namespaces/{}/deployments/{}", namespace, name)
         response = self.http_patch(
@@ -166,17 +145,17 @@ class Deployment(Resource):
         if self.unhealthy(response.status_code):
             self.log(
                 namespace, 'template: {}'.format(json.dumps(manifest, indent=4)), logging.DEBUG)
-            if not ignore_exception:
+            if not kwargs.get('ignore_exception', False):
                 raise KubeHTTPException(response, 'patch Deployment "{}"', name)
         else:
             self.wait_until_updated(namespace, name)
             self.wait_until_ready(namespace, name, **kwargs)
         return response
 
-    def delete(self, namespace, name, ignore_exception=False):
+    def delete(self, namespace, name, **kwargs):
         url = self.api("/namespaces/{}/deployments/{}", namespace, name)
         response = self.http_delete(url)
-        if not ignore_exception and self.unhealthy(response.status_code):
+        if not kwargs.get('ignore_exception', False) and self.unhealthy(response.status_code):
             raise KubeHTTPException(
                 response,
                 'delete Deployment "{}" in Namespace "{}"', name, namespace
@@ -490,3 +469,66 @@ class Deployment(Resource):
                 batches.append(desired - sum(batches))
 
         return batches
+
+    def deploy_release(self, namespace, name, image, command, args, **kwargs):
+        """Deploy or update a Deployment, handling create/update logic."""
+        app_type = kwargs.get('app_type')
+        version = kwargs.get('version')
+        spec_annotations = kwargs.get('spec_annotations', {})
+
+        try:
+            rc_name = '{}-{}-{}'.format(namespace, version, app_type)
+            self.rc.get(namespace, rc_name)
+            self.log(namespace, 'RC {} already exists. Stopping deploy'.format(rc_name))
+            return
+        except KubeHTTPException:
+            pass
+
+        try:
+            labels = {
+                'app': namespace,
+                'version': version,
+                'type': app_type,
+                'heritage': 'drycc',
+            }
+            deployment = self.get(namespace, name).json()
+            if 'annotations' in deployment['spec']['template']['metadata']:
+                spec_annotations = deployment['spec']['template']['metadata']['annotations']
+            if deployment['spec']['template']['metadata']['labels'] == labels:
+                self.log(namespace, 'Deployment {} with release {} '
+                         'already exists. Stopping deploy'.format(name, version))
+                return
+        except KubeException:
+            self.create(namespace, name, image=image, command=command, args=args,
+                        spec_annotations=spec_annotations, **kwargs)
+        else:
+            try:
+                self.update(namespace, name, image=image, command=command, args=args,
+                            spec_annotations=spec_annotations, **kwargs)
+            except KubeException as e:
+                raise KubeException(
+                    'There was a problem while deploying {} of {}-{}. '
+                    "Additional information:\n{}".format(version, namespace, app_type, str(e))
+                ) from e
+
+    def scale_with_fallback(self, namespace, name, image, command, args, **kwargs):
+        """Scale a Deployment, creating it if it doesn't exist."""
+        try:
+            self.get(namespace, name)
+        except KubeHTTPException as e:
+            if e.response.status_code == 404:
+                try:
+                    spec_annotations = kwargs.get('spec_annotations', {})
+                    self.create(namespace, name, image=image, command=command, args=args,
+                                spec_annotations=spec_annotations, **kwargs)
+                except KubeException:
+                    try:
+                        self.get(namespace, name)
+                    except KubeHTTPException as e:
+                        if e.response.status_code != 404:
+                            self.delete(namespace, name)
+                    raise
+            else:
+                raise
+
+        self.scale(namespace, name, **kwargs)

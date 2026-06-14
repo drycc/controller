@@ -65,19 +65,23 @@ class Service(Resource):
 
         return response
 
-    def patch(self, namespace, name, ignore_exception=False, **kwargs):
+    def patch(self, namespace, name, **kwargs):
         url = self.api("/namespaces/{}/services/{}", namespace, name)
-        data = self.manifest(namespace, name, **kwargs)
+        if 'data' in kwargs:
+            data = kwargs['data']
+        else:
+            data = self.manifest(namespace, name, **kwargs)
         response = self.http_patch(
             url,
             json=data,
             headers={"Content-Type": "application/merge-patch+json"}
         )
-        if not ignore_exception and self.unhealthy(response.status_code):
+        if not kwargs.get('ignore_exception', False) and self.unhealthy(response.status_code):
             raise KubeHTTPException(response, "patch svc {}".format(namespace))
         return response
 
-    def update(self, namespace, name, data):
+    def update(self, namespace, name, **kwargs):
+        data = kwargs.get('data')
         url = self.api("/namespaces/{}/services/{}", namespace, name)
         response = self.http_put(url, json=data)
         if self.unhealthy(response.status_code):
@@ -88,10 +92,10 @@ class Service(Resource):
 
         return response
 
-    def delete(self, namespace, name, ignore_exception=False):
+    def delete(self, namespace, name, **kwargs):
         url = self.api("/namespaces/{}/services/{}", namespace, name)
         response = self.http_delete(url)
-        if not ignore_exception and self.unhealthy(response.status_code):
+        if not kwargs.get('ignore_exception', False) and self.unhealthy(response.status_code):
             raise KubeHTTPException(
                 response,
                 'delete Service "{}" in Namespace "{}"', name, namespace

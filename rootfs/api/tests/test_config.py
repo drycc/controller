@@ -580,7 +580,7 @@ class ConfigTest(DryccTransactionTestCase):
         url = '/v2/apps/{}/config'.format('fake')
         response = self.client.get(url)
         self.assertEqual(response.status_code, 404)
-        self.assertEqual(response.data, 'No App matches the given query.')
+        self.assertEqual(response.data['error']['message'], 'No App matches the given query.')
 
     def test_config_failures(self, mock_requests):
         app_id = self.create_app()

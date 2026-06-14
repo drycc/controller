@@ -693,14 +693,14 @@ class AppTest(DryccTestCase):
         app = App.objects.create(workspace=Workspace.objects.get(id=self.workspace_id))
         # Make sure an exception is raised when calling without a build available
         with self.assertRaises(DryccException):
-            app._build_env_vars(app.release_set.latest(), PTYPE_WEB)
+            app.build_env_vars(app.release_set.latest(), PTYPE_WEB)
         data = {'image': 'autotest/example', 'stack': 'heroku-18'}
         url = f"/v2/apps/{app.id}/build"
         response = self.client.post(url, data)
         self.assertEqual(response.status_code, 201, response.data)
         time_created = app.release_set.latest().created
         self.assertEqual(
-            app._build_env_vars(app.release_set.latest(), PTYPE_WEB),
+            app.build_env_vars(app.release_set.latest(), PTYPE_WEB),
             {
                 'DRYCC_APP': app.id,
                 'DRYCC_WORKSPACE': app.workspace_id,
@@ -716,7 +716,7 @@ class AppTest(DryccTestCase):
         self.assertEqual(response.status_code, 201, response.data)
         time_created = app.release_set.latest().created
         self.assertEqual(
-            app._build_env_vars(app.release_set.latest(), PTYPE_WEB),
+            app.build_env_vars(app.release_set.latest(), PTYPE_WEB),
             {
                 'DRYCC_APP': app.id,
                 'DRYCC_WORKSPACE': app.workspace_id,
@@ -750,10 +750,12 @@ class AppTest(DryccTestCase):
         response = self.client.post(url, body)
         self.assertEqual(response.status_code, 201, response.data)
         # Gather app settings
-        s = app._gather_app_settings(app.release_set.latest(),
-                                     app.appsettings_set.latest(),
-                                     'web',
-                                     3)
+        s = app.gather_app_settings(
+            app.release_set.latest(),
+            app.appsettings_set.latest(),
+            'web',
+            3,
+        )
         self.assertEqual(s['deploy_batches'], 3)
         self.assertEqual(s['deploy_timeout'], 60)
         self.assertEqual(s['termination_grace_period_seconds'], 90)

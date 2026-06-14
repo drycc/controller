@@ -26,7 +26,7 @@ class PersistentVolumeClaim(Resource):
             data["metadata"]["resourceVersion"] = version
         return data
 
-    def get(self, namespace, name=None):
+    def get(self, namespace, name=None, **kwargs):
         """
         Fetch a single persistentvolumeclaim or a list of persistentvolumeclaim
         """
@@ -37,7 +37,7 @@ class PersistentVolumeClaim(Resource):
         else:
             url = self.api('/namespaces/{}/persistentvolumeclaims', namespace)
             message = 'get persistentvolumeclaims'
-        response = self.http_get(url)
+        response = self.http_get(url, params=self.query_params(**kwargs))
         if self.unhealthy(response.status_code):
             raise KubeHTTPException(response, message)
         return response
@@ -49,7 +49,7 @@ class PersistentVolumeClaim(Resource):
         url = self.api('/namespaces/{}/persistentvolumeclaims', namespace)
         data = self.manifest(namespace, name, **kwargs)
         response = self.http_post(url, json=data)
-        if not response.status_code == 201:
+        if self.unhealthy(response.status_code):
             raise KubeHTTPException(
                 response,
                 "create persistentvolumeclaim {}".format(namespace))
@@ -59,20 +59,24 @@ class PersistentVolumeClaim(Resource):
         url = self.api('/namespaces/{}/persistentvolumeclaims/{}', namespace,
                        name)
         data = self.manifest(namespace, name, **kwargs)
-        response = self.http_patch(url, json=data, headers={"Content-Type": "application/merge-patch+json"})  # noqa
+        response = self.http_patch(
+            url, json=data,
+            headers={"Content-Type": "application/merge-patch+json"}
+        )
         if self.unhealthy(response.status_code):
-            self.log(namespace, 'template used: {}'.format(json.dumps(data, indent=4)), logging.DEBUG)  # noqa
+            self.log(namespace, 'template used: {}'.format(
+                json.dumps(data, indent=4)), logging.DEBUG)
             raise KubeHTTPException(response, 'update persistentvolumeclaims "{}"', name)
         return response
 
-    def delete(self, namespace, name):
+    def delete(self, namespace, name, **kwargs):
         """
         Delete persistentvolumeclaim
         """
         url = self.api('/namespaces/{}/persistentvolumeclaims/{}', namespace,
                        name)
         response = self.http_delete(url)
-        if self.unhealthy(response.status_code):
+        if not kwargs.get('ignore_exception', False) and self.unhealthy(response.status_code):
             raise KubeHTTPException(response,
                                     'delete persistentvolumeclaim ' + name)
         return response

@@ -6,6 +6,30 @@ from rest_framework.response import Response
 from rest_framework.views import set_rollback, exception_handler
 
 
+def error_response(code: str, message: str, details=None, status_code: int = 400) -> Response:
+    """
+    Create a standardized error response.
+
+    Format:
+    {
+        "error": {
+            "code": "ERROR_CODE",
+            "message": "Human readable message",
+            "details": {}  // optional
+        }
+    }
+    """
+    error_body = {
+        "error": {
+            "code": code,
+            "message": message,
+        }
+    }
+    if details is not None:
+        error_body["error"]["details"] = details
+    return Response(error_body, status=status_code)
+
+
 class HealthcheckException(APIException):
     """Exception class used for when the application's health check fails"""
     pass
@@ -36,15 +60,22 @@ def custom_exception_handler(exc, context):
     # give more context on the error since DRF masks it as Not Found
     if isinstance(exc, Http404):
         set_rollback()
-        return Response(str(exc), status=status.HTTP_404_NOT_FOUND)
+        return error_response('NOT_FOUND', str(exc), status_code=status.HTTP_404_NOT_FOUND)
     # Convert Django ValidationError to DRF 400 response
     if isinstance(exc, ValidationError):
         set_rollback()
         if hasattr(exc, 'message_dict'):
-            return Response(exc.message_dict, status=status.HTTP_400_BAD_REQUEST)
+            return error_response(
+                'VALIDATION_ERROR', 'Validation failed',
+                exc.message_dict, status.HTTP_400_BAD_REQUEST)
         elif hasattr(exc, 'messages'):
-            return Response({'non_field_errors': exc.messages}, status=status.HTTP_400_BAD_REQUEST)
-        return Response({'non_field_errors': [str(exc)]}, status=status.HTTP_400_BAD_REQUEST)
+            return error_response(
+                'VALIDATION_ERROR', 'Validation failed',
+                {'non_field_errors': exc.messages},
+                status.HTTP_400_BAD_REQUEST)
+        return error_response(
+            'VALIDATION_ERROR', str(exc),
+            status_code=status.HTTP_400_BAD_REQUEST)
     # Call REST framework's default exception handler after specific 404 handling,
     # to get the standard error response.
     response = exception_handler(exc, context)
@@ -52,8 +83,10 @@ def custom_exception_handler(exc, context):
     if response is None:
         logging.exception('Uncaught Exception', exc_info=exc)
         set_rollback()
-        return Response({'detail': 'Server Error'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        return error_response(
+            'INTERNAL_ERROR', 'An internal error occurred',
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR)
     # log a few different types of exception instead of using APIException
     if isinstance(exc, (DryccException, ServiceUnavailable, HealthcheckException)):
-        logging.exception(exc.__cause__, exc_info=exc)
+        logging.exception(str(exc), exc_info=True)
     return response

@@ -29,7 +29,8 @@ class ReplicationController(Resource):
 
         return response
 
-    def create(self, namespace, name, image, command, args, **kwargs):
+    def create(self, namespace, name, **kwargs):
+        image = kwargs.get('image')
         manifest = {
             'kind': 'ReplicationController',
             'apiVersion': self.api_version,
@@ -47,12 +48,11 @@ class ReplicationController(Resource):
             }
         }
 
-        # tell pod how to execute the process
-        kwargs['command'] = command
-        kwargs['args'] = args
+        pod_kwargs = {k: v for k, v in kwargs.items() if k not in ('image', 'command', 'args')}
+        pod_kwargs['command'] = kwargs.get('command')
+        pod_kwargs['args'] = kwargs.get('args')
 
-        # pod manifest spec
-        manifest['spec']['template'] = self.pod.manifest(namespace, name, image, **kwargs)
+        manifest['spec']['template'] = self.pod.manifest(namespace, name, image, **pod_kwargs)
 
         url = self.api("/namespaces/{}/replicationcontrollers", namespace)
         resp = self.http_post(url, json=manifest)
@@ -68,7 +68,8 @@ class ReplicationController(Resource):
 
         return resp
 
-    def update(self, namespace, name, data):
+    def update(self, namespace, name, **kwargs):
+        data = kwargs.get('data')
         url = self.api("/namespaces/{}/replicationcontrollers/{}", namespace, name)
         response = self.http_put(url, json=data)
         if self.unhealthy(response.status_code):
@@ -76,10 +77,10 @@ class ReplicationController(Resource):
 
         return response
 
-    def delete(self, namespace, name):
+    def delete(self, namespace, name, **kwargs):
         url = self.api("/namespaces/{}/replicationcontrollers/{}", namespace, name)
         response = self.http_delete(url)
-        if self.unhealthy(response.status_code):
+        if not kwargs.get('ignore_exception', False) and self.unhealthy(response.status_code):
             raise KubeHTTPException(
                 response,
                 'delete ReplicationController "{}" in Namespace "{}"', name, namespace

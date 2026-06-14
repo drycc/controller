@@ -25,7 +25,7 @@ class PersistentVolume(Resource):
             data["metadata"]["resourceVersion"] = version
         return data
 
-    def get(self, name=None):
+    def get(self, name=None, **kwargs):
         """
         Fetch a single persistentvolume or a list of persistentvolumes
         """
@@ -35,7 +35,7 @@ class PersistentVolume(Resource):
         else:
             url = self.api('/persistentvolumes')
             message = 'get persistentvolumes'
-        response = self.http_get(url)
+        response = self.http_get(url, params=self.query_params(**kwargs))
         if self.unhealthy(response.status_code):
             raise KubeHTTPException(response, message)
         return response
@@ -47,7 +47,7 @@ class PersistentVolume(Resource):
         url = self.api('/persistentvolumes')
         data = self.manifest(name, **kwargs)
         response = self.http_post(url, json=data)
-        if not response.status_code == 201:
+        if self.unhealthy(response.status_code):
             raise KubeHTTPException(
                 response,
                 "create persistentvolume"
@@ -57,19 +57,22 @@ class PersistentVolume(Resource):
     def patch(self, name, **kwargs):
         url = self.api('/persistentvolumes/{}', name)
         data = self.manifest(name, **kwargs)
-        response = self.http_patch(url, json=data, headers={"Content-Type": "application/merge-patch+json"})  # noqa
+        response = self.http_patch(
+            url, json=data,
+            headers={"Content-Type": "application/merge-patch+json"}
+        )
         if self.unhealthy(response.status_code):
             self.log('template used: {}'.format(json.dumps(data, indent=4)), logging.DEBUG)
             raise KubeHTTPException(response, 'update persistentvolume "{}"', name)
         return response
 
-    def delete(self, name):
+    def delete(self, name, **kwargs):
         """
         Delete persistentvolume
         """
         url = self.api('/persistentvolumes/{}', name)
         response = self.http_delete(url)
-        if self.unhealthy(response.status_code):
+        if not kwargs.get('ignore_exception', False) and self.unhealthy(response.status_code):
             raise KubeHTTPException(response,
                                     'delete persistentvolume ' + name)
         return response
