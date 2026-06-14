@@ -1,4 +1,5 @@
 import copy
+from collections import OrderedDict
 from datetime import datetime, timedelta, timezone
 import json
 import random
@@ -1089,10 +1090,73 @@ def session():
 
 class MockSchedulerClient(KubeHTTPClient):
     def __init__(self, url, k8s_api_verify_tls=True, metadata=None):
-        super().__init__(url, k8s_api_verify_tls, metadata)
+        self.url = url
+        self.k8s_api_verify_tls = k8s_api_verify_tls
+        self._session = session()
+        self.metadata = {} if metadata is None else metadata
+
+        from scheduler.resources import Resource
+        KubeHTTPClient.resource_mapping = OrderedDict()
+        for res in Resource:
+            name = str(res.__name__).lower()
+            component = name + 's'
+            if component in self.resource_mapping:
+                continue
+            self.resource_mapping[component] = ''
+            resource_instance = res(self)
+            self.resource_mapping[component] = resource_instance
+            self.resource_mapping[name] = component
+            if res.short_name is not None:
+                self.resource_mapping[str(res.short_name).lower()] = component
+
+        # Final injection pass for any resources
+        self._inject_session_to_resources()
 
         # set version data
         cache.set('version', {'major': '1', 'minor': '3'}, None)
+
+        # Pre-seed data that is assumed to otherwise be there
+        try:
+            self.ns.get('drycc')
+        except KubeHTTPException:
+            self.ns.create('drycc')
+
+        try:
+            self.secret.get('drycc', 'objectstorage-keyfile')
+        except KubeHTTPException:
+            secrets = {
+                'access-key-id': 'i am a key',
+                'access-secret-key': 'i am a secret'
+            }
+            self.secret.create('drycc', 'objectstorage-keyfile', secrets)
+
+        try:
+            self.secret.get('drycc', 'controller-creds')
+        except KubeHTTPException:
+            secrets = {
+                'registry-host': '',
+                'registry-username': 'test',
+                'registry-password': 'test',
+            }
+            self.secret.create('drycc', 'controller-creds', secrets)
+
+        try:
+            self.ns.get('duplicate')
+        except KubeHTTPException:
+            self.ns.create('duplicate')
+        # node
+        self._setup_node()
+        # daemonset
+        self._setup_daemonset()
+        # statefulset
+        self._setup_statefulset()
+
+    def _inject_session_to_resources(self):
+        """Inject _session into every Resource instance in resource_mapping."""
+        from scheduler.resources import Resource
+        for key, value in list(self.resource_mapping.items()):
+            if isinstance(value, Resource) and getattr(value, '_session', None) is None:
+                object.__setattr__(value, '_session', self._session)
 
         # Pre-seed data that is assumed to otherwise be there
         try:
@@ -1349,7 +1413,6 @@ class MockSchedulerClient(KubeHTTPClient):
         cache.set('apis_apps_v1_namespaces_drycc_statefulsets', [name], None)
 
 
-scheduler.session = session()
 SchedulerClient = MockSchedulerClient
 
 

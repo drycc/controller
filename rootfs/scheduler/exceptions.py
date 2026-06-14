@@ -8,7 +8,9 @@ class KubeHTTPException(KubeException):
         self.response = response
 
         data = response.json()
-        message = data['message'] if 'message' in data else ''
+        message = ''
+        if isinstance(data, dict):
+            message = data.get('message', '')
 
         msg = errmsg.format(*args)
         msg = 'failed to {}: {} {} {}'.format(

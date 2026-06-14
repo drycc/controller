@@ -83,7 +83,7 @@ class ServicesTest(TestCase):
             KubeHTTPException,
             msg='failed to update Service foo in Namespace {}: 404 Not Found'.format(self.namespace)  # noqa
         ):
-            self.scheduler.svc.patch(self.namespace, 'foo', {})
+            self.scheduler.svc.patch(self.namespace, 'foo', data={})
 
     def test_patch(self):
         name = self.create()

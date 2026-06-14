@@ -68,7 +68,7 @@ class ReplicationControllersTest(TestCase):
             KubeHTTPException,
             msg='failed to update ReplicationController foo in Namespace {}: 404 Not Found'.format(self.namespace)  # noqa
         ):
-            self.scheduler.rc.update(self.namespace, 'foo', {})
+            self.scheduler.rc.update(self.namespace, 'foo', data={})
 
     def test_update(self):
         # test success
@@ -77,7 +77,7 @@ class ReplicationControllersTest(TestCase):
         self.assertEqual(rc['spec']['replicas'], 4, rc)
 
         rc['spec']['replicas'] = 2
-        response = self.scheduler.rc.update(self.namespace, name, rc)
+        response = self.scheduler.rc.update(self.namespace, name, data=rc)
         self.assertEqual(response.status_code, 200, response.json())
 
         rc = self.scheduler.rc.get(self.namespace, name).json()

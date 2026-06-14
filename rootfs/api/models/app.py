@@ -346,7 +346,7 @@ class App(UuidAuditedModel):
                     name = resource['metadata']['name']
                     ptype = resource['metadata'].get("labels", {}).get("type")
                     if (ptype and ptype not in self.structure):
-                        api.delete(self.id, name, True)
+                        api.delete(self.id, name, ignore_exception=True)
         self.log(f"cleanup old kubernetes resources for {self.id}")
 
     def run(self, user, image=None, command=None, args=None, volumes=None,
@@ -381,7 +381,7 @@ class App(UuidAuditedModel):
         try:
             # create application config and build the pod manifest
             self.set_application_config(release, PTYPE_RUN)
-            self.scheduler.job.create(self.id, name, image, command, args, **kwargs)
+            self.scheduler.job.create(self.id, name, image=image, command=command, args=args, **kwargs)
         except Exception as e:
             err = '{} ({}): {}'.format(name, PTYPE_RUN, e)
             raise ServiceUnavailable(err) from e
@@ -594,12 +594,12 @@ class App(UuidAuditedModel):
                 self.scheduler.hpa.delete(self.id, name)
             else:
                 self.scheduler.hpa.update(
-                    self.id, name, proc_type, target, **autoscale
+                    self.id, name, app_type=proc_type, target=target, **autoscale
                 )
         except KubeHTTPException as e:
             if e.response.status_code == 404:
                 self.scheduler.hpa.create(
-                    self.id, name, proc_type, target, **autoscale
+                    self.id, name, app_type=proc_type, target=target, **autoscale
                 )
             else:
                 # let the user know about any other errors

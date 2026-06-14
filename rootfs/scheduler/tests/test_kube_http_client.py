@@ -13,15 +13,6 @@ from django.test import TestCase
 import scheduler
 
 
-def mock_session_for_version(blah=None):
-    return requests.Session()
-
-
-def connection_refused_matcher(request):
-    raise requests.ConnectionError("connection refused")
-
-
-@mock.patch('scheduler.get_k8s_session', mock_session_for_version)
 class KubeHTTPClientTest(TestCase):
     """Tests kubernetes HTTP client version calls"""
 
@@ -30,8 +21,14 @@ class KubeHTTPClientTest(TestCase):
         self.url = 'http://versiontest.example.com'
         self.path = '/version'
 
-        # use the real scheduler client.
-        self.scheduler = scheduler.KubeHTTPClient(self.url)
+        # Create a mock session that doesn't need k8s service account token
+        mock_sess = requests.Session()
+
+        # use the real scheduler client but with a mock session
+        with mock.patch('scheduler._create_k8s_session', return_value=mock_sess):
+            self.scheduler = scheduler.KubeHTTPClient(self.url)
+
+        self.scheduler._session = mock_sess
         self.scheduler.session.mount(self.url, self.adapter)
 
     def test_version_for_gke(self):

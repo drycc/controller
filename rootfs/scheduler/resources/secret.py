@@ -44,10 +44,12 @@ class Secret(Resource):
 
         return response
 
-    def manifest(self, namespace, name, data, secret_type='Opaque', labels={}):
+    def manifest(self, namespace, name, data, **kwargs):
+        secret_type = kwargs.get('secret_type', 'Opaque')
+        labels = kwargs.get('labels', {})
         secret_types = ['Opaque', 'kubernetes.io/dockerconfigjson']
         if secret_type not in secret_types:
-            raise KubeException('{} is not a supported secret type. Use one of the following: '.format(secret_type, ', '.join(secret_types)))  # noqa
+            raise KubeException('{} is not a supported secret type. Use one of the following: '.format(secret_type, ', '.join(secret_types)))
 
         manifest = {
             'kind': 'Secret',
@@ -64,7 +66,6 @@ class Secret(Resource):
             'data': {}
         }
 
-        # add in any additional label info
         manifest['metadata']['labels'].update(labels)
 
         for key, value in data.items():
@@ -78,8 +79,8 @@ class Secret(Resource):
 
         return manifest
 
-    def create(self, namespace, name, data, secret_type='Opaque', labels={}):
-        manifest = self.manifest(namespace, name, data, secret_type, labels)
+    def create(self, namespace, name, data, **kwargs):
+        manifest = self.manifest(namespace, name, data, **kwargs)
         url = self.api("/namespaces/{}/secrets", namespace)
         response = self.http_post(url, json=manifest)
         if self.unhealthy(response.status_code):
@@ -90,8 +91,8 @@ class Secret(Resource):
 
         return response
 
-    def patch(self, namespace, name, data, secret_type='Opaque', labels={}):
-        manifest = self.manifest(namespace, name, data, secret_type, labels)
+    def patch(self, namespace, name, data, **kwargs):
+        manifest = self.manifest(namespace, name, data, **kwargs)
         url = self.api("/namespaces/{}/secrets/{}", namespace, name)
         response = self.http_patch(url, json=manifest, headers={
                                    "Content-Type": "application/merge-patch+json"})
@@ -104,8 +105,8 @@ class Secret(Resource):
 
         return response
 
-    def update(self, namespace, name, data, secret_type='Opaque', labels={}):
-        manifest = self.manifest(namespace, name, data, secret_type, labels)
+    def update(self, namespace, name, data, **kwargs):
+        manifest = self.manifest(namespace, name, data, **kwargs)
         url = self.api("/namespaces/{}/secrets/{}", namespace, name)
         response = self.http_put(url, json=manifest)
         if self.unhealthy(response.status_code):
@@ -117,10 +118,10 @@ class Secret(Resource):
 
         return response
 
-    def delete(self, namespace, name, ignore_exception=False):
+    def delete(self, namespace, name, **kwargs):
         url = self.api("/namespaces/{}/secrets/{}", namespace, name)
         response = self.http_delete(url)
-        if not ignore_exception and self.unhealthy(response.status_code):
+        if not kwargs.get('ignore_exception', False) and self.unhealthy(response.status_code):
             raise KubeHTTPException(
                 response,
                 'delete Secret "{}" in Namespace "{}"', name, namespace

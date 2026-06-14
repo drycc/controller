@@ -48,10 +48,10 @@ class Namespace(Resource):
 
         return response
 
-    def delete(self, namespace):
+    def delete(self, namespace, **kwargs):
         url = self.api("/namespaces/{}", namespace)
         response = self.http_delete(url)
-        if self.unhealthy(response.status_code):
+        if not kwargs.get('ignore_exception', False) and self.unhealthy(response.status_code):
             raise KubeHTTPException(response, 'delete Namespace "{}"', namespace)
 
         return response
