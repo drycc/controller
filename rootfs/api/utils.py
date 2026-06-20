@@ -32,6 +32,15 @@ from rest_framework.exceptions import ValidationError
 logger = logging.getLogger(__name__)
 
 
+def jsonpath(data, path, default=None):
+    current = data
+    for key in path.split('.'):
+        if not isinstance(current, dict) or key not in current:
+            return default
+        current = current[key]
+    return current
+
+
 def get_httpclient():
     session = requests.Session()
     session.headers = {

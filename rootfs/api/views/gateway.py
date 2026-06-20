@@ -20,13 +20,6 @@ class GatewayViewSet(AppFilterViewSet):
     def get_object(self):
         return get_object_or_404(self.get_app().gateway_set, name=self.kwargs["name"])
 
-    def create(self, request, **kwargs):
-        serializer = self.get_serializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-        gateway = serializer.save(app=self.get_app())
-        gateway.save()
-        return Response(self.get_serializer(gateway).data, status=status.HTTP_201_CREATED)
-
     def upsert(self, request, **kwargs):
         name = kwargs["name"]
         gateway = self.get_app().gateway_set.filter(name=name).first()
@@ -51,13 +44,6 @@ class RouteViewSet(AppFilterViewSet):
 
     def get_object(self):
         return get_object_or_404(self.get_app().route_set, name=self.kwargs["name"])
-
-    def create(self, request, **kwargs):
-        serializer = self.get_serializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-        route = serializer.save(app=self.get_app())
-        route.save()
-        return Response(self.get_serializer(route).data, status=status.HTTP_201_CREATED)
 
     @transaction.atomic
     def upsert(self, request, **kwargs):

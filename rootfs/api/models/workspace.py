@@ -49,6 +49,10 @@ class Workspace(UuidAuditedModel):
             self.uid = get_next_uid(Workspace)
         super().save(*args, **kwargs)
 
+    @property
+    def namespace(self):
+        return f"{settings.WORKSPACE_NAMESPACE_PREFIX}{self.id}"
+
     def __str__(self):
         return self.id
 
