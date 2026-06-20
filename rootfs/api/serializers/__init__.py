@@ -841,3 +841,37 @@ class WorkspaceInvitationSerializer(serializers.ModelSerializer):
         model = models.workspace.WorkspaceInvitation
         fields = '__all__'
         read_only_fields = ['id', 'token', 'created']
+
+
+class AddonClassSerializer(serializers.BaseSerializer):
+    """Serialize AddonClass data from Kubernetes CRD."""
+
+    name = serializers.CharField(required=False)
+    description = serializers.CharField(required=False)
+    kind = serializers.CharField(required=False)
+    storage_model = serializers.CharField(required=False)
+    plans = serializers.ListField(required=False)
+
+    def to_representation(self, instance):
+        spec = instance.get('spec', {})
+        target_resource = spec.get('targetResource', {})
+        return {
+            'name': instance.get('metadata', {}).get('name', ''),
+            'description': spec.get('description', ''),
+            'kind': target_resource.get('kind', ''),
+            'storage_model': spec.get('storageModel', ''),
+            'plans': spec.get('plans', []),
+        }
+
+
+class AddonInstanceSerializer(serializers.ModelSerializer):
+    """Serialize AddonInstance model."""
+    app = serializers.ReadOnlyField(source='app.id')
+    name = serializers.CharField(max_length=63, required=False)
+    kind = serializers.CharField(max_length=63, required=False)
+
+    class Meta:
+        model = models.addon.AddonInstance
+        fields = ['uuid', 'name', 'app', 'plan', 'kind',
+                  'multiplier', 'parameters', 'created', 'updated']
+        read_only_fields = ['uuid', 'multiplier', 'created', 'updated']

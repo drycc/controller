@@ -270,6 +270,8 @@ else:
 # the k8s namespace in which the controller and workflow were installed.
 WORKFLOW_NAMESPACE = os.environ.get('WORKFLOW_NAMESPACE', 'drycc')
 
+WORKSPACE_NAMESPACE_PREFIX = os.environ.get('WORKSPACE_NAMESPACE_PREFIX', 'drycc-workspace-')
+
 # default scheduler settings
 SCHEDULER_MODULE = 'scheduler'
 SCHEDULER_URL = "https://{}:{}".format(

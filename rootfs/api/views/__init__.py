@@ -31,6 +31,7 @@ from api.views.settings import (
 )
 from api.views.limit import LimitSpecViewSet, LimitPlanViewSet
 from api.views.key import KeyViewSet
+from api.views.addon import AddonClassViewSet, AddonInstanceViewSet, AddonConnectionViewSet
 from api.views.volume import AppVolumesViewSet
 from api.views.gateway import GatewayViewSet, RouteViewSet
 from api.views.hooks import (
@@ -88,6 +89,10 @@ __all__ = [
     'LimitPlanViewSet',
     # Key
     'KeyViewSet',
+    # Addon
+    'AddonClassViewSet',
+    'AddonInstanceViewSet',
+    'AddonConnectionViewSet',
     # Volume
     'AppVolumesViewSet',
     # Gateway

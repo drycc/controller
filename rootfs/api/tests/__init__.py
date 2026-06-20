@@ -39,12 +39,13 @@ def fake_responses(request, context):
     return response['text']
 
 
-def mock_get_token_scopes(self, token):
+def mock_get_token_scopes(token):
     return {"controller:hook", "controller:logs", "controller:metrics",
             "controller:alerts"}
 
 
-patcher = mock.patch('api.clients.PassportAPI.get_scopes', mock_get_token_scopes)
+patcher = mock.patch(
+    'api.clients.PassportAPI.get_scopes', new=staticmethod(mock_get_token_scopes))
 patcher.start()
 
 adapter = requests_mock.Adapter()

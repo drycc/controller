@@ -32,6 +32,36 @@ from rest_framework.exceptions import ValidationError
 logger = logging.getLogger(__name__)
 
 
+def jsonpath(data, path, default=None, action='get', value=None):
+    """Dot-separated jsonpath supporting get/set/del.
+
+    action=get (default): return the value at ``path`` or ``default`` if absent.
+    action=set:            set ``value`` at ``path``, creating intermediate dicts.
+    action=del:            remove the key at ``path``; return ``default`` if absent.
+    """
+    keys = path.split('.')
+    if action == 'set':
+        for key in keys[:-1]:
+            if not isinstance(data.get(key), dict):
+                data[key] = {}
+            data = data[key]
+        data[keys[-1]] = value
+        return value
+    if action == 'del':
+        for key in keys[:-1]:
+            if not isinstance(data, dict) or key not in data:
+                return default
+            data = data[key]
+        if isinstance(data, dict) and keys[-1] in data:
+            del data[keys[-1]]
+        return default
+    for key in keys:
+        if not isinstance(data, dict) or key not in data:
+            return default
+        data = data[key]
+    return data
+
+
 def get_httpclient():
     session = requests.Session()
     session.headers = {

@@ -1238,6 +1238,10 @@ class App(
         return application
 
     def delete(self, *args, **kwargs):
+        from api.models.addon import AddonInstance
+        if AddonInstance.objects.filter(app=self).exists():
+            raise DryccException(
+                f"App '{self.id}' has addons attached; remove them before deleting the app")
         self.log("deleting environment")
         try:
             self.scheduler.ns.get(self.id)

@@ -145,6 +145,26 @@ app_urlpatterns = [
     re_path(
         r'^apps/(?P<id>{})/certs/?$'.format(settings.APP_URL_REGEX),
         views.CertificateViewSet.as_view({'get': 'list', 'post': 'create'})),
+    # application addons (upsert via PUT, list under an app)
+    re_path(
+        r'^apps/(?P<id>{})/addons/?$'.format(settings.APP_URL_REGEX),
+        views.AddonInstanceViewSet.as_view({'get': 'list'})),
+    re_path(
+        r'^apps/(?P<id>{})/addons/(?P<name>[a-z0-9]([a-z0-9-]*[a-z0-9])?)/?$'.format(
+            settings.APP_URL_REGEX),
+        views.AddonInstanceViewSet.as_view(
+            {'get': 'retrieve', 'put': 'upsert', 'delete': 'destroy'})),
+    re_path(
+        r'^apps/(?P<id>{})/addons/(?P<name>[a-z0-9]([a-z0-9-]*[a-z0-9])?)/connection/?$'.format(
+            settings.APP_URL_REGEX),
+        views.AddonConnectionViewSet.as_view({'get': 'retrieve'})),
+    # addon classes (catalog, read-only)
+    re_path(
+        r'^addon-classes/?$',
+        views.AddonClassViewSet.as_view({'get': 'list'})),
+    re_path(
+        r'^addon-classes/(?P<name>[a-z0-9]([a-z0-9-]*[a-z0-9])?)/?$',
+        views.AddonClassViewSet.as_view({'get': 'retrieve'})),
     # hooks
     re_path(
         r'^hooks/keys/(?P<id>{})/(?P<username>[\w.@+-]+)/?$'.format(settings.APP_URL_REGEX),
@@ -171,7 +191,7 @@ app_urlpatterns = [
     # gateways
     re_path(
         r"^apps/(?P<id>{})/gateways/?$".format(settings.APP_URL_REGEX),
-        views.GatewayViewSet.as_view({'get': 'list', 'post': 'create'})),
+        views.GatewayViewSet.as_view({'get': 'list'})),
     re_path(
         r"^apps/(?P<id>{})/gateways/(?P<name>{})/?$".format(
             settings.APP_URL_REGEX, settings.NAME_REGEX),
@@ -180,7 +200,7 @@ app_urlpatterns = [
     # routes
     re_path(
         r"^apps/(?P<id>{})/routes/?$".format(settings.APP_URL_REGEX),
-        views.RouteViewSet.as_view({'get': 'list', 'post': 'create'})),
+        views.RouteViewSet.as_view({'get': 'list'})),
     re_path(
         r"^apps/(?P<id>{})/routes/(?P<name>{})/?$".format(
             settings.APP_URL_REGEX, settings.NAME_REGEX),
