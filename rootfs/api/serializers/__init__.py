@@ -131,6 +131,53 @@ class JSONFieldSerializer(serializers.JSONField):
         return obj
 
 
+class CamelCaseJSONField(JSONFieldSerializer):
+    """JSONField that stores camelCase data and accepts snake_case input.
+
+    - Input  (API -> DB):  snake_case keys -> camelCase (before validation)
+    - Output (DB -> API):  camelCase keys -> snake_case
+    - Storage: camelCase (Python code & K8s API unchanged)
+    """
+
+    @staticmethod
+    def camel_to_snake(s):
+        """camelCase -> snake_case"""
+        s1 = re.sub(r'(.)([A-Z][a-z]+)', r'\1_\2', s)
+        return re.sub(r'([a-z0-9])([A-Z])', r'\1_\2', s1).lower()
+
+    @staticmethod
+    def snake_to_camel(s):
+        """snake_case -> camelCase"""
+        parts = s.split('_')
+        return parts[0] + ''.join(x.title() for x in parts[1:])
+
+    @classmethod
+    def underscoreize(cls, data):
+        """Recursively convert dict keys: camelCase -> snake_case"""
+        if isinstance(data, dict):
+            return {cls.camel_to_snake(k): cls.underscoreize(v) for k, v in data.items()}
+        if isinstance(data, list):
+            return [cls.underscoreize(i) for i in data]
+        return data
+
+    @classmethod
+    def camelize(cls, data):
+        """Recursively convert dict keys: snake_case -> camelCase"""
+        if isinstance(data, dict):
+            return {cls.snake_to_camel(k): cls.camelize(v) for k, v in data.items()}
+        if isinstance(data, list):
+            return [cls.camelize(i) for i in data]
+        return data
+
+    def to_internal_value(self, data):
+        val = super().to_internal_value(data)
+        return self.camelize(val)
+
+    def to_representation(self, obj):
+        val = super().to_representation(obj)
+        return self.underscoreize(val)
+
+
 class AuthSerializer(serializers.Serializer):
     username = serializers.CharField(
         label=gettext_lazy("Username"),
@@ -283,10 +330,10 @@ class ConfigSerializer(serializers.ModelSerializer):
     app = serializers.SlugRelatedField(slug_field='id', queryset=models.app.App.objects.all())
     values = JSONFieldSerializer(required=False, binary=True)
     limits = JSONFieldSerializer(required=False, binary=True)
-    lifecycle = JSONFieldSerializer(convert_to_str=False, required=False, binary=True)
+    lifecycle = CamelCaseJSONField(convert_to_str=False, required=False, binary=True)
     tags = JSONFieldSerializer(required=False, binary=True)
     registry = JSONFieldSerializer(required=False, binary=True)
-    healthcheck = JSONFieldSerializer(convert_to_str=False, required=False, binary=True)
+    healthcheck = CamelCaseJSONField(convert_to_str=False, required=False, binary=True)
     routable = serializers.BooleanField(required=False)
     termination_grace_period = JSONFieldSerializer(required=False, binary=True)
 
@@ -509,12 +556,15 @@ class ServiceSerializer(serializers.ModelSerializer):
     protocol = serializers.CharField(required=True)
     target_port = serializers.IntegerField(default=DEFAULT_CONTAINER_PORT)
     ptype = serializers.CharField(required=True)
+    name = serializers.ReadOnlyField()
+    domain = serializers.ReadOnlyField()
+    ports = CamelCaseJSONField()
 
     class Meta:
         """Metadata options for a :class:`ServiceSerializer`."""
         model = models.service.Service
-        fields = ['created', 'updated', 'app', 'ptype']
-        read_only_fields = ['uuid']
+        fields = ['created', 'updated', 'app', 'ptype', 'name', 'domain', 'ports']
+        read_only_fields = ['created', 'updated', 'name', 'domain', 'ports']
 
     @staticmethod
     def validate_protocol(value):
@@ -564,6 +614,34 @@ class PodSerializer(serializers.BaseSerializer):
 
     def to_representation(self, obj):
         return obj
+
+
+class PodDetailSerializer(serializers.Serializer):
+    """Serialize pod detail data from Kubernetes API."""
+    container = serializers.CharField()
+    image = serializers.CharField()
+    command = serializers.JSONField()
+    args = serializers.JSONField()
+    state = CamelCaseJSONField()
+    last_state = CamelCaseJSONField()
+    ready = serializers.BooleanField()
+    restart_count = serializers.IntegerField()
+    status = serializers.CharField()
+    reason = serializers.CharField()
+    message = serializers.CharField()
+
+
+class DeploymentDetailSerializer(serializers.Serializer):
+    """Serialize deployment detail data from Kubernetes API."""
+    container = serializers.CharField()
+    image = serializers.CharField()
+    command = serializers.JSONField()
+    args = serializers.JSONField()
+    liveness_probe = CamelCaseJSONField()
+    readiness_probe = CamelCaseJSONField()
+    limits = serializers.JSONField()
+    volume_mounts = CamelCaseJSONField()
+    node_selector = serializers.JSONField()
 
 
 class EventSerializer(serializers.BaseSerializer):
@@ -626,7 +704,7 @@ class VolumeSerializer(serializers.ModelSerializer):
 
     app = serializers.SlugRelatedField(slug_field='id', queryset=models.app.App.objects.all())
     path = JSONFieldSerializer(required=False, binary=True)
-    parameters = serializers.JSONField(required=False)
+    parameters = CamelCaseJSONField(required=False)
 
     class Meta:
         """Metadata options for a :class:`AppVolumeSerializer`."""
@@ -717,7 +795,7 @@ class GatewaySerializer(serializers.ModelSerializer):
 
     class Meta:
         model = models.gateway.Gateway
-        fields = '__all__'
+        fields = ['app', 'name', 'ports', 'addresses', 'created', 'updated']
 
     validate_name = staticmethod(validate_name)
 
@@ -756,14 +834,14 @@ class RouteSerializer(serializers.ModelSerializer):
     app = serializers.SlugRelatedField(slug_field='id', queryset=models.app.App.objects.all())
     kind = serializers.CharField(max_length=15, required=True)
     name = serializers.CharField(max_length=63, required=True)
-    rules = serializers.JSONField(required=True)
+    rules = CamelCaseJSONField(convert_to_str=False, required=True)
     routable = serializers.BooleanField(read_only=True)
     parent_refs = serializers.JSONField(required=True)
 
     class Meta:
         """Metadata options for a :class:`RouteSerializer`."""
         model = models.gateway.Route
-        fields = '__all__'
+        fields = ['app', 'kind', 'name', 'rules', 'routable', 'parent_refs', 'created', 'updated']
 
     validate_name = staticmethod(validate_name)
 
@@ -843,25 +921,13 @@ class WorkspaceInvitationSerializer(serializers.ModelSerializer):
         read_only_fields = ['id', 'token', 'created']
 
 
-class AddonClassSerializer(serializers.BaseSerializer):
+class AddonClassSerializer(serializers.Serializer):
     """Serialize AddonClass data from Kubernetes CRD."""
-
-    name = serializers.CharField(required=False)
-    description = serializers.CharField(required=False)
-    kind = serializers.CharField(required=False)
-    storage_model = serializers.CharField(required=False)
-    plans = serializers.ListField(required=False)
-
-    def to_representation(self, instance):
-        spec = instance.get('spec', {})
-        target_resource = spec.get('targetResource', {})
-        return {
-            'name': instance.get('metadata', {}).get('name', ''),
-            'description': spec.get('description', ''),
-            'kind': target_resource.get('kind', ''),
-            'storage_model': spec.get('storageModel', ''),
-            'plans': spec.get('plans', []),
-        }
+    name = serializers.CharField(source='metadata.name', required=False)
+    description = serializers.CharField(source='spec.description', required=False)
+    kind = serializers.CharField(source='spec.targetResource.kind', required=False)
+    storage_model = serializers.CharField(source='spec.storageModel', required=False)
+    plans = CamelCaseJSONField(source='spec.plans', required=False)
 
 
 class AddonInstanceSerializer(serializers.ModelSerializer):
@@ -869,9 +935,10 @@ class AddonInstanceSerializer(serializers.ModelSerializer):
     app = serializers.ReadOnlyField(source='app.id')
     name = serializers.CharField(max_length=63, required=False)
     kind = serializers.CharField(max_length=63, required=False)
+    parameters = CamelCaseJSONField(convert_to_str=False, default=dict, required=False)
 
     class Meta:
         model = models.addon.AddonInstance
-        fields = ['uuid', 'name', 'app', 'plan', 'kind',
+        fields = ['name', 'app', 'plan', 'kind',
                   'multiplier', 'parameters', 'created', 'updated']
-        read_only_fields = ['uuid', 'multiplier', 'created', 'updated']
+        read_only_fields = ['multiplier', 'created', 'updated']

@@ -48,7 +48,7 @@ class ServiceViewSet(AppFilterViewSet):
 
     def list(self, *args, **kwargs):
         services = self.get_app().service_set.all()
-        data = [obj.as_dict() for obj in services]
+        data = self.get_serializer(services, many=True).data
         return Response({"services": data}, status=status.HTTP_200_OK)
 
     def upsert(self, request, **kwargs):

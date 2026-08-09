@@ -249,8 +249,8 @@ class AddonClassTest(DryccTransactionTestCase):
         for plan in response.data['results'][0]['plans']:
             self.assertNotIn('defaults', plan)
             self.assertNotIn('overrides', plan)
-            self.assertIn('allowCreate', plan)
-            self.assertIn('allowUpdate', plan)
+            self.assertIn('allow_create', plan)
+            self.assertIn('allow_update', plan)
 
     @mock.patch('api.views.addon.get_scheduler')
     def test_retrieve_addonclass(self, mock_gs):
@@ -281,7 +281,7 @@ class AddonClassTest(DryccTransactionTestCase):
         for plan in response.data['plans']:
             self.assertNotIn('defaults', plan)
             self.assertNotIn('overrides', plan)
-            self.assertIn('allowCreate', plan)
+            self.assertIn('allow_create', plan)
 
     @mock.patch('api.views.addon.get_scheduler')
     def test_addonclass_visible_paths_nested_jsonpath(self, mock_gs):
@@ -299,11 +299,11 @@ class AddonClassTest(DryccTransactionTestCase):
         self.assertEqual(response.status_code, 200, response.data)
         plan = response.data['plans'][0]
         self.assertEqual(plan['name'], 'micro')
-        self.assertEqual(plan['defaults'], {'imagePullPolicy': 'IfNotPresent'})
+        self.assertEqual(plan['defaults'], {'image_pull_policy': 'IfNotPresent'})
         self.assertNotIn('replicas', plan.get('defaults', {}))
         self.assertNotIn('persistence', plan.get('defaults', {}))
         self.assertNotIn('overrides', plan)
-        self.assertNotIn('allowCreate', plan)
+        self.assertNotIn('allow_create', plan)
 
     @mock.patch('api.views.addon.get_scheduler')
     def test_retrieve_nonexistent_addonclass(self, mock_gs):

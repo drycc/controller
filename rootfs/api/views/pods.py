@@ -26,8 +26,8 @@ class PodViewSet(AppFilterViewSet):
         data = self.get_app().describe_pod(pod_name)
         if len(data) == 0:
             raise DryccException("this process not found")
-        # fake out pagination for now
-        pagination = {'results': data, 'count': len(data)}
+        serializer = serializers.PodDetailSerializer(data, many=True)
+        pagination = {'results': serializer.data, 'count': len(data)}
         return Response(pagination, status=status.HTTP_200_OK)
 
     def destroy(self, request, **kwargs):
@@ -54,8 +54,8 @@ class PtypeViewSet(AppFilterViewSet):
         data = self.get_app().describe_deployment(deployment_name)
         if len(data) == 0:
             raise DryccException("this procfile type not found")
-        # fake out pagination for now
-        pagination = {'results': data, 'count': len(data)}
+        serializer = serializers.DeploymentDetailSerializer(data, many=True)
+        pagination = {'results': serializer.data, 'count': len(data)}
         return Response(pagination, status=status.HTTP_200_OK)
 
     def restart(self, request, *args, **kwargs):

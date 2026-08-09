@@ -1,5 +1,9 @@
 # Drycc Controller — Agent Instructions
 
+> **When you change code patterns, conventions, or architecture, update this file
+> in the same commit.** AGENTS.md is the single source of truth for project
+> conventions — if it's stale, the next agent will follow wrong patterns.
+
 ## Project Structure
 
 ```
@@ -200,6 +204,52 @@ class MyModelSerializer(serializers.ModelSerializer):
         fields = ['uuid', 'name', 'workspace', 'created', 'updated']
         read_only_fields = ['uuid', 'created', 'updated']
 ```
+
+### Naming Convention: snake_case API + CamelCaseJSONField
+
+The API uses **snake_case** for all field names. K8s data stored in JSONFields
+uses camelCase internally (matching K8s API conventions), but is exposed as
+snake_case in API responses.
+
+**`CamelCaseJSONField`** (in `api/serializers/__init__.py`, extends `JSONFieldSerializer`):
+- **Input** (`to_internal_value`): converts snake_case keys to camelCase before
+  validation and DB storage. Both snake_case and camelCase input are accepted.
+- **Output** (`to_representation`): converts camelCase keys to snake_case for API
+  responses.
+- **DB storage**: camelCase (Python code and K8s API calls use camelCase unchanged).
+- Conversion functions (`camelize`, `underscoreize`, etc.) live in `api/utils.py`.
+
+Use `CamelCaseJSONField` for any JSONField that contains K8s camelCase data:
+
+```python
+class RouteSerializer(serializers.ModelSerializer):
+    rules = CamelCaseJSONField(convert_to_str=False, required=True)
+    parent_refs = serializers.JSONField(required=True)  # single-word keys, no conversion needed
+```
+
+For serializers that read from K8s CRD/API (not Django models), use `Serializer`
+with `source` + `CamelCaseJSONField`:
+
+```python
+class AddonClassSerializer(serializers.Serializer):
+    name = serializers.CharField(source='metadata.name', required=False)
+    plans = CamelCaseJSONField(source='spec.plans', required=False)
+```
+
+**When to use CamelCaseJSONField** (K8s data with camelCase keys inside):
+- `Route.rules` - K8s Gateway API (`backendRefs`, `requestRedirect`, etc.)
+- `Config.healthcheck` - K8s probes (`livenessProbe`, `httpGet`, etc.)
+- `Config.lifecycle` - K8s lifecycle (`postStart`, `preStop`, etc.)
+- `AddonInstance.parameters` - user/Helm parameters (may have camelCase keys)
+- `PodDetailSerializer.state`/`last_state` - K8s container state
+- `DeploymentDetailSerializer.liveness_probe`/`readiness_probe`/`volume_mounts`
+
+**When NOT to use CamelCaseJSONField** (single-word keys or non-K8s data):
+- `Gateway.ports` - keys are `port`, `protocol` (single words)
+- `Route.parent_refs` - keys are `name`, `port` (single words)
+- `Config.values` - keys are `name`, `value`, `ptype` (single words)
+- `Config.tags` - K8s labels (dots/hyphens, not camelCase)
+- `AppSettings.autoscale` - already snake_case (`cpu_percent`), HPA code converts
 
 ## URL Conventions
 

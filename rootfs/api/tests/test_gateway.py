@@ -667,7 +667,7 @@ class RouteTest(BaseGatewayTest):
             '/v2/apps/{}/routes/{}/'.format(app_id, route_name),
         )
         expect = [{
-            'backendRefs': [{
+            'backend_refs': [{
                 'kind': 'Service',
                 'name': '%s-%s' % (app_id, ptype),
                 'port': 5000,
@@ -689,7 +689,7 @@ class RouteTest(BaseGatewayTest):
         app_id = self.create_app()
         ptype, _, route_name = self.create_route(app_id)
         expect = [{
-            "backendRefs": [{
+            "backend_refs": [{
                 "kind": "Service",
                 "name": "%s-%s" % (app_id, ptype),
                 "port": 5000,
@@ -763,7 +763,7 @@ class RouteTest(BaseGatewayTest):
         self.assertEqual(
             response.data["rules"],
             [{
-                "backendRefs": [{
+                "backend_refs": [{
                     "kind": "Service",
                     "name": f"{app_id}-{ptype}",
                     "port": port,

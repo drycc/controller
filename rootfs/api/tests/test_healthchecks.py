@@ -30,31 +30,31 @@ class TestHealthchecks(DryccTransactionTestCase):
         """
         app_id = self.create_app()
         readiness_probe = {
-            'healthcheck': {'web': {'readinessProbe': {'httpGet': {'port': 5000}}}}
+            'healthcheck': {'web': {'readiness_probe': {'http_get': {'port': 5000}}}}
         }
         response = self.client.post(
             f'/v2/apps/{app_id}/config',
             readiness_probe)
         self.assertEqual(response.status_code, 201, response.data)
-        self.assertIn('readinessProbe', response.data['healthcheck']['web'])
+        self.assertIn('readiness_probe', response.data['healthcheck']['web'])
         self.assertEqual(response.data['healthcheck'], readiness_probe['healthcheck'])
 
-        liveness_probe = {'healthcheck': {'web': {'livenessProbe':
-                                          {'httpGet': {'port': 5000},
-                                           'successThreshold': 1}}}}
+        liveness_probe = {'healthcheck': {'web': {'liveness_probe':
+                                          {'http_get': {'port': 5000},
+                                           'success_threshold': 1}}}}
         response = self.client.post(
             f'/v2/apps/{app_id}/config',
             liveness_probe)
         self.assertEqual(response.status_code, 201, response.data)
-        self.assertIn('livenessProbe', response.data['healthcheck']['web'])
+        self.assertIn('liveness_probe', response.data['healthcheck']['web'])
         self.assertEqual(
-            response.data['healthcheck']['web']['livenessProbe'],
-            liveness_probe['healthcheck']['web']['livenessProbe'])
+            response.data['healthcheck']['web']['liveness_probe'],
+            liveness_probe['healthcheck']['web']['liveness_probe'])
         # check that the readiness probe is still there too!
-        self.assertIn('readinessProbe', response.data['healthcheck']['web'])
+        self.assertIn('readiness_probe', response.data['healthcheck']['web'])
         self.assertEqual(
-            response.data['healthcheck']['web']['readinessProbe'],
-            readiness_probe['healthcheck']['web']['readinessProbe'])
+            response.data['healthcheck']['web']['readiness_probe'],
+            readiness_probe['healthcheck']['web']['readiness_probe'])
 
         # check that config fails if trying to unset non-existing healthcheck
         response = self.client.post(
@@ -65,10 +65,10 @@ class TestHealthchecks(DryccTransactionTestCase):
         # remove a probeType
         response = self.client.post(
             f'/v2/apps/{app_id}/config',
-            {'healthcheck': {'web': {'livenessProbe': None}}})
+            {'healthcheck': {'web': {'liveness_probe': None}}})
         self.assertEqual(response.status_code, 201, response.data)
-        self.assertNotIn('livenessProbe', response.data['healthcheck']['web'])
-        self.assertIn('readinessProbe', response.data['healthcheck']['web'])
+        self.assertNotIn('liveness_probe', response.data['healthcheck']['web'])
+        self.assertIn('readiness_probe', response.data['healthcheck']['web'])
 
         # check that config fails if trying to unset non-existing probeType
         response = self.client.post(
