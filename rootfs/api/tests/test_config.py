@@ -907,8 +907,7 @@ class ConfigTest(DryccTransactionTestCase):
             'sha': 'a'*40,
             'dryccfile': {
                 "pipeline": {
-                    "web.yaml": {
-                        "kind": "pipeline",
+                    "web.toml": {
                         "ptype": "web",
                         "build": {
                             "docker": "Dockerfile",
@@ -921,8 +920,7 @@ class ConfigTest(DryccTransactionTestCase):
                             'image': "127.0.0.1/cat/cat"
                         },
                     },
-                    "worker.yaml": {
-                        "kind": "pipeline",
+                    "worker.toml": {
                         "ptype": "worker",
                         "build": {
                             "docker": "worker/Dockerfile",
@@ -962,11 +960,11 @@ class ConfigTest(DryccTransactionTestCase):
                 "TEST2": "tr",
             },
         }
-        build_body['dryccfile']['pipeline']['web.yaml']['env'] = {
+        build_body['dryccfile']['pipeline']['web.toml']['env'] = {
             "PENV1": "web",
             "PENV2": "web",
         }
-        build_body['dryccfile']['pipeline']['web.yaml']['config'] = [
+        build_body['dryccfile']['pipeline']['web.toml']['config'] = [
             "mygroup1", "mygroup2"
         ]
         with mock.patch('scheduler.resources.pod.Pod.watch') as mock_kube:
@@ -988,8 +986,8 @@ class ConfigTest(DryccTransactionTestCase):
         # test use old config and healthcheck
         new_build_body = copy.deepcopy(build_body)
         del new_build_body['dryccfile']['config']
-        del new_build_body['dryccfile']['pipeline']['web.yaml']['env']
-        del new_build_body['dryccfile']['pipeline']['web.yaml']['config']
+        del new_build_body['dryccfile']['pipeline']['web.toml']['env']
+        del new_build_body['dryccfile']['pipeline']['web.toml']['config']
         with mock.patch('scheduler.resources.pod.Pod.watch') as mock_kube:
             mock_kube.return_value = ['up', 'down']
             url = f"/v2/apps/{app_id}/build"
@@ -1002,8 +1000,8 @@ class ConfigTest(DryccTransactionTestCase):
         # set empty
         new_build_body = copy.deepcopy(build_body)
         new_build_body['dryccfile']['config'] = {}
-        new_build_body['dryccfile']['pipeline']['web.yaml']['env'] = {}
-        new_build_body['dryccfile']['pipeline']['web.yaml']['config'] = []
+        new_build_body['dryccfile']['pipeline']['web.toml']['env'] = {}
+        new_build_body['dryccfile']['pipeline']['web.toml']['config'] = []
         with mock.patch('scheduler.resources.pod.Pod.watch') as mock_kube:
             mock_kube.return_value = ['up', 'down']
             url = f"/v2/apps/{app_id}/build"
@@ -1023,10 +1021,10 @@ class ConfigTest(DryccTransactionTestCase):
                 "DEBUG": "tr",
             }
         }
-        build_body_with_dryccfile['dryccfile']['pipeline']['web.yaml']['env'] = {
+        build_body_with_dryccfile['dryccfile']['pipeline']['web.toml']['env'] = {
             "PENV1": "web"
         }
-        build_body_with_dryccfile['dryccfile']['pipeline']['web.yaml']['config'] = [
+        build_body_with_dryccfile['dryccfile']['pipeline']['web.toml']['config'] = [
             "mygroup1"
         ]
         with mock.patch('scheduler.resources.pod.Pod.watch') as mock_kube:
@@ -1072,14 +1070,14 @@ class ConfigTest(DryccTransactionTestCase):
 
         # Check ptype envs were merged
         self.assertIn('pipeline', dryccfile)
-        self.assertIn('web.yaml', dryccfile['pipeline'])
-        self.assertIn('env', dryccfile['pipeline']['web.yaml'])
-        self.assertEqual(dryccfile['pipeline']['web.yaml']['env']['PENV1'], 'web')
-        self.assertEqual(dryccfile['pipeline']['web.yaml']['env']['PENV2'], 'web2')
+        self.assertIn('web.toml', dryccfile['pipeline'])
+        self.assertIn('env', dryccfile['pipeline']['web.toml'])
+        self.assertEqual(dryccfile['pipeline']['web.toml']['env']['PENV1'], 'web')
+        self.assertEqual(dryccfile['pipeline']['web.toml']['env']['PENV2'], 'web2')
 
         # Check config refs
-        self.assertIn('config', dryccfile['pipeline']['web.yaml'])
-        self.assertEqual(dryccfile['pipeline']['web.yaml']['config'], ['mygroup1'])
+        self.assertIn('config', dryccfile['pipeline']['web.toml'])
+        self.assertEqual(dryccfile['pipeline']['web.toml']['config'], ['mygroup1'])
 
         # Verify config values are correct
         config = new_release.config

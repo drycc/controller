@@ -31,8 +31,7 @@ class ProcfileTypeTest(APITestCase):
     def test_dryccfile_ptype(self):
         dryccfile_1 = {
             "pipeline": {
-                "web.yaml": {
-                    "kind": "pipeline",
+                "web.toml": {
                     "ptype": "web",
                     "build": {
                         "docker": "Dockerfile",
@@ -41,8 +40,7 @@ class ProcfileTypeTest(APITestCase):
                         "args": ["python", "-m", "http.server", "5000"],
                     },
                 },
-                "worker.yaml": {
-                    "kind": "pipeline",
+                "worker.toml": {
                     "ptype": "worker",
                     "build": {
                         "docker": "Dockerfile.task",
@@ -56,27 +54,24 @@ class ProcfileTypeTest(APITestCase):
         }
         validate_dryccfile = BuildSerializer().validate_dryccfile
         self.assertEqual(validate_dryccfile(dryccfile_1), dryccfile_1)
-        dryccfile_1["pipeline"]["w.yaml"] = {
-            "kind": "pipeline",
+        dryccfile_1["pipeline"]["w.toml"] = {
             "ptype": "w",
             "build": {"docker": "Dockerfile.task"},
         }
         self.assertException(
                 validate_dryccfile, serializers.ValidationError, dryccfile_1)
-        del dryccfile_1["pipeline"]["w.yaml"]
+        del dryccfile_1["pipeline"]["w.toml"]
 
-        dryccfile_1["pipeline"]["w.yaml"] = {
-            "kind": "pipeline",
+        dryccfile_1["pipeline"]["w.toml"] = {
             "ptype": "w",
             "build": {"docker": "Dockerfile.task"},
             "deploy": {"args": ["python", "-m", "http.server", "5000"]},
         }
         self.assertException(
                 validate_dryccfile, serializers.ValidationError, dryccfile_1)
-        dryccfile_1["pipeline"]["w.yaml"]
+        dryccfile_1["pipeline"]["w.toml"]
 
-        dryccfile_1["pipeline"]["wnew.yaml"] = {
-            "kind": "pipeline",
+        dryccfile_1["pipeline"]["wnew.toml"] = {
             "ptype": "w-new-",
             "build": {"docker": "Dockerfile.task"},
             "deploy": {"args": ["python", "-m", "http.server", "5000"]},

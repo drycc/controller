@@ -24,7 +24,6 @@ SCHEMA = {
                 FILENAME_REGEX: {
                     "type": "object",
                     "properties": {
-                        "kind": {"type": "string", "pattern": "^pipeline$"},
                         "ptype": {"type": "string", "pattern": PROCTYPE_REGEX},
                         "build": {
                             "type": "object",
@@ -75,7 +74,7 @@ SCHEMA = {
                         }
                     },
                     "additionalProperties": False,
-                    "required": ["kind", "ptype", "deploy"],
+                    "required": ["ptype", "deploy"],
                 },
             },
         },

@@ -144,8 +144,7 @@ class ReleaseTest(DryccTransactionTestCase):
             'sha': 'a'*40,
             'dryccfile': {
                 "pipeline": {
-                    "web.yaml": {
-                        "kind": "pipeline",
+                    "web.toml": {
                         "ptype": "web",
                         "build": {
                             "docker": "Dockerfile",
@@ -160,8 +159,7 @@ class ReleaseTest(DryccTransactionTestCase):
                             "args": ["bundle exec puma -C config/puma.rb"],
                         },
                     },
-                    "worker.yaml": {
-                        "kind": "pipeline",
+                    "worker.toml": {
                         "ptype": "worker",
                         "build": {
                             "docker": "worker/Dockerfile",
@@ -176,22 +174,19 @@ class ReleaseTest(DryccTransactionTestCase):
                             "args": ["python myworker.py"],
                         },
                     },
-                    "worker-1.yaml": {
-                        "kind": "pipeline",
+                    "worker-1.toml": {
                         "ptype": "worker-1",
                         "run": {"command": ["./deployment-tasks.sh"], "image": "worker"},
                         "deploy": {
                             "image": "worker",
                         },
                     },
-                    "worker-2.yaml": {
-                        "kind": "pipeline",
+                    "worker-2.toml": {
                         "ptype": "worker-2",
                         "run": {"command": ["./deployment-tasks.sh"], "image": "worker"},
                         "deploy": {},
                     },
-                    "worker-3.yaml": {
-                        "kind": "pipeline",
+                    "worker-3.toml": {
                         "ptype": "worker-3",
                         "run": {"command": ["./deployment-tasks.sh"], "image": "worker"},
                         "deploy": {
@@ -200,8 +195,7 @@ class ReleaseTest(DryccTransactionTestCase):
                             "image": "web"
                         },
                     },
-                    "worker-4.yaml": {
-                        "kind": "pipeline",
+                    "worker-4.toml": {
                         "ptype": "worker-4",
                         "run": {"command": ["./deployment-tasks.sh"], "image": "worker"},
                         "deploy": {
@@ -736,8 +730,7 @@ class ReleaseTest(DryccTransactionTestCase):
         app = App.objects.get(id=app_id)
         dryccfile = {
             "pipeline": {
-                "web.yaml": {
-                    "kind": "pipeline",
+                "web.toml": {
                     "ptype": "web",
                     "run": {
                         "args": ["sleep", "60s"],
@@ -748,8 +741,7 @@ class ReleaseTest(DryccTransactionTestCase):
                         "args": ["python", "-m", "http.server", "5000"]
                     },
                 },
-                "task.yaml": {
-                    "kind": "pipeline",
+                "task.toml": {
                     "ptype": "task",
                     "run": {
                         "args": ["sleep", "60s"],
@@ -779,8 +771,8 @@ class ReleaseTest(DryccTransactionTestCase):
         self.assertEqual(runners[0]["timeout"], 3000)
 
         # change timeout
-        dryccfile['pipeline']['web.yaml']['run']['timeout'] = 3600
-        dryccfile['pipeline']['web.yaml']['deploy'] = {
+        dryccfile['pipeline']['web.toml']['run']['timeout'] = 3600
+        dryccfile['pipeline']['web.toml']['deploy'] = {
             'image': 'registry.drycc.cc/drycc/python-dev:latest',
         }
         build = Build.objects.create(
@@ -806,8 +798,7 @@ class ReleaseTest(DryccTransactionTestCase):
             'sha': 'a'*40,
             'dryccfile': {
                 "pipeline": {
-                    "web.yaml": {
-                        "kind": "pipeline",
+                    "web.toml": {
                         "ptype": "web",
                         "build": {
                             "docker": "Dockerfile",
@@ -823,8 +814,7 @@ class ReleaseTest(DryccTransactionTestCase):
                             "image": web_image
                         },
                     },
-                    "worker.yaml": {
-                        "kind": "pipeline",
+                    "worker.toml": {
                         "ptype": "worker",
                         "build": {
                             "docker": "worker/Dockerfile",
@@ -862,7 +852,7 @@ class ReleaseTest(DryccTransactionTestCase):
         ptypes = release.diff_ptypes(release.ptypes)
         self.assertEqual(ptypes, [])
         # change worker env
-        body['dryccfile']['pipeline']['worker.yaml']['config'] = ["g1"]
+        body['dryccfile']['pipeline']['worker.toml']['config'] = ["g1"]
         body['dryccfile']['config'] = {"g1": {"G1": "g1"}}
 
         with mock.patch('scheduler.resources.pod.Pod.watch') as mock_kube:
@@ -895,7 +885,7 @@ class ReleaseTest(DryccTransactionTestCase):
         self.assertEqual(set(ptypes), set(["web", "worker"]))
 
         # change web env
-        body['dryccfile']['pipeline']['web.yaml']['env'] = {"ENV1": "env1"}
+        body['dryccfile']['pipeline']['web.toml']['env'] = {"ENV1": "env1"}
         with mock.patch('scheduler.resources.pod.Pod.watch') as mock_kube:
             mock_kube.return_value = ['up', 'down']
             response = self.client.post(url, body)

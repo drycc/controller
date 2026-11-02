@@ -761,8 +761,7 @@ class BuildTest(DryccTransactionTestCase):
             'sha': 'a'*40,
             "dryccfile": {
                 "pipeline": {
-                    "web.yaml": {
-                        "kind": "pipeline",
+                    "web.toml": {
                         "ptype": "web",
                         "build": {
                             "docker": "Dockerfile",
@@ -778,8 +777,7 @@ class BuildTest(DryccTransactionTestCase):
                             "image": "127.0.0.1:7070/myapp/web:git-123fsa1",
                         },
                     },
-                    "worker.yaml": {
-                        "kind": "pipeline",
+                    "worker.toml": {
                         "ptype": "worker",
                         "build": {
                             "docker": "worker/Dockerfile",
@@ -828,8 +826,7 @@ class BuildTest(DryccTransactionTestCase):
             'sha': 'a'*40,
             'dryccfile': {
                 "pipeline": {
-                    "web.yaml": {
-                        "kind": "pipeline",
+                    "web.toml": {
                         "ptype": "web",
                         "build": {
                             "docker": "Dockerfile",
@@ -839,8 +836,7 @@ class BuildTest(DryccTransactionTestCase):
                             },
                         },
                     },
-                    "worker.yaml": {
-                        "kind": "pipeline",
+                    "worker.toml": {
                         "ptype": "worker",
                         "build": {
                             "docker": "worker/Dockerfile",
@@ -859,19 +855,19 @@ class BuildTest(DryccTransactionTestCase):
             url = f"/v2/apps/{app_id}/build"
             response = self.client.post(url, body)
             self.assertEqual(response.status_code, 400, response.data)
-            body['dryccfile']['pipeline']["web.yaml"]['deploy'] = {'image': "127.0.0.1/cat/cat"}
+            body['dryccfile']['pipeline']["web.toml"]['deploy'] = {'image': "127.0.0.1/cat/cat"}
             response = self.client.post(url, body)
             self.assertEqual(response.status_code, 400, response.data)
-            body['dryccfile']['pipeline']["worker.yaml"]['deploy'] = {'image': "127.0.0.1/cat/cat"}
+            body['dryccfile']['pipeline']["worker.toml"]['deploy'] = {'image': "127.0.0.1/cat/cat"}
             response = self.client.post(url, body)
             self.assertEqual(response.status_code, 201, response.data)
-            body['dryccfile']['pipeline']["web.yaml"]['run'] = {
+            body['dryccfile']['pipeline']["web.toml"]['run'] = {
                 'command': ["bash", "-c"], 'args': ["ls /"]}
-            body['dryccfile']['pipeline']["worker.yaml"]['run'] = {
+            body['dryccfile']['pipeline']["worker.toml"]['run'] = {
                 'command': ["bash", "-c"], 'args': ["ls /"]}
             response = self.client.post(url, body)
             self.assertEqual(response.status_code, 201, response.data)
-            body['dryccfile']['pipeline']["web.yaml"] = {}
+            body['dryccfile']['pipeline']["web.toml"] = {}
             response = self.client.post(url, body)
             self.assertEqual(response.status_code, 400, response.data)
             body['dryccfile'] = {}
