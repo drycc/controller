@@ -88,23 +88,22 @@ class BuildHookViewSet(BaseServiceViewSet):
     serializer_class = serializers.BuildSerializer
 
     def create(self, request, *args, **kwargs):
-        app = get_object_or_404(models.app.App, id=request.data['receive_repo'])
+        self.app = get_object_or_404(models.app.App, id=request.data['receive_repo'])
         self.user = request.user = get_object_or_404(User, username=request.data['receive_user'])
         # check the user is authorized for this app
-        if not permissions.IsAppUser().has_object_permission(request, self, app):
+        if not permissions.IsAppUser().has_object_permission(request, self, self.app):
             return Response(status=status.HTTP_403_FORBIDDEN)
-        request.data['app'] = app
         super().create(request, *args, **kwargs)
         # return the application databag
         response = {
             'release': {
-                'version': models.release.Release.latest(app).version
+                'version': models.release.Release.latest(self.app).version
             }
         }
         return Response(response, status=status.HTTP_200_OK)
 
     def perform_create(self, serializer):
-        build = serializer.save()
+        build = serializer.save(app=self.app)
         build.create_release(self.user)
 
 

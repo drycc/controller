@@ -264,7 +264,7 @@ class AppSerializer(serializers.ModelSerializer):
 class BuildSerializer(serializers.ModelSerializer):
     """Serialize a :class:`~api.models.build.Build` model."""
 
-    app = serializers.SlugRelatedField(slug_field='id', queryset=models.app.App.objects.all())
+    app = serializers.SlugRelatedField(slug_field='id', read_only=True)
     procfile = serializers.JSONField(required=False)
     dryccfile = serializers.JSONField(required=False)
 
@@ -326,7 +326,7 @@ class LimitPlanSerializer(serializers.ModelSerializer):
 class ConfigSerializer(serializers.ModelSerializer):
     """Serialize a :class:`~api.models.config.Config` model."""
 
-    app = serializers.SlugRelatedField(slug_field='id', queryset=models.app.App.objects.all())
+    app = serializers.SlugRelatedField(slug_field='id', read_only=True)
     values = JSONFieldSerializer(required=False, binary=True)
     limits = JSONFieldSerializer(required=False, binary=True)
     lifecycle = CamelCaseJSONField(convert_to_str=False, required=False, binary=True)
@@ -467,7 +467,7 @@ class ConfigSerializer(serializers.ModelSerializer):
 class ReleaseSerializer(serializers.ModelSerializer):
     """Serialize a :class:`~api.models.release.Release` model."""
 
-    app = serializers.SlugRelatedField(slug_field='id', queryset=models.app.App.objects.all())
+    app = serializers.SlugRelatedField(slug_field='id', read_only=True)
 
     class Meta:
         """Metadata options for a :class:`ReleaseSerializer`."""
@@ -489,7 +489,7 @@ class KeySerializer(serializers.ModelSerializer):
 class DomainSerializer(serializers.ModelSerializer):
     """Serialize a :class:`~api.models.domain.Domain` model."""
 
-    app = serializers.SlugRelatedField(slug_field='id', queryset=models.app.App.objects.all())
+    app = serializers.SlugRelatedField(slug_field='id', read_only=True)
 
     class Meta:
         """Metadata options for a :class:`DomainSerializer`."""
@@ -550,7 +550,7 @@ class DomainSerializer(serializers.ModelSerializer):
 class ServiceSerializer(serializers.ModelSerializer):
     """Serialize a :class:`~api.models.service.Service` model."""
 
-    app = serializers.SlugRelatedField(slug_field='id', queryset=models.app.App.objects.all())
+    app = serializers.SlugRelatedField(slug_field='id', read_only=True)
     ptype = serializers.CharField(required=True)
     name = serializers.ReadOnlyField()
     domain = serializers.ReadOnlyField()
@@ -581,7 +581,7 @@ class ServiceSerializer(serializers.ModelSerializer):
 class CertificateSerializer(serializers.ModelSerializer):
     """Serialize a :class:`~api.models.certificate.Certificate` model."""
 
-    app = serializers.SlugRelatedField(slug_field='id', queryset=models.app.App.objects.all())
+    app = serializers.SlugRelatedField(slug_field='id', read_only=True)
     domains = serializers.ReadOnlyField()
     san = serializers.ListField(
         child=serializers.CharField(allow_blank=True, allow_null=True, required=False),
@@ -664,7 +664,7 @@ class PtypeSerializer(serializers.BaseSerializer):
 class AppSettingsSerializer(serializers.ModelSerializer):
     """Serialize a :class:`~api.models.appsettings.AppSettings` model."""
 
-    app = serializers.SlugRelatedField(slug_field='id', queryset=models.app.App.objects.all())
+    app = serializers.SlugRelatedField(slug_field='id', read_only=True)
     autoscale = JSONFieldSerializer(convert_to_str=False, required=False, binary=True)
     label = JSONFieldSerializer(convert_to_str=False, required=False, binary=True)
 
@@ -686,7 +686,7 @@ class AppSettingsSerializer(serializers.ModelSerializer):
 class TLSSerializer(serializers.ModelSerializer):
     """Serialize a :class:`~api.models.tls.TLS` model."""
 
-    app = serializers.SlugRelatedField(slug_field='id', queryset=models.app.App.objects.all())
+    app = serializers.SlugRelatedField(slug_field='id', read_only=True)
     events = serializers.ReadOnlyField()
 
     class Meta:
@@ -698,7 +698,7 @@ class TLSSerializer(serializers.ModelSerializer):
 class VolumeSerializer(serializers.ModelSerializer):
     """Serialize a :class:`~api.models.volume.Volume` model."""
 
-    app = serializers.SlugRelatedField(slug_field='id', queryset=models.app.App.objects.all())
+    app = serializers.SlugRelatedField(slug_field='id', read_only=True)
     path = JSONFieldSerializer(required=False, binary=True)
     parameters = CamelCaseJSONField(required=False)
 
@@ -784,7 +784,7 @@ class MetricSerializer(serializers.Serializer):
 
 
 class GatewaySerializer(serializers.ModelSerializer):
-    app = serializers.SlugRelatedField(slug_field='id', queryset=models.app.App.objects.all())
+    app = serializers.SlugRelatedField(slug_field='id', read_only=True)
     name = serializers.CharField(max_length=63, required=True)
     ports = serializers.JSONField(required=True)
     addresses = serializers.JSONField(read_only=True)
@@ -827,7 +827,7 @@ class GatewaySerializer(serializers.ModelSerializer):
 
 
 class RouteSerializer(serializers.ModelSerializer):
-    app = serializers.SlugRelatedField(slug_field='id', queryset=models.app.App.objects.all())
+    app = serializers.SlugRelatedField(slug_field='id', read_only=True)
     kind = serializers.CharField(max_length=15, required=True)
     name = serializers.CharField(max_length=63, required=True)
     rules = CamelCaseJSONField(convert_to_str=False, required=True)
@@ -928,7 +928,7 @@ class AddonClassSerializer(serializers.Serializer):
 
 class AddonInstanceSerializer(serializers.ModelSerializer):
     """Serialize AddonInstance model."""
-    app = serializers.ReadOnlyField(source='app.id')
+    app = serializers.SlugRelatedField(slug_field='id', read_only=True)
     name = serializers.CharField(max_length=63, required=False)
     kind = serializers.CharField(max_length=63, required=False)
     parameters = CamelCaseJSONField(convert_to_str=False, default=dict, required=False)

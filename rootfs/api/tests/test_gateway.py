@@ -66,7 +66,7 @@ class BaseGatewayTest(DryccTransactionTestCase):
     def create_gateway(self, app_id, name, port, protocol):
         response = self.client.put(
             '/v2/apps/{}/gateways/{}/'.format(app_id, name),
-            {'app': app_id, 'name': name, 'ports': [{'port': port, 'protocol': protocol}]},
+            {'name': name, 'ports': [{'port': port, 'protocol': protocol}]},
             format='json'
         )
         self.assertEqual(response.status_code, 201)
@@ -76,19 +76,19 @@ class BaseGatewayTest(DryccTransactionTestCase):
         name1 = 'gatway_'
         response = self.client.put(
             f'/v2/apps/{app_id}/gateways/{name1}/',
-            {'app': app_id, 'name': name1, 'ports': [{'port': 80, 'protocol': 'HTTP'}]}
+            {'name': name1, 'ports': [{'port': 80, 'protocol': 'HTTP'}]}
         )
         self.assertEqual(response.status_code, 400)
         name2 = '-gatway'
         response = self.client.put(
             f'/v2/apps/{app_id}/gateways/{name2}/',
-            {'app': app_id, 'name': name2, 'ports': [{'port': 80, 'protocol': 'HTTP'}]}
+            {'name': name2, 'ports': [{'port': 80, 'protocol': 'HTTP'}]}
         )
         self.assertEqual(response.status_code, 400)
         name3 = 'test.gatway'
         response = self.client.put(
             f'/v2/apps/{app_id}/gateways/{name3}/',
-            {'app': app_id, 'name': name3, 'ports': [{'port': 80, 'protocol': 'HTTP'}]}
+            {'name': name3, 'ports': [{'port': 80, 'protocol': 'HTTP'}]}
         )
         self.assertEqual(response.status_code, 400)
 
@@ -141,7 +141,7 @@ class GatewayTest(BaseGatewayTest):
         self.create_gateway(app_id, gateway_name, 8000, "HTTP")
         response = self.client.put(
             '/v2/apps/{}/gateways/{}/'.format(app_id, gateway_name),
-            {'app': app_id, 'name': gateway_name, 'ports': [
+            {'name': gateway_name, 'ports': [
                 {'port': 8000, 'protocol': "HTTP"},
                 {'port': 443, 'protocol': "HTTP"},
             ]},
@@ -179,7 +179,7 @@ class GatewayTest(BaseGatewayTest):
         ports = existing_ports + [{"port": port, "protocol": protocol}]
         response = self.client.put(
             '/v2/apps/{}/gateways/{}/'.format(app_id, name),
-            {'app': app_id, 'name': name, 'ports': ports},
+            {'name': name, 'ports': ports},
             format='json'
         )
         self.assertEqual(response.status_code, 201)
@@ -333,7 +333,6 @@ class RouteTest(BaseGatewayTest):
         response = self.client.put(
             '/v2/apps/{}/routes/{}/'.format(app_id, route_name),
             {
-                "app": app_id,
                 "kind": kind,
                 "name": route_name,
                 "rules": [{
@@ -357,7 +356,6 @@ class RouteTest(BaseGatewayTest):
         response = self.client.put(
             '/v2/apps/{}/routes/test-route-1/'.format(app_id),
             {
-                "app": app_id,
                 "port": 5000,
                 "ptype": "no-exists",
                 "kind": "HTTPRoute",
@@ -374,7 +372,6 @@ class RouteTest(BaseGatewayTest):
         response = self.client.put(
             '/v2/apps/{}/routes/{}/'.format(app_id, name1),
             {
-                "app": app_id,
                 "port": 5000,
                 "ptype": "no-exists",
                 "kind": "HTTPRoute",
@@ -388,7 +385,6 @@ class RouteTest(BaseGatewayTest):
         response = self.client.put(
             '/v2/apps/{}/routes/{}/'.format(app_id, name2),
             {
-                "app": app_id,
                 "kind": "HTTPRoute",
                 "name": name2,
                 "parent_refs": [],
@@ -399,7 +395,6 @@ class RouteTest(BaseGatewayTest):
         response = self.client.put(
             '/v2/apps/{}/routes/{}/'.format(app_id, name3),
             {
-                "app": app_id,
                 "name": name3,
                 "rules": [],
                 "parent_refs": [],
@@ -415,7 +410,6 @@ class RouteTest(BaseGatewayTest):
         response = self.client.put(
             '/v2/apps/{}/routes/{}/'.format(app_id, route_name),
             {
-                "app": app_id,
                 "name": route_name,
                 "kind": "HTTPRoute",
                 "rules": [{
@@ -441,7 +435,6 @@ class RouteTest(BaseGatewayTest):
         response = self.client.put(
             '/v2/apps/{}/routes/{}/'.format(app_id, route_name),
             {
-                "app": app_id,
                 "name": route_name,
                 "kind": "HTTPRoute",
                 "rules": [{
@@ -478,7 +471,6 @@ class RouteTest(BaseGatewayTest):
         response = self.client.put(
             '/v2/apps/{}/routes/{}/'.format(app_id, route_name),
             {
-                "app": app_id,
                 "name": route_name,
                 "kind": "HTTPRoute",
                 "rules": [{
@@ -504,7 +496,6 @@ class RouteTest(BaseGatewayTest):
         response = self.client.put(
             '/v2/apps/{}/routes/{}/'.format(app_id, route_name),
             {
-                "app": app_id,
                 "name": route_name,
                 "kind": "HTTPRoute",
                 "rules": [{
@@ -532,7 +523,6 @@ class RouteTest(BaseGatewayTest):
         response = self.client.put(
             '/v2/apps/{}/routes/{}/'.format(app_id, route_name),
             {
-                "app": app_id,
                 "name": route_name,
                 "kind": "TCPRoute",
                 "rules": [{
@@ -558,7 +548,6 @@ class RouteTest(BaseGatewayTest):
         response = self.client.put(
             '/v2/apps/{}/routes/{}/'.format(app_id, route_name),
             {
-                "app": app_id,
                 "name": route_name,
                 "kind": "TCPRoute",
                 "rules": [{
@@ -585,7 +574,6 @@ class RouteTest(BaseGatewayTest):
         response = self.client.put(
             '/v2/apps/{}/routes/{}/'.format(app_id, route_name),
             {
-                "app": app_id,
                 "name": route_name,
                 "kind": "HTTPRoute",
                 "rules": [{
@@ -610,7 +598,6 @@ class RouteTest(BaseGatewayTest):
         response = self.client.put(
             '/v2/apps/{}/routes/{}/'.format(app_id, route_name),
             {
-                "app": app_id,
                 "name": route_name,
                 "kind": "HTTPRoute",
                 "rules": [{
@@ -699,7 +686,6 @@ class RouteTest(BaseGatewayTest):
         response = self.client.put(
             '/v2/apps/{}/routes/{}/'.format(app_id, route_name),
             {
-                "app": app_id,
                 "name": route_name,
                 "kind": "HTTPRoute",
                 "rules": expect,
@@ -723,7 +709,6 @@ class RouteTest(BaseGatewayTest):
         response = self.client.put(
             '/v2/apps/{}/routes/{}/'.format(app_id, route_name),
             {
-                "app": app_id,
                 "name": route_name,
                 "kind": "HTTPRoute",
                 "rules": expect_invalid,
@@ -741,7 +726,6 @@ class RouteTest(BaseGatewayTest):
         response = self.client.put(
             '/v2/apps/{}/routes/{}/'.format(app_id, route_name),
             {
-                "app": app_id,
                 "name": route_name,
                 "kind": "HTTPRoute",
                 "rules": [{
@@ -851,7 +835,6 @@ class RouteTest(BaseGatewayTest):
         response = self.client.put(
             '/v2/apps/{}/routes/{}/'.format(app_id, route_name),
             {
-                "app": app_id,
                 "kind": kind,
                 "name": route_name,
                 "rules": [{
@@ -870,7 +853,6 @@ class RouteTest(BaseGatewayTest):
         response = self.client.put(
             '/v2/apps/{}/routes/{}/'.format(app_id, route_name),
             {
-                "app": app_id,
                 "name": route_name,
                 "kind": kind,
                 "rules": [{
@@ -985,7 +967,6 @@ class RouteTest(BaseGatewayTest):
         response = self.client.put(
             '/v2/apps/{}/routes/{}/'.format(app_id, route_name),
             {
-                "app": app_id,
                 "kind": "TCPRoute",
                 "name": route_name,
                 "rules": [{
@@ -1004,7 +985,6 @@ class RouteTest(BaseGatewayTest):
         response = self.client.put(
             '/v2/apps/{}/routes/{}/'.format(app_id, route_name),
             {
-                "app": app_id,
                 "name": route_name,
                 "kind": "TCPRoute",
                 "rules": [{
@@ -1048,7 +1028,6 @@ class GatewayRouteModelValidationTest(BaseGatewayTest):
         response = self.client.put(
             '/v2/apps/{}/routes/schema-route/'.format(app_id),
             {
-                "app": app_id,
                 "kind": "HTTPRoute",
                 "name": "schema-route",
                 "rules": [{"backendRefs": [{"name": 123, "port": 80}]}],
@@ -1063,7 +1042,6 @@ class GatewayRouteModelValidationTest(BaseGatewayTest):
         response = self.client.put(
             '/v2/apps/{}/routes/schema-route/'.format(app_id),
             {
-                "app": app_id,
                 "kind": "HTTPRoute",
                 "name": "schema-route",
                 "rules": [{"backendRefs": [{"name": "svc", "port": 80}]}],

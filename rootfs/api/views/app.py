@@ -32,8 +32,12 @@ class AppFilterViewSet(BaseAppViewSet):
         return self.get_queryset(**kwargs).latest('created')
 
     def create(self, request, **kwargs):
-        request.data['app'] = self.get_app()
+        # resolve app and check permissions before request validation
+        self.app = self.get_app()
         return super().create(request, **kwargs)
+
+    def perform_create(self, serializer):
+        serializer.save(app=self.app)
 
 
 class ReleasableViewSet(AppFilterViewSet):
@@ -122,7 +126,7 @@ class BuildViewSet(ReleasableViewSet):
     serializer_class = serializers.BuildSerializer
 
     def perform_create(self, serializer):
-        build = serializer.save()
+        build = serializer.save(app=self.app)
         for ptype in build.ptypes:
             image = build.get_image(ptype)
             is_loopback = re.compile(r'^(localhost|127\.0\.0\.1)(:\d+)?/').match
@@ -153,7 +157,7 @@ class ConfigViewSet(ReleasableViewSet):
         return Response(data, status=status.HTTP_201_CREATED, headers=headers)
 
     def perform_create(self, serializer):
-        config = serializer.save()
+        config = serializer.save(app=self.app)
         self.post_save(config)
 
     def destroy(self, request, **kwargs):

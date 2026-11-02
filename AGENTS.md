@@ -205,6 +205,16 @@ class MyModelSerializer(serializers.ModelSerializer):
         read_only_fields = ['uuid', 'created', 'updated']
 ```
 
+### `app` is URL-scoped and read-only
+
+On app-scoped serializers, `app` is always
+`serializers.SlugRelatedField(slug_field='id', read_only=True)` — the app comes
+from the URL, never from the request body. Views pass it to
+`serializer.save(app=...)`: `AppFilterViewSet.perform_create` covers generic
+create (its `create()` resolves `self.app` and checks permissions **before**
+validation), custom upserts call `save(app=self.get_app(), ...)`, and hooks
+(`receive_repo`) stash `self.app` in `create()`.
+
 ### Naming Convention: snake_case API + CamelCaseJSONField
 
 The API uses **snake_case** for all field names. K8s data stored in JSONFields
