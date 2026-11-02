@@ -18,7 +18,6 @@ from api import models
 from api.utils import validate_json, validate_reserved_names
 from api.models.volume import Volume
 from api.models.base import PTYPE_MIN_LENGTH, PTYPE_MAX_LENGTH
-from scheduler.resources.pod import DEFAULT_CONTAINER_PORT
 from .schemas import rules
 from .schemas.config import SCHEMA as CONFIG_SCHEMA
 from .schemas.volumes import SCHEMA as VOLUMES_SCHEMA
@@ -552,9 +551,6 @@ class ServiceSerializer(serializers.ModelSerializer):
     """Serialize a :class:`~api.models.service.Service` model."""
 
     app = serializers.SlugRelatedField(slug_field='id', queryset=models.app.App.objects.all())
-    port = serializers.IntegerField(required=True)
-    protocol = serializers.CharField(required=True)
-    target_port = serializers.IntegerField(default=DEFAULT_CONTAINER_PORT)
     ptype = serializers.CharField(required=True)
     name = serializers.ReadOnlyField()
     domain = serializers.ReadOnlyField()
