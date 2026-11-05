@@ -360,12 +360,17 @@ class AddonInstanceTest(DryccTransactionTestCase):
     def tearDown(self):
         AddonInstance.objects.all().delete()
         cache.clear()
-        mock.patch.stopall()
 
-    def _patch(self):
-        s = _mock_scheduler()
-        mock.patch('api.views.addon.get_scheduler', return_value=s).start()
-        mock.patch('api.models.base.get_scheduler', return_value=s).start()
+    def _patch(self, scheduler=None):
+        s = scheduler or _mock_scheduler()
+        targets = (
+            'api.views.addon.get_scheduler',
+            'api.models.base.get_scheduler',
+        )
+        for target in targets:
+            patcher = mock.patch(target, return_value=s)
+            patcher.start()
+            self.addCleanup(patcher.stop)
 
     def _upsert(self, name, params=None):
         data = {
@@ -409,8 +414,7 @@ class AddonInstanceTest(DryccTransactionTestCase):
         notfound.status_code = 404
         notfound.json.return_value = {'message': 'not found'}
         s.addonclasses.get = mock.Mock(return_value=notfound)
-        mock.patch('api.views.addon.get_scheduler', return_value=s).start()
-        mock.patch('api.models.base.get_scheduler', return_value=s).start()
+        self._patch(s)
         response = self.client.put(
             '/v2/apps/{}/addons/test-name/'.format(self.app_id),
             data={'kind': 'Nonexistent', 'plan': 'micro', 'parameters': {}},
