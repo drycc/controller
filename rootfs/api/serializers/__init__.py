@@ -26,13 +26,11 @@ from .schemas.healthcheck import SCHEMA as HEALTHCHECK_SCHEMA
 from .schemas.dryccfile import (SCHEMA as DRYCCFILE_SCHEMA, PROCTYPE_REGEX, CONFIGKEY_REGEX)
 from .schemas.gateway import PORT_SCHEMA as GATEWAY_PORT_SCHEMA
 from .schemas.route import PARENT_REF_SCHEMA as ROUTE_PARENT_REF_SCHEMA
+from .schemas.service import SCHEMA as SERVICE_PORTS_SCHEMA
 
 
 User = get_user_model()
 logger = logging.getLogger(__name__)
-SERVICE_PROTOCOL_MATCH = re.compile(r'^(TCP|UDP|SCTP)$')
-SERVICE_PROTOCOL_MISMATCH_MSG = (
-    "the service protocol only supports: %s" % SERVICE_PROTOCOL_MATCH.pattern)
 GATEWAY_PROTOCOL_MATCH = re.compile(r'^(HTTP|HTTPS|TCP|TLS|UDP)$')
 GATEWAY_PROTOCOL_MISMATCH_MSG = (
     "the gateway protocol only supports: %s" % GATEWAY_PROTOCOL_MATCH.pattern)
@@ -552,29 +550,37 @@ class ServiceSerializer(serializers.ModelSerializer):
 
     app = serializers.SlugRelatedField(slug_field='id', read_only=True)
     ptype = serializers.CharField(required=True)
-    name = serializers.ReadOnlyField()
     domain = serializers.ReadOnlyField()
-    ports = CamelCaseJSONField()
+    ports = CamelCaseJSONField(convert_to_str=False, required=True, allow_null=False)
 
     class Meta:
         """Metadata options for a :class:`ServiceSerializer`."""
         model = models.service.Service
-        fields = ['created', 'updated', 'app', 'ptype', 'name', 'domain', 'ports']
-        read_only_fields = ['created', 'updated', 'name', 'domain', 'ports']
+        fields = ['created', 'updated', 'app', 'ptype', 'domain', 'ports']
+        read_only_fields = ['created', 'updated', 'domain']
 
     @staticmethod
-    def validate_protocol(value):
-        if value is None or value == "":
-            value = "TCP"
-        elif not re.match(SERVICE_PROTOCOL_MATCH, value):
-            raise serializers.ValidationError(SERVICE_PROTOCOL_MISMATCH_MSG)
-        return value
+    def validate_ports(value):
+        return validate_json(value, SERVICE_PORTS_SCHEMA, serializers.ValidationError)
 
-    @classmethod
-    def validate_target_port(cls, value):
-        return cls.validate_port(value)
+    def validate(self, attrs):
+        attrs = super().validate(attrs)
+        service = self.instance or models.service.Service(**attrs)
+        new_ports = []
+        for item in attrs.get("ports", service.ports):
+            port, protocol = item["port"], item["protocol"]
+            service.ports = new_ports
+            if service.get_port(port, protocol) is not None:
+                raise serializers.ValidationError({"detail": "port is occupied"})
+            new_ports.append({
+                "name": service.port_name(port, protocol),
+                "port": port,
+                "protocol": protocol,
+                "targetPort": item["targetPort"],
+            })
+        attrs["ports"] = new_ports
+        return attrs
 
-    validate_port = staticmethod(validate_port)
     validate_ptype = staticmethod(validate_ptype)
 
 

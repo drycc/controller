@@ -110,8 +110,12 @@ app_urlpatterns = [
     # application services
     re_path(
         r"^apps/(?P<id>{})/services/?$".format(settings.APP_URL_REGEX),
-        views.ServiceViewSet.as_view({'post': 'upsert',
-                                     'get': 'list', 'delete': 'destroy'})),
+        views.ServiceViewSet.as_view({'get': 'list'})),
+    re_path(
+        r"^apps/(?P<id>{})/services/(?P<ptype>{})/?$".format(
+            settings.APP_URL_REGEX, settings.NAME_REGEX),
+        views.ServiceViewSet.as_view(
+            {'get': 'retrieve', 'put': 'upsert', 'delete': 'destroy'})),
     # application settings
     re_path(
         r"^apps/(?P<id>{})/settings/?$".format(settings.APP_URL_REGEX),

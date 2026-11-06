@@ -319,14 +319,17 @@ class RouteTest(BaseGatewayTest):
                      ptype="task", kind="HTTPRoute"):
         # create service
         port = 5000
-        response = self.client.post(
-            '/v2/apps/{}/services'.format(app_id),
+        response = self.client.put(
+            '/v2/apps/{}/services/{}/'.format(app_id, ptype),
             {
-                'port': port,
-                'protocol': 'TCP',
-                'target_port': port,
+                'ports': [{
+                    'port': port,
+                    'protocol': 'TCP',
+                    'target_port': port,
+                }],
                 'ptype': ptype
-            }
+            },
+            format='json'
         )
         self.assertEqual(response.status_code, 201, response.data)
         # create route
@@ -821,14 +824,17 @@ class RouteTest(BaseGatewayTest):
         )
         self.assertEqual(response.status_code, 201, response.data)
         # add new services
-        response = self.client.post(
-            '/v2/apps/{}/services'.format(app_id),
+        response = self.client.put(
+            '/v2/apps/{}/services/gateway/'.format(app_id),
             {
-                'port': 9999,
-                'protocol': 'TCP',
-                'target_port': 9999,
+                'ports': [{
+                    'port': 9999,
+                    'protocol': 'TCP',
+                    'target_port': 9999,
+                }],
                 'ptype': 'gateway'
-            }
+            },
+            format='json'
         )
         self.assertEqual(response.status_code, 201, response.data)
         # add new router
@@ -948,14 +954,17 @@ class RouteTest(BaseGatewayTest):
         port = 6000
         gateway_name = "tcp-gw"
         self.create_gateway(app_id, gateway_name, port, "TCP")
-        response = self.client.post(
-            '/v2/apps/{}/services'.format(app_id),
+        response = self.client.put(
+            '/v2/apps/{}/services/task/'.format(app_id),
             {
-                'port': port,
-                'protocol': 'TCP',
-                'target_port': port,
+                'ports': [{
+                    'port': port,
+                    'protocol': 'TCP',
+                    'target_port': port,
+                }],
                 'ptype': 'task',
-            }
+            },
+            format='json'
         )
         self.assertEqual(response.status_code, 201, response.data)
         response = self.client.post(

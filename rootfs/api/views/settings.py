@@ -1,6 +1,7 @@
 """
 Settings, domain, and certificate views.
 """
+from django.db import transaction
 from django.shortcuts import get_object_or_404
 from django.http import Http404
 from rest_framework import status
@@ -46,43 +47,21 @@ class ServiceViewSet(AppFilterViewSet):
     model = models.service.Service
     serializer_class = serializers.ServiceSerializer
 
-    def list(self, *args, **kwargs):
-        services = self.get_app().service_set.all()
-        data = self.get_serializer(services, many=True).data
-        return Response({"services": data}, status=status.HTTP_200_OK)
+    def get_object(self):
+        return get_object_or_404(self.get_app().service_set, ptype=self.kwargs["ptype"])
 
+    @transaction.atomic
     def upsert(self, request, **kwargs):
         app = self.get_app()
-        port = self.get_serializer().validate_port(request.data.get('port'))
-        protocol = self.get_serializer().validate_protocol(request.data.get('protocol'))
-        ptype = self.get_serializer().validate_ptype(request.data.get(
-            'ptype'))
-        target_port = self.get_serializer().validate_target_port(request.data.get('target_port'))
+        ptype = self.get_serializer().validate_ptype(kwargs["ptype"])
         service = app.service_set.filter(ptype=ptype).first()
-        if service:
-            for item in service.ports:
-                if item["port"] == port:
-                    return Response(status=status.HTTP_400_BAD_REQUEST, data={"detail": "port is occupied"})  # noqa
-            http_status = status.HTTP_204_NO_CONTENT
-        else:
-            service = self.model(app=app, ptype=ptype)
-            http_status = status.HTTP_201_CREATED
-        service.add_port(port, protocol, target_port)
-        service.save()
-        return Response(status=http_status)
-
-    def destroy(self, request, **kwargs):
-        port = self.get_serializer().validate_port(request.data.get('port'))
-        protocol = self.get_serializer().validate_protocol(request.data.get('protocol'))
-        ptype = self.get_serializer().validate_ptype(
-            request.data.get('ptype'))
-        service = get_object_or_404(self.get_queryset(**kwargs), ptype=ptype)
-        removed = service.remove_port(port, protocol)
-        if len(service.ports) == 0:
-            service.delete()
-        elif removed:
-            service.save()
-        return Response(status=status.HTTP_204_NO_CONTENT)
+        created = service is None
+        serializer = self.get_serializer(instance=service, data=request.data)
+        serializer.is_valid(raise_exception=True)
+        service = serializer.save(app=app, ptype=ptype)
+        http_status = (
+            status.HTTP_201_CREATED if created else status.HTTP_200_OK)
+        return Response(self.get_serializer(service).data, status=http_status)
 
 
 class CertificateViewSet(AppFilterViewSet):
