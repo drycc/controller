@@ -1,6 +1,5 @@
 import logging
 import hashlib
-import threading
 from django.db import models
 from django.conf import settings
 from django.core.exceptions import ValidationError
@@ -283,7 +282,6 @@ class Gateway(AuditedModel):
 
 
 class Route(AuditedModel):
-    CACHE = threading.local()
     PROTOCOLS_CHOICES = {
         "TLSRoute": ("TCP", ),
         "TCPRoute": ("TCP", ),
@@ -308,15 +306,12 @@ class Route(AuditedModel):
 
     @property
     def services(self):
-        key = f"{self.app.id}_{self.name}"
-        if not hasattr(self.CACHE, key):
-            service_names = set()
-            for rule in self.rules:
-                for backend in rule['backendRefs']:
-                    service_names.add(backend['name'])
-            setattr(self.CACHE, key,
-                    [s for s in self.app.service_set.all() if s.name in service_names])
-        return getattr(self.CACHE, key)
+        service_names = {
+            backend['name']
+            for rule in self.rules
+            for backend in rule['backendRefs']
+        }
+        return list(self.app.service_set.filter(name__in=service_names))
 
     @property
     def protocols(self):

@@ -344,10 +344,15 @@ class DeployMixin(AppBaseMixin):
                         api.delete(self.id, name, ignore_exception=True)
         self.log(f"cleanup old kubernetes resources for {self.id}")
 
+    def _preflight_deploy(self, deploys, force_deploy):
+        if PTYPE_WEB in deploys:
+            self._check_default_service_conflict()
+        self._check_deployment_in_progress(deploys, force_deploy)
+
     def _deploy(self, deploys, ptypes, prev_release, release, force_deploy, rollback_on_failure):
         """Internal deploy implementation."""
         deploys = OrderedDict(sorted(deploys.items(), key=lambda d: d[1].get("routable")))
-        self._check_deployment_in_progress(deploys, force_deploy)
+        self._preflight_deploy(deploys, force_deploy)
         try:
             tasks = []
             lock = DeployLock(self.pk)
@@ -393,15 +398,13 @@ class DeployMixin(AppBaseMixin):
             if ptype == PTYPE_WEB:
                 target_port = release.get_port(ptype)
                 self._create_default_ingress(target_port)
-            service = self.service_set.filter(ptype=ptype).first()
-            if not service:
-                continue
             if prev_release and prev_release.build:
                 continue
-            if ptype == PTYPE_WEB:
-                self.verify_http_health(service, **deploys[ptype])
-            else:
-                self.verify_tcp_health(service, **deploys[ptype])
+            for service in self.service_set.filter(ptype=ptype):
+                if ptype == PTYPE_WEB:
+                    self.verify_http_health(service, **deploys[ptype])
+                else:
+                    self.verify_tcp_health(service, **deploys[ptype])
 
     def _scale(self, user, structure, release, app_settings):
         """Internal scale implementation."""
@@ -561,17 +564,30 @@ class DeployMixin(AppBaseMixin):
             if in_progress and not deploy_okay:
                 raise AlreadyExists("Deployment for {} is already in progress".format(name))
 
-    def _create_default_ingress(self, target_port):
-        """Create default ingress resources (service, gateway, route)."""
+    def _check_default_service_conflict(self):
+        service = self.service_set.filter(name=self.id).first()
+        if service is not None and service.ptype != PTYPE_WEB:
+            raise DryccException(
+                f"default service {self.id} is already bound to ptype {service.ptype}")
+
+    def _get_or_create_default_service(self, target_port):
         try:
-            service = self.service_set.filter(ptype=PTYPE_WEB).latest()
+            service = self.service_set.filter(name=self.id).latest()
         except Service.DoesNotExist:
-            service = Service(app=self, ptype=PTYPE_WEB)
+            service = Service(app=self, name=self.id, ptype=PTYPE_WEB)
             service.add_port(DEFAULT_HTTP_PORT, "TCP", target_port)
             service.save()
         else:
+            if service.ptype != PTYPE_WEB:
+                raise DryccException(
+                    f"default service {self.id} is already bound to ptype {service.ptype}")
             if service.update_port(DEFAULT_HTTP_PORT, "TCP", target_port):
                 service.save()
+        return service
+
+    def _create_default_ingress(self, target_port):
+        """Create default ingress resources (service, gateway, route)."""
+        service = self._get_or_create_default_service(target_port)
         try:
             gateway = self.gateway_set.filter(name=self.id).latest()
             if gateway.change_default_tls():

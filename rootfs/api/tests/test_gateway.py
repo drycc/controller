@@ -320,8 +320,9 @@ class RouteTest(BaseGatewayTest):
         # create service
         port = 5000
         response = self.client.put(
-            '/v2/apps/{}/services/{}/'.format(app_id, ptype),
+            '/v2/apps/{}/services/{}/'.format(app_id, f'{app_id}-{ptype}'),
             {
+                'name': f'{app_id}-{ptype}',
                 'ports': [{
                     'port': port,
                     'protocol': 'TCP',
@@ -825,8 +826,9 @@ class RouteTest(BaseGatewayTest):
         self.assertEqual(response.status_code, 201, response.data)
         # add new services
         response = self.client.put(
-            '/v2/apps/{}/services/gateway/'.format(app_id),
+            '/v2/apps/{}/services/{}/'.format(app_id, f'{app_id}-gateway'),
             {
+                'name': f'{app_id}-gateway',
                 'ports': [{
                     'port': 9999,
                     'protocol': 'TCP',
@@ -955,8 +957,9 @@ class RouteTest(BaseGatewayTest):
         gateway_name = "tcp-gw"
         self.create_gateway(app_id, gateway_name, port, "TCP")
         response = self.client.put(
-            '/v2/apps/{}/services/task/'.format(app_id),
+            '/v2/apps/{}/services/{}/'.format(app_id, f'{app_id}-task'),
             {
+                'name': f'{app_id}-task',
                 'ports': [{
                     'port': port,
                     'protocol': 'TCP',

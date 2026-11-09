@@ -48,17 +48,17 @@ class ServiceViewSet(AppFilterViewSet):
     serializer_class = serializers.ServiceSerializer
 
     def get_object(self):
-        return get_object_or_404(self.get_app().service_set, ptype=self.kwargs["ptype"])
+        return get_object_or_404(self.get_app().service_set, name=self.kwargs["name"])
 
     @transaction.atomic
     def upsert(self, request, **kwargs):
         app = self.get_app()
-        ptype = self.get_serializer().validate_ptype(kwargs["ptype"])
-        service = app.service_set.filter(ptype=ptype).first()
+        name = self.get_serializer().validate_name(kwargs["name"])
+        service = app.service_set.filter(name=name).first()
         created = service is None
         serializer = self.get_serializer(instance=service, data=request.data)
         serializer.is_valid(raise_exception=True)
-        service = serializer.save(app=app, ptype=ptype)
+        service = serializer.save(app=app, name=name)
         http_status = (
             status.HTTP_201_CREATED if created else status.HTTP_200_OK)
         return Response(self.get_serializer(service).data, status=http_status)

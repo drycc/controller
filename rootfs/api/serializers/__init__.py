@@ -549,6 +549,7 @@ class ServiceSerializer(serializers.ModelSerializer):
     """Serialize a :class:`~api.models.service.Service` model."""
 
     app = serializers.SlugRelatedField(slug_field='id', read_only=True)
+    name = serializers.CharField(max_length=63, required=True)
     ptype = serializers.CharField(required=True)
     domain = serializers.ReadOnlyField()
     ports = CamelCaseJSONField(convert_to_str=False, required=True, allow_null=False)
@@ -556,7 +557,7 @@ class ServiceSerializer(serializers.ModelSerializer):
     class Meta:
         """Metadata options for a :class:`ServiceSerializer`."""
         model = models.service.Service
-        fields = ['created', 'updated', 'app', 'ptype', 'domain', 'ports']
+        fields = ['created', 'updated', 'app', 'name', 'ptype', 'domain', 'ports']
         read_only_fields = ['created', 'updated', 'domain']
 
     @staticmethod
@@ -581,6 +582,7 @@ class ServiceSerializer(serializers.ModelSerializer):
         attrs["ports"] = new_ports
         return attrs
 
+    validate_name = staticmethod(validate_name)
     validate_ptype = staticmethod(validate_ptype)
 
 

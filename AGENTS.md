@@ -115,6 +115,16 @@ class MyModel(UuidAuditedModel):
         pass
 ```
 
+### Service Identity
+
+- `Service.name` is a persisted field and the real Kubernetes `metadata.name`; it is
+  unique per app through `unique_together = (('app', 'name'), )`.
+- `Service.ptype` is only the Pod selector (`spec.selector.type`). Multiple Services
+  may use the same ptype. Never derive a Service name from ptype in new code.
+- Service detail endpoints use `/services/{name}/`, matching Gateway and Route.
+  Legacy `app.id` / `app.id-ptype` names belong only to data migration and the
+  system-managed default web Service (`name=app.id`).
+
 ## View Conventions
 
 ### Base Classes
