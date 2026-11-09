@@ -488,7 +488,7 @@ logger = logging.getLogger(__name__)
 ## Dependencies
 
 - Django 5.2.x
-- Django REST Framework 3.16.x
+- Django REST Framework 3.18.x
 - PostgreSQL (via psycopg)
 - Celery + Redis
 - Kubernetes Python client
