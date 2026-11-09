@@ -1,6 +1,5 @@
 import json
 import time
-import six
 import ssl
 import aiohttp
 import asyncio
@@ -159,7 +158,7 @@ class AppPodExecConsumer(BaseK8sConsumer):
         if data is None:
             return
         elif isinstance(data, bytes):
-            channel_prefix = six.binary_type(channel_prefix, "ascii")
+            channel_prefix = channel_prefix.encode("ascii")
             await super().send(bytes_data=channel_prefix+data)
         elif isinstance(data, str):
             await super().send(text_data=channel_prefix+data)
