@@ -118,10 +118,12 @@ class AppTest(DryccTestCase):
         response = self.client.post('/v2/apps', body)
         for key in response.data:
             self.assertIn(
-                key, ['uuid', 'uid', 'created', 'updated', 'id', 'workspace', 'structure']
+                key,
+                ['uuid', 'uid', 'archived', 'created', 'updated', 'id', 'workspace', 'structure']
             )
         expected = {
             'id': body['id'],
+            'archived': False,
             'workspace': self.user.username,
             'structure': {}
         }

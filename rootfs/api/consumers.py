@@ -19,17 +19,16 @@ from kubernetes.stream.ws_client import STDOUT_CHANNEL, STDERR_CHANNEL, ERROR_CH
 from channels.exceptions import DenyConnection
 from channels.generic.http import AsyncHttpConsumer
 from channels.generic.websocket import AsyncWebsocketConsumer
+from rest_framework.exceptions import APIException
 
-from .clients import ManagerAPI
 from .models.app import App
 from .models.volume import Volume
-from .permissions import IsAppUser
+from .permissions import HasAppAccess
 
 
 class AppPermChecker(object):
     timeout = 60 * 60
-    manager_api = ManagerAPI()
-    check_permission = IsAppUser().has_object_permission
+    check_permission = HasAppAccess().has_object_permission
 
     def __init__(self, scope):
         self.scope = scope
@@ -44,14 +43,14 @@ class AppPermChecker(object):
             try:
                 app = await App.objects.aget(id=app_id)
                 request = namedtuple("Request", ["user", "method"])(self.scope["user"], "GET")
-                if await sync_to_async(self.check_permission)(request, None, app):
-                    permission = await sync_to_async(self.manager_api.get_app_status)(app_id)
-                else:
-                    permission = (False, "permission denied")
+                allowed = await sync_to_async(self.check_permission)(request, None, app)
+                permission = (allowed, None) if allowed else (False, "permission denied")
                 if permission[0]:
                     await cache.aset(key, permission, timeout=self.timeout)
             except App.DoesNotExist:
                 permission = (False, "app not exists")
+            except APIException as error:
+                permission = (False, str(error.detail))
         return permission
 
 

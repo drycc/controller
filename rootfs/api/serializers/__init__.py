@@ -255,8 +255,8 @@ class AppSerializer(serializers.ModelSerializer):
     class Meta:
         """Metadata options for a :class:`AppSerializer`."""
         model = models.app.App
-        fields = ['uuid', 'id', 'uid', 'workspace', 'structure', 'created', 'updated']
-        read_only_fields = ['uuid', 'uid', 'created', 'updated']
+        fields = ['uuid', 'id', 'uid', 'archived', 'workspace', 'structure', 'created', 'updated']
+        read_only_fields = ['uuid', 'uid', 'archived', 'created', 'updated']
 
 
 class BuildSerializer(serializers.ModelSerializer):

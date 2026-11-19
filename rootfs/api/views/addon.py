@@ -74,9 +74,11 @@ class AddonInstanceViewSet(AppFilterViewSet):
     serializer_class = serializers.AddonInstanceSerializer
 
     def get_object(self):
-        return get_object_or_404(
+        instance = get_object_or_404(
             models.addon.AddonInstance, app__id=self.kwargs['id'],
             name=self.kwargs['name'])
+        self.check_object_permissions(self.request, instance)
+        return instance
 
     def upsert(self, request, *args, **kwargs):
         name = kwargs['name']

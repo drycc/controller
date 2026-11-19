@@ -37,7 +37,7 @@ from rest_framework.exceptions import ValidationError
 
 from api.tasks import send_app_log
 from api.utils import get_httpclient, dict_diff, get_next_uid
-from api.exceptions import AlreadyExists, DryccException, ServiceUnavailable
+from api.exceptions import AlreadyExists, Conflict, DryccException, ServiceUnavailable
 from api.utils import (
     CacheLock,
     DeployLock,
@@ -46,6 +46,7 @@ from api.utils import (
     validate_reserved_names,
 )
 from scheduler import KubeHTTPException, KubeException
+from scheduler.drycc.archiver import NamespaceArchiver
 from .gateway import Gateway, Route
 from .limit import LimitPlan
 from .config import Config
@@ -182,6 +183,42 @@ class LifecycleMixin(AppBaseMixin):
         except Exception as e:
             err = "warning, some pods failed to restart:\n{}".format(str(e))
             self.log(err, logging.WARNING)
+
+    def archive(self):
+        """Archive all supported workloads in the app namespace."""
+        lock = self.lock()
+        if not lock.acquire():
+            raise ServiceUnavailable(f"could not acquire app lock for {self.id}")
+        try:
+            self.refresh_from_db(fields=['archived'])
+            if self.archived:
+                raise Conflict(f"App '{self.id}' is already archived")
+            App.objects.filter(pk=self.pk).update(archived=True)
+            self.archived = True
+            try:
+                NamespaceArchiver(self.scheduler).archive(self.id)
+            except KubeException as error:
+                raise ServiceUnavailable(str(error)) from error
+        finally:
+            lock.release()
+
+    def unarchive(self):
+        """Restore workloads archived in the app namespace."""
+        lock = self.lock()
+        if not lock.acquire():
+            raise ServiceUnavailable(f"could not acquire app lock for {self.id}")
+        try:
+            self.refresh_from_db(fields=['archived'])
+            if not self.archived:
+                raise Conflict(f"App '{self.id}' is not archived")
+            try:
+                NamespaceArchiver(self.scheduler).unarchive(self.id)
+            except KubeException as error:
+                raise ServiceUnavailable(str(error)) from error
+            App.objects.filter(pk=self.pk).update(archived=False)
+            self.archived = False
+        finally:
+            lock.release()
 
     def _create_network_policy(self):
         """Create network policy for the app namespace."""
@@ -1169,6 +1206,9 @@ class StateMixin(AppBaseMixin):
 
     def state_to_k8s(self):
         """Sync app state to Kubernetes."""
+        self.refresh_from_db(fields=['archived'])
+        if self.archived:
+            return
         release = Release.latest(self)
         if release is None or release.build is None:
             self.log("the last release does not have a build, skipping deployment...")
@@ -1223,6 +1263,7 @@ class App(
 
     id = models.SlugField(max_length=63, unique=True, null=True, validators=[validate_app_id])
     uid = models.PositiveIntegerField(unique=True, editable=False)
+    archived = models.BooleanField(default=False, editable=False)
     workspace = models.ForeignKey("Workspace", on_delete=models.CASCADE)
     structure = models.JSONField(default=dict, blank=True, validators=[validate_app_structure])
 

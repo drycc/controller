@@ -62,7 +62,7 @@ class KeyHookViewSet(BaseServiceViewSet):
         app = get_object_or_404(models.app.App, id=kwargs['id'])
         request.user = get_object_or_404(User, username=kwargs['username'])
         # check the user is authorized for this app
-        if not permissions.IsAppUser().has_object_permission(request, self, app):
+        if not permissions.HasAppAccess().has_object_permission(request, self, app):
             return Response(status=status.HTTP_403_FORBIDDEN)
 
         data = {request.user.username: []}
@@ -91,7 +91,7 @@ class BuildHookViewSet(BaseServiceViewSet):
         self.app = get_object_or_404(models.app.App, id=request.data['receive_repo'])
         self.user = request.user = get_object_or_404(User, username=request.data['receive_user'])
         # check the user is authorized for this app
-        if not permissions.IsAppUser().has_object_permission(request, self, self.app):
+        if not permissions.HasAppAccess().has_object_permission(request, self, self.app):
             return Response(status=status.HTTP_403_FORBIDDEN)
         super().create(request, *args, **kwargs)
         # return the application databag
@@ -116,7 +116,7 @@ class ConfigHookViewSet(BaseServiceViewSet):
         app = get_object_or_404(models.app.App, id=request.data['receive_repo'])
         request.user = get_object_or_404(User, username=request.data['receive_user'])
         # check the user is authorized for this app
-        if not permissions.IsAppUser().has_object_permission(request, self, app):
+        if not permissions.HasAppAccess().has_object_permission(request, self, app):
             return Response(status=status.HTTP_403_FORBIDDEN)
         config = models.release.Release.latest(app).config
         serializer = self.get_serializer(config)

@@ -24,6 +24,8 @@ controller/
       tasks.py              # Celery tasks
     scheduler/              # Kubernetes API client
       __init__.py           # KubeHTTPClient (base HTTP layer)
+      drycc/                # Drycc-specific operations built on the K8s client
+        archiver.py         # Namespace Deployment/StatefulSet/HPA archive + restore
       resources/            # K8s resource implementations
       exceptions.py         # KubeException, KubeHTTPException
     manage.py               # Django management script
@@ -45,6 +47,29 @@ controller/
 ### Flake8 Excludes
 
 `api/migrations`, `templates`, `venv` — never lint these.
+
+## Design and Simplicity
+
+- **Inspect the closest existing implementation before designing.** New models, fields,
+  serializers, views, URLs, scheduler operations, and tests must follow patterns already used
+  in this repository. In a design proposal, name the existing files or methods used as the
+  reference instead of relying only on framework conventions or generic best practices.
+- **External projects are semantic references, not local style guides.** Reuse useful behavior
+  from projects such as GoKubeDownscaler, but adapt it to this repository's model, view,
+  scheduler, exception, and test conventions.
+- **YAGNI is a hard constraint.** Do not add schema versions, timestamps, extra lifecycle
+  states, compatibility envelopes, helper methods, metadata fields, or extension points unless
+  a current requirement or caller uses them. Prefer the smallest design that satisfies the
+  requested behavior and minimal file changes.
+- **Do not introduce defensive abstractions for hypothetical callers.** Cover real API, hook,
+  task, and model entry points used by this project; do not build global guardrails for
+  theoretical future entry points without an explicit requirement.
+- `editable=False` is used for system-maintained or derived fields such as UUIDs, UIDs, and
+  certificate metadata. Do not add it merely as a hypothetical Django Admin policy. API
+  read-only behavior belongs in serializer `read_only_fields`, following existing serializers.
+- Prefer existing capability checks such as `hasattr(model, 'app')` over concrete model-type
+  branches such as `model is Key` when handling App-owned resources. Follow `BaseAppViewSet`
+  and `AuditedModel.scheduler` instead of introducing special cases.
 
 ## Model Conventions
 
@@ -133,6 +158,42 @@ class MyModel(UuidAuditedModel):
 - `AppFilterViewSet` — App-scoped resources (nested under apps)
 - Views are split into separate files under `api/views/`
 
+### Unified App Permission Entry Points
+
+- **REST / HTTP API:** use `BaseAppViewSet` for app-scoped ViewSets. Object permission and
+  cross-cutting App state checks belong in `check_object_permissions()`, reusing the App already
+  resolved by `get_app()`/`get_object()` instead of querying it again. Do not duplicate these
+  rules in individual resources or actions (for example, the archived request guard must not be
+  reimplemented per ViewSet). Evaluate existing object permissions before exposing archived
+  conflicts, preserving the usual 404 for non-members and 403 for viewers.
+- **Share App access checks through `HasAppAccess` in `api/permissions.py`.** Its
+  `has_object_permission()` owns user/workspace authorization, archived handling, and
+  `ManagerAPI.get_app_status()`. It raises `Conflict` for archived Apps and DRF
+  `PermissionDenied` for Manager denials, preserving error messages without a separate
+  AppAccessChecker or IsAppUser class. `AppPermChecker` converts those exceptions back to its
+  `(ok, message)` result for Consumers.
+- **Every App-scoped `get_object()` override must perform object permission checks.** After
+  resolving the object and before returning it, call
+  `self.check_object_permissions(self.request, obj)`. DRF's default implementation does this
+  automatically, but an override can bypass it; never return the object directly without the
+  check. `AppVolumesViewSet` and `AddonInstanceViewSet` are the reference implementations.
+- `HasAppAccess` validates object types before access checks. App/app-related objects also get
+  archived and Manager checks; Workspace/workspace-related objects (including App creation)
+  only require workspace authorization. Raise `ImproperlyConfigured` for unrelated types rather
+  than returning True. `BaseAppViewSet` delegates this validation without duplicating it.
+- **Channels / Consumers:** use `AppPermChecker.has_perm()` as the single App permission entry.
+  Resolve archived state only when an uncached App is loaded; do not add another database query
+  on permission-cache hits or duplicate archived checks in individual Consumers.
+- Hooks are Builder component calls, not external user authentication. `HasOAuthScope`
+  authenticates the component; `receive_user` plus `HasAppAccess` authorizes the represented
+  user and checks archived/Manager status in one call. Keep component authentication separate
+  from delegated-user authorization. BuildHook resolves the App from `receive_repo` rather than
+  the URL and must check it explicitly. ConfigHook is read-only despite using POST, but archived
+  Apps reject all requests, including this hook. KeyHook users follow the same path; public key
+  lookup endpoints are separate contracts.
+- When adding an app-scoped entry point, connect it to one of these two permission paths instead
+  of creating a parallel permission implementation.
+
 ### ViewSet Structure
 
 ```python
@@ -196,6 +257,8 @@ This is the established pattern — see `App.create()`, `App.delete()`, etc.
 - `DryccException("message")` — 400 status, business errors
 - `ValidationError("message")` — 400 status, validation errors
 - `AlreadyExists` — 409 status
+- `Conflict("message")` — 409 status, lifecycle or state conflicts, including requests to an
+  archived App and invalid archive/unarchive transitions
 - `PermissionDenied("message")` — 403 status
 - `get_object_or_404()` — 404 status
 
@@ -325,6 +388,17 @@ class MyResource(Resource):
         return response
 ```
 
+### Cross-Resource Orchestration
+
+- Put Drycc-specific workflows in `scheduler/drycc/`, not in `scheduler/resources/`.
+  `resources/` is reserved for native Kubernetes API resources with resource-style methods
+  (`get`, `create`, `put`, `patch`, `delete`) and is auto-registered by KubeHTTPClient.
+- `scheduler/drycc/` contains higher-level operations that coordinate multiple resources or
+  implement Drycc business semantics, such as `NamespaceArchiver.archive()/unarchive()`.
+  These classes receive a scheduler client but are not Kubernetes API resources themselves.
+- Keep `scheduler/drycc/__init__.py` minimal and use explicit imports. Do not add resource
+  auto-discovery or registration for Drycc operation modules.
+
 ### Standard Method Signatures
 
 **Namespaced resources:**
@@ -386,6 +460,18 @@ if kind is None:
 Use `kwargs.pop()` if the value should NOT be passed to K8s query_params (e.g., `kind`).
 Use `kwargs.get()` if it's fine to pass through.
 
+### Partial Merge Patches and Mock Behavior
+
+- For raw partial patches, pass `manifest` directly. `Deployment.patch(..., wait=False)` is
+  required when waiting for readiness would be meaningless, such as scaling to zero.
+  Existing full-manifest patch behavior remains the default.
+- Use `api_version='autoscaling/v2'` for HPA behavior patches; existing autoscaling/v1
+  create/update paths remain unchanged.
+- `scheduler.mock.merge_patch()` must preserve unspecified fields and remove keys whose
+  patch value is `null`, matching Kubernetes JSON Merge Patch behavior instead of replacing
+  the whole cached object or storing the key with a null value. Autoscaling v1/v2 objects share
+  a canonical cache key so v1-created HPAs are visible to v2 get/patch operations.
+
 ### Accessing Resources
 
 Resources are auto-registered and accessible via `scheduler_client.<plural_name>`:
@@ -434,6 +520,25 @@ class MyModelTest(DryccTestCase):
 ### Running Tests
 
 **Local testing:** Use the project's `.venv` at the project root.
+
+**Prefer already-running local PostgreSQL and Valkey/Redis services.** Before starting
+containerized dependencies or considering SQLite, check for local services on Unix sockets
+(`/var/run/postgresql/.s.PGSQL.5432`, `/tmp/.s.PGSQL.5432`) or `127.0.0.1:5432` /
+`127.0.0.1:6379`. Also check `podman ps` and local processes when host CLI tools are absent;
+containerized local services are still local dependencies. Set `DRYCC_DATABASE_URL` and
+`DRYCC_VALKEY_URL` to the discovered services. SQLite is only a fallback and cannot run tests
+that use PostgreSQL-specific features such as `jsonb_set`.
+
+```bash
+cd rootfs
+DRYCC_DATABASE_URL='postgres://postgres:@127.0.0.1:5432/postgres' \
+DRYCC_VALKEY_URL='redis://:@127.0.0.1:6379' \
+../.venv/bin/python manage.py test --settings=api.settings.testing --noinput \
+  api scheduler.tests --parallel=8
+```
+
+Use the actual local database name and credentials instead of copying the example blindly.
+Without environment overrides, the basic command is:
 
 ```bash
 cd rootfs
@@ -484,6 +589,37 @@ logger = logging.getLogger(__name__)
 - Default prefix: `drycc-workspace-`
 - Configurable via `WORKSPACE_NAMESPACE_PREFIX` env var
 - Use `workspace.namespace` for all K8s namespace references
+
+## App Archive
+
+- `App.archived` is the API request-guard state. `NamespaceArchiver` in
+  `scheduler/drycc/archiver.py`
+  owns Kubernetes archive/restore behavior; App lifecycle methods update the Boolean with
+  `QuerySet.update()` to avoid `App.save()` provisioning side effects.
+- Do not implement archive through `App.scale()`, because it also persists zero replicas in
+  `App.structure`. Archive actual Kubernetes workloads and use per-resource restore patches.
+  Preserve the first `drycc.cc/archive` value on repeated archive, skip unannotated resources
+  on unarchive, and raise `KubeException` for malformed restore data.
+- App lifecycle transitions are fail-closed: set `archived=True` before Kubernetes archive
+  operations and keep it set on failure. Set `archived=False` only after successful restore.
+  Do not wrap Kubernetes calls in a database transaction. Scheduler archive/unarchive operations
+  are idempotent, while invalid App lifecycle transitions return `Conflict`.
+- `drycc.cc/archive` stores a JSON Merge Patch directly (no schema version or envelope).
+  Archive HPA scale-up before scaling workloads to zero; restore workloads before restoring HPA.
+  Only set `spec.behavior.scaleUp.selectPolicy: Disabled`; do not delete or recreate HPAs and
+  do not change `minReplicas` or `maxReplicas`.
+- `state_to_k8s()` and `load_db_state_to_k8s` must skip archived Apps so reconciliation cannot
+  recreate archived workloads. Related-model filtering uses capability checks rather than
+  model-specific branches.
+- `BaseAppViewSet.check_object_permissions()` rejects every request for an archived App except
+  `unarchive`, including reads whose data may be stale. BuildHook requires its own check because
+  it resolves the App from the request body instead of the URL.
+- Do not add archive guards to Celery tasks covered by View/BuildHook producers or Admissions.
+  Admissions must keep reflecting actual K8s state, and queued pre-archive work is outside this
+  feature's scope. REST, Hooks, and Consumers share `HasAppAccess` for user authorization,
+  archived state, and ManagerAPI status. `AppPermChecker` invokes it only when resolving
+  uncached permissions, avoiding extra cache-hit queries and allowing cached permissions to
+  expire naturally.
 
 ## Dependencies
 

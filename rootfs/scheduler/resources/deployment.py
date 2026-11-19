@@ -133,7 +133,10 @@ class Deployment(Resource):
         return response
 
     def patch(self, namespace, name, **kwargs):
-        manifest = self.manifest(namespace, name, **kwargs)
+        manifest = kwargs.pop('manifest', None)
+        wait = kwargs.pop('wait', True)
+        if manifest is None:
+            manifest = self.manifest(namespace, name, **kwargs)
 
         url = self.api("/namespaces/{}/deployments/{}", namespace, name)
         response = self.http_patch(
@@ -147,7 +150,7 @@ class Deployment(Resource):
                 namespace, 'template: {}'.format(json.dumps(manifest, indent=4)), logging.DEBUG)
             if not kwargs.get('ignore_exception', False):
                 raise KubeHTTPException(response, 'patch Deployment "{}"', name)
-        else:
+        elif wait:
             self.wait_until_updated(namespace, name)
             self.wait_until_ready(namespace, name, **kwargs)
         return response

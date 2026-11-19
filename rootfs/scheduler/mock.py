@@ -18,8 +18,6 @@ from scheduler.exceptions import KubeHTTPException
 from django.conf import settings
 from django.core.cache import cache
 
-from api import utils
-
 import logging
 logger = logging.getLogger(__name__)
 
@@ -107,7 +105,7 @@ def pod_name(size=5, chars=string.ascii_lowercase + string.digits):
 def cache_key(key):
     """Unify the way keys are stored"""
     key = key.replace(settings.SCHEDULER_URL, '').replace('/', '_').replace('-', '_').strip('_')
-    return key
+    return key.replace('apis_autoscaling_v2_', 'apis_autoscaling_v1_')
 
 
 def get_type(key):
@@ -127,6 +125,7 @@ def get_type(key):
 
 def replace_api_version(old, new='api_v1'):
     return old.replace('apis_autoscaling_v1', new)\
+        .replace('apis_autoscaling_v2', new)\
         .replace('apis_apps_v1', new)\
         .replace('apis_networking.k8s.io_v1', new)\
         .replace('apis_servicecatalog.k8s.io_v1beta1', new)
@@ -202,8 +201,10 @@ def process_hpa():
 
         min_replicas = hpa['spec']['minReplicas']
         max_replicas = hpa['spec']['maxReplicas']
+        scale_up = hpa['spec'].get('behavior', {}).get('scaleUp', {})
+        scale_up_disabled = scale_up.get('selectPolicy') == 'Disabled'
 
-        if deployment['spec']['replicas'] < min_replicas:
+        if deployment['spec']['replicas'] < min_replicas and not scale_up_disabled:
             deployment['spec']['replicas'] = min_replicas
         elif deployment['spec']['replicas'] > max_replicas:
             deployment['spec']['replicas'] = max_replicas
@@ -879,6 +880,21 @@ def put(request, context):
     return request.json()
 
 
+def merge_patch(origin, patch):
+    """Apply a JSON merge patch to a cached object."""
+    if not isinstance(patch, dict):
+        return copy.deepcopy(patch)
+    result = copy.deepcopy(origin)
+    for key, value in patch.items():
+        if value is None:
+            result.pop(key, None)
+        elif isinstance(value, dict):
+            result[key] = merge_patch(result.get(key, {}), value)
+        else:
+            result[key] = copy.deepcopy(value)
+    return result
+
+
 def patch(request, context):  # noqa: C901
     """Process a PATCH request to the kubernetes API"""
     url = cache_key(request.url)
@@ -926,6 +942,8 @@ def patch(request, context):  # noqa: C901
             replicas = data['spec']['replicas']
             data = copy.deepcopy(item)  # full copy
             data['spec']['replicas'] = replicas
+        else:
+            data = merge_patch(item, data)
 
         if 'status' not in data:
             # just use what was set last time
@@ -948,9 +966,9 @@ def patch(request, context):  # noqa: C901
     elif resource_type in ['listenersets']:
         data['status'] = item.get('status', {})
         cache.set(url, data, None)
-    elif resource_type in ['daemonsets', 'statefulsets']:
+    elif resource_type in ['daemonsets', 'statefulsets', 'horizontalpodautoscalers']:
         # item data merge-patch
-        data = utils.dict_merge(item, data)
+        data = merge_patch(item, data)
         cache.set(url, data, None)
     else:
         # Update the individual resource

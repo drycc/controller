@@ -99,6 +99,22 @@ class AppViewSet(BaseAppViewSet):
                 timeout=timeout, expires=expires)
         return Response(status=status.HTTP_204_NO_CONTENT)
 
+    @action(detail=True, methods=['post'])
+    def archive(self, request, **kwargs):
+        app = self.get_object()
+        if not app.workspace.has_member(request.user, role='admin'):
+            raise PermissionDenied("you must be an admin of the current workspace")
+        app.archive()
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+    @action(detail=True, methods=['post'])
+    def unarchive(self, request, **kwargs):
+        app = self.get_object()
+        if not app.workspace.has_member(request.user, role='admin'):
+            raise PermissionDenied("you must be an admin of the current workspace")
+        app.unarchive()
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
     def perform_create(self, serializer):
         workspace = serializer.validated_data['workspace']
         self.check_object_permissions(self.request, workspace)

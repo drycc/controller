@@ -491,6 +491,15 @@ class AddonInstanceTest(DryccTransactionTestCase):
         self.assertFalse(
             AddonInstance.objects.filter(name='valkey-abc123').exists())
 
+    def test_destroy_addon_instance_archived_app(self):
+        self._upsert('valkey-abc123')
+        self.client.post('/v2/apps/{}/archive'.format(self.app_id))
+
+        response = self.client.delete('/v2/apps/{}/addons/valkey-abc123/'.format(self.app_id))
+
+        self.assertEqual(response.status_code, 409, response.data)
+        self.assertTrue(AddonInstance.objects.filter(name='valkey-abc123').exists())
+
     def test_delete_app_with_addons_blocked(self):
         # An app with addons attached must not be deletable until the
         # addons are removed first.

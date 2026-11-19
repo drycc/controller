@@ -17,9 +17,11 @@ class AppVolumesViewSet(AppFilterViewSet):
     serializer_class = serializers.VolumeSerializer
 
     def get_object(self):
-        return get_object_or_404(models.volume.Volume,
-                                 app__id=self.kwargs['id'],
-                                 name=self.kwargs['name'])
+        volume = get_object_or_404(models.volume.Volume,
+                                   app__id=self.kwargs['id'],
+                                   name=self.kwargs['name'])
+        self.check_object_permissions(self.request, volume)
+        return volume
 
     def expand(self, request, **kwargs):
         size, volume = request.data['size'], self.get_object()

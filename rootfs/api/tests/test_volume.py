@@ -103,6 +103,21 @@ class VolumeTest(DryccTransactionTestCase):
         }
         self.assertEqual(response.data, expected | response.data)
 
+    def test_volume_expand_archived_app(self, mock_requests):
+        response = self.client.post(
+            '/v2/apps/{}/volumes'.format(self.app_id),
+            data={'name': 'myvolume', 'size': '500G'},
+        )
+        self.assertEqual(response.status_code, 201, response.data)
+        self.client.post('/v2/apps/{}/archive'.format(self.app_id))
+
+        response = self.client.patch(
+            '/v2/apps/{}/volumes/myvolume/'.format(self.app_id),
+            {'size': '1024G'},
+        )
+
+        self.assertEqual(response.status_code, 409, response.data)
+
     def test_volume_list_unmount(self, mock_requests):
         """
         Test that volume is auto-created for a new app and that

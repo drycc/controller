@@ -79,6 +79,51 @@ class AppPermCheckerTest(ConsumerTestCase):
 
         asyncio.run(test_async())
 
+    def test_has_perm_with_archived_app_cached_permission(self):
+        App.objects.filter(id=self.app_id).update(archived=True)
+        cache_key = f"permission:user:{self.user.id}:app:{self.app_id}"
+        cache.set(cache_key, (True, "cached permission"))
+        checker = AppPermChecker({
+            'user': self.user,
+            'url_route': {'kwargs': {'id': self.app_id}}
+        })
+
+        async def test_async():
+            result = await checker.has_perm()
+            self.assertTrue(result[0])
+            self.assertEqual(result[1], "cached permission")
+
+        asyncio.run(test_async())
+
+    def test_has_perm_with_archived_app_without_cached_permission(self):
+        App.objects.filter(id=self.app_id).update(archived=True)
+        checker = AppPermChecker({
+            'user': self.user,
+            'url_route': {'kwargs': {'id': self.app_id}}
+        })
+
+        async def test_async():
+            result = await checker.has_perm()
+            self.assertFalse(result[0])
+            self.assertEqual(result[1], "app is archived")
+
+        asyncio.run(test_async())
+
+    def test_has_perm_with_archived_app_non_member(self):
+        App.objects.filter(id=self.app_id).update(archived=True)
+        other_user = User.objects.get(username='autotest2')
+        checker = AppPermChecker({
+            'user': other_user,
+            'url_route': {'kwargs': {'id': self.app_id}}
+        })
+
+        async def test_async():
+            result = await checker.has_perm()
+            self.assertFalse(result[0])
+            self.assertEqual(result[1], "permission denied")
+
+        asyncio.run(test_async())
+
     def test_has_perm_with_nonexistent_app(self):
         """Test permission check with non-existent app"""
         checker = AppPermChecker({

@@ -39,20 +39,20 @@ class Command(BaseCommand):
         self.save_apps()
 
         # certificates have to be attached to domains to create k8s secrets
-        for cert in Certificate.objects.all():
+        for cert in Certificate.objects.filter(app__archived=False):
             for domain in cert.domains:
                 domain = get_object_or_404(Domain, domain=domain)
                 cert.attach_in_kubernetes(domain)
 
         # deploy apps
         print("Deploying available applications.")
-        for app in App.objects.all():
+        for app in App.objects.filter(archived=False):
             self._deploy(app)
         print("Done Publishing DB state to kubernetes.")
 
     def save_apps(self):
         """Saves important Django data models to the database."""
-        for app in App.objects.all():
+        for app in App.objects.filter(archived=False):
             try:
                 app.save()
                 app.config_set.latest().save()
@@ -63,7 +63,10 @@ class Command(BaseCommand):
                 print('ERROR: Problem saving to model {} for {}'
                       'due to {}'.format(str(App.__name__), str(app), str(error)))
         for model in (Volume, Route, Gateway, Key, Domain, Certificate, Service):
-            for obj in model.objects.all():
+            queryset = model.objects.all()
+            if hasattr(model, 'app'):
+                queryset = queryset.filter(app__archived=False)
+            for obj in queryset:
                 try:
                     obj.save()
                 except DryccException as error:

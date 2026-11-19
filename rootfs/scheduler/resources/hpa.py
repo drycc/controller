@@ -14,6 +14,7 @@ class HorizontalPodAutoscaler(Resource):
         """
         Fetch a single HorizontalPodAutoscaler or a list
         """
+        api_version = kwargs.pop('api_version', self.api_version)
         url = '/namespaces/{}/horizontalpodautoscalers'
         args = [namespace]
         if name is not None:
@@ -23,7 +24,7 @@ class HorizontalPodAutoscaler(Resource):
         else:
             message = 'get HorizontalPodAutoscalers in Namespace "{}"'
 
-        url = self.api(url, *args)
+        url = f'/apis/{api_version}' + url.format(*args)
         response = self.http_get(url, params=self.query_params(**kwargs))
         if self.unhealthy(response.status_code):
             args.reverse()  # error msg is in reverse order
@@ -103,6 +104,24 @@ class HorizontalPodAutoscaler(Resource):
         if kwargs.get('wait', False):
             self.wait(namespace, name)
 
+        return response
+
+    def patch(self, namespace, name, manifest, ignore_exception=False, **kwargs):
+        api_version = kwargs.pop('api_version', self.api_version)
+        url = (
+            f'/apis/{api_version}/namespaces/{namespace}/'
+            f'horizontalpodautoscalers/{name}'
+        )
+        response = self.http_patch(
+            url,
+            json=manifest,
+            headers={'Content-Type': 'application/merge-patch+json'},
+        )
+        if self.unhealthy(response.status_code) and not ignore_exception:
+            self.log(
+                namespace, 'template used: {}'.format(
+                    json.dumps(manifest, indent=4)), logging.DEBUG)
+            raise KubeHTTPException(response, 'patch HorizontalPodAutoscaler "{}"', name)
         return response
 
     def delete(self, namespace, name, **kwargs):
