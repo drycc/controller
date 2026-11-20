@@ -318,6 +318,14 @@ if os.path.exists(DRYCC_NETWORK_POLICY_TEMPLATE_PATH):
     with open(DRYCC_NETWORK_POLICY_TEMPLATE_PATH) as fd:
         DRYCC_NETWORK_POLICY_TEMPLATE = fd.read()
 
+# drycc resource quota template
+DRYCC_RESOURCE_QUOTA_TEMPLATE = {}
+DRYCC_RESOURCE_QUOTA_TEMPLATE_PATH = os.environ.get(
+    'DRYCC_RESOURCE_QUOTA_TEMPLATE_PATH', '/etc/controller/resource-quota-template.json')
+if os.path.exists(DRYCC_RESOURCE_QUOTA_TEMPLATE_PATH):
+    with open(DRYCC_RESOURCE_QUOTA_TEMPLATE_PATH) as fd:
+        DRYCC_RESOURCE_QUOTA_TEMPLATE = fd.read()
+
 # drycc volume usage template
 DRYCC_VOLUME_USAGE_TEMPLATE = ""
 DRYCC_VOLUME_USAGE_TEMPLATE_PATH = os.environ.get(
@@ -384,6 +392,10 @@ DRYCC_APP_GATEWAY_CLASS = os.environ.get('DRYCC_APP_GATEWAY_CLASS', "")
 DRYCC_APP_STORAGE_CLASS = os.environ.get('DRYCC_APP_STORAGE_CLASS', "")
 
 DRYCC_APP_DNS_POLICY = os.environ.get('DRYCC_APP_DNS_POLICY', "")
+
+DRYCC_WORKSPACE_MAX_APPS = int(os.environ.get('DRYCC_WORKSPACE_MAX_APPS', '10'))
+if DRYCC_WORKSPACE_MAX_APPS < 0:
+    raise ValueError('DRYCC_WORKSPACE_MAX_APPS must be greater than or equal to zero')
 
 DRYCC_APP_POD_EXEC_TIMEOUT = int(os.environ.get('DRYCC_APP_POD_EXEC_TIMEOUT', "3600"))
 

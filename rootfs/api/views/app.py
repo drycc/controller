@@ -5,6 +5,7 @@ import re
 from django.conf import settings
 from django.db import transaction
 from django.db.models import Q
+from django.http import Http404
 from rest_framework import filters, status
 from rest_framework.decorators import action
 from rest_framework.exceptions import PermissionDenied, ValidationError
@@ -75,6 +76,19 @@ class AppViewSet(BaseAppViewSet):
             serializer = self.get_serializer(page, many=True)
             return self.get_paginated_response(serializer.data)
         serializer = self.get_serializer(queryset, many=True)
+        return Response(serializer.data)
+
+    @action(detail=True, methods=['get'])
+    def quota(self, request, **kwargs):
+        app = self.get_object()
+        quota = app.quota
+        if quota is None:
+            raise Http404(f'ResourceQuota {app.RESOURCE_QUOTA_NAME} does not exist')
+        serializer = serializers.AppQuotaSerializer({
+            'name': quota['metadata']['name'],
+            'hard': quota.get('spec', {}).get('hard', {}),
+            'used': quota.get('status', {}).get('used', {}),
+        })
         return Response(serializer.data)
 
     @action(detail=True, methods=['post'])

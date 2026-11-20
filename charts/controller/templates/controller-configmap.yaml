@@ -47,6 +47,12 @@ data:
     {{- else}}
     {{- .Files.Get "files/network-policy-template.json" | nindent 4 }}
     {{- end }}
+  resource-quota-template.json: |
+    {{- if .Values.config.resourceQuotaTemplate }}
+    {{- (tpl .Values.config.resourceQuotaTemplate $)  | nindent 4 }}
+    {{- else}}
+    {{- .Files.Get "files/resource-quota-template.json" | nindent 4 }}
+    {{- end }}
   volume-usage-template.promql: |
     {{- if .Values.config.volumeUsageTemplate }}
     {{- (tpl .Values.config.volumeUsageTemplate $)  | nindent 4 }}

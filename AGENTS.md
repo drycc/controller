@@ -642,3 +642,32 @@ logger = logging.getLogger(__name__)
 | `K8S_API_VERIFY_TLS` | `true` | TLS verification |
 | `APP_URL_REGEX` | `[a-z0-9-]+` | App name URL pattern |
 | `NAME_REGEX` | `[a-z0-9]+(\-[a-z0-9]+)*` | Resource name URL pattern |
+| `DRYCC_WORKSPACE_MAX_APPS` | `10` | Max Apps per Workspace; zero disables the limit |
+| `DRYCC_RESOURCE_QUOTA_TEMPLATE` | `{}` | Django template for the managed App ResourceQuota |
+| `DRYCC_RESOURCE_QUOTA_TEMPLATE_PATH` | `/etc/controller/resource-quota-template.json` | ResourceQuota template file |
+
+## App ResourceQuota
+
+- `App.create()` ensures the fixed `drycc-app` ResourceQuota after namespace creation when the
+  rendered `DRYCC_RESOURCE_QUOTA_TEMPLATE` is non-empty. Follow `_create_network_policy()`: render the
+  Django template with Workspace context and pass the resulting kwargs to the Scheduler. Existing
+  Apps are repaired lazily on later provisioning; there is no migration or bulk backfill.
+- Never patch or replace an existing ResourceQuota or default NetworkPolicy. Operator ticket
+  changes must survive later deploys. Changing either settings template only affects new or
+  missing objects; `_create_resource_quota()` and `_create_network_policy()` both return when the
+  managed object already exists and accept create-409 after re-reading it.
+- The packaged `resource-quota-template.json` enables a general-purpose default quota, including
+  Gateway and explicit Route counts. Do not quota ListenerSets generated internally by the
+  Controller. Addon CRDs can only be counted by their determined plural and group; do not invent
+  a cross-Kind wildcard or a separate Addon model quota. Set Helm `config.resourceQuotaTemplate`
+  to `{}` to render an empty object and disable automatic ResourceQuota provisioning.
+- A concurrent create returning Kubernetes 409 is successful after re-reading the existing
+  quota. Other Kubernetes failures stop provisioning with `ServiceUnavailable`.
+- `App.quota` is a read-only property returning the managed quota or `None`, following the
+  Kubernetes-backed `Gateway.addresses` property pattern. `GET /v2/apps/{id}/quota/` returns its
+  `metadata.name`, `spec.hard`, and `status.used` without transforming keys or quantities.
+  Missing quotas return 404.
+- `DRYCC_WORKSPACE_MAX_APPS` is enforced in `App.save()` only for creation and Workspace
+  transfers, using the Workspace `CacheLock` around count-check-save. Do not put this check in
+  `App.create()`, which also runs for existing App deploy and scale operations. Archived Apps
+  consume slots, and lowering the limit never deletes existing Apps.

@@ -154,6 +154,7 @@ class LifecycleMixin(AppBaseMixin):
                 self.scheduler.ns.create(namespace)
             except KubeException as e:
                 raise ServiceUnavailable("Could not create the Namespace in Kubernetes") from e
+        self._create_resource_quota()
         self._create_network_policy()
         try:
             self.appsettings_set.latest()
@@ -220,6 +221,52 @@ class LifecycleMixin(AppBaseMixin):
         finally:
             lock.release()
 
+    @property
+    def quota(self):
+        """Return the managed ResourceQuota, or None when it is absent."""
+        try:
+            response = self.scheduler.resourcequotas.get(
+                self.id, self.RESOURCE_QUOTA_NAME, ignore_exception=True)
+        except KubeException as e:
+            raise ServiceUnavailable(
+                f'Could not get ResourceQuota for App {self.id}') from e
+        if response.status_code == 404:
+            return None
+        if response.status_code != 200:
+            raise ServiceUnavailable(f'Could not get ResourceQuota for App {self.id}')
+        return response.json()
+
+    def _create_resource_quota(self):
+        """Create the default ResourceQuota without replacing an existing one."""
+        if not settings.DRYCC_RESOURCE_QUOTA_TEMPLATE:
+            return
+        name = self.RESOURCE_QUOTA_NAME
+        namespace = self.id
+        json_str = (
+            Template(settings.DRYCC_RESOURCE_QUOTA_TEMPLATE)
+            .render(Context({"workspace": str(self.workspace.id)}))
+            .strip()
+        )
+        kwargs = json.loads(json_str) if json_str else {}
+        if not kwargs:
+            return
+        try:
+            self.scheduler.resourcequotas.get(namespace, name)
+            return
+        except KubeHTTPException as e:
+            if e.response.status_code != 404:
+                raise ServiceUnavailable(f'Could not get ResourceQuota for App {self.id}') from e
+        except KubeException as e:
+            raise ServiceUnavailable(f'Could not get ResourceQuota for App {self.id}') from e
+        try:
+            self.scheduler.resourcequotas.create(namespace, name, **kwargs)
+        except KubeHTTPException as e:
+            if e.response.status_code == 409 and self.quota is not None:
+                return
+            raise ServiceUnavailable(f'Could not create ResourceQuota for App {self.id}') from e
+        except KubeException as e:
+            raise ServiceUnavailable(f'Could not create ResourceQuota for App {self.id}') from e
+
     def _create_network_policy(self):
         """Create network policy for the app namespace."""
         if not settings.DRYCC_NETWORK_POLICY_TEMPLATE:
@@ -233,17 +280,23 @@ class LifecycleMixin(AppBaseMixin):
         kwargs = json.loads(json_str) if json_str else {}
         try:
             self.scheduler.networkpolicy.get(namespace, name)
-            self.scheduler.networkpolicy.patch(namespace, name, **kwargs)
+            return
         except KubeHTTPException as e:
-            if e.response.status_code == 404:
-                try:
-                    self.scheduler.networkpolicy.create(namespace, name, **kwargs)
-                except KubeException as ex:
-                    raise ServiceUnavailable(
-                        "Could not create the NetworkPolicy in Kubernetes"
-                    ) from ex
-            else:
+            if e.response.status_code != 404:
                 raise ServiceUnavailable("Could not get the NetworkPolicy in Kubernetes") from e
+        except KubeException as e:
+            raise ServiceUnavailable("Could not get the NetworkPolicy in Kubernetes") from e
+        try:
+            self.scheduler.networkpolicy.create(namespace, name, **kwargs)
+        except KubeHTTPException as e:
+            if e.response.status_code == 409:
+                response = self.scheduler.networkpolicy.get(
+                    namespace, name, ignore_exception=True)
+                if response.status_code == 200:
+                    return
+            raise ServiceUnavailable("Could not create the NetworkPolicy in Kubernetes") from e
+        except KubeException as e:
+            raise ServiceUnavailable("Could not create the NetworkPolicy in Kubernetes") from e
 
     def _set_default_config(self):
         """Set default configuration for the app."""
@@ -1261,6 +1314,8 @@ class App(
     - StateMixin: state synchronization
     """
 
+    RESOURCE_QUOTA_NAME = 'drycc-app'
+
     id = models.SlugField(max_length=63, unique=True, null=True, validators=[validate_app_id])
     uid = models.PositiveIntegerField(unique=True, editable=False)
     archived = models.BooleanField(default=False, editable=False)
@@ -1270,6 +1325,28 @@ class App(
     class Meta:
         verbose_name = "Application"
         ordering = ["id"]
+
+    def _acquire_workspace_app_quota_lock(self):
+        max_apps = settings.DRYCC_WORKSPACE_MAX_APPS
+        if max_apps == 0:
+            return None
+        if not self._state.adding:
+            previous_workspace_id = App.objects.filter(pk=self.pk).values_list(
+                'workspace_id', flat=True).first()
+            if previous_workspace_id == self.workspace_id:
+                return None
+        lock = CacheLock(f'workspace:app-quota:{self.workspace_id}')
+        if not lock.acquire():
+            raise ServiceUnavailable(
+                f'Could not acquire App quota lock for Workspace {self.workspace_id}')
+        try:
+            if App.objects.filter(workspace_id=self.workspace_id).count() >= max_apps:
+                raise Conflict(
+                    f'Workspace {self.workspace_id} cannot contain more than {max_apps} apps')
+        except Exception:
+            lock.release()
+            raise
+        return lock
 
     def save(self, *args, **kwargs):
         if not self.id:
@@ -1290,7 +1367,12 @@ class App(
                 pass
         if not self.uid:
             self.uid = get_next_uid(App)
-        application = super().save(**kwargs)
+        quota_lock = self._acquire_workspace_app_quota_lock()
+        try:
+            application = super().save(**kwargs)
+        finally:
+            if quota_lock is not None:
+                quota_lock.release()
         self.create(*args, **kwargs)
         return application
 

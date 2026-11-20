@@ -259,6 +259,14 @@ class AppSerializer(serializers.ModelSerializer):
         read_only_fields = ['uuid', 'uid', 'archived', 'created', 'updated']
 
 
+class AppQuotaSerializer(serializers.Serializer):
+    """Serialize the managed Kubernetes ResourceQuota for an App."""
+
+    name = serializers.CharField()
+    hard = serializers.JSONField()
+    used = serializers.JSONField(default=dict)
+
+
 class BuildSerializer(serializers.ModelSerializer):
     """Serialize a :class:`~api.models.build.Build` model."""
 

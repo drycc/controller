@@ -1,0 +1,19 @@
+{
+  "spec": {
+    "hard": {
+      "pods": "20",
+      "limits.cpu": "32",
+      "limits.memory": "64Gi",
+      "count/deployments.apps": "20",
+      "count/gateways.gateway.networking.k8s.io": "10",
+      "count/httproutes.gateway.networking.k8s.io": "20",
+      "count/grpcroutes.gateway.networking.k8s.io": "20",
+      "count/tcproutes.gateway.networking.k8s.io": "20",
+      "count/tlsroutes.gateway.networking.k8s.io": "20",
+      "count/udproutes.gateway.networking.k8s.io": "20",
+      "services": "20",
+      "persistentvolumeclaims": "10",
+      "requests.storage": "1Ti"
+    }
+  }
+}

@@ -31,6 +31,14 @@ def mock_none(*args, **kwargs):
     return None
 
 
+def scheduler_response(status_code, payload=None, reason=''):
+    response = requests.Response()
+    response.status_code = status_code
+    response.reason = reason
+    response._content = json.dumps(payload or {}).encode('utf-8')
+    return response
+
+
 def _mock_run(*args, **kwargs):
     return [0, 'mock']
 
@@ -75,6 +83,39 @@ class AppTest(DryccTestCase):
                 self.assertEqual(response['metadata']['name'], app.id)
             except Exception as e:
                 self.fail(f"Network policy not created: {e}")
+
+    def test_existing_network_policy_is_not_overwritten(self, mock_requests):
+        app = App.objects.get(id=self.create_app())
+        custom_spec = {'podSelector': {'matchLabels': {'drycc.cc/custom': 'true'}}}
+        app.scheduler.networkpolicy.create(app.id, app.id, spec=custom_spec)
+        with self.settings(DRYCC_NETWORK_POLICY_TEMPLATE='{"spec": {"podSelector": {}}}'):
+            app._create_network_policy()
+        response = app.scheduler.networkpolicy.get(app.id, app.id)
+        self.assertEqual(response.json()['spec'], custom_spec)
+
+    def test_network_policy_create_conflict_is_accepted(self, mock_requests):
+        app = App.objects.get(id=self.create_app())
+        scheduler = app.scheduler
+        policy = {
+            'metadata': {'name': app.id, 'namespace': app.id},
+            'spec': {'podSelector': {}},
+        }
+        not_found = scheduler_response(404, reason='Not Found')
+        conflict = scheduler_response(409, reason='Conflict')
+        with mock.patch.object(App, 'scheduler', new_callable=mock.PropertyMock) as prop:
+            prop.return_value = scheduler
+            with mock.patch.object(scheduler.networkpolicy, 'get') as get:
+                get.side_effect = [
+                    KubeHTTPException(not_found, 'get NetworkPolicy'),
+                    scheduler_response(200, policy),
+                ]
+                with mock.patch.object(scheduler.networkpolicy, 'create') as create:
+                    create.side_effect = KubeHTTPException(conflict, 'create NetworkPolicy')
+                    with self.settings(
+                            DRYCC_NETWORK_POLICY_TEMPLATE='{"spec": {"podSelector": {}}}'):
+                        app._create_network_policy()
+        self.assertEqual(get.call_count, 2)
+        create.assert_called_once()
 
     def test_app(self, mock_requests):
         """

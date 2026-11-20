@@ -78,6 +78,8 @@ config:
   volumeUsageTemplate: ""
   networkUsageTemplate: ""
   networkPolicyTemplate: ""
+  # Set to "{}" to disable automatic ResourceQuota provisioning.
+  resourceQuotaTemplate: ""
 
 # Service
 service:
