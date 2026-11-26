@@ -115,8 +115,8 @@ class ManagerAPI(object):
             cache.set(key, status, timeout=settings.DRYCC_CACHE_USER_TIME)
         return status.get("is_active", True), status.get("message", None)
 
-    def get_app_status(self, app_id):
-        return self.get_status("app", app_id)
+    def get_workspace_status(self, workspace_id):
+        return self.get_status("workspace", workspace_id)
 
     def get_user_status(self, user_id):
         return self.get_status("user", user_id)

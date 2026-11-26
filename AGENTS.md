@@ -168,10 +168,11 @@ class MyModel(UuidAuditedModel):
   conflicts, preserving the usual 404 for non-members and 403 for viewers.
 - **Share App access checks through `HasAppAccess` in `api/permissions.py`.** Its
   `has_object_permission()` owns user/workspace authorization, archived handling, and
-  `ManagerAPI.get_app_status()`. It raises `Conflict` for archived Apps and DRF
-  `PermissionDenied` for Manager denials, preserving error messages without a separate
-  AppAccessChecker or IsAppUser class. `AppPermChecker` converts those exceptions back to its
-  `(ok, message)` result for Consumers.
+  `ManagerAPI.get_workspace_status()`. App-related checks pass `app.workspace.id`, the Workspace
+  SlugField; do not pass `app.workspace_id`, which contains the UUID primary key. It raises
+  `Conflict` for archived Apps and DRF `PermissionDenied` for Manager denials, preserving error
+  messages without a separate AppAccessChecker or IsAppUser class. `AppPermChecker` converts
+  those exceptions back to its `(ok, message)` result for Consumers.
 - **Every App-scoped `get_object()` override must perform object permission checks.** After
   resolving the object and before returning it, call
   `self.check_object_permissions(self.request, obj)`. DRF's default implementation does this

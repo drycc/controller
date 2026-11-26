@@ -4,11 +4,13 @@ from unittest import mock
 from django.core.cache import cache
 from django.core.exceptions import ImproperlyConfigured
 from django.contrib.auth import get_user_model
+from rest_framework.exceptions import PermissionDenied
 
 from api.exceptions import Conflict
 from api.management.commands.load_db_state_to_k8s import Command
 from api.models.app import App
 from api.models.workspace import WorkspaceMember
+from api.permissions import HasAppAccess
 from api.tests import adapter, DryccTestCase
 from api.views.app import AppViewSet
 from scheduler import KubeException
@@ -109,6 +111,23 @@ class AppArchiveTest(DryccTestCase):
         with self.assertRaises(Conflict):
             HasAppAccess().has_object_permission(request, viewset, app)
 
+    def test_has_app_access_checks_manager_workspace_status(self, mock_requests):
+        app_id = self.create_app(workspace=self.workspace_id)
+        app = App.objects.get(id=app_id)
+        viewset = AppViewSet()
+        viewset.action = 'retrieve'
+        request = mock.Mock(method='GET', user=self.user)
+
+        with mock.patch(
+            'api.clients.ManagerAPI.get_workspace_status',
+            return_value=(False, 'workspace inactive'),
+        ) as get_workspace_status:
+            with self.assertRaises(PermissionDenied) as error:
+                HasAppAccess().has_object_permission(request, viewset, app)
+
+        self.assertEqual(str(error.exception.detail), 'workspace inactive')
+        get_workspace_status.assert_called_once_with(self.workspace_id)
+
     def test_non_app_object_is_configuration_error(self, mock_requests):
         viewset = AppViewSet()
         viewset.action = 'retrieve'
@@ -153,14 +172,14 @@ class AppArchiveTest(DryccTestCase):
         response = self.client.post('/v2/hooks/config', data)
         self.assertEqual(response.status_code, 409, response.data)
 
-    def test_hooks_check_manager_app_status(self, mock_requests):
+    def test_hooks_check_manager_workspace_status(self, mock_requests):
         app_id = self.create_app(workspace=self.workspace_id)
         data = {'receive_repo': app_id, 'receive_user': self.user.username}
         self.client.credentials(HTTP_AUTHORIZATION='Bearer test-token')
 
         with mock.patch(
-            'api.clients.ManagerAPI.get_app_status',
-            return_value=(False, 'app inactive'),
+            'api.clients.ManagerAPI.get_workspace_status',
+            return_value=(False, 'workspace inactive'),
         ):
             response = self.client.post('/v2/hooks/build', data)
             self.assertEqual(response.status_code, 403, response.data)

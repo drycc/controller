@@ -25,7 +25,7 @@ class IsOwner(permissions.BasePermission):
 
 
 class HasAppAccess(permissions.BasePermission):
-    """Check user access, archive state, and Manager App status."""
+    """Check user access, archive state, and Manager Workspace status."""
     manager_api = clients.ManagerAPI()
 
     def has_object_permission(self, request, view, obj):
@@ -42,7 +42,7 @@ class HasAppAccess(permissions.BasePermission):
     def _has_app_access(self, app, action):
         if action != 'unarchive' and app.archived:
             raise Conflict('app is archived')
-        ok, message = self.manager_api.get_app_status(app.id)
+        ok, message = self.manager_api.get_workspace_status(app.workspace.id)
         if not ok:
             raise PermissionDenied(message)
         return True
